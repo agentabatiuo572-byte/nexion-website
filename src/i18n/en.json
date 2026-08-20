@@ -157,6 +157,24 @@
     "getApp": "Get the app",
     "whitepaper": "Read the whitepaper"
   },
+  "faq": {
+    "title": "Frequently asked questions",
+    "q1": "What is NexGrid?",
+    "a1": "A distributed AI compute network. Idle phones and dedicated devices run AI inference tasks, and their owners get paid for the work completed.",
+    "q2": "How do I earn?",
+    "a2": "Install the app, connect your phone's idle compute, and tasks run automatically. You can scale up later with dedicated devices. Real-time earnings show inside the app.",
+    "q3": "Do I have to spend money to start?",
+    "a3": "No. The phone tier is free — no hardware, no deposit. Paid devices are optional and add compute capacity.",
+    "q4": "How do I know the earnings are real?",
+    "a4": "Every completed task generates a Proof-of-Compute receipt recorded on the platform ledger with on-chain attestation. Your app shows the full receipt trail for every payout.",
+    "q5": "What does datacenter hosting mean?",
+    "a5": "Dedicated devices run in professional datacenters — no shipping, no home setup. Your device activates shortly after purchase and appears in your app.",
+    "q6": "How do withdrawals work?",
+    "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step."
+  },
+  "final": {
+    "title": "Put your idle compute to work."
+  },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",

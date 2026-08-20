@@ -157,6 +157,24 @@
     "getApp": "Tải ứng dụng",
     "whitepaper": "Đọc whitepaper"
   },
+  "faq": {
+    "title": "Câu hỏi thường gặp",
+    "q1": "NexGrid là gì?",
+    "a1": "Một mạng lưới tính toán AI phân tán. Điện thoại nhàn rỗi và thiết bị chuyên dụng chạy tác vụ suy luận AI, và chủ sở hữu được trả cho công việc hoàn thành.",
+    "q2": "Tôi kiếm thu nhập thế nào?",
+    "a2": "Cài ứng dụng, kết nối năng lực nhàn rỗi của điện thoại, tác vụ chạy tự động. Sau này có thể mở rộng với thiết bị chuyên dụng. Thu nhập theo thời gian thực hiển thị trong ứng dụng.",
+    "q3": "Có phải bỏ tiền để bắt đầu không?",
+    "a3": "Không. Bậc điện thoại miễn phí — không phần cứng, không đặt cọc. Thiết bị trả phí là tùy chọn để tăng năng lực.",
+    "q4": "Làm sao biết thu nhập là thật?",
+    "a4": "Mỗi tác vụ hoàn thành tạo biên nhận Proof-of-Compute ghi vào sổ cái nền tảng kèm chứng thực on-chain. Ứng dụng hiển thị toàn bộ chuỗi biên nhận cho từng lần chi trả.",
+    "q5": "Đặt tại trung tâm dữ liệu nghĩa là gì?",
+    "a5": "Thiết bị chuyên dụng chạy trong trung tâm dữ liệu chuyên nghiệp — không vận chuyển, không lắp đặt tại nhà. Thiết bị kích hoạt ngay sau khi mua và xuất hiện trong ứng dụng.",
+    "q6": "Rút tiền thế nào?",
+    "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước."
+  },
+  "final": {
+    "title": "Để năng lực nhàn rỗi của bạn làm việc."
+  },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",

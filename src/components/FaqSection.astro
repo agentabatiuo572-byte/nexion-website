@@ -1,0 +1,85 @@
+---
+/* [FEAT-WEB12] Home FAQ — 6 问手风琴(原生 details)+ FAQPage JSON-LD。
+   涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。 */
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const qs = [1, 2, 3, 4, 5, 6] as const;
+const ld = {
+  '@context': 'https://schema.org',
+  '@type': 'FAQPage',
+  mainEntity: qs.map((n) => ({
+    '@type': 'Question',
+    name: t(`faq.q${n}`),
+    acceptedAnswer: { '@type': 'Answer', text: t(`faq.a${n}`) },
+  })),
+};
+---
+
+<section class="faq-sec" id="faq">
+  <h2 class="title">{t('faq.title')}</h2>
+  {
+    qs.map((n) => (
+      <details class="item">
+        <summary>{t(`faq.q${n}`)}</summary>
+        <p>{t(`faq.a${n}`)}</p>
+      </details>
+    ))
+  }
+  <script type="application/ld+json" set:html={JSON.stringify(ld)} />
+</section>
+
+<style>
+  .faq-sec {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+  }
+  .title {
+    font-size: clamp(24px, 3vw, 30px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 22px;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .item {
+    background: var(--v5-surface);
+    border-radius: 16px;
+    padding: 2px 18px;
+    margin-bottom: 10px;
+  }
+  .item summary {
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 14.5px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    list-style: none;
+  }
+  .item summary::before {
+    content: '+';
+    color: var(--v5-brand);
+    margin-right: 10px;
+    font-weight: 600;
+  }
+  .item[open] summary::before {
+    content: '−';
+  }
+  .item summary:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .item p {
+    color: var(--v5-ink-2);
+    font-size: 13.5px;
+    margin: 0 0 14px;
+    text-wrap: pretty;
+  }
+</style>

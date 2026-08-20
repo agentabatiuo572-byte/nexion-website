@@ -1,0 +1,39 @@
+---
+/* [FEAT-WEB12] 收尾 CTA — 收束宣言 + 下载键(与 hero 同组件同配置,PRD ⑦ 单源) */
+import DownloadButtons from './hero/DownloadButtons.astro';
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<section class="final" id="final-cta">
+  <h2>{t('final.title')}</h2>
+  <div class="btns">
+    <DownloadButtons locale={locale} />
+  </div>
+</section>
+
+<style>
+  .final {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+    text-align: center;
+    background-image: var(--v5-ambient-glow);
+  }
+  h2 {
+    font-size: clamp(26px, 3.6vw, 36px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 26px;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .btns :global(.dl) {
+    justify-content: center;
+  }
+</style>
