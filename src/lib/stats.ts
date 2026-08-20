@@ -13,7 +13,7 @@ export interface PlatformStats {
   activeJobs: number;
   nodes: number;
   countries: number;
-  uptimePct: number;
+  uptime: number;
 }
 
 export const STATS_SNAPSHOT: PlatformStats = {
@@ -21,7 +21,7 @@ export const STATS_SNAPSHOT: PlatformStats = {
   activeJobs: 4_812,
   nodes: 156,
   countries: 47,
-  uptimePct: 99.7,
+  uptime: 99.7,
 };
 
 /** 快照口径日(展示 "Data as of" 小字;更新快照时同步) */

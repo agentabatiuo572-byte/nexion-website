@@ -89,5 +89,8 @@ html {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    /* 滚动驱动动画(animation-timeline: view()/scroll())忽略 duration 压制,
+       必须归位 auto 才真取消 —— t456 D1 实锤,族修全站同类 */
+    animation-timeline: auto !important;
   }
 }
