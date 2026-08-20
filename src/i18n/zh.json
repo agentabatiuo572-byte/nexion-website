@@ -203,5 +203,8 @@
   },
   "scaffold": {
     "placeholder": "站点建设中 — T2+ 板块按官网 PRD 陆续落地。"
+  },
+  "legal": {
+    "enPrevails": "本文件以英文版为准，译文仅供参考。"
   }
 }

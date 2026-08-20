@@ -1,0 +1,100 @@
+---
+/* [FEAT-WEB12] Terms of Service — en 权威文本(初稿供主人审;上线前建议法务过目)。
+   管辖条款位随 O2 资料填充(PENDING-TRUST-ASSETS)。 */
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<main class="legal">
+  {locale !== 'en' && <p class="prevails">{t('legal.enPrevails')}</p>}
+  <h1>Terms of Service</h1>
+  <p class="updated">Last updated: 2026-08-20</p>
+
+  <h2>1. What this Site is</h2>
+  <p>
+    The NexGrid marketing website (the "Site") provides information about the NexGrid platform and links to download
+    the NexGrid application (the "App"). Use of the App is governed by the terms presented inside the App.
+  </p>
+
+  <h2>2. Informational content only</h2>
+  <p>
+    Content on the Site describes how the platform works. It is not financial, investment, tax, or legal advice, and it
+    is not an offer or solicitation of any kind. Earnings on the platform vary with network demand, device performance,
+    and uptime, and are not guaranteed. Figures shown on the Site (such as network statistics) are informational
+    snapshots or live values as labeled.
+  </p>
+
+  <h2>3. Digital assets</h2>
+  <p>
+    References to USDT and NEX describe platform mechanics. Digital asset values can go down as well as up. Nothing on
+    the Site should be read as a prediction of value.
+  </p>
+
+  <h2>4. Intellectual property</h2>
+  <p>
+    The Site's content, branding, and design are the property of the operator. You may not copy or reuse them for
+    commercial purposes without permission.
+  </p>
+
+  <h2>5. Acceptable use</h2>
+  <p>You may not attempt to disrupt the Site, scrape it at abusive volume, or misrepresent its content.</p>
+
+  <h2>6. No warranty; limitation of liability</h2>
+  <p>
+    The Site is provided "as is" without warranties of any kind. To the maximum extent permitted by law, the operator is
+    not liable for damages arising from use of the Site or reliance on its content.
+  </p>
+
+  <h2>7. Changes</h2>
+  <p>We may update these terms; the "Last updated" date reflects the current version.</p>
+
+  <h2>8. Governing law</h2>
+  <!-- PENDING-TRUST-ASSETS: 管辖法域随 O2 注册实体资料确认后填充 -->
+  <p>The governing jurisdiction will be published together with the company verification records on this Site.</p>
+</main>
+
+<style>
+  .legal {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 0;
+  }
+  .prevails {
+    background: var(--v5-surface-2);
+    color: var(--v5-ink-3);
+    font-size: 12.5px;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(26px, 3.6vw, 34px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .updated {
+    color: var(--v5-ink-4);
+    font-size: 12.5px;
+    margin: 0 0 28px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 26px 0 8px;
+  }
+  p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    line-height: 1.75;
+    margin: 0 0 12px;
+    text-wrap: pretty;
+  }
+</style>

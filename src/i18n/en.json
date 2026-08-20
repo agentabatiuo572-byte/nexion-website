@@ -203,5 +203,8 @@
   },
   "scaffold": {
     "placeholder": "Site under construction — T2+ sections land here per website PRD."
+  },
+  "legal": {
+    "enPrevails": "The English version of this document prevails. Translations are provided for convenience only."
   }
 }

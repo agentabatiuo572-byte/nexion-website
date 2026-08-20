@@ -1,0 +1,97 @@
+---
+/* [FEAT-WEB12] Privacy Policy — en 权威文本(主人 2026-08-20 批准起草,初稿供审;
+   上线前建议法务过目)。实体名/联系方式位随 O2 资料填充(PENDING-TRUST-ASSETS)。
+   vi/zh 页由壳挂「以英文版为准」说明后渲染本组件。 */
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<main class="legal">
+  {locale !== 'en' && <p class="prevails">{t('legal.enPrevails')}</p>}
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: 2026-08-20</p>
+
+  <h2>1. Scope</h2>
+  <p>
+    This policy covers the NexGrid marketing website (the "Site"). The NexGrid application (the "App") has its own
+    privacy policy, shown in the App — data practices inside the App are governed by that document, not this one.
+  </p>
+
+  <h2>2. What this Site collects</h2>
+  <p>
+    The Site is a static informational website. It has no user accounts, no forms, and does not collect, store, or
+    process personal data. We do not use advertising trackers or third-party analytics scripts on the Site.
+  </p>
+
+  <h2>3. Cookies</h2>
+  <p>
+    The Site does not set cookies. Your language choice is reflected in the URL (for example /vi/ or /zh/) rather than
+    stored on your device.
+  </p>
+
+  <h2>4. Server logs</h2>
+  <p>
+    Our hosting infrastructure may record standard technical logs (such as IP address, user agent, and requested URL)
+    for security and operational purposes. These logs are retained only as long as operationally necessary and are not
+    used to identify individuals.
+  </p>
+
+  <h2>5. External links</h2>
+  <p>
+    The Site links to app stores and to the NexGrid App. Once you leave the Site, the destination's own privacy terms
+    apply.
+  </p>
+
+  <h2>6. Changes</h2>
+  <p>We may update this policy from time to time. The "Last updated" date above reflects the current version.</p>
+
+  <h2>7. Contact</h2>
+  <!-- PENDING-TRUST-ASSETS: 实体名/注册地/联系邮箱随 O2 注册实体资料填充 -->
+  <p>Operator contact details will be published together with the company verification records on this Site.</p>
+</main>
+
+<style>
+  .legal {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 48px 20px 0;
+  }
+  .prevails {
+    background: var(--v5-surface-2);
+    color: var(--v5-ink-3);
+    font-size: 12.5px;
+    border-radius: 12px;
+    padding: 10px 16px;
+    margin: 0 0 20px;
+  }
+  h1 {
+    font-size: clamp(26px, 3.6vw, 34px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .updated {
+    color: var(--v5-ink-4);
+    font-size: 12.5px;
+    margin: 0 0 28px;
+  }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 26px 0 8px;
+  }
+  p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    line-height: 1.75;
+    margin: 0 0 12px;
+    text-wrap: pretty;
+  }
+</style>

@@ -203,5 +203,8 @@
   },
   "scaffold": {
     "placeholder": "Trang đang xây dựng — các phần T2+ sẽ xuất hiện tại đây theo PRD."
+  },
+  "legal": {
+    "enPrevails": "Bản tiếng Anh của tài liệu này có giá trị pháp lý. Bản dịch chỉ mang tính tham khảo."
   }
 }
