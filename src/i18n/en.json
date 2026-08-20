@@ -27,6 +27,14 @@
     "comingSoonIos": "Coming soon to App Store",
     "comingSoonAndroid": "Coming soon to Google Play"
   },
+  "stats": {
+    "activeDevices": "Active devices",
+    "activeJobs": "AI jobs running",
+    "nodes": "Network nodes",
+    "countries": "Countries",
+    "uptime": "Uptime",
+    "asOf": "Data as of"
+  },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",

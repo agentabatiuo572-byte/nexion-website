@@ -2,6 +2,7 @@
 /* Home(zh)— hero 已落地(T3);其余板块 HomeSkeleton 占位,T4-T12 逐板块替换 */
 import Base from '../../layouts/Base.astro';
 import HeroSection from '../../components/hero/HeroSection.astro';
+import StatsBar from '../../components/StatsBar.astro';
 import HomeSkeleton from '../../components/HomeSkeleton.astro';
 import { useT } from '../../i18n';
 const t = useT('zh');
@@ -10,6 +11,7 @@ const t = useT('zh');
 <Base locale="zh" title={`${t('site.name')} — ${t('site.tagline')}`} description={t('site.description')} path="/">
   <main>
     <HeroSection locale="zh" />
+    <StatsBar locale="zh" />
     <HomeSkeleton locale="zh" />
   </main>
 </Base>

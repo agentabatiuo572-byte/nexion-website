@@ -1,0 +1,145 @@
+---
+/* [FEAT-WEB03] 实时平台数字条 — 五数字进视口 count-up;snapshot/sse 双模(lib/stats.ts 契约)。
+   纯展示无可点元素(PRD ⑥ N/A);tabular-nums 防滚动抖动;reduced-motion 直出终值。 */
+import { useT, type Locale } from '../i18n';
+import { STATS_SNAPSHOT, STATS_SNAPSHOT_AT, statsMode, fmtStat } from '../lib/stats';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const mode = statsMode();
+const items = [
+  { key: 'activeDevices', label: t('stats.activeDevices'), value: STATS_SNAPSHOT.activeDevices, decimals: 0 },
+  { key: 'activeJobs', label: t('stats.activeJobs'), value: STATS_SNAPSHOT.activeJobs, decimals: 0 },
+  { key: 'nodes', label: t('stats.nodes'), value: STATS_SNAPSHOT.nodes, decimals: 0 },
+  { key: 'countries', label: t('stats.countries'), value: STATS_SNAPSHOT.countries, decimals: 0 },
+  { key: 'uptimePct', label: t('stats.uptime'), value: STATS_SNAPSHOT.uptimePct, decimals: 1, suffix: '%' },
+];
+---
+
+<section class="stats" id="stats" data-mode={mode} data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}>
+  <div class="grid">
+    {
+      items.map((it) => (
+        <div class="cell">
+          <span class="num" data-key={it.key} data-target={it.value} data-decimals={it.decimals} data-suffix={it.suffix ?? ''}>
+            {fmtStat(it.value, it.decimals)}{it.suffix ?? ''}
+          </span>
+          <span class="label">{it.label}</span>
+        </div>
+      ))
+    }
+  </div>
+  {mode === 'snapshot' && <p class="asof">{t('stats.asOf')} {STATS_SNAPSHOT_AT}</p>}
+</section>
+
+<style>
+  .stats {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: 40px 20px 48px;
+    border-top: 1px solid var(--v5-border);
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 16px;
+  }
+  .cell {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+    text-align: center;
+  }
+  .num {
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 600;
+    color: var(--v5-brand);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .label {
+    color: var(--v5-ink-3);
+    font-size: 12.5px;
+    text-wrap: pretty;
+  }
+  .asof {
+    text-align: center;
+    color: var(--v5-ink-4);
+    font-size: 11.5px;
+    margin: 18px 0 0;
+  }
+  @media (max-width: 720px) {
+    .grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      row-gap: 24px;
+    }
+    .grid .cell:last-child {
+      grid-column: 1 / -1;
+    }
+  }
+</style>
+
+<script>
+  // count-up(进视口一次)+ SSE 热更新(mode=sse 时)。数值格式与服务端 fmtStat 同语义。
+  const root = document.getElementById('stats');
+  const nums = [...(root?.querySelectorAll<HTMLElement>('.num') ?? [])];
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const fmt = (n: number, d: number) =>
+    n >= 999_500
+      ? `${(n / 1_000_000).toFixed(2)}M`
+      : n >= 99_950
+        ? `${(n / 1_000).toFixed(1)}K`
+        : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+
+  const render = (el: HTMLElement, v: number) => {
+    el.textContent = fmt(v, Number(el.dataset.decimals || 0)) + (el.dataset.suffix || '');
+  };
+
+  if (!reduced && nums.length) {
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        const t0 = performance.now();
+        const DUR = 1200;
+        const tick = (now: number) => {
+          const p = Math.min(1, (now - t0) / DUR);
+          const ease = 1 - Math.pow(1 - p, 3);
+          for (const el of nums) render(el, Number(el.dataset.target) * ease);
+          if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+      },
+      { threshold: 0.4 },
+    );
+    io.observe(root!);
+  }
+
+  // SSE 热更新:断连静默重试交给 EventSource 自身;数据坏(非有限数)忽略该字段(宁旧勿假)
+  if (root?.dataset.mode === 'sse' && root.dataset.sseUrl) {
+    try {
+      const es = new EventSource(root.dataset.sseUrl);
+      es.onmessage = (ev) => {
+        try {
+          const data: unknown = JSON.parse(ev.data);
+          if (typeof data !== 'object' || data === null) return;
+          for (const el of nums) {
+            const v = (data as Record<string, unknown>)[el.dataset.key || ''];
+            if (typeof v === 'number' && Number.isFinite(v)) {
+              el.dataset.target = String(v);
+              render(el, v);
+            }
+          }
+        } catch {
+          /* 坏帧忽略,保留旧值 */
+        }
+      };
+    } catch {
+      /* EventSource 不可用 → 保持快照 */
+    }
+  }
+</script>

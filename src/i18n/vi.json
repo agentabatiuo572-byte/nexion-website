@@ -27,6 +27,14 @@
     "comingSoonIos": "Sắp có trên App Store",
     "comingSoonAndroid": "Sắp có trên Google Play"
   },
+  "stats": {
+    "activeDevices": "Thiết bị hoạt động",
+    "activeJobs": "Tác vụ AI đang chạy",
+    "nodes": "Nút mạng",
+    "countries": "Quốc gia",
+    "uptime": "Thời gian hoạt động",
+    "asOf": "Dữ liệu tính đến"
+  },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",
