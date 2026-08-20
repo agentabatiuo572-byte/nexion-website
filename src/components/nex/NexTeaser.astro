@@ -1,0 +1,97 @@
+---
+/* [FEAT-WEB10] Home NEX 锚点板块 — 三卡速览 + Learn more → /nex */
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const prefix = locale === 'en' ? '' : `/${locale}`;
+const cards = ['what', 'earn', 'use'] as const;
+---
+
+<section class="nex-teaser" id="nex">
+  <h2 class="title">{t('nex.teaserTitle')}</h2>
+  <div class="cards">
+    {
+      cards.map((c) => (
+        <article class="card">
+          <h3>{t(`nex.teaser.${c}Title`)}</h3>
+          <p>{t(`nex.teaser.${c}Desc`)}</p>
+        </article>
+      ))
+    }
+  </div>
+  <div class="more">
+    <a class="pill" href={`${prefix}/nex`}>{t('nex.teaserCta')} →</a>
+  </div>
+</section>
+
+<style>
+  .nex-teaser {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+  }
+  .title {
+    font-size: clamp(24px, 3vw, 30px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 26px;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 26px 24px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+  .card h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--v5-nex);
+    margin: 0;
+  }
+  .card p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .more {
+    text-align: center;
+    margin-top: 24px;
+  }
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 22px;
+    border-radius: var(--w-radius-pill);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--v5-ink-2);
+    border: 1px solid var(--v5-border-strong);
+    transition:
+      transform 0.15s,
+      opacity 0.15s;
+  }
+  .pill:active {
+    transform: scale(0.98);
+    opacity: 0.85;
+  }
+  .pill:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+</style>

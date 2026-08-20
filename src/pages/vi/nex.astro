@@ -1,0 +1,10 @@
+---
+import Base from '../../layouts/Base.astro';
+import NexContent from '../../components/nex/NexContent.astro';
+import { useT } from '../../i18n';
+const t = useT('vi');
+---
+
+<Base locale="vi" title={`${t('nex.pageTitle')}`} description={t('nex.pageLead')} path="/nex">
+  <NexContent locale="vi" />
+</Base>
