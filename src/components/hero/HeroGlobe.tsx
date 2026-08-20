@@ -38,22 +38,18 @@ export default function HeroGlobe() {
 
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let phi = 0;
-    let visible = true;
     let width = 0;
 
     const onResize = () => {
       width = canvas.offsetWidth;
+      // reduced(无 rAF)时静态帧也要跟上新尺寸
+      if (reduced) globe?.update({ width: width * 2, height: width * 2 });
     };
-    onResize();
     addEventListener('resize', onResize);
-
-    // 离屏停帧(PRD §3 性能:切走/滚出即停渲染)
-    const io = new IntersectionObserver(([e]) => {
-      visible = e.isIntersecting;
-    });
-    io.observe(canvas);
+    width = canvas.offsetWidth;
 
     let globe: ReturnType<typeof createGlobe> | undefined;
+    let raf = 0;
     try {
       globe = createGlobe(canvas, {
         devicePixelRatio: Math.min(devicePixelRatio, 1.5),
@@ -69,22 +65,28 @@ export default function HeroGlobe() {
         markerColor: BRAND_RGB,
         glowColor: [0.28, 0.38, 0.08],
         markers: REGION_MARKERS,
-        onRender: (state) => {
-          if (!visible) return; // 离屏停更新(cobe 仍调用,但零计算量转动)
-          if (!reduced) phi += 0.0035;
-          state.phi = phi;
-          state.width = width * 2;
-          state.height = width * 2;
-        },
       });
     } catch {
       // WebGL 不可用 → 保持透明,父级 poster 可见(异常2 静默回退)
       return;
     }
+    // v2 姿势:自持 rAF 循环驱动 update;离屏 = 真停帧(cancelAnimationFrame)
+    const tick = () => {
+      phi += 0.0035;
+      globe?.update({ phi, width: width * 2, height: width * 2 });
+      raf = requestAnimationFrame(tick);
+    };
+    const io = new IntersectionObserver(([e]) => {
+      cancelAnimationFrame(raf);
+      if (e.isIntersecting && !reduced) raf = requestAnimationFrame(tick);
+    });
+    io.observe(canvas);
+    if (!reduced) raf = requestAnimationFrame(tick);
     // 挂载后淡入,替换 poster
     canvas.style.opacity = '1';
 
     return () => {
+      cancelAnimationFrame(raf);
       globe?.destroy();
       io.disconnect();
       removeEventListener('resize', onResize);
