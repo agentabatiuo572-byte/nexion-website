@@ -1,0 +1,51 @@
+---
+import '../styles/tokens.css';
+import { locales, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  title: string;
+  description: string;
+  /** path without locale prefix, e.g. "/" or "/learn" — for hreflang alternates */
+  path?: string;
+}
+const { locale, title, description, path = '/' } = Astro.props;
+const site = Astro.site ?? new URL('https://nexgrid.ai');
+const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).href;
+---
+
+<!doctype html>
+<html lang={locale} data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={urlFor(locale)} />
+    {locales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
+    <link rel="alternate" hreflang="x-default" href={urlFor('en')} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={urlFor(locale)} />
+    <!-- og:image: T11 web-asset-generator 产出后挂 -->
+  </head>
+  <body>
+    <slot />
+  </body>
+</html>
+
+<style is:global>
+  body {
+    margin: 0;
+    font-family:
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      Roboto,
+      sans-serif;
+    background: var(--v5-bg);
+    color: var(--v5-ink);
+    line-height: 1.6;
+  }
+</style>

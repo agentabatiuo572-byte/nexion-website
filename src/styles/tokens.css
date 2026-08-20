@@ -1,0 +1,88 @@
+/* NexGrid website design tokens — dark single-theme marketing site.
+   Ported SUBSET of Nexion-uniapp/src/styles/tokens.css html[data-theme=dark]
+   (token SoT; 值逐字节同源,新增仅 website 专用注明). 视觉方向 = 主人 2026-08-20
+   批复:纯黑底 + 柠檬绿荧光体系. 颜色一律用 token,禁硬编码 hex(verify 哨兵). */
+
+*,
+::before,
+::after {
+  box-sizing: border-box;
+}
+
+:root {
+  /* Surface ladder — neutral obsidian, no hue tint (源: dark L286-292) */
+  --v5-bg: #000000;
+  --v5-surface: #141414;
+  --v5-surface-2: #1f1f1f;
+  --v5-surface-3: #2a2a2a;
+  --v5-border: rgba(255, 255, 255, 0.06);
+  --v5-border-strong: rgba(255, 255, 255, 0.12);
+
+  /* Ink (源: dark L296-299) */
+  --v5-ink: #f5f7fa;
+  --v5-ink-2: #d1d5db;
+  --v5-ink-3: #9ba3b5;
+  --v5-ink-4: #6b7385; /* disabled/最弱元信息专用,禁承载需阅读正文(源注 L59-63) */
+
+  /* Brand — lemon green signature (源: dark L304-310) */
+  --v5-brand: #9edc1d;
+  --v5-brand-deep: #84b82a;
+  --v5-brand-soft: rgba(158, 220, 29, 0.2);
+  --v5-brand-border: rgba(158, 220, 29, 0.45);
+  --v5-on-brand: #0a0a0a;
+  --v5-on-brand-soft: rgba(10, 10, 10, 0.74);
+  --v5-on-brand-mute: rgba(10, 10, 10, 0.18);
+
+  /* Brand-2 — warm orange (源: dark L314-317) */
+  --v5-brand-2: #ff7a3d;
+  --v5-brand-2-soft: rgba(255, 122, 61, 0.2);
+  --v5-brand-2-border: rgba(255, 122, 61, 0.45);
+  --v5-on-brand-2: #0a0a0a;
+
+  /* Semantic (源: dark L320-325) */
+  --v5-success: #9edc1d;
+  --v5-success-soft: rgba(158, 220, 29, 0.2);
+  --v5-warning: #ffcb4d;
+  --v5-warning-soft: rgba(255, 203, 77, 0.2);
+  --v5-danger: #ff5c5c;
+  --v5-danger-soft: rgba(255, 92, 92, 0.18);
+
+  /* Tech / NEX accents (源: dark L328-335) */
+  --v5-tech-cyan: #8e72ff;
+  --v5-tech-cyan-soft: rgba(142, 114, 255, 0.2);
+  --v5-tech-cyan-border: rgba(142, 114, 255, 0.45);
+  --v5-nex: #b47fff;
+  --v5-nex-soft: rgba(180, 127, 255, 0.2);
+  --v5-nex-border: rgba(180, 127, 255, 0.45);
+
+  /* Glow / lift (源: dark L344-358; 官网约束同源注 L337-343:只给转化触点 glow) */
+  --v5-ambient-glow: radial-gradient(70% 50% at 80% 0%, rgba(158, 220, 29, 0.1) 0%, transparent 65%);
+  --v5-spotlight-brand: 0 0 32px rgba(158, 220, 29, 0.3), 0 0 12px rgba(158, 220, 29, 0.18);
+  --v5-spotlight-brand-strong: 0 0 40px rgba(158, 220, 29, 0.45), 0 0 16px rgba(158, 220, 29, 0.28);
+  --v5-card-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.55);
+
+  /* Website-only structural tokens(官网新增,非 App 源;按 UI/规范 8pt grid + pill 999) */
+  --w-radius-card: 24px;
+  --w-radius-pill: 999px;
+  --w-space-section: clamp(72px, 10vw, 128px); /* marketing 板块纵距,App 无此场景 */
+  --w-content-max: 1120px;
+}
+
+html {
+  background: var(--v5-bg);
+  color: var(--v5-ink);
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

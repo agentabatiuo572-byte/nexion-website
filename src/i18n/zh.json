@@ -1,0 +1,19 @@
+{
+  "site": {
+    "name": "NexGrid",
+    "tagline": "分布式 AI 算力,让闲置设备产生收益。",
+    "description": "NexGrid 把闲置手机与专用算力设备变成 AI 推理能力。下载 App 即可开始。"
+  },
+  "nav": {
+    "how": "工作原理",
+    "devices": "设备",
+    "trust": "信任",
+    "learn": "学习中心",
+    "nex": "NEX",
+    "launchH5": "打开网页版",
+    "download": "下载"
+  },
+  "scaffold": {
+    "placeholder": "站点建设中 — T2+ 板块按官网 PRD 陆续落地。"
+  }
+}

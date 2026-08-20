@@ -1,0 +1,19 @@
+{
+  "site": {
+    "name": "NexGrid",
+    "tagline": "Distributed AI compute. Earn from your idle devices.",
+    "description": "NexGrid turns idle phones and dedicated compute devices into AI inference capacity. Download the app to start."
+  },
+  "nav": {
+    "how": "How it works",
+    "devices": "Devices",
+    "trust": "Trust",
+    "learn": "Learn",
+    "nex": "NEX",
+    "launchH5": "Launch Web App",
+    "download": "Download"
+  },
+  "scaffold": {
+    "placeholder": "Site under construction — T2+ sections land here per website PRD."
+  }
+}

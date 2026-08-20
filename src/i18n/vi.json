@@ -1,0 +1,19 @@
+{
+  "site": {
+    "name": "NexGrid",
+    "tagline": "Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
+    "description": "NexGrid biến điện thoại nhàn rỗi và thiết bị chuyên dụng thành năng lực suy luận AI. Tải ứng dụng để bắt đầu."
+  },
+  "nav": {
+    "how": "Cách hoạt động",
+    "devices": "Thiết bị",
+    "trust": "Tin cậy",
+    "learn": "Học",
+    "nex": "NEX",
+    "launchH5": "Mở bản Web",
+    "download": "Tải xuống"
+  },
+  "scaffold": {
+    "placeholder": "Trang đang xây dựng — các phần T2+ sẽ xuất hiện tại đây theo PRD."
+  }
+}
