@@ -342,28 +342,46 @@ function initLenis() {
   return lenis;
 }
 
-/* ---------- ③ 设备横排轨道:整排随滚动左移,多卡同屏(主人 R4 依图 2) ---------- */
-function initRail() {
+/* ---------- ③ 设备「滑入收叠」编舞(2026-08-20 对参考站卡板块逐滚动位实测解码):
+   进场=首卡已在锚位、次卡候于右侧 +1.23 卡宽(并排态);钉屏后每 STEP 一拍:
+   新卡自右缓动滑到锚位,**同拍前一张卡绕中心原地缩小到 0.85 收进叠**(实测卡心不动);
+   末拍无来卡,末卡自缩;全叠随页面滚走。移动/reduced 原生横滑降级。 ---------- */
+function initPile() {
   const sec = document.querySelector<HTMLElement>('[data-deck]');
-  const track = sec?.querySelector<HTMLElement>('[data-deck-track]');
-  if (!sec || !track) return;
-  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return; // 原生横滑降级
+  const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
+  if (!sec || !cards.length) return;
+  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return;
   sec.classList.add('decked');
 
-  let T = 0;
+  const STEP_VH = 0.8; // 每拍滚动跑道(实测 ~750px/900vh)
+  const PARK = 0.85; // 收叠缩放(实测)
+  let STEP = 0,
+    ENTER = 0;
   const measure = () => {
-    T = Math.max(0, track.scrollWidth - Math.round(innerWidth * 0.72));
-    sec.style.height = `${innerHeight + T + Math.round(innerHeight * 0.2)}px`;
+    STEP = Math.round(innerHeight * STEP_VH);
+    ENTER = Math.round(cards[0].offsetWidth * 1.23); // 候位偏移 = 1.23 卡宽(实测 710/578)
+    sec.style.height = `${innerHeight + cards.length * STEP + Math.round(innerHeight * 0.25)}px`;
   };
   measure();
   addEventListener('resize', measure);
 
+  const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2); // easeInOutCubic
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
   let raf = 0;
   const apply = () => {
     raf = 0;
-    const total = sec.offsetHeight - innerHeight;
-    const p = total > 0 ? Math.min(1, Math.max(0, -sec.getBoundingClientRect().top / total)) : 0;
-    track.style.transform = `translate3d(${(-p * T).toFixed(1)}px,0,0)`;
+    const y = -sec.getBoundingClientRect().top;
+    for (let i = 0; i < cards.length; i++) {
+      // 第 i 拍:卡 i 进场(卡 0 天生在锚位);第 i+1 拍:卡 i 缩入叠。
+      // 候位只留给「下一张」:更后面的卡在场外,随前一张启程才传送到候位
+      //(参考站实测:同刻仅见 当前卡+候卡,再后不可见)。
+      const pIn = i === 0 ? 1 : clamp01((y - (i - 1) * STEP) / STEP);
+      const pSh = clamp01((y - i * STEP) / STEP);
+      const extra = i <= 1 ? 0 : (1 - ease(clamp01((y - (i - 2) * STEP) / STEP))) * innerWidth * 0.9;
+      const x = (1 - ease(pIn)) * ENTER + extra;
+      const s = 1 - (1 - PARK) * ease(pSh);
+      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0) scale(${s.toFixed(4)})`;
+    }
   };
   apply();
   addEventListener(
@@ -426,7 +444,7 @@ const boot = () => {
   initLenis();
   initReveal();
   initClock();
-  initRail();
+  initPile();
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });

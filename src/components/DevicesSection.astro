@@ -37,7 +37,7 @@ const shareArt = contour(77, 12, 640, 400);
       <div class="track" data-deck-track>
         {
           SKUS.map((s, i) => (
-            <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]}>
+            <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
               <div class="media">
                 {PHOTO[s.id] ? (
                   <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" />
@@ -127,13 +127,31 @@ const shareArt = contour(77, 12, 640, 400);
   .devices:global(.decked) .viewport {
     overflow: visible;
     scroll-snap-type: none;
+    flex: 1;
+    min-height: 0;
+    position: relative;
   }
   .track {
     display: flex;
     align-items: stretch;
     gap: clamp(20px, 2.6vw, 44px);
     width: max-content;
-    padding-left: max(0px, calc(38vw - var(--x-pad)));
+  }
+  /* 收叠编舞(fx.ts initPile):卡绝对定位于同一锚位,层级按序号,
+     进场偏移与缩放全由 JS 写 transform(初始置于场外右) */
+  .devices:global(.decked) .track {
+    display: block;
+    width: auto;
+    height: 100%;
+    position: relative;
+  }
+  .devices:global(.decked) .card {
+    position: absolute;
+    left: clamp(120px, 26vw, 460px);
+    top: 52%;
+    width: min(45vw, 660px);
+    z-index: calc(1 + var(--i));
+    transform: translate3d(120vw, -50%, 0);
     will-change: transform;
   }
 
