@@ -17,9 +17,10 @@
     "ariaLanguage": "Ngôn ngữ"
   },
   "hero": {
-    "title": "Điện thoại của bạn chính là cụm AI.",
-    "subtitle": "Điện thoại của bạn chạy các tác vụ AI nhỏ khi rảnh rỗi. Bạn được trả bằng USDT. Bắt đầu miễn phí, không cần phần cứng.",
-    "scrollHint": "Xem mạng lưới"
+    "title": "NexGrid. Để sức mạnh tính toán tuôn chảy.",
+    "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
+    "scrollHint": "Xem mạng lưới",
+    "note": "Bắt đầu miễn phí với thiết bị bạn đã có. Thu nhập kết toán bằng USDT."
   },
   "download": {
     "appStore": "App Store",

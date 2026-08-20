@@ -17,9 +17,10 @@
     "ariaLanguage": "语言"
   },
   "hero": {
-    "title": "你的手机，就是 AI 集群。",
-    "subtitle": "手机闲置时运行小型 AI 任务，你获得 USDT 报酬。免费开始，无需任何硬件。",
-    "scrollHint": "查看网络"
+    "title": "NexGrid，让算力流动。",
+    "subtitle": "全球领先的分布式计算能力共享服务提供商。",
+    "scrollHint": "查看网络",
+    "note": "用你现有的设备免费开始，收益以 USDT 结算。"
   },
   "download": {
     "appStore": "App Store",

@@ -17,9 +17,10 @@
     "ariaLanguage": "Language"
   },
   "hero": {
-    "title": "Your phone is the AI cluster.",
-    "subtitle": "Your phone runs small AI tasks while it sits idle. You get paid in USDT. Start free, no hardware required.",
-    "scrollHint": "See the network"
+    "title": "NexGrid. Let compute flow.",
+    "subtitle": "The world's leading provider of distributed computing power sharing services.",
+    "scrollHint": "See the network",
+    "note": "Start free with devices you already own. Earnings settle in USDT."
   },
   "download": {
     "appStore": "App Store",

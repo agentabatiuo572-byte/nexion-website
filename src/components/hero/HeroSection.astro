@@ -16,6 +16,7 @@ const t = useT(locale);
   <div class="copy">
     <h1>{t('hero.title')}</h1>
     <p class="sub">{t('hero.subtitle')}</p>
+    <p class="note">{t('hero.note')}</p>
     <DownloadButtons locale={locale} />
   </div>
   <div class="globe" aria-hidden="true">
@@ -55,7 +56,14 @@ const t = useT(locale);
     color: var(--v5-ink-2);
     font-size: clamp(15px, 1.6vw, 18px);
     max-width: 480px;
-    margin: 0 0 30px;
+    margin: 0 0 14px;
+    text-wrap: pretty;
+  }
+  .note {
+    color: var(--v5-ink-3);
+    font-size: 13.5px;
+    max-width: 460px;
+    margin: 0 0 28px;
     text-wrap: pretty;
   }
   .globe {
@@ -120,7 +128,8 @@ const t = useT(locale);
       padding-top: 40px;
       text-align: center;
     }
-    .sub {
+    .sub,
+    .note {
       margin-inline: auto;
     }
     .copy :global(.dl) {
