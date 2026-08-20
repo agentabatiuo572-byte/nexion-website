@@ -72,6 +72,29 @@
       "rack-p2": "Top-tier rack, maximum capacity."
     }
   },
+  "trust": {
+    "title": "Verify us yourself",
+    "subtitle": "Don't take our word for it. Company registration and compliance records are public — here's how to check them.",
+    "pendingNote": "Entity verification details are being finalized for publication.",
+    "verifyCta": "Check the official registry",
+    "pocTitle": "How earnings are verified (Proof-of-Compute)",
+    "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. Receipts are recorded on the platform ledger with on-chain attestation.",
+    "pocBody2": "Your app shows the full receipt trail for every payout, so earnings are traceable end to end."
+  },
+  "social": {
+    "scaleLine": "{devices}+ devices earning across {countries} countries",
+    "rolesLine": "Engineers, teachers, drivers, students, designers — people all over the world put their idle devices to work."
+  },
+  "mission": {
+    "title": "Compute that serves progress",
+    "lead": "The network's capacity powers real AI workloads — the kind that move research and everyday products forward.",
+    "f1": "AI inference",
+    "f2": "Scientific computing",
+    "f3": "Climate modeling",
+    "f4": "Biomedical research",
+    "f5": "Language technology",
+    "f6": "Education tools"
+  },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",

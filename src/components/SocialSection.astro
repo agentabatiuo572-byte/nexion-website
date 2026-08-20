@@ -1,0 +1,92 @@
+---
+/* [FEAT-WEB08] 社证板块 — 规模句(复用 stats 快照,同源)+ 职业多样性 + 证言。
+   证言素材未到位(O4)→ 子区隐藏(分层降级,不放假证言);数组填充即渲染。 */
+import { useT, type Locale } from '../i18n';
+import { STATS_SNAPSHOT, fmtStat } from '../lib/stats';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+
+// O4 素材到位后填充(name/country/quote 须真实授权)
+interface Testimonial {
+  name: string;
+  country: string;
+  quote: string;
+}
+const TESTIMONIALS: Testimonial[] = [];
+---
+
+<section class="social" id="social">
+  <h2 class="title">
+    {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
+  </h2>
+  <p class="roles">{t('social.rolesLine')}</p>
+
+  {
+    TESTIMONIALS.length > 0 && (
+      <div class="quotes">
+        {TESTIMONIALS.map((q) => (
+          <blockquote class="quote">
+            <p>{q.quote}</p>
+            <footer>
+              {q.name} · {q.country}
+            </footer>
+          </blockquote>
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<style>
+  .social {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+    text-align: center;
+  }
+  .title {
+    font-size: clamp(22px, 2.8vw, 28px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 10px;
+    text-wrap: balance;
+  }
+  .roles {
+    color: var(--v5-ink-3);
+    font-size: 14px;
+    max-width: 620px;
+    margin: 0 auto;
+    text-wrap: pretty;
+  }
+  .quotes {
+    margin-top: 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    text-align: left;
+  }
+  .quote {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 24px 22px;
+    margin: 0;
+  }
+  .quote p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    margin: 0 0 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-wrap: pretty;
+  }
+  .quote footer {
+    color: var(--v5-ink-4);
+    font-size: 12.5px;
+  }
+</style>

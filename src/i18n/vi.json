@@ -72,6 +72,29 @@
       "rack-p2": "Rack cao cấp nhất, năng lực tối đa."
     }
   },
+  "trust": {
+    "title": "Tự mình kiểm chứng chúng tôi",
+    "subtitle": "Đừng chỉ tin lời chúng tôi. Hồ sơ đăng ký doanh nghiệp và tuân thủ là công khai — đây là cách kiểm tra.",
+    "pendingNote": "Thông tin xác minh pháp nhân đang được hoàn thiện để công bố.",
+    "verifyCta": "Tra cứu cơ quan đăng ký chính thức",
+    "pocTitle": "Thu nhập được xác minh thế nào (Proof-of-Compute)",
+    "pocBody1": "Mỗi tác vụ hoàn thành tạo một biên nhận suy luận — chạy gì, khi nào, và thu được bao nhiêu. Biên nhận được ghi vào sổ cái nền tảng kèm chứng thực on-chain.",
+    "pocBody2": "Ứng dụng hiển thị toàn bộ chuỗi biên nhận cho từng lần chi trả, nên thu nhập truy vết được từ đầu đến cuối."
+  },
+  "social": {
+    "scaleLine": "{devices}+ thiết bị đang tạo thu nhập tại {countries} quốc gia",
+    "rolesLine": "Kỹ sư, giáo viên, tài xế, sinh viên, nhà thiết kế — mọi người khắp thế giới để thiết bị nhàn rỗi làm việc."
+  },
+  "mission": {
+    "title": "Năng lực tính toán phục vụ tiến bộ",
+    "lead": "Năng lực của mạng lưới vận hành các khối lượng công việc AI thực — loại thúc đẩy nghiên cứu và sản phẩm hằng ngày.",
+    "f1": "Suy luận AI",
+    "f2": "Tính toán khoa học",
+    "f3": "Mô hình khí hậu",
+    "f4": "Nghiên cứu y sinh",
+    "f5": "Công nghệ ngôn ngữ",
+    "f6": "Công cụ giáo dục"
+  },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",

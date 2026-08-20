@@ -1,0 +1,190 @@
+---
+/* [FEAT-WEB07] 信任板块 — 步骤式可验证叙事结构。
+   🔴 实体资料未到位:实体卡区渲 dev 占位(含 PENDING-TRUST-ASSETS 标记,
+   verify:prod 检测到即拦生产部署,半成品发不出去);资料到位后(O2)填充
+   实体名/注册地/编号/官方查询指引并删标记。App PRD §11.3 占位背书一项不得出现。
+   PoC 机制说明为真实口径(App PRD §1.3),用原生 details 手风琴(零 JS)。 */
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+
+// O2 资料到位后填充此数组并移除 PENDING 占位块(结构已就绪,零改组件骨架)
+interface TrustEntity {
+  name: string;
+  jurisdiction: string;
+  registrationNo: string;
+  verifyUrl?: string;
+  verifySteps: string[];
+}
+const ENTITIES: TrustEntity[] = [];
+const pending = ENTITIES.length === 0;
+---
+
+<section class="trust" id="trust">
+  <h2 class="title">{t('trust.title')}</h2>
+  <p class="sub">{t('trust.subtitle')}</p>
+
+  {
+    pending ? (
+      <div class="pending-slot" data-gate-marker="PENDING-TRUST-ASSETS">
+        <p class="pending-note">{t('trust.pendingNote')}</p>
+      </div>
+    ) : (
+      <div class="entities">
+        {ENTITIES.map((e) => (
+          <article class="entity">
+            <h3>{e.name}</h3>
+            <p class="juris">{e.jurisdiction}</p>
+            <p class="regno">{e.registrationNo}</p>
+            <ol class="steps">
+              {e.verifySteps.map((s) => (
+                <li>{s}</li>
+              ))}
+            </ol>
+            {e.verifyUrl && (
+              <a class="vlink" href={e.verifyUrl} target="_blank" rel="noopener">
+                {t('trust.verifyCta')} →
+              </a>
+            )}
+          </article>
+        ))}
+      </div>
+    )
+  }
+
+  <details class="poc">
+    <summary>{t('trust.pocTitle')}</summary>
+    <p>{t('trust.pocBody1')}</p>
+    <p>{t('trust.pocBody2')}</p>
+  </details>
+</section>
+
+<style>
+  .trust {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+  }
+  .title {
+    font-size: clamp(24px, 3vw, 30px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 8px;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .sub {
+    color: var(--v5-ink-3);
+    font-size: 14px;
+    text-align: center;
+    margin: 0 0 26px;
+    max-width: 560px;
+    margin-inline: auto;
+    text-wrap: pretty;
+  }
+  /* 透明容器 dashed 空态(V5:border 只属透明容器) */
+  .pending-slot {
+    border: 1px dashed var(--v5-border-strong);
+    border-radius: var(--w-radius-card);
+    padding: 34px 24px;
+    text-align: center;
+  }
+  .pending-note {
+    color: var(--v5-ink-4);
+    font-size: 13px;
+    margin: 0;
+  }
+  .entities {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .entity {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 26px 24px;
+    display: grid;
+    gap: 8px;
+  }
+  .entity h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0;
+  }
+  .juris {
+    color: var(--v5-ink-2);
+    font-size: 13.5px;
+    margin: 0;
+  }
+  .regno {
+    font-family: ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    color: var(--v5-brand);
+    font-size: 14px;
+    margin: 0;
+    user-select: all;
+  }
+  .steps {
+    color: var(--v5-ink-3);
+    font-size: 13px;
+    margin: 4px 0 0;
+    padding-left: 18px;
+    display: grid;
+    gap: 4px;
+  }
+  .vlink {
+    color: var(--v5-brand);
+    text-decoration: none;
+    font-size: 13.5px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .vlink:active {
+    opacity: 0.8;
+  }
+  .vlink:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .poc {
+    margin-top: 26px;
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 4px 24px;
+  }
+  .poc summary {
+    cursor: pointer;
+    min-height: 48px;
+    display: flex;
+    align-items: center;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    list-style: none;
+  }
+  .poc summary::before {
+    content: '+';
+    color: var(--v5-brand);
+    margin-right: 10px;
+    font-weight: 600;
+  }
+  .poc[open] summary::before {
+    content: '−';
+  }
+  .poc summary:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .poc p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    margin: 0 0 14px;
+    text-wrap: pretty;
+  }
+</style>

@@ -19,7 +19,11 @@ function lookup(dict: unknown, key: string): string | undefined {
 }
 
 export function useT(locale: Locale) {
-  return (key: string): string => lookup(dicts[locale], key) ?? lookup(dicts.en, key) ?? key;
+  return (key: string, vars?: Record<string, string | number>): string => {
+    let s = lookup(dicts[locale], key) ?? lookup(dicts.en, key) ?? key;
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
+    return s;
+  };
 }
 
 export function localeFromUrl(pathname: string): Locale {
