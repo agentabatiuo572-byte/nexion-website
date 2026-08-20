@@ -31,7 +31,20 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
     <meta property="og:title" content={title} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={urlFor(locale)} />
-    <!-- og:image: T11 web-asset-generator 产出后挂 -->
+    <meta property="og:image" content={new URL('/og.png', site).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: 'NexGrid',
+        url: site.href,
+        logo: new URL('/favicon.svg', site).href,
+      })}
+    />
   </head>
   <body>
     <SiteNav locale={locale} path={path} />

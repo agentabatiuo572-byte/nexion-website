@@ -36,6 +36,22 @@ export default function HeroGlobe() {
     const nav = navigator as Navigator & { deviceMemory?: number };
     if ((nav.deviceMemory ?? 8) < 4 || (navigator.hardwareConcurrency ?? 8) < 4) return;
 
+    // PRD §3:canvas 一律 idle 后挂 —— createGlobe 的一次性初始化是 CPU 密集,
+    // 推迟到主线程空闲(2.5s 兜底)让 TBT 测量窗口保持干净(Lighthouse 实测 690ms→目标 <200ms)
+    let cancelled = false;
+    let cleanup: (() => void) | undefined;
+    const ric: (cb: () => void, opts?: { timeout: number }) => number =
+      'requestIdleCallback' in window ? window.requestIdleCallback.bind(window) : (cb) => window.setTimeout(cb, 1200);
+    ric(() => {
+      if (!cancelled) cleanup = init(canvas);
+    }, { timeout: 2500 });
+    return () => {
+      cancelled = true;
+      cleanup?.();
+    };
+  }, []);
+
+  function init(canvas: HTMLCanvasElement): (() => void) | undefined {
     const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
     let phi = 0;
     let width = 0;
@@ -91,7 +107,7 @@ export default function HeroGlobe() {
       io.disconnect();
       removeEventListener('resize', onResize);
     };
-  }, []);
+  }
 
   return (
     <canvas
