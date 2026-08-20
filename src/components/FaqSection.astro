@@ -21,13 +21,13 @@ const ld = {
 };
 ---
 
-<section class="faq-sec x-invert" id="faq">
+<section class="faq-sec" id="faq">
   <div class="head">
     <span class="x-label lab" data-rv>{t('faq.title')}</span>
   </div>
   {
     qs.map((n, i) => (
-      <details class="item" data-rv style={`--d:${i * 0.05}s`}>
+      <details class="item x-paper" data-rv style={`--d:${i * 0.05}s`}>
         <summary>
           <span class="idx x-mono">Q{n}</span>
           <span class="q">{t(`faq.q${n}`)}</span>
@@ -42,7 +42,9 @@ const ld = {
 
 <style>
   .faq-sec {
-    /* R3:内容区=纸白(x-invert 自带不透明底);满宽保持节奏带完整 */
+    /* R4:板块底回黑透出粒子,白底只给问答卡(x-paper)——主人定调 */
+    position: relative;
+    z-index: 1;
     padding: var(--x-section-gap) var(--x-pad);
   }
   .faq-sec > * {
@@ -57,7 +59,7 @@ const ld = {
     color: var(--x-ink);
   }
   .item {
-    border-bottom: 1px solid var(--x-line-soft);
+    margin-bottom: 10px;
   }
   .item summary {
     cursor: pointer;
@@ -66,7 +68,7 @@ const ld = {
     align-items: center;
     gap: clamp(14px, 2vw, 28px);
     list-style: none;
-    padding: 10px 0;
+    padding: 10px clamp(16px, 1.8vw, 26px);
   }
   .item summary::-webkit-details-marker {
     display: none;
@@ -103,8 +105,9 @@ const ld = {
   }
   .item p {
     color: var(--x-ink-dim);
-    margin: 0 0 20px calc(30px + clamp(14px, 2vw, 28px));
-    max-width: 720px;
+    margin: 0 0 20px calc(30px + clamp(16px, 1.8vw, 26px) + clamp(14px, 2vw, 28px));
+    padding-right: clamp(16px, 1.8vw, 26px);
+    max-width: 760px;
     text-wrap: pretty;
   }
 </style>

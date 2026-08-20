@@ -18,14 +18,14 @@ const uses = [1, 2, 3, 4, 5] as const;
 const faqs = [1, 2, 3, 4] as const;
 ---
 
-<main class="nex-page x-invert">
+<main class="nex-page">
   <header class="hero">
     <span class="tag x-label" data-rv>{t('nex.pageTag')}</span>
     <h1 class="x-display" data-rv style="--d:.08s">{t('nex.pageTitle')}</h1>
     <p class="lead x-mono" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
   </header>
 
-  <section class="block" aria-labelledby="nex-compare">
+  <section class="block x-paper" aria-labelledby="nex-compare">
     <h2 id="nex-compare">{t('nex.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
@@ -41,7 +41,7 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block" aria-labelledby="nex-sources">
+  <section class="block x-paper" aria-labelledby="nex-sources">
     <h2 id="nex-sources">{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
@@ -54,7 +54,7 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block" aria-labelledby="nex-uses">
+  <section class="block x-paper" aria-labelledby="nex-uses">
     <h2 id="nex-uses">{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
@@ -67,7 +67,7 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block" aria-labelledby="nex-mech">
+  <section class="block x-paper" aria-labelledby="nex-mech">
     <h2 id="nex-mech">{t('nex.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
@@ -81,7 +81,7 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block" aria-labelledby="nex-faq">
+  <section class="block x-paper" aria-labelledby="nex-faq">
     <h2 id="nex-faq">{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
@@ -141,7 +141,8 @@ const faqs = [1, 2, 3, 4] as const;
     text-wrap: pretty;
   }
   .block {
-    margin-bottom: clamp(36px, 5vw, 60px);
+    margin-bottom: clamp(24px, 3vw, 40px);
+    padding: clamp(18px, 2.2vw, 30px);
   }
   .block h2 {
     font-family: var(--x-font-display);

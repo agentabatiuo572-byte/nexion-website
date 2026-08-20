@@ -12,14 +12,14 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const cards = ['what', 'earn', 'use'] as const;
 ---
 
-<section class="nex-teaser x-invert" id="nex">
+<section class="nex-teaser" id="nex">
   <div class="head">
     <span class="x-label lab" data-rv>{t('nex.teaserTitle')}</span>
   </div>
   <div class="cards">
     {
       cards.map((c, i) => (
-        <article class="card" data-rv style={`--d:${i * 0.1}s`}>
+        <article class="card x-paper" data-rv style={`--d:${i * 0.1}s`}>
           <span class="idx x-mono">0{i + 1}</span>
           <h3>{t(`nex.teaser.${c}Title`)}</h3>
           <p class="x-mono">{t(`nex.teaser.${c}Desc`)}</p>
@@ -38,7 +38,9 @@ const cards = ['what', 'earn', 'use'] as const;
 
 <style>
   .nex-teaser {
-    /* R3:内容区=纸白(参考站语言:宣言黑底/内容白纸);x-invert 自带不透明底 */
+    /* R4:板块底回黑透出粒子,白底只给信息卡(x-paper)——主人定调 */
+    position: relative;
+    z-index: 1;
     padding: var(--x-section-gap) var(--x-pad);
   }
   .head {
@@ -55,7 +57,6 @@ const cards = ['what', 'earn', 'use'] as const;
     gap: clamp(20px, 3vw, 40px);
   }
   .card {
-    border: 1px solid var(--x-line-soft);
     padding: clamp(20px, 2.4vw, 30px);
     display: grid;
     gap: 12px;

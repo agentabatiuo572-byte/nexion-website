@@ -16,7 +16,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const { Content } = await render(entry);
 ---
 
-<main class="article x-invert">
+<main class="article">
   {fallback && <p class="notice x-mono">{t('learn.untranslated')}</p>}
   <a class="back x-mono x-dimlink" href={`${prefix}/learn`}>← {t('learn.backToList')}</a>
   <article>
@@ -24,7 +24,7 @@ const { Content } = await render(entry);
     <p class="meta x-mono">
       {t(`learn.topics.${entry.data.topic}`)} · {t('learn.appVersionLabel')} {entry.data.appVersion} · {entry.data.updatedAt}
     </p>
-    <div class="prose">
+    <div class="prose x-paper">
       <Content />
     </div>
   </article>
@@ -68,6 +68,13 @@ const { Content } = await render(entry);
   .meta {
     color: var(--x-ink-faint);
     margin: 0 0 30px;
+  }
+  .prose {
+    padding: clamp(20px, 2.6vw, 34px);
+    margin-top: 10px;
+  }
+  .prose :global(h2:first-child) {
+    margin-top: 0;
   }
   .prose :global(h2) {
     font-family: var(--x-font-display);

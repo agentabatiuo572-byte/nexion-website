@@ -11,11 +11,12 @@ const { locale } = Astro.props;
 const t = useT(locale);
 ---
 
-<main class="legal x-invert">
+<main class="legal">
   {locale !== 'en' && <p class="prevails">{t('legal.enPrevails')}</p>}
   <h1>Privacy Policy</h1>
   <p class="updated">Last updated: 2026-08-20</p>
 
+  <div class="sheet x-paper">
   <h2>1. Scope</h2>
   <p>
     This policy covers the NexGrid marketing website (the "Site"). The NexGrid application (the "App") has its own
@@ -52,6 +53,7 @@ const t = useT(locale);
 
   <h2>7. Contact</h2>
   <p>The Site is operated by NexGrid LTD, a Colorado corporation. Registered address: 1670 Bwayroad, Denver, CO 80202, United States.</p>
+  </div>
 </main>
 
 <style>
@@ -99,5 +101,12 @@ const t = useT(locale);
     line-height: 1.85;
     margin: 0 0 12px;
     text-wrap: pretty;
+  }
+  .sheet {
+    padding: clamp(20px, 2.6vw, 34px);
+    margin-top: 8px;
+  }
+  .sheet > h2:first-child {
+    margin-top: 0;
   }
 </style>

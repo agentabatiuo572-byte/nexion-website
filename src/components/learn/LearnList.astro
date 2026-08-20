@@ -13,7 +13,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const items = await learnList(locale);
 ---
 
-<main class="learn x-invert">
+<main class="learn">
   <header class="head">
     <h1 class="x-display">{t('learn.title')}</h1>
     <p class="x-mono">{t('learn.subtitle')}</p>
@@ -21,7 +21,7 @@ const items = await learnList(locale);
   <div class="grid">
     {
       items.map(({ entry, slug, fallback }, i) => (
-        <a class="card" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
+        <a class="card x-paper" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
           <span class="row1">
             <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
@@ -62,16 +62,15 @@ const items = await learnList(locale);
     gap: clamp(14px, 1.8vw, 24px);
   }
   .card {
-    border: 1px solid var(--x-line-soft);
     padding: 22px;
     display: grid;
     gap: 12px;
     align-content: start;
     text-decoration: none;
-    transition: border-color 0.2s;
+    transition: opacity 0.2s;
   }
   .card:hover {
-    border-color: var(--x-accent-ink);
+    opacity: 0.92;
   }
   .card:active {
     opacity: 0.85;

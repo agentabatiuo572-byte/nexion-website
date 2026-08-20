@@ -13,14 +13,14 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry.data.order));
 ---
 
-<section class="learn-entry x-invert" id="learn-entry">
+<section class="learn-entry" id="learn-entry">
   <div class="head">
     <span class="x-label lab" data-rv>{t('learn.homeTitle')}</span>
   </div>
   <div class="rows">
     {
       picks.map(({ entry, slug }, i) => (
-        <a class="row x-dimlink" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${i * 0.08}s`}>
+        <a class="row x-paper x-dimlink" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${i * 0.08}s`}>
           <span class="idx x-mono">0{i + 1}</span>
           <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
           <span class="name">{entry.data.title}</span>
@@ -40,7 +40,9 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
 
 <style>
   .learn-entry {
-    /* R3:内容区=纸白(x-invert 自带不透明底) */
+    /* R4:板块底回黑透出粒子,白底只给信息行卡(x-paper)——主人定调 */
+    position: relative;
+    z-index: 1;
     padding: var(--x-section-gap) var(--x-pad);
   }
   .head {
@@ -53,13 +55,13 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
   }
   .rows {
     display: grid;
+    gap: 10px;
   }
   .row {
     display: flex;
     align-items: baseline;
     gap: clamp(14px, 2.4vw, 36px);
-    border-bottom: 1px solid var(--x-line-soft);
-    padding: clamp(14px, 1.8vw, 22px) 0;
+    padding: clamp(14px, 1.8vw, 22px) clamp(16px, 1.8vw, 26px);
     text-decoration: none;
     color: var(--x-ink);
     min-height: 44px;

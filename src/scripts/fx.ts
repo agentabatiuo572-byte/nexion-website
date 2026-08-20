@@ -1,27 +1,22 @@
-/* 全站交互引擎 R2(axiom 方向,自研实现)。
-   行为规则(主人 2026-08-20 R2 定):
-   ① 粒子背景静止时**不旋转不缩放**,只有流光沿轨迹跑;**页面滚动**才驱动缩放/旋转;
-     鼠标靠近推斥 + 移动带动轻微倾斜(参考站原有交互)。
-   ② 鼠标一律**原生光标**(自定义圆点已移除)。
-   性能架构:主体轨迹按颜色分桶批量描边(20 次 stroke 替代上万次)、离屏缓存,
-   静止帧只贴缓存 + 画流光;dpr 钉 1(与参考站一致)。
-   reduced-motion:静帧一张,Lenis/reveal 全关。 */
+/* 全站交互引擎 R4(axiom 方向,自研实现)。
+   粒子背景行为规则(2026-08-20 对参考站双路实测解码:画布不监听滚动;
+   形状 bbox 在板块内逐像素静止、跨板块边界平滑变化):
+   —— **姿态按板块定义,滚动跨界时缓动插值到新姿态,板块内完全静止,只有流光沿轨迹跑**;
+   鼠标倾斜+推斥为叠加项。性能:分桶批量描边 + 离屏缓存 + 静止零重渲染(R2 架构)。
+   设备卡:横排轨道随滚动整排左移(多卡同屏,主人 R4 依图 2 定)。
+   鼠标一律原生光标。reduced-motion:静帧,全动效关。 */
 import Lenis from 'lenis';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 
-/* ---------- ① 洛伦兹吸引子背景(滚动驱动 + 离屏缓存) ---------- */
-interface LorenzApi {
-  setVel(v: number): void;
-}
-function initLorenz(): LorenzApi | undefined {
+/* ---------- ① 洛伦兹吸引子背景(板块姿态 + 离屏缓存) ---------- */
+function initLorenz() {
   const canvas = document.getElementById('x-bg') as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
 
-  // 经典参数 σ=10 ρ=28 β=8/3,欧拉步 dt=0.005;热身进入吸引子再录轨迹
   const N = coarse ? 6000 : 14000;
   const pts = new Float32Array(N * 3);
   let sx0 = 0.1,
@@ -46,7 +41,6 @@ function initLorenz(): LorenzApi | undefined {
   const px = new Float32Array(N);
   const py = new Float32Array(N);
 
-  // 颜色分桶(z 静态 → 桶静态):20 桶,每桶存分段起点索引,渲染时一桶一 stroke
   const stride = coarse ? 3 : 2;
   const B = 20;
   const buckets: number[][] = Array.from({ length: B }, () => []);
@@ -62,48 +56,75 @@ function initLorenz(): LorenzApi | undefined {
     );
   }
 
-  // 离屏主体层(透明底,主画布以 screen 合成贴上)
   const body = document.createElement('canvas');
   const bctx = body.getContext('2d')!;
 
   let W = 0,
     H = 0;
-  const resize = () => {
-    W = canvas.clientWidth;
-    H = canvas.clientHeight;
-    canvas.width = W; // dpr 钉 1(参考站同款;高分屏线条略柔,换取一半以上像素成本)
-    canvas.height = H;
-    body.width = W;
-    body.height = H;
-    dirty = true;
+
+  /* —— 板块姿态表:az 方位角 / sc 缩放 / cx,cy 画布锚点(视口占比)。
+     首页 12 板块循环取用;跨界即插值,界内静止(参考站同款机制)。 —— */
+  const POSES = [
+    { az: 0.55, sc: 0.92, cx: 0.42, cy: 0.5 },
+    { az: 1.35, sc: 1.06, cx: 0.6, cy: 0.42 },
+    { az: 2.2, sc: 0.88, cx: 0.44, cy: 0.62 },
+    { az: 3.05, sc: 1.14, cx: 0.36, cy: 0.5 },
+    { az: 3.9, sc: 0.96, cx: 0.58, cy: 0.54 },
+    { az: 4.75, sc: 1.24, cx: 0.5, cy: 0.5 },
+  ];
+  let bandTops: number[] = [];
+  const measureBands = () => {
+    bandTops = [...document.querySelectorAll('main > section')].map(
+      (s) => (s as HTMLElement).getBoundingClientRect().top + scrollY,
+    );
+  };
+  const activePose = () => {
+    if (!bandTops.length) return POSES[0];
+    const probe = scrollY + innerHeight * 0.5;
+    let idx = 0;
+    for (let i = 0; i < bandTops.length; i++) if (bandTops[i] <= probe) idx = i;
+    return POSES[idx % POSES.length];
   };
 
+  // 当前姿态(向目标缓动,吸附定格)
+  let az = POSES[0].az,
+    sc = POSES[0].sc,
+    pcx = POSES[0].cx,
+    pcy = POSES[0].cy;
   const mouse = { x: -9999, y: -9999 };
   let tiltX = 0,
     tiltY = 0,
     driftX = 0,
     driftY = 0;
-  let rot = 0; // 只随滚动累进
-  let scale = 1,
-    targetScale = 1;
-  let vel = 0; // 滚动速度(Lenis 喂入,指数衰减)
   let dirty = true;
   let mouseStamp = 0,
     renderedStamp = -1;
+  let lastScrollY = -1;
   const dbg = { renders: 0 };
   (window as unknown as Record<string, unknown>).__xbg = dbg;
 
+  const resize = () => {
+    W = canvas.clientWidth;
+    H = canvas.clientHeight;
+    canvas.width = W;
+    canvas.height = H;
+    body.width = W;
+    body.height = H;
+    measureBands();
+    dirty = true;
+  };
+
   const renderBody = () => {
     dbg.renders++;
-    const a = rot + tiltX;
+    const a = az + tiltX;
     const b = 0.42 + tiltY;
     const ca = Math.cos(a),
       sa = Math.sin(a),
       cb = Math.cos(b),
       sb = Math.sin(b);
-    const sc = (Math.min(W, H) / 52) * scale;
-    const cx = W * 0.42 + driftX;
-    const cy = H * 0.52 + driftY;
+    const scale = (Math.min(W, H) / 52) * sc;
+    const cx = W * pcx + driftX;
+    const cy = H * pcy + driftY;
     const mx = mouse.x,
       my = mouse.y;
     const repelOn = !coarse && mx > -9000;
@@ -117,8 +138,8 @@ function initLorenz(): LorenzApi | undefined {
       const rz = ry * cb - Z * sb;
       const depth = Math.max(-1, Math.min(1, rz / 22));
       const p = 1 + 0.2 * depth;
-      let x = cx + rx * sc * p;
-      let y = cy - (ry * sb + Z * cb) * sc * p;
+      let x = cx + rx * scale * p;
+      let y = cy - (ry * sb + Z * cb) * scale * p;
       if (repelOn) {
         const ddx = x - mx;
         const ddy = y - my;
@@ -150,7 +171,6 @@ function initLorenz(): LorenzApi | undefined {
     }
   };
 
-  // 流光:4 个亮头沿轨迹推进,150 段渐隐拖尾,按透明度分 6 桶批量描边
   let comet = 0;
   const TAIL = 150;
   const CB = 6;
@@ -181,20 +201,27 @@ function initLorenz(): LorenzApi | undefined {
   let raf = 0;
   let running = false;
   const frame = () => {
-    // —— 滚动驱动的缩放/旋转(静止时全部归零,不自转不缩放)——
-    vel *= 0.9;
-    if (Math.abs(vel) < 0.05) vel = 0;
-    const speed = Math.abs(vel);
-    targetScale = 1 + Math.min(0.16, speed * 0.004);
-    const prevScale = scale,
-      prevRot = rot,
+    // —— 姿态目标:滚动位变了才重取(界内目标不变 → 收敛后零重渲染)——
+    if (scrollY !== lastScrollY) {
+      lastScrollY = scrollY;
+    }
+    const tp = activePose();
+    const prevAz = az,
+      prevSc = sc,
+      prevCx = pcx,
+      prevCy = pcy,
       prevTx = tiltX,
       prevTy = tiltY;
-    scale += (targetScale - scale) * 0.07;
-    if (Math.abs(targetScale - scale) < 5e-4) scale = targetScale; // 吸附定格,静止即停
-    if (speed > 0.3) rot += vel * 0.00025;
+    az += (tp.az - az) * 0.045;
+    sc += (tp.sc - sc) * 0.045;
+    pcx += (tp.cx - pcx) * 0.045;
+    pcy += (tp.cy - pcy) * 0.045;
+    if (Math.abs(tp.az - az) < 1.5e-3) az = tp.az;
+    if (Math.abs(tp.sc - sc) < 1e-3) sc = tp.sc;
+    if (Math.abs(tp.cx - pcx) < 5e-4) pcx = tp.cx;
+    if (Math.abs(tp.cy - pcy) < 5e-4) pcy = tp.cy;
 
-    // —— 鼠标倾斜:在场 lerp 进(近目标即吸附定格),离场衰减 ——
+    // —— 鼠标倾斜:在场 lerp(近目标吸附),离场衰减 ——
     if (!coarse && mouse.x > -9000) {
       const nx = (mouse.x / W - 0.5) * 2;
       const ny = (mouse.y / H - 0.5) * 2;
@@ -224,10 +251,12 @@ function initLorenz(): LorenzApi | undefined {
     if (
       dirty ||
       mouseStamp !== renderedStamp ||
-      Math.abs(scale - prevScale) > 1e-4 ||
-      Math.abs(rot - prevRot) > 1e-5 ||
-      Math.abs(tiltX - prevTx) > 1e-4 ||
-      Math.abs(tiltY - prevTy) > 1e-4
+      az !== prevAz ||
+      sc !== prevSc ||
+      pcx !== prevCx ||
+      pcy !== prevCy ||
+      tiltX !== prevTx ||
+      tiltY !== prevTy
     ) {
       renderBody();
       dirty = false;
@@ -257,6 +286,8 @@ function initLorenz(): LorenzApi | undefined {
 
   resize();
   addEventListener('resize', resize);
+  // 轨道段高由 JS 后设,布局稳定后补量一次界表
+  setTimeout(measureBands, 400);
   if (!coarse) {
     addEventListener(
       'mousemove',
@@ -285,11 +316,10 @@ function initLorenz(): LorenzApi | undefined {
     return;
   }
   start();
-  return { setVel: (v) => (vel = v) };
 }
 
-/* ---------- ② Lenis 平滑滚动 + 锚点接管 + 滚动速度喂粒子 ---------- */
-function initLenis(lorenz?: LorenzApi) {
+/* ---------- ② Lenis 平滑滚动 + 锚点接管 ---------- */
+function initLenis() {
   if (reduced) return;
   const lenis = new Lenis();
   const raf = (t: number) => {
@@ -297,8 +327,6 @@ function initLenis(lorenz?: LorenzApi) {
     requestAnimationFrame(raf);
   };
   requestAnimationFrame(raf);
-
-  if (lorenz) lenis.on('scroll', (e: { velocity: number }) => lorenz.setVel(e.velocity));
 
   document.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest?.('a[href^="#"]') as HTMLAnchorElement | null;
@@ -314,10 +342,43 @@ function initLenis(lorenz?: LorenzApi) {
   return lenis;
 }
 
-/* ---------- ③ 滚动进场 reveal ---------- */
+/* ---------- ③ 设备横排轨道:整排随滚动左移,多卡同屏(主人 R4 依图 2) ---------- */
+function initRail() {
+  const sec = document.querySelector<HTMLElement>('[data-deck]');
+  const track = sec?.querySelector<HTMLElement>('[data-deck-track]');
+  if (!sec || !track) return;
+  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return; // 原生横滑降级
+  sec.classList.add('decked');
+
+  let T = 0;
+  const measure = () => {
+    T = Math.max(0, track.scrollWidth - Math.round(innerWidth * 0.72));
+    sec.style.height = `${innerHeight + T + Math.round(innerHeight * 0.2)}px`;
+  };
+  measure();
+  addEventListener('resize', measure);
+
+  let raf = 0;
+  const apply = () => {
+    raf = 0;
+    const total = sec.offsetHeight - innerHeight;
+    const p = total > 0 ? Math.min(1, Math.max(0, -sec.getBoundingClientRect().top / total)) : 0;
+    track.style.transform = `translate3d(${(-p * T).toFixed(1)}px,0,0)`;
+  };
+  apply();
+  addEventListener(
+    'scroll',
+    () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    },
+    { passive: true },
+  );
+}
+
+/* ---------- ④ 滚动进场 reveal ---------- */
 function initReveal() {
   const els = document.querySelectorAll('[data-rv]');
-  if (!els.length || reduced) return; // reduced:CSS 已直出终态
+  if (!els.length || reduced) return;
   const io = new IntersectionObserver(
     (entries) => {
       for (const en of entries) {
@@ -330,46 +391,6 @@ function initReveal() {
     { threshold: 0.18 },
   );
   els.forEach((el) => io.observe(el));
-}
-
-/* ---------- ④ 设备叠落 deck:滚动驱动,新卡自右滑入落到锚位叠住前一张 ---------- */
-function initDeck() {
-  const sec = document.querySelector<HTMLElement>('[data-deck]');
-  const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]');
-  const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
-  if (!sec || !pin || !cards.length) return;
-  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return; // 静态纵列降级
-  sec.classList.add('decked');
-
-  const STEP = 0.75; // 每张卡的滚动跑道(vh 倍数)
-  const LEAD = 0.55; // 提前进场量:段落尚差半屏钉住时首卡已在路上
-  const TAIL = 0.45;
-  const measure = () => {
-    sec.style.height = `${Math.round(innerHeight * (cards.length * STEP + 1 + TAIL))}px`;
-  };
-  measure();
-  addEventListener('resize', measure);
-
-  const ease = (t: number) => 1 - (1 - t) ** 3;
-  let raf = 0;
-  const apply = () => {
-    raf = 0;
-    const vh = innerHeight;
-    const y = -sec.getBoundingClientRect().top + vh * LEAD;
-    for (let i = 0; i < cards.length; i++) {
-      const p = Math.min(1, Math.max(0, (y - i * STEP * vh) / (STEP * vh)));
-      const x = (1 - ease(p)) * innerWidth * 1.08;
-      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0)`;
-    }
-  };
-  apply();
-  addEventListener(
-    'scroll',
-    () => {
-      if (!raf) raf = requestAnimationFrame(apply);
-    },
-    { passive: true },
-  );
 }
 
 /* ---------- ⑤ UTC 时钟(冒号 CSS 闪烁) ---------- */
@@ -397,19 +418,15 @@ function initClock() {
 
 /* ---------- boot ---------- */
 const boot = () => {
-  // 粒子背景延后到空闲帧,不挤首屏渲染;Lenis 需拿到粒子句柄喂滚动速度
-  const wire = () => {
-    const api = initLorenz();
-    initLenis(api);
-  };
   if ('requestIdleCallback' in window) {
-    requestIdleCallback(wire, { timeout: 1200 });
+    requestIdleCallback(() => initLorenz(), { timeout: 1200 });
   } else {
-    setTimeout(wire, 300);
+    setTimeout(initLorenz, 300);
   }
+  initLenis();
   initReveal();
   initClock();
-  initDeck();
+  initRail();
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });
