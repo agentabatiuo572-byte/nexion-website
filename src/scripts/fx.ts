@@ -332,7 +332,47 @@ function initReveal() {
   els.forEach((el) => io.observe(el));
 }
 
-/* ---------- ④ UTC 时钟(冒号 CSS 闪烁) ---------- */
+/* ---------- ④ 设备叠落 deck:滚动驱动,新卡自右滑入落到锚位叠住前一张 ---------- */
+function initDeck() {
+  const sec = document.querySelector<HTMLElement>('[data-deck]');
+  const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]');
+  const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
+  if (!sec || !pin || !cards.length) return;
+  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return; // 静态纵列降级
+  sec.classList.add('decked');
+
+  const STEP = 0.75; // 每张卡的滚动跑道(vh 倍数)
+  const LEAD = 0.55; // 提前进场量:段落尚差半屏钉住时首卡已在路上
+  const TAIL = 0.45;
+  const measure = () => {
+    sec.style.height = `${Math.round(innerHeight * (cards.length * STEP + 1 + TAIL))}px`;
+  };
+  measure();
+  addEventListener('resize', measure);
+
+  const ease = (t: number) => 1 - (1 - t) ** 3;
+  let raf = 0;
+  const apply = () => {
+    raf = 0;
+    const vh = innerHeight;
+    const y = -sec.getBoundingClientRect().top + vh * LEAD;
+    for (let i = 0; i < cards.length; i++) {
+      const p = Math.min(1, Math.max(0, (y - i * STEP * vh) / (STEP * vh)));
+      const x = (1 - ease(p)) * innerWidth * 1.08;
+      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0)`;
+    }
+  };
+  apply();
+  addEventListener(
+    'scroll',
+    () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    },
+    { passive: true },
+  );
+}
+
+/* ---------- ⑤ UTC 时钟(冒号 CSS 闪烁) ---------- */
 function initClock() {
   const el = document.getElementById('x-clock');
   if (!el) return;
@@ -369,6 +409,7 @@ const boot = () => {
   }
   initReveal();
   initClock();
+  initDeck();
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });

@@ -12,7 +12,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const cards = ['what', 'earn', 'use'] as const;
 ---
 
-<section class="nex-teaser" id="nex">
+<section class="nex-teaser x-invert" id="nex">
   <div class="head">
     <span class="x-label lab" data-rv>{t('nex.teaserTitle')}</span>
   </div>
@@ -38,11 +38,8 @@ const cards = ['what', 'earn', 'use'] as const;
 
 <style>
   .nex-teaser {
-    position: relative;
-    z-index: 1;
+    /* R3:内容区=纸白(参考站语言:宣言黑底/内容白纸);x-invert 自带不透明底 */
     padding: var(--x-section-gap) var(--x-pad);
-    /* 小字密集板块必须有不透明底,禁止文字直压粒子线(主人 R2 指令) */
-    background: var(--x-bg);
   }
   .head {
     border-top: 1px solid var(--x-line);
@@ -50,7 +47,7 @@ const cards = ['what', 'earn', 'use'] as const;
     margin-bottom: clamp(28px, 4vw, 48px);
   }
   .lab {
-    color: var(--x-white);
+    color: var(--x-ink);
   }
   .cards {
     display: grid;
@@ -65,7 +62,7 @@ const cards = ['what', 'earn', 'use'] as const;
     align-content: start;
   }
   .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
   }
   .card h3 {
@@ -73,7 +70,7 @@ const cards = ['what', 'earn', 'use'] as const;
     font-size: clamp(20px, 2vw, 26px);
     font-weight: 500;
     letter-spacing: -0.015em;
-    color: var(--x-white);
+    color: var(--x-ink);
     margin: 0;
     line-height: 1.15;
     text-wrap: balance;

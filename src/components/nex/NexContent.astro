@@ -18,7 +18,7 @@ const uses = [1, 2, 3, 4, 5] as const;
 const faqs = [1, 2, 3, 4] as const;
 ---
 
-<main class="nex-page">
+<main class="nex-page x-invert">
   <header class="hero">
     <span class="tag x-label" data-rv>{t('nex.pageTag')}</span>
     <h1 class="x-display" data-rv style="--d:.08s">{t('nex.pageTitle')}</h1>
@@ -113,24 +113,24 @@ const faqs = [1, 2, 3, 4] as const;
 
 <style>
   .nex-page {
-    position: relative;
-    z-index: 1;
+    /* R3:内容页=纸白;顶部留 84px 黑带,导航在暗带上可见,滚动后按层叠哲学被盖 */
+    margin-top: 84px;
+    padding: 46px var(--x-pad) 40px;
+  }
+  .nex-page > * {
     max-width: 1100px;
-    padding: 130px var(--x-pad) 0;
-    /* 小字密集页必须不透明底(同 Home R2 口径) */
-    background: var(--x-bg);
   }
   .hero {
     margin-bottom: clamp(36px, 6vw, 64px);
   }
   .tag {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     display: inline-block;
     margin-bottom: 16px;
   }
   h1 {
     font-size: clamp(34px, 5.2vw, 64px);
-    color: var(--x-white);
+    color: var(--x-ink);
     margin: 0 0 14px;
     max-width: 22ch;
   }
@@ -148,7 +148,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-size: clamp(22px, 2.6vw, 32px);
     font-weight: 500;
     letter-spacing: -0.02em;
-    color: var(--x-white);
+    color: var(--x-ink);
     border-top: 1px solid var(--x-line);
     padding-top: 16px;
     margin: 0 0 18px;
@@ -169,13 +169,13 @@ const faqs = [1, 2, 3, 4] as const;
     vertical-align: top;
   }
   th {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
   }
   td {
     color: var(--x-ink-dim);
   }
   td:first-child {
-    color: var(--x-white);
+    color: var(--x-ink);
   }
   .list {
     list-style: none;
@@ -191,14 +191,14 @@ const faqs = [1, 2, 3, 4] as const;
     padding: 14px 0;
   }
   .list .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
   }
   .list b {
     font-family: var(--x-font-display);
     font-size: clamp(16px, 1.6vw, 20px);
     font-weight: 500;
-    color: var(--x-white);
+    color: var(--x-ink);
     letter-spacing: -0.01em;
   }
   .list span:last-child {
@@ -218,7 +218,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-family: var(--x-font-display);
     font-size: clamp(17px, 1.7vw, 21px);
     font-weight: 500;
-    color: var(--x-white);
+    color: var(--x-ink);
     margin: 0 0 10px;
     letter-spacing: -0.01em;
   }
@@ -243,7 +243,7 @@ const faqs = [1, 2, 3, 4] as const;
     display: none;
   }
   .faq .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
     flex: 0 0 28px;
   }
@@ -251,7 +251,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-family: var(--x-font-display);
     font-size: clamp(16px, 1.7vw, 21px);
     font-weight: 500;
-    color: var(--x-white);
+    color: var(--x-ink);
     flex: 1;
     line-height: 1.25;
   }
@@ -268,7 +268,7 @@ const faqs = [1, 2, 3, 4] as const;
     visibility: visible;
     position: absolute;
     left: 0;
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
   }
   .faq > p {
     color: var(--x-ink-dim);

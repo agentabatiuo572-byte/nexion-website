@@ -13,7 +13,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const items = await learnList(locale);
 ---
 
-<main class="learn">
+<main class="learn x-invert">
   <header class="head">
     <h1 class="x-display">{t('learn.title')}</h1>
     <p class="x-mono">{t('learn.subtitle')}</p>
@@ -39,16 +39,15 @@ const items = await learnList(locale);
   .learn {
     position: relative;
     z-index: 1;
-    padding: 130px var(--x-pad) 0;
-    /* 小字密集页必须不透明底(同 Home R2 口径) */
-    background: var(--x-bg);
+    margin-top: 84px;
+    padding: 46px var(--x-pad) 40px;
   }
   .head {
     margin-bottom: clamp(30px, 5vw, 56px);
   }
   h1 {
     font-size: clamp(40px, 6.4vw, 88px);
-    color: var(--x-white);
+    color: var(--x-ink);
     margin: 0 0 14px;
   }
   .head p {
@@ -72,7 +71,7 @@ const items = await learnList(locale);
     transition: border-color 0.2s;
   }
   .card:hover {
-    border-color: var(--x-accent);
+    border-color: var(--x-accent-ink);
   }
   .card:active {
     opacity: 0.85;
@@ -83,7 +82,7 @@ const items = await learnList(locale);
     align-items: center;
   }
   .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
   }
   .topic {
@@ -96,7 +95,7 @@ const items = await learnList(locale);
     font-weight: 500;
     letter-spacing: -0.015em;
     line-height: 1.18;
-    color: var(--x-white);
+    color: var(--x-ink);
     margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;

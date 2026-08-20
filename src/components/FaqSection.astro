@@ -21,7 +21,7 @@ const ld = {
 };
 ---
 
-<section class="faq-sec" id="faq">
+<section class="faq-sec x-invert" id="faq">
   <div class="head">
     <span class="x-label lab" data-rv>{t('faq.title')}</span>
   </div>
@@ -42,12 +42,11 @@ const ld = {
 
 <style>
   .faq-sec {
-    position: relative;
-    z-index: 1;
+    /* R3:内容区=纸白(x-invert 自带不透明底);满宽保持节奏带完整 */
     padding: var(--x-section-gap) var(--x-pad);
+  }
+  .faq-sec > * {
     max-width: 1100px;
-    /* 小字密集板块必须有不透明底,禁止文字直压粒子线(主人 R2 指令) */
-    background: var(--x-bg);
   }
   .head {
     border-top: 1px solid var(--x-line);
@@ -55,7 +54,7 @@ const ld = {
     margin-bottom: clamp(22px, 3vw, 36px);
   }
   .lab {
-    color: var(--x-white);
+    color: var(--x-ink);
   }
   .item {
     border-bottom: 1px solid var(--x-line-soft);
@@ -73,7 +72,7 @@ const ld = {
     display: none;
   }
   .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
     flex: 0 0 30px;
   }
@@ -82,7 +81,7 @@ const ld = {
     font-size: clamp(17px, 1.8vw, 23px);
     font-weight: 500;
     letter-spacing: -0.01em;
-    color: var(--x-white);
+    color: var(--x-ink);
     flex: 1;
     line-height: 1.25;
     text-wrap: balance;
@@ -100,7 +99,7 @@ const ld = {
     visibility: visible;
     position: absolute;
     left: 0;
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
   }
   .item p {
     color: var(--x-ink-dim);

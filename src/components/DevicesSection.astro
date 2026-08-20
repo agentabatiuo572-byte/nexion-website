@@ -1,9 +1,9 @@
 ---
 /* [FEAT-WEB06] 设备阶梯 — 预热面纯展示(不承载购买);🔴 卡上无任何收益金额,
    只展示价格与算力倍数(事实性);legacy=Classic 角标。
-   R2(主人 2026-08-20):滚动叠卡交互(sticky 逐张叠上,替代横向轨)+ 产品实拍图
-   (源自 App 仓 static/img/products,App 的 SKU→图映射同款;Share 无图=等高线纹样,
-   与 App 一致)。图区为深色内嵌面板,吃住暗背景摄影图。 */
+   R3(主人 2026-08-20 对照原版卡板块):卡=约 42vw 宽、图上文下、序号章贴图角、
+   底部两栏等宽小字,浮在暗底粒子上;滚动时新卡从右滑入、逐张落到锚位叠住前一张
+   (fx.ts initDeck;移动/reduced 静态纵列)。产品图沿用 App 映射。 */
 import { useT, type Locale } from '../i18n';
 import { SKUS, fmtPrice, fmtMultiplier } from '../lib/skus';
 import { contour } from '../lib/contour';
@@ -23,46 +23,50 @@ const PHOTO: Record<string, string | undefined> = {
   'rack-p1': '/devices/rack.jpg',
   'rack-p2': '/devices/rack.jpg',
 };
-const shareArt = contour(77, 13, 480, 520);
+const shareArt = contour(77, 12, 640, 400);
 ---
 
-<section class="devices" id="devices">
-  <div class="head">
-    <span class="x-label lab" data-rv>{t('devices.title')}</span>
-    <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
-  </div>
+<section class="devices" id="devices" data-deck>
+  <div class="pin" data-deck-pin>
+    <div class="head">
+      <span class="x-label lab" data-rv>{t('devices.title')}</span>
+      <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
+    </div>
 
-  <div class="stack">
-    {
-      SKUS.map((s, i) => (
-        <article class="card" class:list={[{ coming: s.status === 'coming' }]} style={`--i:${i}`}>
-          <div class="info">
-            <div class="top">
+    <div class="cards">
+      {
+        SKUS.map((s, i) => (
+          <article class="card" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
+            <div class="media">
+              {PHOTO[s.id] ? (
+                <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" />
+              ) : (
+                <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  {shareArt.paths.map((d) => (
+                    <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.45" />
+                  ))}
+                </svg>
+              )}
               <span class="serial x-mono">NX-{String(i + 1).padStart(2, '0')}</span>
               {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
               {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
             </div>
-            <h3>{s.name}</h3>
-            <p class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</p>
-            <p class="mult x-mono">
-              <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
-            </p>
-            <p class="tag x-mono">{t(`devices.tagline.${s.id}`)}</p>
-          </div>
-          <div class="pic">
-            {PHOTO[s.id] ? (
-              <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="900" height="700" />
-            ) : (
-              <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                {shareArt.paths.map((d) => (
-                  <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.4" />
-                ))}
-              </svg>
-            )}
-          </div>
-        </article>
-      ))
-    }
+            <div class="body">
+              <h3>{s.name}</h3>
+              <div class="cols">
+                <div class="col x-mono">
+                  <b class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</b>
+                  <span class="mult">
+                    <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
+                  </span>
+                </div>
+                <p class="col tagcol x-mono">{t(`devices.tagline.${s.id}`)}</p>
+              </div>
+            </div>
+          </article>
+        ))
+      }
+    </div>
   </div>
 
   <div class="cta-row" data-rv>
@@ -78,12 +82,13 @@ const shareArt = contour(77, 13, 480, 520);
   .devices {
     position: relative;
     z-index: 1;
-    padding: var(--x-section-gap) var(--x-pad);
+  }
+  .pin {
+    padding: var(--x-section-gap) var(--x-pad) 0;
   }
   .head {
     border-top: 1px solid var(--x-line);
     padding-top: 18px;
-    margin-bottom: clamp(28px, 4vw, 52px);
     display: grid;
     gap: 10px;
   }
@@ -96,90 +101,26 @@ const shareArt = contour(77, 13, 480, 520);
     max-width: 520px;
     text-wrap: pretty;
   }
-  .stack {
-    display: grid;
-    gap: clamp(18px, 3vh, 30px);
-  }
-  /* 滚动叠卡:每张卡钉在视口同一带位,后一张滑上来盖住前一张;
-     top 随序号微退让,叠住时露出前几张 6px 边,读得出「一摞」 */
+
+  /* —— 卡片视觉(两种模式共用):图上文下,浮于暗底 —— */
   .card {
-    position: sticky;
-    top: calc(76px + var(--i) * 6px);
-    min-height: min(66vh, 560px);
     background: var(--x-light);
     color: var(--x-dark);
+    width: min(680px, 100%);
     display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
-    overflow: hidden;
+    grid-template-rows: auto auto;
   }
-  .card.coming .info {
+  .card.coming .body {
     opacity: 0.66;
   }
-  .info {
-    padding: clamp(22px, 3vw, 44px);
-    display: grid;
-    gap: 12px;
-    align-content: start;
-  }
-  .top {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-  }
-  .serial {
-    color: var(--x-dark-dim);
-    font-weight: 700;
-  }
-  .chip {
-    font-weight: 700;
-    background: var(--x-accent);
-    color: var(--x-on-accent);
-    padding: 1px 7px;
-  }
-  h3 {
-    font-family: var(--x-font-display);
-    font-size: clamp(28px, 3.4vw, 48px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.06;
-    color: var(--x-dark);
-    margin: 0;
-    text-wrap: balance;
-  }
-  .price {
-    font-family: var(--x-font-display);
-    font-size: clamp(22px, 2.4vw, 32px);
-    font-weight: 500;
-    color: var(--x-dark);
-    margin: 0;
-    font-variant-numeric: tabular-nums;
-  }
-  .mult {
-    margin: 2px 0 0;
-    color: var(--x-dark-dim);
-  }
-  .mult b {
-    color: var(--x-accent);
-    font-weight: 700;
-    white-space: nowrap;
-  }
-  .tag {
-    margin: 14px 0 0;
-    padding-top: 16px;
-    color: var(--x-dark-dim);
-    border-top: 1px solid var(--x-line-dark);
-    text-wrap: pretty;
-    max-width: 380px;
-  }
-  /* 图区:深色内嵌面板,暗背景产品摄影满铺;Share 无图 → 琥珀等高线 */
-  .pic {
-    background: var(--x-bg);
-    min-height: 280px;
+  .media {
     position: relative;
+    aspect-ratio: 16 / 9.6;
+    background: var(--x-bg);
+    overflow: hidden;
   }
-  .pic img,
-  .pic svg {
+  .media img,
+  .media svg {
     position: absolute;
     inset: 0;
     width: 100%;
@@ -187,25 +128,112 @@ const shareArt = contour(77, 13, 480, 520);
     object-fit: cover;
     display: block;
   }
+  .serial {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: var(--x-light);
+    color: var(--x-dark);
+    font-weight: 700;
+    padding: 3px 9px;
+  }
+  .chip {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-weight: 700;
+    background: var(--x-accent);
+    color: var(--x-on-accent);
+    padding: 3px 9px;
+  }
+  .body {
+    padding: clamp(18px, 1.8vw, 28px);
+    display: grid;
+    gap: 14px;
+  }
+  h3 {
+    font-family: var(--x-font-display);
+    font-size: clamp(26px, 2.6vw, 38px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    color: var(--x-dark);
+    margin: 0;
+    text-wrap: balance;
+  }
+  .cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: clamp(16px, 2vw, 32px);
+    align-items: start;
+  }
+  .col {
+    margin: 0;
+    color: var(--x-dark-dim);
+  }
+  .price {
+    display: block;
+    font-family: var(--x-font-display);
+    font-size: clamp(19px, 1.8vw, 24px);
+    font-weight: 500;
+    color: var(--x-dark);
+    font-variant-numeric: tabular-nums;
+    margin-bottom: 4px;
+  }
+  .mult b {
+    color: var(--x-accent-ink);
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .tagcol {
+    text-wrap: pretty;
+  }
+
+  /* —— 静态模式(移动/reduced/无 JS):纵列排布 —— */
+  .cards {
+    display: grid;
+    gap: clamp(20px, 3vh, 32px);
+    justify-items: center;
+    padding: clamp(26px, 4vh, 44px) 0 0;
+  }
+
+  /* —— deck 模式(fx.ts 激活):钉屏,卡绝对定位在锚位,JS 驱动右侧滑入叠落 —— */
+  .devices:global(.decked) .pin {
+    position: sticky;
+    top: 0;
+    height: 100svh;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+  .devices:global(.decked) .cards {
+    display: block;
+    padding: 0;
+  }
+  .devices:global(.decked) .card {
+    position: absolute;
+    left: clamp(120px, 26vw, 460px);
+    top: 54%;
+    width: min(44vw, 680px);
+    z-index: calc(1 + var(--i));
+    transform: translate3d(120vw, -50%, 0); /* 初始在右侧场外,fx 接管 */
+    will-change: transform;
+  }
+
   .cta-row {
     margin-top: clamp(28px, 4vw, 48px);
     display: flex;
     justify-content: center;
+    position: relative;
+    z-index: 1;
   }
 
   @media (max-width: 860px) {
     .card {
+      width: 100%;
+    }
+    .cols {
       grid-template-columns: 1fr;
-      min-height: auto;
-      top: calc(64px + var(--i) * 5px);
-    }
-    .pic {
-      order: -1;
-      min-height: 220px;
-      max-height: 34vh;
-    }
-    .info {
-      padding: 20px;
+      gap: 10px;
     }
   }
 </style>

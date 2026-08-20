@@ -26,8 +26,10 @@
   --x-dark-dim: rgba(12, 12, 13, 0.62);
   --x-dark-faint: rgba(12, 12, 13, 0.4);
 
-  /* Accent — amber */
+  /* Accent — amber。--x-accent-ink 专供**文字**用琥珀:暗底=原琥珀,
+     反白区块内自动换深琥珀(浅底对比度达标,a11y);chip 背景仍用 --x-accent */
   --x-accent: #da840a;
+  --x-accent-ink: #da840a;
   --x-accent-soft: rgba(218, 132, 10, 0.16);
   --x-on-accent: #0c0c0d;
 
@@ -233,7 +235,8 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-/* 反白区块基色(内部覆盖 ink 变量,子元素直接用 --x-ink 系即可) */
+/* 反白区块基色(内部覆盖 ink 变量,子元素直接用 --x-ink 系即可;
+   琥珀文字与细线也随之换浅底档,按钮在下方上下文规则里自动适配) */
 .x-invert {
   background: var(--x-light);
   color: var(--x-dark);
@@ -243,6 +246,22 @@ summary:focus-visible {
   --x-ink-dim: var(--x-dark-dim);
   --x-ink-faint: var(--x-dark-faint);
   --x-line: var(--x-line-dark);
+  --x-line-soft: rgba(12, 12, 13, 0.1);
+  --x-accent-ink: #8a5405;
+}
+/* 反白区块内 xbtn 自动换深色系(免每处手挂 on-light) */
+.x-invert .xbtn {
+  border-color: var(--x-line-dark);
+  color: var(--x-dark);
+}
+.x-invert .xbtn.solid {
+  background: var(--x-dark);
+  color: var(--x-white);
+  border-color: var(--x-dark);
+}
+.x-invert .xbtn.disabled {
+  color: var(--x-dark-faint);
+  border-color: var(--x-line-dark);
 }
 
 @media (prefers-reduced-motion: reduce) {

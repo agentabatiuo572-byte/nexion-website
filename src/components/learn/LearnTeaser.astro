@@ -13,7 +13,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
 const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry.data.order));
 ---
 
-<section class="learn-entry" id="learn-entry">
+<section class="learn-entry x-invert" id="learn-entry">
   <div class="head">
     <span class="x-label lab" data-rv>{t('learn.homeTitle')}</span>
   </div>
@@ -40,11 +40,8 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
 
 <style>
   .learn-entry {
-    position: relative;
-    z-index: 1;
+    /* R3:内容区=纸白(x-invert 自带不透明底) */
     padding: var(--x-section-gap) var(--x-pad);
-    /* 小字密集板块必须有不透明底,禁止文字直压粒子线(主人 R2 指令) */
-    background: var(--x-bg);
   }
   .head {
     border-top: 1px solid var(--x-line);
@@ -52,7 +49,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     margin-bottom: clamp(24px, 3vw, 40px);
   }
   .lab {
-    color: var(--x-white);
+    color: var(--x-ink);
   }
   .rows {
     display: grid;
@@ -64,11 +61,11 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     border-bottom: 1px solid var(--x-line-soft);
     padding: clamp(14px, 1.8vw, 22px) 0;
     text-decoration: none;
-    color: var(--x-white);
+    color: var(--x-ink);
     min-height: 44px;
   }
   .idx {
-    color: var(--x-accent);
+    color: var(--x-accent-ink);
     font-weight: 700;
     flex: 0 0 30px;
   }
