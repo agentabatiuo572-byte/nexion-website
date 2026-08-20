@@ -1,6 +1,7 @@
 /* [FEAT-WEB11] Learn content collection — 文章即文件(v1 无 CMS)。
    路径:src/content/learn/{locale}/{slug}.md;三语同 slug;缺译回退 en(WEB01 异常2)。 */
-import { defineCollection, z } from 'astro:content';
+import { defineCollection } from 'astro:content';
+import { z } from 'astro/zod';
 import { glob } from 'astro/loaders';
 
 const learn = defineCollection({
