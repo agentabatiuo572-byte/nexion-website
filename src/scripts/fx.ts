@@ -302,7 +302,7 @@ function initClock() {
   const colon = document.createElement('span');
   colon.className = 'colon';
   colon.textContent = ':';
-  el.replaceChildren('UTC ', h12, colon, mm, ' ', ap);
+  el.replaceChildren('UTC ', h12, colon, mm, ' ', ap);
   const tick = () => {
     const d = new Date();
     let h = d.getUTCHours();
