@@ -44,6 +44,8 @@ const { Content } = await render(entry);
     max-width: 780px;
     margin: 0;
     padding: 130px var(--x-pad) 0;
+    /* 小字密集页必须不透明底(同 Home R2 口径) */
+    background: var(--x-bg);
   }
   .notice {
     border: 1px solid var(--x-accent);

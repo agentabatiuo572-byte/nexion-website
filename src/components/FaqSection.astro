@@ -46,6 +46,8 @@ const ld = {
     z-index: 1;
     padding: var(--x-section-gap) var(--x-pad);
     max-width: 1100px;
+    /* 小字密集板块必须有不透明底,禁止文字直压粒子线(主人 R2 指令) */
+    background: var(--x-bg);
   }
   .head {
     border-top: 1px solid var(--x-line);

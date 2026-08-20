@@ -40,6 +40,8 @@ const items = await learnList(locale);
     position: relative;
     z-index: 1;
     padding: 130px var(--x-pad) 0;
+    /* 小字密集页必须不透明底(同 Home R2 口径) */
+    background: var(--x-bg);
   }
   .head {
     margin-bottom: clamp(30px, 5vw, 56px);

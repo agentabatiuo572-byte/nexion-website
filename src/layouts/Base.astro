@@ -84,9 +84,11 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
     display: block;
     background: var(--x-bg);
   }
+  /* 层叠哲学(参考站同款):canvas z0 < 导航 z1 < 内容 z2。
+     导航透过暗区块的透明底可见;反白区块(不透明)滑上来时直接盖过导航。 */
   main {
     position: relative;
-    z-index: 1;
+    z-index: 2;
   }
   ::selection {
     background: var(--x-accent);

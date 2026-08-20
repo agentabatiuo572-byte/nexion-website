@@ -1,28 +1,42 @@
 ---
 /* [FEAT-WEB06] 设备阶梯 — 预热面纯展示(不承载购买);🔴 卡上无任何收益金额,
    只展示价格与算力倍数(事实性);legacy=Classic 角标。
-   axiom 方向:pinned 横向轨(fx.ts ⑥;移动/reduced 原生横滑),
-   暗底上的反白 SKU 卡 + NX 序号。 */
+   R2(主人 2026-08-20):滚动叠卡交互(sticky 逐张叠上,替代横向轨)+ 产品实拍图
+   (源自 App 仓 static/img/products,App 的 SKU→图映射同款;Share 无图=等高线纹样,
+   与 App 一致)。图区为深色内嵌面板,吃住暗背景摄影图。 */
 import { useT, type Locale } from '../i18n';
 import { SKUS, fmtPrice, fmtMultiplier } from '../lib/skus';
+import { contour } from '../lib/contour';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+
+// App product-card.vue PRODUCT_PHOTO 映射的官网镜像(pro 复用 pro-v2 图、p2 复用 p1 图,同 App)
+const PHOTO: Record<string, string | undefined> = {
+  phone: '/devices/phone.png',
+  's1': '/devices/s1.jpg',
+  'pro': '/devices/pro.jpg',
+  'pro-v2': '/devices/pro.jpg',
+  'rack-p1': '/devices/rack.jpg',
+  'rack-p2': '/devices/rack.jpg',
+};
+const shareArt = contour(77, 13, 480, 520);
 ---
 
-<section class="devices" id="devices" data-rail>
-  <div class="pin">
-    <div class="head">
-      <span class="x-label lab" data-rv>{t('devices.title')}</span>
-      <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
-    </div>
-    <div class="track" data-rail-track role="list">
-      {
-        SKUS.map((s, i) => (
-          <article class="card" class:list={[{ coming: s.status === 'coming' }]} role="listitem">
+<section class="devices" id="devices">
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('devices.title')}</span>
+    <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
+  </div>
+
+  <div class="stack">
+    {
+      SKUS.map((s, i) => (
+        <article class="card" class:list={[{ coming: s.status === 'coming' }]} style={`--i:${i}`}>
+          <div class="info">
             <div class="top">
               <span class="serial x-mono">NX-{String(i + 1).padStart(2, '0')}</span>
               {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
@@ -34,17 +48,29 @@ const t = useT(locale);
               <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
             </p>
             <p class="tag x-mono">{t(`devices.tagline.${s.id}`)}</p>
-          </article>
-        ))
-      }
-      <div class="cta-card">
-        <a class="xbtn solid" href="#download">
-          <span class="xbtn-ghost">{t('devices.cta')} <span class="arr">→</span></span>
-          <span class="xbtn-a">{t('devices.cta')} <span class="arr">→</span></span>
-          <span class="xbtn-b">{t('devices.cta')} <span class="arr">→</span></span>
-        </a>
-      </div>
-    </div>
+          </div>
+          <div class="pic">
+            {PHOTO[s.id] ? (
+              <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="900" height="700" />
+            ) : (
+              <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                {shareArt.paths.map((d) => (
+                  <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.4" />
+                ))}
+              </svg>
+            )}
+          </div>
+        </article>
+      ))
+    }
+  </div>
+
+  <div class="cta-row" data-rv>
+    <a class="xbtn solid" href="#download">
+      <span class="xbtn-ghost">{t('devices.cta')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('devices.cta')} <span class="arr">→</span></span>
+      <span class="xbtn-b">{t('devices.cta')} <span class="arr">→</span></span>
+    </a>
   </div>
 </section>
 
@@ -52,23 +78,12 @@ const t = useT(locale);
   .devices {
     position: relative;
     z-index: 1;
-  }
-  .pin {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: clamp(26px, 4vh, 48px);
-    padding: 90px 0 40px;
-  }
-  /* fx.ts 激活横向轨(desktop):pin 钉满一屏,track 由 transform 驱动 */
-  .devices:global(.railed) .pin {
-    position: sticky;
-    top: 0;
-    height: 100svh;
-    overflow: hidden;
+    padding: var(--x-section-gap) var(--x-pad);
   }
   .head {
-    padding: 0 var(--x-pad);
+    border-top: 1px solid var(--x-line);
+    padding-top: 18px;
+    margin-bottom: clamp(28px, 4vw, 52px);
     display: grid;
     gap: 10px;
   }
@@ -81,38 +96,36 @@ const t = useT(locale);
     max-width: 520px;
     text-wrap: pretty;
   }
-  .track {
-    display: flex;
-    gap: clamp(14px, 1.6vw, 24px);
-    padding: 0 var(--x-pad) 14px;
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    will-change: transform;
+  .stack {
+    display: grid;
+    gap: clamp(18px, 3vh, 30px);
   }
-  .devices:global(.railed) .track {
-    overflow: visible;
-    scroll-snap-type: none;
-    width: max-content;
-  }
+  /* 滚动叠卡:每张卡钉在视口同一带位,后一张滑上来盖住前一张;
+     top 随序号微退让,叠住时露出前几张 6px 边,读得出「一摞」 */
   .card {
-    flex: 0 0 clamp(280px, 26vw, 380px);
+    position: sticky;
+    top: calc(76px + var(--i) * 6px);
+    min-height: min(66vh, 560px);
     background: var(--x-light);
     color: var(--x-dark);
-    padding: clamp(20px, 2vw, 30px);
     display: grid;
-    gap: 10px;
-    align-content: start;
-    min-height: clamp(320px, 46vh, 430px);
-    scroll-snap-align: start;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+    overflow: hidden;
   }
-  .card.coming {
+  .card.coming .info {
     opacity: 0.66;
+  }
+  .info {
+    padding: clamp(22px, 3vw, 44px);
+    display: grid;
+    gap: 12px;
+    align-content: start;
   }
   .top {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 8px;
+    margin-bottom: 10px;
   }
   .serial {
     color: var(--x-dark-dim);
@@ -124,19 +137,19 @@ const t = useT(locale);
     color: var(--x-on-accent);
     padding: 1px 7px;
   }
-  .card h3 {
+  h3 {
     font-family: var(--x-font-display);
-    font-size: clamp(24px, 2.3vw, 32px);
+    font-size: clamp(28px, 3.4vw, 48px);
     font-weight: 500;
     letter-spacing: -0.02em;
-    line-height: 1.08;
+    line-height: 1.06;
     color: var(--x-dark);
     margin: 0;
     text-wrap: balance;
   }
   .price {
     font-family: var(--x-font-display);
-    font-size: clamp(20px, 1.9vw, 26px);
+    font-size: clamp(22px, 2.4vw, 32px);
     font-weight: 500;
     color: var(--x-dark);
     margin: 0;
@@ -152,26 +165,47 @@ const t = useT(locale);
     white-space: nowrap;
   }
   .tag {
-    margin: auto 0 0;
+    margin: 14px 0 0;
     padding-top: 16px;
     color: var(--x-dark-dim);
     border-top: 1px solid var(--x-line-dark);
     text-wrap: pretty;
+    max-width: 380px;
   }
-  .cta-card {
-    flex: 0 0 auto;
+  /* 图区:深色内嵌面板,暗背景产品摄影满铺;Share 无图 → 琥珀等高线 */
+  .pic {
+    background: var(--x-bg);
+    min-height: 280px;
+    position: relative;
+  }
+  .pic img,
+  .pic svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .cta-row {
+    margin-top: clamp(28px, 4vw, 48px);
     display: flex;
-    align-items: center;
-    padding: 0 clamp(20px, 4vw, 80px);
+    justify-content: center;
   }
 
   @media (max-width: 860px) {
-    .pin {
-      padding-top: 60px;
-    }
     .card {
-      flex-basis: 82vw;
-      min-height: 340px;
+      grid-template-columns: 1fr;
+      min-height: auto;
+      top: calc(64px + var(--i) * 5px);
+    }
+    .pic {
+      order: -1;
+      min-height: 220px;
+      max-height: 34vh;
+    }
+    .info {
+      padding: 20px;
     }
   }
 </style>

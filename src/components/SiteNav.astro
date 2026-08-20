@@ -86,7 +86,12 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     top: 0;
     left: 0;
     right: 0;
-    z-index: 50;
+    /* 在内容之下(参考站哲学):反白区块滑上来会盖过导航;暗区块透明底则透出导航 */
+    z-index: 1;
+  }
+  /* 移动全屏菜单展开时导航整体提到最上层(否则被 main z2 盖住) */
+  .site-nav.menu-open {
+    z-index: 100;
   }
   nav {
     display: flex;
@@ -285,12 +290,14 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   const menu = document.getElementById('nav-menu');
   toggle?.addEventListener('click', () => {
     const open = menu?.classList.toggle('open') ?? false;
+    nav?.classList.toggle('menu-open', open);
     toggle.setAttribute('aria-expanded', String(open));
     document.documentElement.style.overflow = open ? 'hidden' : '';
   });
   menu?.addEventListener('click', (e) => {
     if ((e.target as HTMLElement).closest('a')) {
       menu.classList.remove('open');
+      nav?.classList.remove('menu-open');
       toggle?.setAttribute('aria-expanded', 'false');
       document.documentElement.style.overflow = '';
     }

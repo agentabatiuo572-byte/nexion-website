@@ -233,29 +233,6 @@ summary:focus-visible {
   outline-offset: 2px;
 }
 
-/* 自定义光标启用时隐藏系统光标(fine pointer 限定,fx.ts 置 html.x-cursor) */
-html.x-cursor,
-html.x-cursor a,
-html.x-cursor button,
-html.x-cursor summary {
-  cursor: none;
-}
-#x-cursor-dot {
-  position: fixed;
-  z-index: 9999;
-  width: 10px;
-  height: 10px;
-  margin: -5px 0 0 -5px;
-  border-radius: 50%;
-  background: var(--x-accent);
-  pointer-events: none;
-  transition: transform 0.18s ease-out;
-  will-change: left, top;
-}
-#x-cursor-dot.big {
-  transform: scale(2.6);
-}
-
 /* 反白区块基色(内部覆盖 ink 变量,子元素直接用 --x-ink 系即可) */
 .x-invert {
   background: var(--x-light);
