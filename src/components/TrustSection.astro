@@ -1,9 +1,9 @@
 ---
-/* [FEAT-WEB07] 关于 NexGrid — 形式照主人指定参考截图:标题 + 双证书图 + 5 信息卡。
-   全部实体信息来自 O2 资料包(D:\WORKS\公司资料,2026-08-20 主人交付):
+/* [FEAT-WEB07] 关于 NexGrid — 实体信息来自 O2 资料包(D:\WORKS\公司资料,2026-08-20 主人交付):
    NexGrid LTD · Colorado Corporation · Entity ID 20221592644 · MSB 31000329265856。
-   合规软化 2 处(汇报已交底):MSB 用「注册/登记」表述,不用「许可证/认证/通过审查」
-   ——FinCEN transcript 原文明确 registration ≠ 背书。PoC 手风琴按官网 PRD 保留于卡组后。 */
+   合规软化 2 处(汇报已交底):MSB 用「注册/登记」表述。
+   axiom 方向:反白区块,双证书并排(比例沿用主人已批的 330px 档),
+   五信息卡改为序号等宽文块栅格,PoC 手风琴保留。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -11,72 +11,68 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-const cards = [
-  { n: 1, tint: 'var(--v5-brand-soft)', color: 'var(--v5-brand)', icon: 'M4 20V8l8-5 8 5v12h-6v-6h-4v6z' },
-  { n: 2, tint: 'var(--v5-success-soft)', color: 'var(--v5-success)', icon: 'M10 3a7 7 0 1 0 4.9 12l4.5 4.5 1.4-1.4-4.5-4.5A7 7 0 0 0 10 3zm0 2a5 5 0 1 1 0 10 5 5 0 0 1 0-10z' },
-  { n: 3, tint: 'var(--v5-tech-cyan-soft)', color: 'var(--v5-tech-cyan)', icon: 'M12 2l8 4v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6zm-1.2 12.6l6-6-1.4-1.4-4.6 4.6-2.2-2.2-1.4 1.4z' },
-  { n: 4, tint: 'var(--v5-warning-soft)', color: 'var(--v5-warning)', icon: 'M12 3c4.4 0 8 1.3 8 3s-3.6 3-8 3-8-1.3-8-3 3.6-3 8-3zm-8 6c0 1.7 3.6 3 8 3s8-1.3 8-3v3c0 1.7-3.6 3-8 3s-8-1.3-8-3zm0 6c0 1.7 3.6 3 8 3s8-1.3 8-3v3c0 1.7-3.6 3-8 3s-8-1.3-8-3z' },
-  { n: 5, tint: 'var(--v5-nex-soft)', color: 'var(--v5-nex)', icon: 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm7.9 9h-3.4a15 15 0 0 0-1.2-6A8 8 0 0 1 19.9 11zM12 4c.9 1.2 1.9 3.6 2.1 7h-4.2C10.1 7.6 11.1 5.2 12 4zM4.1 13h3.4a15 15 0 0 0 1.2 6A8 8 0 0 1 4.1 13zm3.4-2H4.1a8 8 0 0 1 4.6-6 15 15 0 0 0-1.2 6zm2.4 2h4.2c-.2 3.4-1.2 5.8-2.1 7-.9-1.2-1.9-3.6-2.1-7zm5.4 6a15 15 0 0 0 1.2-6h3.4a8 8 0 0 1-4.6 6z' },
-] as const;
+const cards = [1, 2, 3, 4, 5] as const;
 ---
 
-<section class="trust" id="trust">
-  <h2 class="title">{t('trust.title')}</h2>
+<section class="trust x-invert" id="trust">
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('trust.title')}</span>
+  </div>
 
-  <div class="certs">
+  <div class="certs" data-rv>
     <figure>
-      <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} loading="lazy" width="1000" height="1400" />
+      <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} width="660" height="880" />
     </figure>
     <figure>
-      <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} loading="lazy" width="1000" height="1400" />
+      <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} width="660" height="880" />
     </figure>
   </div>
 
   <div class="cards">
     {
-      cards.map((c) => (
-        <article class="card">
-          <span class="icon" style={`background:${c.tint};color:${c.color}`} aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="22" height="22"><path fill="currentColor" d={c.icon} /></svg>
-          </span>
-          <p>{t(`trust.card${c.n}`)}</p>
+      cards.map((n, i) => (
+        <article class="card" data-rv style={`--d:${i * 0.08}s`}>
+          <span class="idx x-mono">0{n}</span>
+          <p class="x-mono">{t(`trust.card${n}`)}</p>
         </article>
       ))
     }
   </div>
 
   <details class="poc">
-    <summary>{t('trust.pocTitle')}</summary>
-    <p>{t('trust.pocBody1')}</p>
-    <p>{t('trust.pocBody2')}</p>
+    <summary>
+      <span class="mark x-mono" aria-hidden="true">+</span>
+      {t('trust.pocTitle')}
+    </summary>
+    <p class="x-mono">{t('trust.pocBody1')}</p>
+    <p class="x-mono">{t('trust.pocBody2')}</p>
   </details>
 </section>
 
 <style>
   .trust {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
+    padding: var(--x-section-gap) var(--x-pad);
   }
-  .title {
-    font-size: clamp(26px, 3.4vw, 34px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 30px;
-    text-align: center;
-    text-wrap: balance;
+  .head {
+    border-top: 1px solid var(--x-line-dark);
+    padding-top: 18px;
+    margin-bottom: clamp(28px, 4vw, 52px);
+  }
+  .lab {
+    color: var(--x-dark);
   }
   .certs {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 330px));
     justify-content: center;
     gap: 28px;
-    margin-bottom: 38px;
+    margin-bottom: clamp(36px, 5vw, 64px);
   }
   .certs figure {
     margin: 0;
-    border-radius: 10px;
-    overflow: hidden;
+    border: 1px solid var(--x-line-dark);
+    padding: 8px;
+    background: var(--x-white);
   }
   .certs img {
     display: block;
@@ -85,69 +81,67 @@ const cards = [
   }
   .cards {
     display: grid;
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 0;
+    border-top: 1px solid var(--x-line-dark);
   }
   .card {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 22px 24px;
-    display: flex;
-    gap: 18px;
-    align-items: center;
-  }
-  .icon {
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
-    border-radius: 12px;
     display: grid;
-    place-items: center;
+    grid-template-columns: 40px 1fr;
+    gap: 12px;
+    padding: 22px 18px 22px 0;
+    border-bottom: 1px solid var(--x-line-dark);
+    align-content: start;
+  }
+  .idx {
+    color: var(--x-accent);
+    font-weight: 700;
   }
   .card p {
-    color: var(--v5-ink-2);
-    font-size: 14px;
-    line-height: 1.75;
     margin: 0;
+    color: var(--x-dark-dim);
     text-wrap: pretty;
   }
   .poc {
-    margin-top: 26px;
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 4px 24px;
+    margin-top: clamp(28px, 4vw, 44px);
+    border: 1px solid var(--x-line-dark);
+    padding: 4px 20px;
   }
   .poc summary {
     cursor: pointer;
-    min-height: 48px;
+    min-height: 52px;
     display: flex;
     align-items: center;
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--v5-ink);
+    gap: 12px;
+    font-family: var(--x-font-display);
+    font-size: clamp(17px, 1.6vw, 21px);
+    font-weight: 500;
+    color: var(--x-dark);
     list-style: none;
   }
-  .poc summary::before {
-    content: '+';
-    color: var(--v5-brand);
-    margin-right: 10px;
-    font-weight: 600;
+  .poc summary::-webkit-details-marker {
+    display: none;
   }
-  .poc[open] summary::before {
+  .poc .mark {
+    color: var(--x-accent);
+    font-weight: 700;
+    font-size: 16px;
+  }
+  .poc[open] .mark {
+    /* + → − */
+    visibility: hidden;
+    position: relative;
+  }
+  .poc[open] .mark::after {
     content: '−';
-  }
-  .poc summary:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+    visibility: visible;
+    position: absolute;
+    left: 0;
   }
   .poc p {
-    color: var(--v5-ink-2);
-    font-size: 14px;
-    margin: 0 0 14px;
+    color: var(--x-dark-dim);
+    margin: 0 0 16px;
+    max-width: 760px;
     text-wrap: pretty;
-  }
-  @media (max-width: 640px) {
-    .card {
-      align-items: flex-start;
-    }
   }
 </style>

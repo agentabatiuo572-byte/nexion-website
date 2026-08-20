@@ -1,6 +1,7 @@
 ---
 /* [FEAT-WEB12] Home FAQ — 6 问手风琴(原生 details)+ FAQPage JSON-LD。
-   涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。 */
+   涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。
+   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -21,12 +22,18 @@ const ld = {
 ---
 
 <section class="faq-sec" id="faq">
-  <h2 class="title">{t('faq.title')}</h2>
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('faq.title')}</span>
+  </div>
   {
-    qs.map((n) => (
-      <details class="item">
-        <summary>{t(`faq.q${n}`)}</summary>
-        <p>{t(`faq.a${n}`)}</p>
+    qs.map((n, i) => (
+      <details class="item" data-rv style={`--d:${i * 0.05}s`}>
+        <summary>
+          <span class="idx x-mono">Q{n}</span>
+          <span class="q">{t(`faq.q${n}`)}</span>
+          <span class="mark x-mono" aria-hidden="true">+</span>
+        </summary>
+        <p class="x-mono">{t(`faq.a${n}`)}</p>
       </details>
     ))
   }
@@ -35,51 +42,68 @@ const ld = {
 
 <style>
   .faq-sec {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
+    position: relative;
+    z-index: 1;
+    padding: var(--x-section-gap) var(--x-pad);
+    max-width: 1100px;
   }
-  .title {
-    font-size: clamp(24px, 3vw, 30px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 22px;
-    text-align: center;
-    text-wrap: balance;
+  .head {
+    border-top: 1px solid var(--x-line);
+    padding-top: 18px;
+    margin-bottom: clamp(22px, 3vw, 36px);
+  }
+  .lab {
+    color: var(--x-white);
   }
   .item {
-    background: var(--v5-surface);
-    border-radius: 16px;
-    padding: 2px 18px;
-    margin-bottom: 10px;
+    border-bottom: 1px solid var(--x-line-soft);
   }
   .item summary {
     cursor: pointer;
-    min-height: 48px;
+    min-height: 60px;
     display: flex;
     align-items: center;
-    font-size: 14.5px;
-    font-weight: 600;
-    color: var(--v5-ink);
+    gap: clamp(14px, 2vw, 28px);
     list-style: none;
+    padding: 10px 0;
   }
-  .item summary::before {
-    content: '+';
-    color: var(--v5-brand);
-    margin-right: 10px;
-    font-weight: 600;
+  .item summary::-webkit-details-marker {
+    display: none;
   }
-  .item[open] summary::before {
+  .idx {
+    color: var(--x-accent);
+    font-weight: 700;
+    flex: 0 0 30px;
+  }
+  .q {
+    font-family: var(--x-font-display);
+    font-size: clamp(17px, 1.8vw, 23px);
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    color: var(--x-white);
+    flex: 1;
+    line-height: 1.25;
+    text-wrap: balance;
+  }
+  .mark {
+    color: var(--x-ink-faint);
+    font-weight: 700;
+    position: relative;
+  }
+  .item[open] .mark {
+    visibility: hidden;
+  }
+  .item[open] .mark::after {
     content: '−';
-  }
-  .item summary:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    color: var(--x-accent);
   }
   .item p {
-    color: var(--v5-ink-2);
-    font-size: 13.5px;
-    margin: 0 0 14px;
+    color: var(--x-ink-dim);
+    margin: 0 0 20px calc(30px + clamp(14px, 2vw, 28px));
+    max-width: 720px;
     text-wrap: pretty;
   }
 </style>

@@ -1,9 +1,9 @@
 ---
-/* [FEAT-WEB05] How it works — 三步机制卡,滚动渐显。
-   reduced-motion 的真取消由 tokens.css 全局 `animation-timeline: auto !important` 保证
-   (duration 压制对 view() 时间线无效,t456 D1);机制表述与 App PRD §1.1/§6 一致;
-   不提具体金额(PRD §1.4-1)。 */
+/* [FEAT-WEB05] How it works — 三步机制卡。axiom 方向:反白区块延续,
+   序号 01-03 + display 标题 + 等宽正文 + 等高线纹样。
+   机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。 */
 import { useT, type Locale } from '../i18n';
+import { contour } from '../lib/contour';
 
 interface Props {
   locale: Locale;
@@ -11,17 +11,25 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const steps = [1, 2, 3] as const;
+const arts = [contour(101, 12, 360, 220), contour(202, 12, 360, 220), contour(303, 12, 360, 220)];
 ---
 
-<section class="how" id="how">
-  <h2 class="title">{t('how.title')}</h2>
+<section class="how x-invert" id="how">
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('how.title')}</span>
+  </div>
   <div class="steps">
     {
       steps.map((n) => (
-        <article class="step">
-          <span class="n">{n}</span>
+        <article class="step" data-rv style={`--d:${(n - 1) * 0.12}s`}>
+          <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            {arts[n - 1].paths.map((d) => (
+              <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
+            ))}
+          </svg>
+          <span class="n x-mono">0{n}</span>
           <h3>{t(`how.step${n}Title`)}</h3>
-          <p>
+          <p class="x-mono">
             {t(`how.step${n}Desc`)}
             {n === 3 && (
               <>
@@ -40,83 +48,70 @@ const steps = [1, 2, 3] as const;
 
 <style>
   .how {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
+    padding: 0 var(--x-pad) var(--x-section-gap);
   }
-  .title {
-    font-size: clamp(24px, 3vw, 30px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 28px;
-    text-align: center;
-    text-wrap: balance;
+  .head {
+    border-top: 1px solid var(--x-line-dark);
+    padding-top: 18px;
+    margin-bottom: clamp(28px, 4vw, 52px);
+  }
+  .lab {
+    color: var(--x-dark);
   }
   .steps {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(20px, 3vw, 40px);
   }
   .step {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 26px 24px;
+    position: relative;
+    border: 1px solid var(--x-line-dark);
+    padding: clamp(22px, 2.6vw, 34px);
     display: grid;
-    gap: 10px;
+    gap: 14px;
     align-content: start;
-    animation: rise 0.6s ease both;
-    animation-timeline: view();
-    animation-range: entry 0% entry 40%;
+    overflow: hidden;
+    min-height: 300px;
   }
-  @supports not (animation-timeline: view()) {
-    .step {
-      animation: none;
-    }
-  }
-  @keyframes rise {
-    from {
-      opacity: 0;
-      transform: translateY(14px);
-    }
-    to {
-      opacity: 1;
-      transform: none;
-    }
+  .art {
+    position: absolute;
+    left: -10%;
+    bottom: -14%;
+    width: 80%;
+    height: 60%;
+    opacity: 0.14;
+    pointer-events: none;
   }
   .n {
-    width: 32px;
-    height: 32px;
-    border-radius: var(--w-radius-pill);
-    background: var(--v5-brand-soft);
-    color: var(--v5-brand);
-    display: grid;
-    place-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
+    color: var(--x-accent);
+    font-weight: 700;
   }
-  h3 {
-    font-size: 18px;
-    font-weight: 600;
-    color: var(--v5-ink);
+  .step h3 {
+    font-family: var(--x-font-display);
+    font-size: clamp(22px, 2.2vw, 30px);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.12;
+    color: var(--x-dark);
     margin: 0;
+    text-wrap: balance;
+    position: relative;
   }
-  p {
-    color: var(--v5-ink-2);
-    font-size: 14px;
+  .step p {
+    color: var(--x-dark-dim);
     margin: 0;
     text-wrap: pretty;
+    position: relative;
   }
   .vlink {
-    color: var(--v5-brand);
-    text-decoration: none;
-    white-space: nowrap;
+    color: var(--x-dark);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
-  .vlink:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+  .vlink:hover {
+    opacity: 0.6;
   }
   .vlink:active {
-    opacity: 0.8;
+    opacity: 0.45;
   }
 </style>

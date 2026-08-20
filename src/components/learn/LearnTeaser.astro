@@ -1,5 +1,6 @@
 ---
-/* [FEAT-WEB11 + §2.3 ⑩] Home 学习中心入口卡 — 3 篇精选 + Browse all */
+/* [FEAT-WEB11 + §2.3 ⑩] Home 学习中心入口卡 — 3 篇精选 + Browse all。
+   axiom 方向:序号行列表(等宽 topic + display 标题 + 箭头)。 */
 import { useT, type Locale } from '../../i18n';
 import { learnList } from '../../lib/learn';
 
@@ -13,103 +14,84 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
 ---
 
 <section class="learn-entry" id="learn-entry">
-  <h2 class="title">{t('learn.homeTitle')}</h2>
-  <div class="cards">
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('learn.homeTitle')}</span>
+  </div>
+  <div class="rows">
     {
-      picks.map(({ entry, slug }) => (
-        <a class="card" href={`${prefix}/learn/${slug}`}>
-          <span class="topic">{t(`learn.topics.${entry.data.topic}`)}</span>
-          <h3>{entry.data.title}</h3>
+      picks.map(({ entry, slug }, i) => (
+        <a class="row x-dimlink" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${i * 0.08}s`}>
+          <span class="idx x-mono">0{i + 1}</span>
+          <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
+          <span class="name">{entry.data.title}</span>
+          <span class="arr x-mono" aria-hidden="true">→</span>
         </a>
       ))
     }
   </div>
-  <div class="more">
-    <a class="pill" href={`${prefix}/learn`}>{t('learn.browseAll')} →</a>
+  <div class="more" data-rv>
+    <a class="xbtn" href={`${prefix}/learn`}>
+      <span class="xbtn-ghost">{t('learn.browseAll')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('learn.browseAll')} <span class="arr">→</span></span>
+      <span class="xbtn-b">{t('learn.browseAll')} <span class="arr">→</span></span>
+    </a>
   </div>
 </section>
 
 <style>
   .learn-entry {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
+    position: relative;
+    z-index: 1;
+    padding: var(--x-section-gap) var(--x-pad);
   }
-  .title {
-    font-size: clamp(24px, 3vw, 30px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 24px;
-    text-align: center;
-    text-wrap: balance;
+  .head {
+    border-top: 1px solid var(--x-line);
+    padding-top: 18px;
+    margin-bottom: clamp(24px, 3vw, 40px);
   }
-  .cards {
+  .lab {
+    color: var(--x-white);
+  }
+  .rows {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
   }
-  .card {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 22px 20px;
-    display: grid;
-    gap: 8px;
-    align-content: start;
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(14px, 2.4vw, 36px);
+    border-bottom: 1px solid var(--x-line-soft);
+    padding: clamp(14px, 1.8vw, 22px) 0;
     text-decoration: none;
-    transition:
-      transform 0.15s,
-      opacity 0.15s;
+    color: var(--x-white);
+    min-height: 44px;
   }
-  .card:active {
-    transform: scale(0.99);
-    opacity: 0.9;
-  }
-  .card:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+  .idx {
+    color: var(--x-accent);
+    font-weight: 700;
+    flex: 0 0 30px;
   }
   .topic {
-    justify-self: start;
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    color: var(--v5-brand);
-    background: var(--v5-brand-soft);
-    border-radius: var(--w-radius-pill);
-    padding: 3px 10px;
+    color: var(--x-ink-faint);
+    flex: 0 0 clamp(90px, 12vw, 150px);
   }
-  h3 {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0;
+  .name {
+    font-family: var(--x-font-display);
+    font-size: clamp(18px, 2.2vw, 28px);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.2;
+    flex: 1;
     text-wrap: balance;
   }
+  .arr {
+    color: var(--x-ink-faint);
+  }
   .more {
-    text-align: center;
-    margin-top: 22px;
+    margin-top: clamp(24px, 3vw, 40px);
   }
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-    padding: 0 22px;
-    border-radius: var(--w-radius-pill);
-    font-size: 14px;
-    font-weight: 600;
-    text-decoration: none;
-    color: var(--v5-ink-2);
-    border: 1px solid var(--v5-border-strong);
-    transition:
-      transform 0.15s,
-      opacity 0.15s;
-  }
-  .pill:active {
-    transform: scale(0.98);
-    opacity: 0.85;
-  }
-  .pill:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+  @media (max-width: 640px) {
+    .topic {
+      display: none;
+    }
   }
 </style>

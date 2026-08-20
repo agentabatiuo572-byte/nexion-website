@@ -1,7 +1,6 @@
 ---
-/* [FEAT-WEB09] 使命升华 — 宣言 + 领域组(内容自创,手法借鉴;与 App PRD §1.1
-   任务类型兼容,不虚构具名合作)。v1 文字 chip 结构(PRD ⑤:图标缺失不破版,
-   图标位归视觉精修 T11)。纯展示无可点。 */
+/* [FEAT-WEB09] 使命升华 — 宣言 + 领域组(与 App PRD §1.1 任务类型兼容,
+   不虚构具名合作)。axiom 方向:黑底陈述 + 序号等宽宣言行(F-01..F-06)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -13,49 +12,70 @@ const fields = [1, 2, 3, 4, 5, 6] as const;
 ---
 
 <section class="mission" id="mission">
-  <h2 class="title">{t('mission.title')}</h2>
-  <p class="lead">{t('mission.lead')}</p>
+  <div class="head">
+    <span class="x-label lab" data-rv>{t('mission.title')}</span>
+    <p class="lead x-display" data-rv style="--d:.1s">{t('mission.lead')}</p>
+  </div>
   <ul class="fields" role="list">
-    {fields.map((n) => <li class="chip">{t(`mission.f${n}`)}</li>)}
+    {
+      fields.map((n, i) => (
+        <li class="row" data-rv style={`--d:${i * 0.06}s`}>
+          <span class="idx x-mono">F-0{n}</span>
+          <span class="name">{t(`mission.f${n}`)}</span>
+        </li>
+      ))
+    }
   </ul>
 </section>
 
 <style>
   .mission {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
-    text-align: center;
+    position: relative;
+    z-index: 1;
+    padding: var(--x-section-gap) var(--x-pad);
   }
-  .title {
-    font-size: clamp(22px, 2.8vw, 28px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 10px;
-    text-wrap: balance;
+  .head {
+    border-top: 1px solid var(--x-line);
+    padding-top: 18px;
+    margin-bottom: clamp(28px, 4vw, 48px);
+    display: grid;
+    gap: 18px;
+  }
+  .lab {
+    color: var(--x-white);
   }
   .lead {
-    color: var(--v5-ink-3);
-    font-size: 14px;
-    max-width: 620px;
-    margin: 0 auto 24px;
-    text-wrap: pretty;
+    font-size: clamp(22px, 2.8vw, 38px);
+    color: var(--x-ink-dim);
+    margin: 0;
+    max-width: 30ch;
+    font-weight: 400;
   }
   .fields {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: 10px;
   }
-  .chip {
-    background: var(--v5-surface-2);
-    color: var(--v5-ink-2);
-    border-radius: var(--w-radius-pill);
-    padding: 10px 18px;
-    font-size: 13.5px;
-    white-space: nowrap;
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(18px, 3vw, 48px);
+    border-bottom: 1px solid var(--x-line-soft);
+    padding: clamp(12px, 1.6vw, 20px) 0;
+  }
+  .idx {
+    font-family: var(--x-font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--x-accent);
+    flex: 0 0 52px;
+  }
+  .name {
+    font-family: var(--x-font-display);
+    font-size: clamp(24px, 3.2vw, 44px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--x-white);
+    line-height: 1.15;
   }
 </style>

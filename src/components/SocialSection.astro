@@ -1,6 +1,7 @@
 ---
 /* [FEAT-WEB08] 社证板块 — 规模句(复用 stats 快照,同源)+ 职业多样性 + 证言。
-   证言素材未到位(O4)→ 子区隐藏(分层降级,不放假证言);数组填充即渲染。 */
+   证言素材未到位(O4)→ 子区隐藏(分层降级,不放假证言);数组填充即渲染。
+   axiom 方向:黑底陈述式大字,粒子层透底。 */
 import { useT, type Locale } from '../i18n';
 import { STATS_SNAPSHOT, fmtStat } from '../lib/stats';
 
@@ -20,18 +21,18 @@ const TESTIMONIALS: Testimonial[] = [];
 ---
 
 <section class="social" id="social">
-  <h2 class="title">
+  <h2 class="title x-display" data-rv>
     {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
   </h2>
-  <p class="roles">{t('social.rolesLine')}</p>
+  <p class="roles x-display" data-rv style="--d:.15s">{t('social.rolesLine')}</p>
 
   {
     TESTIMONIALS.length > 0 && (
       <div class="quotes">
         {TESTIMONIALS.map((q) => (
           <blockquote class="quote">
-            <p>{q.quote}</p>
-            <footer>
+            <p class="x-mono">{q.quote}</p>
+            <footer class="x-mono">
               {q.name} · {q.country}
             </footer>
           </blockquote>
@@ -43,50 +44,44 @@ const TESTIMONIALS: Testimonial[] = [];
 
 <style>
   .social {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: var(--w-space-section) 20px 0;
-    text-align: center;
+    position: relative;
+    z-index: 1;
+    padding: var(--x-section-gap) var(--x-pad);
+    min-height: 66svh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: clamp(20px, 3vh, 34px);
   }
   .title {
-    font-size: clamp(22px, 2.8vw, 28px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 10px;
-    text-wrap: balance;
+    font-size: clamp(30px, 4.4vw, 58px);
+    color: var(--x-white);
+    margin: 0;
+    max-width: 20ch;
   }
   .roles {
-    color: var(--v5-ink-3);
-    font-size: 14px;
-    max-width: 620px;
-    margin: 0 auto;
-    text-wrap: pretty;
+    font-size: clamp(20px, 2.6vw, 34px);
+    color: var(--x-ink-dim);
+    margin: 0;
+    max-width: 34ch;
+    font-weight: 400;
   }
   .quotes {
-    margin-top: 28px;
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: 18px;
-    text-align: left;
+    gap: 20px;
+    margin-top: 28px;
   }
   .quote {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 24px 22px;
     margin: 0;
+    border: 1px solid var(--x-line);
+    padding: 20px;
   }
   .quote p {
-    color: var(--v5-ink-2);
-    font-size: 14px;
+    color: var(--x-ink-dim);
     margin: 0 0 12px;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-wrap: pretty;
   }
   .quote footer {
-    color: var(--v5-ink-4);
-    font-size: 12.5px;
+    color: var(--x-ink-faint);
   }
 </style>

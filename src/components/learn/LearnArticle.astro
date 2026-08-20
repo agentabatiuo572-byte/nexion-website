@@ -1,6 +1,6 @@
 ---
 /* [FEAT-WEB11] 文章页正文 — 渲染 md;缺译顶部提示条(WEB01 异常2);
-   尾部 Get the app CTA + App 版本标注 */
+   尾部 Get the app CTA + App 版本标注。axiom 方向:display 标题 + 等宽正文。 */
 import { render } from 'astro:content';
 import { useT, type Locale } from '../../i18n';
 import type { LearnEntry } from '../../lib/learn';
@@ -17,11 +17,11 @@ const { Content } = await render(entry);
 ---
 
 <main class="article">
-  {fallback && <p class="notice">{t('learn.untranslated')}</p>}
-  <a class="back" href={`${prefix}/learn`}>← {t('learn.backToList')}</a>
+  {fallback && <p class="notice x-mono">{t('learn.untranslated')}</p>}
+  <a class="back x-mono x-dimlink" href={`${prefix}/learn`}>← {t('learn.backToList')}</a>
   <article>
-    <h1>{entry.data.title}</h1>
-    <p class="meta">
+    <h1 class="x-display">{entry.data.title}</h1>
+    <p class="meta x-mono">
       {t(`learn.topics.${entry.data.topic}`)} · {t('learn.appVersionLabel')} {entry.data.appVersion} · {entry.data.updatedAt}
     </p>
     <div class="prose">
@@ -29,64 +29,59 @@ const { Content } = await render(entry);
     </div>
   </article>
   <div class="cta">
-    <a class="pill primary" href={`${prefix}/#download`}>{t('nex.getApp')}</a>
+    <a class="xbtn solid" href={`${prefix}/#download`}>
+      <span class="xbtn-ghost">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b">{t('nex.getApp')} <span class="arr">→</span></span>
+    </a>
   </div>
 </main>
 
 <style>
   .article {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 40px 20px 0;
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    margin: 0;
+    padding: 130px var(--x-pad) 0;
   }
   .notice {
-    background: var(--v5-warning-soft);
-    color: var(--v5-warning);
-    font-size: 13px;
-    border-radius: 12px;
+    border: 1px solid var(--x-accent);
+    color: var(--x-accent);
     padding: 10px 16px;
     margin: 0 0 18px;
   }
   .back {
-    color: var(--v5-ink-3);
+    color: var(--x-ink-dim);
     text-decoration: none;
-    font-size: 13.5px;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
-  }
-  .back:active {
-    opacity: 0.8;
-  }
-  .back:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+    font-weight: 700;
   }
   h1 {
-    font-size: clamp(26px, 3.6vw, 34px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 10px 0 8px;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
-    text-wrap: balance;
+    font-size: clamp(30px, 4.6vw, 54px);
+    color: var(--x-white);
+    margin: 10px 0 12px;
   }
   .meta {
-    color: var(--v5-ink-4);
-    font-size: 12.5px;
-    margin: 0 0 26px;
+    color: var(--x-ink-faint);
+    margin: 0 0 30px;
   }
   .prose :global(h2) {
-    font-size: 19px;
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 30px 0 10px;
+    font-family: var(--x-font-display);
+    font-size: clamp(19px, 2vw, 25px);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    color: var(--x-white);
+    margin: 34px 0 12px;
   }
   .prose :global(p),
   .prose :global(li) {
-    color: var(--v5-ink-2);
-    font-size: 14.5px;
-    line-height: 1.75;
+    font-family: var(--x-font-mono);
+    color: var(--x-ink-dim);
+    font-size: 13px;
+    line-height: 1.85;
     text-wrap: pretty;
   }
   .prose :global(ul) {
@@ -95,46 +90,18 @@ const { Content } = await render(entry);
   .prose :global(blockquote) {
     margin: 20px 0;
     padding: 12px 18px;
-    background: var(--v5-surface);
-    border-radius: 14px;
+    border-left: 2px solid var(--x-accent);
   }
   .prose :global(blockquote p) {
-    color: var(--v5-ink-3);
-    font-size: 13.5px;
+    color: var(--x-ink-faint);
     margin: 0;
   }
   .prose :global(b),
   .prose :global(strong) {
-    color: var(--v5-ink);
-    font-weight: 600;
+    color: var(--x-white);
+    font-weight: 700;
   }
   .cta {
-    text-align: center;
-    margin-top: 36px;
-  }
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    min-height: 48px;
-    padding: 0 26px;
-    border-radius: var(--w-radius-pill);
-    font-size: 15px;
-    font-weight: 600;
-    text-decoration: none;
-    transition:
-      transform 0.15s,
-      opacity 0.15s;
-  }
-  .pill.primary {
-    background: var(--v5-brand);
-    color: var(--v5-on-brand);
-  }
-  .pill:active {
-    transform: scale(0.98);
-    opacity: 0.85;
-  }
-  .pill:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+    margin-top: 40px;
   }
 </style>

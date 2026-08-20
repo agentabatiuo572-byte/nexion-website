@@ -1,6 +1,6 @@
 ---
-/* [FEAT-WEB01] 页脚 — Legal 链 / 联系 / 风险披露(措辞待 Legal 定稿统一,key 先行)。
-   社媒未配置不渲染(PRD 异常口径:零死链)。 */
+/* [FEAT-WEB01] 页脚 — Legal 链 / 联系 / 风险披露(key 不变,零死链)。
+   axiom 方向:等宽信息层 + 巨型 wordmark 收底。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -14,63 +14,77 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
-  <div class="inner">
-    <p class="disclaimer">{t('footer.disclaimer')}</p>
+  <div class="upper">
+    <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
     <nav aria-label={t('footer.ariaLegal')}>
-      <a href={`${prefix}/legal/privacy`}>{t('footer.privacy')}</a>
-      <a href={`${prefix}/legal/terms`}>{t('footer.terms')}</a>
-      {CONTACT && <a href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
+      <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy`}>{t('footer.privacy')}</a>
+      <a class="x-mono x-dimlink" href={`${prefix}/legal/terms`}>{t('footer.terms')}</a>
+      {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
     </nav>
-    <p class="copy">© {year} NexGrid. {t('footer.rights')}</p>
   </div>
+  <div class="wordmark" aria-hidden="true">NexGrid</div>
+  <p class="copy x-mono">© {year} NexGrid. {t('footer.rights')}</p>
 </footer>
 
 <style>
   .site-footer {
-    border-top: 1px solid var(--v5-border);
-    margin-top: var(--w-space-section);
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--x-line);
+    padding: clamp(40px, 6vh, 72px) var(--x-pad) 26px;
+    overflow: hidden;
   }
-  .inner {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: 40px 20px 48px;
-    display: grid;
-    gap: 16px;
+  .upper {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 32px;
+    margin-bottom: clamp(30px, 5vh, 60px);
   }
   .disclaimer {
-    color: var(--v5-ink-3);
-    font-size: 13px;
-    max-width: 640px;
+    color: var(--x-ink-faint);
+    max-width: 560px;
     margin: 0;
     text-wrap: pretty;
   }
   nav {
     display: flex;
-    gap: 20px;
+    gap: 22px;
     flex-wrap: wrap;
   }
   nav a {
-    color: var(--v5-ink-3);
+    color: var(--x-ink-dim);
     text-decoration: none;
-    font-size: 13px;
     min-height: 44px;
     display: inline-flex;
     align-items: center;
+    white-space: nowrap;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.06em;
   }
-  nav a:hover,
-  nav a:focus-visible {
-    color: var(--v5-ink);
-  }
-  nav a:active {
-    opacity: 0.8;
-  }
-  nav a:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+  .wordmark {
+    font-family: var(--x-font-display);
+    font-weight: 500;
+    font-size: clamp(72px, 16.5vw, 250px);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    color: var(--x-white);
+    white-space: nowrap;
+    text-align: right;
+    user-select: none;
+    margin-bottom: 18px;
   }
   .copy {
-    color: var(--v5-ink-4);
-    font-size: 12px;
+    color: var(--x-ink-faint);
     margin: 0;
+  }
+  @media (max-width: 720px) {
+    .upper {
+      flex-direction: column;
+    }
+    .wordmark {
+      text-align: left;
+    }
   }
 </style>

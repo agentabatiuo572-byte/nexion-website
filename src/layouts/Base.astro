@@ -1,4 +1,11 @@
 ---
+/* 全局壳 — axiom 方向(2026-08-20 主人指令):自托管双字体 + 固定洛伦兹粒子背景
+   + 全站交互引擎(fx.ts)。SEO/hreflang/JSON-LD 契约不变。 */
+import '@fontsource/funnel-display/400.css';
+import '@fontsource/funnel-display/500.css';
+import '@fontsource/space-mono/400.css';
+import '@fontsource/space-mono/700.css';
+import '@fontsource/be-vietnam-pro/500.css';
 import '../styles/tokens.css';
 import SiteNav from '../components/SiteNav.astro';
 import SiteFooter from '../components/SiteFooter.astro';
@@ -21,6 +28,10 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- 本站自带暗色设计:head 内 meta 声明让 UA 强制暗色(Auto Dark)全局收手。
+         注意:CSS 里的 color-scheme 声明实测不被本机 Chromium 的 auto-dark 认,
+         必须用 meta(最小复现页 A/B 实证,2026-08-20)。 -->
+    <meta name="color-scheme" content="dark" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
     <meta name="description" content={description} />
@@ -47,23 +58,38 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
     />
   </head>
   <body>
+    <canvas id="x-bg" aria-hidden="true"></canvas>
     <SiteNav locale={locale} path={path} />
     <slot />
     <SiteFooter locale={locale} />
+    <script src="../scripts/fx.ts"></script>
   </body>
 </html>
 
 <style is:global>
   body {
     margin: 0;
-    font-family:
-      system-ui,
-      -apple-system,
-      'Segoe UI',
-      Roboto,
-      sans-serif;
-    background: var(--v5-bg);
-    color: var(--v5-ink);
+    font-family: var(--x-font-display);
+    background: var(--x-bg);
+    color: var(--x-ink);
     line-height: 1.6;
+  }
+  /* 固定粒子底层:z-0;所有内容 z≥1(暗区块透出粒子,亮区块以实底盖住) */
+  #x-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: var(--x-bg);
+  }
+  main {
+    position: relative;
+    z-index: 1;
+  }
+  ::selection {
+    background: var(--x-accent);
+    color: var(--x-on-accent);
   }
 </style>

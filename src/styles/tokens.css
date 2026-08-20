@@ -1,7 +1,8 @@
-/* NexGrid website design tokens — dark single-theme marketing site.
-   Ported SUBSET of Nexion-uniapp/src/styles/tokens.css html[data-theme=dark]
-   (token SoT; 值逐字节同源,新增仅 website 专用注明). 视觉方向 = 主人 2026-08-20
-   批复:纯黑底 + 柠檬绿荧光体系. 颜色一律用 token,禁硬编码 hex(verify 哨兵). */
+/* NexGrid website design tokens — "axiom" direction(主人 2026-08-20 指令:
+   视觉整套换为 axiom.peppermint.id 风格,内容不变)。
+   本文件自此为本仓视觉 SoT(不再镜像 App dark tokens——主人指令覆盖旧规)。
+   体系:近黑底 + 反白亮区块交替 + 琥珀金强调 + Funnel Display / Space Mono 双字体。
+   颜色一律用 token,组件禁硬编码 hex。自研实现,不含参考站代码/资产。 */
 
 *,
 ::before,
@@ -10,78 +11,271 @@
 }
 
 :root {
-  /* Surface ladder — neutral obsidian, no hue tint (源: dark L286-292) */
-  --v5-bg: #000000;
-  --v5-surface: #141414;
-  --v5-surface-2: #1f1f1f;
-  --v5-surface-3: #2a2a2a;
-  --v5-border: rgba(255, 255, 255, 0.06);
-  --v5-border-strong: rgba(255, 255, 255, 0.12);
+  /* Ground */
+  --x-bg: #0c0c0d; /* 页面近黑 */
+  --x-light: #f2f2f2; /* 反白区块底 */
+  --x-white: #ffffff;
 
-  /* Ink (源: dark L296-299) */
-  --v5-ink: #f5f7fa;
-  --v5-ink-2: #d1d5db;
-  --v5-ink-3: #9ba3b5;
-  --v5-ink-4: #6b7385; /* disabled/最弱元信息专用,禁承载需阅读正文(源注 L59-63) */
+  /* Ink on dark */
+  --x-ink: #ffffff;
+  --x-ink-dim: rgba(255, 255, 255, 0.62);
+  --x-ink-faint: rgba(255, 255, 255, 0.38);
 
-  /* Brand — lemon green signature (源: dark L304-310) */
-  --v5-brand: #9edc1d;
-  --v5-brand-deep: #84b82a;
-  --v5-brand-soft: rgba(158, 220, 29, 0.2);
-  --v5-brand-border: rgba(158, 220, 29, 0.45);
-  --v5-on-brand: #0a0a0a;
-  --v5-on-brand-soft: rgba(10, 10, 10, 0.74);
-  --v5-on-brand-mute: rgba(10, 10, 10, 0.18);
+  /* Ink on light */
+  --x-dark: #0c0c0d;
+  --x-dark-dim: rgba(12, 12, 13, 0.62);
+  --x-dark-faint: rgba(12, 12, 13, 0.4);
 
-  /* Brand-2 — warm orange (源: dark L314-317) */
-  --v5-brand-2: #ff7a3d;
-  --v5-brand-2-soft: rgba(255, 122, 61, 0.2);
-  --v5-brand-2-border: rgba(255, 122, 61, 0.45);
-  --v5-on-brand-2: #0a0a0a;
+  /* Accent — amber */
+  --x-accent: #da840a;
+  --x-accent-soft: rgba(218, 132, 10, 0.16);
+  --x-on-accent: #0c0c0d;
 
-  /* Semantic (源: dark L320-325) */
-  --v5-success: #9edc1d;
-  --v5-success-soft: rgba(158, 220, 29, 0.2);
-  --v5-warning: #ffcb4d;
-  --v5-warning-soft: rgba(255, 203, 77, 0.2);
-  --v5-danger: #ff5c5c;
-  --v5-danger-soft: rgba(255, 92, 92, 0.18);
+  /* Hairlines */
+  --x-line: rgba(255, 255, 255, 0.16);
+  --x-line-soft: rgba(255, 255, 255, 0.08);
+  --x-line-dark: rgba(12, 12, 13, 0.18);
 
-  /* Tech / NEX accents (源: dark L328-335) */
-  --v5-tech-cyan: #8e72ff;
-  --v5-tech-cyan-soft: rgba(142, 114, 255, 0.2);
-  --v5-tech-cyan-border: rgba(142, 114, 255, 0.45);
-  --v5-nex: #b47fff;
-  --v5-nex-soft: rgba(180, 127, 255, 0.2);
-  --v5-nex-border: rgba(180, 127, 255, 0.45);
+  /* Type */
+  --x-font-display:
+    'Funnel Display',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    system-ui,
+    sans-serif;
+  --x-font-mono:
+    'Space Mono',
+    ui-monospace,
+    'Cascadia Mono',
+    'PingFang SC',
+    'Microsoft YaHei',
+    monospace;
 
-  /* Glow / lift (源: dark L344-358; 官网约束同源注 L337-343:只给转化触点 glow) */
-  --v5-ambient-glow: radial-gradient(70% 50% at 80% 0%, rgba(158, 220, 29, 0.1) 0%, transparent 65%);
-  --v5-spotlight-brand: 0 0 32px rgba(158, 220, 29, 0.3), 0 0 12px rgba(158, 220, 29, 0.18);
-  --v5-spotlight-brand-strong: 0 0 40px rgba(158, 220, 29, 0.45), 0 0 16px rgba(158, 220, 29, 0.28);
-  --v5-card-shadow-lift: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.55);
+  /* Layout — 全出血版式,靠统一左右 pad 而非居中容器 */
+  --x-pad: clamp(20px, 3.3vw, 40px);
+  --x-section-gap: clamp(80px, 12vh, 140px);
+  --x-prose-max: 760px;
+}
 
-  /* Website-only structural tokens(官网新增,非 App 源;按 UI/规范 8pt grid + pill 999) */
-  --w-radius-card: 24px;
-  --w-radius-pill: 999px;
-  --w-space-section: clamp(72px, 10vw, 128px); /* marketing 板块纵距,App 无此场景 */
-  --w-content-max: 1120px;
+/* Funnel Display 无 CJK/vietnamese 字集:
+   vi 大字换 Be Vietnam Pro(同为几何 grotesque,vietnamese 字集全);
+   zh 由 display 栈内系统中文黑体接 CJK 字形(拉丁仍走 Funnel,正常混排)。 */
+html[lang='vi'] {
+  --x-font-display: 'Be Vietnam Pro', system-ui, sans-serif;
 }
 
 html {
-  background: var(--v5-bg);
-  color: var(--v5-ink);
+  background: var(--x-bg);
+  color: var(--x-ink);
   scroll-behavior: smooth;
+  /* 本站自带暗色设计:显式声明,禁止 UA 强制暗色(Auto Dark)再做逐元素反色
+     ——否则含照片的亮区块会被启发式翻成暗底亮字(无头验证与 Android Chrome
+     Auto Dark 实测中招;声明后 UA 全局收手)。 */
+  color-scheme: dark;
 }
 
-/* sticky 导航(64px)上滚浮现时不遮锚点目标标题 */
+/* fixed 导航(64px)锚点落位不遮标题 */
 [id] {
-  scroll-margin-top: 76px;
+  scroll-margin-top: 84px;
+}
+
+/* ============ 通用型类(跨组件复用,Base 单点引入) ============ */
+
+/* 等宽小标签:大写、宽字距(zh 无大小写,自动不受 transform 影响) */
+.x-label {
+  font-family: var(--x-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.5;
+}
+
+/* 等宽正文(参考站卡片体):12px 大写窄行距 */
+.x-mono {
+  font-family: var(--x-font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1.75;
+}
+/* zh 大写无意义且中文标点在 mono 里挤,行高放松些 */
+html[lang='zh'] .x-mono {
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  line-height: 1.9;
+}
+
+/* display 陈述体 */
+.x-display {
+  font-family: var(--x-font-display);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  text-wrap: balance;
+}
+
+/* 键值琥珀 chip(导航元数据 / 卡片状态) */
+.x-kv b {
+  font-weight: 700;
+  color: var(--x-on-accent);
+  background: var(--x-accent);
+  padding: 0 4px;
+}
+
+/* slide-swap 按钮:hover 文字整行滑出、副本滑入(300ms)。
+   结构:.xbtn > .xbtn-ghost(占位) + .xbtn-a(默认层) + .xbtn-b(滑入层) */
+.xbtn {
+  position: relative;
+  display: inline-flex;
+  overflow: hidden;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 18px;
+  border: 1px solid var(--x-line);
+  background: none;
+  color: var(--x-ink);
+  font-family: var(--x-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.xbtn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  visibility: hidden;
+  pointer-events: none;
+}
+.xbtn-a,
+.xbtn-b {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: transform 0.3s ease-in-out;
+}
+.xbtn-b {
+  transform: translateX(-100%);
+}
+.xbtn:hover .xbtn-a,
+.xbtn:focus-visible .xbtn-a {
+  transform: translateX(100%);
+}
+.xbtn:hover .xbtn-b,
+.xbtn:focus-visible .xbtn-b {
+  transform: translateX(0);
+}
+.xbtn:active {
+  opacity: 0.8;
+}
+.xbtn.solid {
+  background: var(--x-white);
+  color: var(--x-dark);
+  border-color: var(--x-white);
+}
+.xbtn.on-light {
+  border-color: var(--x-line-dark);
+  color: var(--x-dark);
+}
+.xbtn.on-light.solid {
+  background: var(--x-dark);
+  color: var(--x-white);
+  border-color: var(--x-dark);
+}
+.xbtn.disabled {
+  color: var(--x-ink-faint);
+  border-color: var(--x-line-soft);
+  cursor: default;
+}
+.xbtn .arr {
+  font-family: var(--x-font-mono);
+}
+
+/* 链接 hover 降透明(参考站导航手感) */
+.x-dimlink {
+  transition: opacity 0.2s;
+}
+.x-dimlink:hover {
+  opacity: 0.6;
+}
+.x-dimlink:active {
+  opacity: 0.45;
+}
+
+/* 滚动进场 reveal:fx.ts 的 IO 加 .in;--d 为 stagger 延迟 */
+[data-rv] {
+  opacity: 0;
+  transform: translateY(26px);
+  transition:
+    opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+    transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: var(--d, 0s);
+}
+[data-rv].in {
+  opacity: 1;
+  transform: none;
+}
+
+/* 焦点可见性(全站统一) */
+a:focus-visible,
+button:focus-visible,
+summary:focus-visible {
+  outline: 2px solid var(--x-accent);
+  outline-offset: 2px;
+}
+
+/* 自定义光标启用时隐藏系统光标(fine pointer 限定,fx.ts 置 html.x-cursor) */
+html.x-cursor,
+html.x-cursor a,
+html.x-cursor button,
+html.x-cursor summary {
+  cursor: none;
+}
+#x-cursor-dot {
+  position: fixed;
+  z-index: 9999;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  border-radius: 50%;
+  background: var(--x-accent);
+  pointer-events: none;
+  transition: transform 0.18s ease-out;
+  will-change: left, top;
+}
+#x-cursor-dot.big {
+  transform: scale(2.6);
+}
+
+/* 反白区块基色(内部覆盖 ink 变量,子元素直接用 --x-ink 系即可) */
+.x-invert {
+  background: var(--x-light);
+  color: var(--x-dark);
+  position: relative;
+  z-index: 1;
+  --x-ink: var(--x-dark);
+  --x-ink-dim: var(--x-dark-dim);
+  --x-ink-faint: var(--x-dark-faint);
+  --x-line: var(--x-line-dark);
 }
 
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
+  }
+  [data-rv] {
+    opacity: 1;
+    transform: none;
+    transition: none;
   }
   *,
   ::before,
@@ -89,8 +283,7 @@ html {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-    /* 滚动驱动动画(animation-timeline: view()/scroll())忽略 duration 压制,
-       必须归位 auto 才真取消 —— t456 D1 实锤,族修全站同类 */
+    /* 滚动驱动动画忽略 duration 压制,必须归位 auto 才真取消(t456 D1 族修) */
     animation-timeline: auto !important;
   }
 }

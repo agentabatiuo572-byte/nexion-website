@@ -59,40 +59,46 @@ const t = useT(locale);
 
 <style>
   .legal {
-    max-width: 720px;
-    margin: 0 auto;
-    padding: 48px 20px 0;
+    position: relative;
+    z-index: 1;
+    max-width: 780px;
+    padding: 130px var(--x-pad) 0;
   }
   .prevails {
-    background: var(--v5-surface-2);
-    color: var(--v5-ink-3);
-    font-size: 12.5px;
-    border-radius: 12px;
+    font-family: var(--x-font-mono);
+    border: 1px solid var(--x-line);
+    color: var(--x-ink-faint);
+    font-size: 12px;
     padding: 10px 16px;
     margin: 0 0 20px;
   }
   h1 {
-    font-size: clamp(26px, 3.6vw, 34px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 6px;
-    letter-spacing: -0.01em;
+    font-family: var(--x-font-display);
+    font-size: clamp(30px, 4.6vw, 54px);
+    font-weight: 500;
+    color: var(--x-white);
+    margin: 0 0 8px;
+    letter-spacing: -0.02em;
   }
   .updated {
-    color: var(--v5-ink-4);
-    font-size: 12.5px;
-    margin: 0 0 28px;
+    font-family: var(--x-font-mono);
+    color: var(--x-ink-faint);
+    font-size: 12px;
+    margin: 0 0 30px;
   }
   h2 {
-    font-size: 17px;
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 26px 0 8px;
+    font-family: var(--x-font-display);
+    font-size: clamp(18px, 1.9vw, 23px);
+    font-weight: 500;
+    color: var(--x-white);
+    margin: 30px 0 10px;
+    letter-spacing: -0.015em;
   }
   p {
-    color: var(--v5-ink-2);
-    font-size: 14px;
-    line-height: 1.75;
+    font-family: var(--x-font-mono);
+    color: var(--x-ink-dim);
+    font-size: 13px;
+    line-height: 1.85;
     margin: 0 0 12px;
     text-wrap: pretty;
   }

@@ -1,6 +1,6 @@
 ---
 /* [FEAT-WEB03] 实时平台数字条 — 五数字进视口 count-up;snapshot/sse 双模(lib/stats.ts 契约)。
-   纯展示无可点元素(PRD ⑥ N/A);tabular-nums 防滚动抖动;reduced-motion 直出终值。 */
+   axiom 方向:全出血暗带 + display 大数字 + 等宽大写标签 + 序号。逻辑不变。 */
 import { useT, type Locale } from '../i18n';
 import { STATS_SNAPSHOT, STATS_SNAPSHOT_AT, statsMode, fmtStat } from '../lib/stats';
 
@@ -22,59 +22,63 @@ const items = [
 <section class="stats" id="stats" data-mode={mode} data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}>
   <div class="grid">
     {
-      items.map((it) => (
-        <div class="cell">
+      items.map((it, i) => (
+        <div class="cell" data-rv style={`--d:${i * 0.08}s`}>
+          <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
           <span class="num" data-key={it.key} data-target={it.value} data-decimals={it.decimals} data-suffix={it.suffix ?? ''}>
             {fmtStat(it.value, it.decimals)}{it.suffix ?? ''}
           </span>
-          <span class="label">{it.label}</span>
+          <span class="label x-label">{it.label}</span>
         </div>
       ))
     }
   </div>
-  {mode === 'snapshot' && <p class="asof">{t('stats.asOf')} {STATS_SNAPSHOT_AT}</p>}
+  {mode === 'snapshot' && <p class="asof x-mono">{t('stats.asOf')} {STATS_SNAPSHOT_AT}</p>}
 </section>
 
 <style>
   .stats {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: 40px 20px 48px;
-    border-top: 1px solid var(--v5-border);
+    position: relative;
+    z-index: 1;
+    border-top: 1px solid var(--x-line);
+    padding: clamp(40px, 6vh, 72px) var(--x-pad);
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 16px;
+    gap: 24px;
   }
   .cell {
     display: grid;
-    gap: 4px;
-    justify-items: center;
-    text-align: center;
+    gap: 8px;
+    justify-items: start;
+    border-left: 1px solid var(--x-line-soft);
+    padding-left: 18px;
+  }
+  .idx {
+    color: var(--x-accent);
   }
   .num {
-    font-size: clamp(22px, 3vw, 30px);
-    font-weight: 600;
-    color: var(--v5-brand);
+    font-family: var(--x-font-display);
+    font-size: clamp(30px, 3.6vw, 52px);
+    font-weight: 500;
+    color: var(--x-white);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    line-height: 1;
   }
   .label {
-    color: var(--v5-ink-3);
-    font-size: 12.5px;
+    color: var(--x-ink-dim);
     text-wrap: pretty;
   }
   .asof {
-    text-align: center;
-    color: var(--v5-ink-4);
-    font-size: 11.5px;
-    margin: 18px 0 0;
+    color: var(--x-ink-faint);
+    margin: 26px 0 0;
   }
-  @media (max-width: 720px) {
+  @media (max-width: 900px) {
     .grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      row-gap: 24px;
+      row-gap: 32px;
     }
     .grid .cell:last-child {
       grid-column: 1 / -1;

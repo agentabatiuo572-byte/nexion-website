@@ -2,7 +2,8 @@
 /* [FEAT-WEB10] /nex 轻页正文 — 蓝本 App PRD §11.3.1 合规裁剪:
    无价格行/无实时行情;上市信息只写可验证事实(v1 不列交易所);App 内第 5 用法的
    措辞按官网 PRD §1.4-3 中性化为「长期持有」(App 原措辞属投机语态,官网禁用);
-   App 内链一律改「下载 App」CTA。白皮书入口条件渲染(O6 无资产不渲染)。 */
+   App 内链一律改「下载 App」CTA。白皮书入口条件渲染(O6 无资产不渲染)。
+   axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -19,9 +20,9 @@ const faqs = [1, 2, 3, 4] as const;
 
 <main class="nex-page">
   <header class="hero">
-    <span class="tag">{t('nex.pageTag')}</span>
-    <h1>{t('nex.pageTitle')}</h1>
-    <p class="lead">{t('nex.pageLead')}</p>
+    <span class="tag x-label" data-rv>{t('nex.pageTag')}</span>
+    <h1 class="x-display" data-rv style="--d:.08s">{t('nex.pageTitle')}</h1>
+    <p class="lead x-mono" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
   </header>
 
   <section class="block" aria-labelledby="nex-compare">
@@ -29,9 +30,9 @@ const faqs = [1, 2, 3, 4] as const;
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>{t('nex.cmpProp')}</th><th>USDT</th><th>NEX</th></tr>
+          <tr><th class="x-label">{t('nex.cmpProp')}</th><th class="x-label">USDT</th><th class="x-label">NEX</th></tr>
         </thead>
-        <tbody>
+        <tbody class="x-mono">
           <tr><td>{t('nex.cmpType')}</td><td>{t('nex.cmpTypeUsdt')}</td><td>{t('nex.cmpTypeNex')}</td></tr>
           <tr><td>{t('nex.cmpVol')}</td><td>{t('nex.cmpVolUsdt')}</td><td>{t('nex.cmpVolNex')}</td></tr>
           <tr><td>{t('nex.cmpUse')}</td><td>{t('nex.cmpUseUsdt')}</td><td>{t('nex.cmpUseNex')}</td></tr>
@@ -44,7 +45,11 @@ const faqs = [1, 2, 3, 4] as const;
     <h2 id="nex-sources">{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
-        <li><b>{t(`nex.src${n}Title`)}</b><span>{t(`nex.src${n}Desc`)}</span></li>
+        <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
+          <span class="idx x-mono">0{n}</span>
+          <b>{t(`nex.src${n}Title`)}</b>
+          <span class="x-mono">{t(`nex.src${n}Desc`)}</span>
+        </li>
       ))}
     </ul>
   </section>
@@ -53,7 +58,11 @@ const faqs = [1, 2, 3, 4] as const;
     <h2 id="nex-uses">{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
-        <li><b>{t(`nex.use${n}Title`)}</b><span>{t(`nex.use${n}Desc`)}</span></li>
+        <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
+          <span class="idx x-mono">0{n}</span>
+          <b>{t(`nex.use${n}Title`)}</b>
+          <span class="x-mono">{t(`nex.use${n}Desc`)}</span>
+        </li>
       ))}
     </ul>
   </section>
@@ -61,13 +70,13 @@ const faqs = [1, 2, 3, 4] as const;
   <section class="block" aria-labelledby="nex-mech">
     <h2 id="nex-mech">{t('nex.mechTitle')}</h2>
     <div class="mech">
-      <article class="mcard">
+      <article class="mcard" data-rv>
         <h3>{t('nex.mech1Title')}</h3>
-        <p>{t('nex.mech1Desc')}</p>
+        <p class="x-mono">{t('nex.mech1Desc')}</p>
       </article>
-      <article class="mcard">
+      <article class="mcard" data-rv style="--d:.1s">
         <h3>{t('nex.mech2Title')}</h3>
-        <p>{t('nex.mech2Desc')}</p>
+        <p class="x-mono">{t('nex.mech2Desc')}</p>
       </article>
     </div>
   </section>
@@ -76,65 +85,71 @@ const faqs = [1, 2, 3, 4] as const;
     <h2 id="nex-faq">{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
-        <summary>{t(`nex.faq${n}Q`)}</summary>
-        <p>{t(`nex.faq${n}A`)}</p>
+        <summary>
+          <span class="idx x-mono">Q{n}</span>
+          <span class="q">{t(`nex.faq${n}Q`)}</span>
+          <span class="mark x-mono" aria-hidden="true">+</span>
+        </summary>
+        <p class="x-mono">{t(`nex.faq${n}A`)}</p>
       </details>
     ))}
   </section>
 
   <div class="cta-row">
-    <a class="pill primary" href={`${prefix}/#download`}>{t('nex.getApp')}</a>
+    <a class="xbtn solid" href={`${prefix}/#download`}>
+      <span class="xbtn-ghost">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b">{t('nex.getApp')} <span class="arr">→</span></span>
+    </a>
     {WHITEPAPER_URL && (
-      <a class="pill" href={WHITEPAPER_URL} target="_blank" rel="noopener">{t('nex.whitepaper')}</a>
+      <a class="xbtn" href={WHITEPAPER_URL} target="_blank" rel="noopener">
+        <span class="xbtn-ghost">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-b">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+      </a>
     )}
   </div>
 </main>
 
 <style>
   .nex-page {
-    max-width: 760px;
-    margin: 0 auto;
-    padding: 48px 20px 0;
+    position: relative;
+    z-index: 1;
+    max-width: 1100px;
+    padding: 130px var(--x-pad) 0;
   }
   .hero {
-    text-align: center;
-    margin-bottom: 44px;
+    margin-bottom: clamp(36px, 6vw, 64px);
   }
   .tag {
+    color: var(--x-accent);
     display: inline-block;
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 0.08em;
-    color: var(--v5-nex);
-    background: var(--v5-nex-soft);
-    border-radius: var(--w-radius-pill);
-    padding: 5px 14px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
   }
   h1 {
-    font-size: clamp(28px, 4vw, 40px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 12px;
-    line-height: 1.15;
-    letter-spacing: -0.01em;
-    text-wrap: balance;
+    font-size: clamp(34px, 5.2vw, 64px);
+    color: var(--x-white);
+    margin: 0 0 14px;
+    max-width: 22ch;
   }
   .lead {
-    color: var(--v5-ink-2);
-    font-size: 15px;
-    margin: 0 auto;
+    color: var(--x-ink-dim);
+    margin: 0;
     max-width: 560px;
     text-wrap: pretty;
   }
   .block {
-    margin-bottom: 40px;
+    margin-bottom: clamp(36px, 5vw, 60px);
   }
   .block h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 16px;
+    font-family: var(--x-font-display);
+    font-size: clamp(22px, 2.6vw, 32px);
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    color: var(--x-white);
+    border-top: 1px solid var(--x-line);
+    padding-top: 16px;
+    margin: 0 0 18px;
   }
   .table-wrap {
     overflow-x: auto;
@@ -142,147 +157,136 @@ const faqs = [1, 2, 3, 4] as const;
   table {
     width: 100%;
     border-collapse: collapse;
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    overflow: hidden;
-    font-size: 14px;
-    min-width: 420px;
+    min-width: 520px;
   }
   th,
   td {
     text-align: left;
-    padding: 13px 16px;
+    padding: 12px 16px 12px 0;
+    border-bottom: 1px solid var(--x-line-soft);
+    vertical-align: top;
   }
-  thead th {
-    color: var(--v5-ink-3);
-    font-weight: 500;
-    font-size: 12.5px;
-    border-bottom: 1px solid var(--v5-border);
+  th {
+    color: var(--x-accent);
   }
-  tbody td {
-    color: var(--v5-ink-2);
+  td {
+    color: var(--x-ink-dim);
   }
-  tbody td:first-child {
-    color: var(--v5-ink-3);
-    font-size: 13px;
-  }
-  tbody tr + tr td {
-    border-top: 1px solid var(--v5-border);
+  td:first-child {
+    color: var(--x-white);
   }
   .list {
     list-style: none;
     margin: 0;
     padding: 0;
-    display: grid;
-    gap: 10px;
   }
   .list li {
-    background: var(--v5-surface);
-    border-radius: 16px;
-    padding: 16px 18px;
     display: grid;
-    gap: 4px;
+    grid-template-columns: 36px minmax(140px, 220px) 1fr;
+    gap: 14px;
+    align-items: baseline;
+    border-bottom: 1px solid var(--x-line-soft);
+    padding: 14px 0;
+  }
+  .list .idx {
+    color: var(--x-accent);
+    font-weight: 700;
   }
   .list b {
-    color: var(--v5-ink);
-    font-size: 14px;
-    font-weight: 600;
+    font-family: var(--x-font-display);
+    font-size: clamp(16px, 1.6vw, 20px);
+    font-weight: 500;
+    color: var(--x-white);
+    letter-spacing: -0.01em;
   }
-  .list span {
-    color: var(--v5-ink-3);
-    font-size: 13.5px;
+  .list span:last-child {
+    color: var(--x-ink-dim);
     text-wrap: pretty;
   }
   .mech {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: clamp(16px, 2vw, 28px);
   }
   .mcard {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 22px 20px;
+    border: 1px solid var(--x-line-soft);
+    padding: 22px;
   }
   .mcard h3 {
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--v5-nex);
-    margin: 0 0 8px;
+    font-family: var(--x-font-display);
+    font-size: clamp(17px, 1.7vw, 21px);
+    font-weight: 500;
+    color: var(--x-white);
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
   }
   .mcard p {
-    color: var(--v5-ink-2);
-    font-size: 13.5px;
+    color: var(--x-ink-dim);
     margin: 0;
     text-wrap: pretty;
   }
   .faq {
-    background: var(--v5-surface);
-    border-radius: 16px;
-    padding: 2px 18px;
-    margin-bottom: 10px;
+    border-bottom: 1px solid var(--x-line-soft);
   }
   .faq summary {
     cursor: pointer;
-    min-height: 46px;
+    min-height: 56px;
     display: flex;
     align-items: center;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--v5-ink);
+    gap: 16px;
     list-style: none;
+    padding: 8px 0;
   }
-  .faq summary::before {
-    content: '+';
-    color: var(--v5-nex);
-    margin-right: 10px;
-    font-weight: 600;
+  .faq summary::-webkit-details-marker {
+    display: none;
   }
-  .faq[open] summary::before {
+  .faq .idx {
+    color: var(--x-accent);
+    font-weight: 700;
+    flex: 0 0 28px;
+  }
+  .faq .q {
+    font-family: var(--x-font-display);
+    font-size: clamp(16px, 1.7vw, 21px);
+    font-weight: 500;
+    color: var(--x-white);
+    flex: 1;
+    line-height: 1.25;
+  }
+  .faq .mark {
+    color: var(--x-ink-faint);
+    font-weight: 700;
+    position: relative;
+  }
+  .faq[open] .mark {
+    visibility: hidden;
+  }
+  .faq[open] .mark::after {
     content: '−';
+    visibility: visible;
+    position: absolute;
+    left: 0;
+    color: var(--x-accent);
   }
-  .faq summary:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
-  }
-  .faq p {
-    color: var(--v5-ink-2);
-    font-size: 13.5px;
-    margin: 0 0 14px;
+  .faq > p {
+    color: var(--x-ink-dim);
+    margin: 0 0 18px 44px;
+    max-width: 680px;
     text-wrap: pretty;
   }
   .cta-row {
     display: flex;
-    gap: 12px;
-    justify-content: center;
+    gap: 14px;
     flex-wrap: wrap;
     margin-top: 8px;
   }
-  .pill {
-    display: inline-flex;
-    align-items: center;
-    min-height: 48px;
-    padding: 0 26px;
-    border-radius: var(--w-radius-pill);
-    font-size: 15px;
-    font-weight: 600;
-    text-decoration: none;
-    color: var(--v5-ink-2);
-    border: 1px solid var(--v5-border-strong);
-    transition:
-      transform 0.15s,
-      opacity 0.15s;
-  }
-  .pill.primary {
-    background: var(--v5-brand);
-    color: var(--v5-on-brand);
-    border: 0;
-  }
-  .pill:active {
-    transform: scale(0.98);
-    opacity: 0.85;
-  }
-  .pill:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+
+  @media (max-width: 640px) {
+    .list li {
+      grid-template-columns: 30px 1fr;
+    }
+    .list span:last-child {
+      grid-column: 2;
+    }
   }
 </style>

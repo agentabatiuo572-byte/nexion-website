@@ -1,5 +1,6 @@
 ---
-/* [FEAT-WEB11] /learn 列表 — 按 order 排列;缺译条目标注回退语言 */
+/* [FEAT-WEB11] /learn 列表 — 按 order 排列;缺译条目标注回退语言。
+   axiom 方向:display 大标题 + 细线卡栅格 + 等宽 topic 标记。 */
 import { useT, type Locale } from '../../i18n';
 import { learnList } from '../../lib/learn';
 
@@ -14,17 +15,20 @@ const items = await learnList(locale);
 
 <main class="learn">
   <header class="head">
-    <h1>{t('learn.title')}</h1>
-    <p>{t('learn.subtitle')}</p>
+    <h1 class="x-display">{t('learn.title')}</h1>
+    <p class="x-mono">{t('learn.subtitle')}</p>
   </header>
   <div class="grid">
     {
-      items.map(({ entry, slug, fallback }) => (
-        <a class="card" href={`${prefix}/learn/${slug}`}>
-          <span class="topic">{t(`learn.topics.${entry.data.topic}`)}</span>
+      items.map(({ entry, slug, fallback }, i) => (
+        <a class="card" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
+          <span class="row1">
+            <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
+            <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
+          </span>
           <h2>{entry.data.title}</h2>
-          <p>{entry.data.description}</p>
-          {fallback && <span class="fb">{t('learn.enOnly')}</span>}
+          <p class="x-mono">{entry.data.description}</p>
+          {fallback && <span class="fb x-mono">{t('learn.enOnly')}</span>}
         </a>
       ))
     }
@@ -33,67 +37,65 @@ const items = await learnList(locale);
 
 <style>
   .learn {
-    max-width: var(--w-content-max);
-    margin: 0 auto;
-    padding: 48px 20px 0;
+    position: relative;
+    z-index: 1;
+    padding: 130px var(--x-pad) 0;
   }
   .head {
-    text-align: center;
-    margin-bottom: 34px;
+    margin-bottom: clamp(30px, 5vw, 56px);
   }
   h1 {
-    font-size: clamp(28px, 4vw, 40px);
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 0 0 10px;
-    letter-spacing: -0.01em;
+    font-size: clamp(40px, 6.4vw, 88px);
+    color: var(--x-white);
+    margin: 0 0 14px;
   }
   .head p {
-    color: var(--v5-ink-3);
-    font-size: 14.5px;
+    color: var(--x-ink-dim);
     margin: 0;
+    max-width: 520px;
     text-wrap: pretty;
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
+    gap: clamp(14px, 1.8vw, 24px);
   }
   .card {
-    background: var(--v5-surface);
-    border-radius: var(--w-radius-card);
-    padding: 24px 22px;
+    border: 1px solid var(--x-line-soft);
+    padding: 22px;
     display: grid;
-    gap: 8px;
+    gap: 12px;
     align-content: start;
     text-decoration: none;
-    transition:
-      transform 0.15s,
-      opacity 0.15s;
+    transition: border-color 0.2s;
+  }
+  .card:hover {
+    border-color: var(--x-accent);
   }
   .card:active {
-    transform: scale(0.99);
-    opacity: 0.9;
+    opacity: 0.85;
   }
-  .card:focus-visible {
-    outline: 2px solid var(--v5-brand);
-    outline-offset: 2px;
+  .row1 {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .idx {
+    color: var(--x-accent);
+    font-weight: 700;
   }
   .topic {
-    justify-self: start;
-    font-size: 10.5px;
-    font-weight: 500;
-    letter-spacing: 0.05em;
-    color: var(--v5-brand);
-    background: var(--v5-brand-soft);
-    border-radius: var(--w-radius-pill);
-    padding: 3px 10px;
+    color: var(--x-ink-faint);
+    font-weight: 700;
   }
   h2 {
-    font-size: 16px;
-    font-weight: 600;
-    color: var(--v5-ink);
-    margin: 2px 0 0;
+    font-family: var(--x-font-display);
+    font-size: clamp(19px, 1.8vw, 24px);
+    font-weight: 500;
+    letter-spacing: -0.015em;
+    line-height: 1.18;
+    color: var(--x-white);
+    margin: 0;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -101,13 +103,11 @@ const items = await learnList(locale);
     text-wrap: balance;
   }
   .card > p {
-    color: var(--v5-ink-3);
-    font-size: 13px;
+    color: var(--x-ink-dim);
     margin: 0;
     text-wrap: pretty;
   }
   .fb {
-    color: var(--v5-ink-4);
-    font-size: 11px;
+    color: var(--x-ink-faint);
   }
 </style>
