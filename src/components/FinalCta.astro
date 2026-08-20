@@ -12,8 +12,8 @@ const t = useT(locale);
 ---
 
 <section class="final" id="final-cta">
-  <h2 class="x-display" data-rv>{t('final.title')}</h2>
-  <div class="btns" data-rv style="--d:.15s">
+  <h2 class="x-display" data-lr>{t('final.title')}</h2>
+  <div class="btns" data-rv style="--d:.3s">
     <DownloadButtons locale={locale} />
   </div>
 </section>
@@ -23,7 +23,7 @@ const t = useT(locale);
     position: relative;
     z-index: 1;
     padding: var(--x-section-gap) var(--x-pad);
-    min-height: 52svh;
+    min-height: 80svh;
     display: flex;
     flex-direction: column;
     justify-content: center;

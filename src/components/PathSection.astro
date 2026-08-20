@@ -1,6 +1,8 @@
 ---
-/* [FEAT-WEB04 v1.1] 收益路径 — 纯静态双卡(计算器已删,主人 2026-08-20 裁决)。
-   🔴 全板块无任何收益数字。axiom 方向:反白区块 + 序号大卡 + 等高线纹样。 */
+/* [FEAT-WEB04 v1.1] 收益路径 — R7(解剖报告 P1-24/25 部分/26/28,P2-19):
+   盒卡改无盒左线开放列;标题升 48 档行遮罩;编号去琥珀去粗改墨 0.8;
+   等高线图入流(标题↔正文之间);双列滚动视差 k=[0.06,0.11]。
+   🔴 全板块无任何收益数字。 */
 import { useT, type Locale } from '../i18n';
 import { contour } from '../lib/contour';
 
@@ -10,25 +12,25 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const cards = [
-  { n: '01', title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11) },
-  { n: '02', title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47) },
+  { n: '01', title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.06 },
+  { n: '02', title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.11 },
 ];
 ---
 
 <section class="path x-invert" id="path">
   <div class="cards">
     {
-      cards.map((c, i) => (
-        <article class="card" data-rv style={`--d:${i * 0.12}s`}>
+      cards.map((c) => (
+        <article class="card rv-fade" data-rv data-plx={c.k}>
+          <p class="meta x-mono" data-tw>{c.n}</p>
+          <h2 class="x-display" data-lr>{c.title}</h2>
           <svg class="art" viewBox={c.art.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
             {c.art.paths.map((d) => (
-              <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.55" />
+              <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
             ))}
           </svg>
-          <span class="idx x-mono">{c.n}</span>
-          <h2>{c.title}</h2>
           <p class="desc x-mono">{c.desc}</p>
-          <a class:list={['xbtn', 'on-light', { solid: c.solid }]} href={c.href}>
+          <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
             <span class="xbtn-ghost">{c.cta} <span class="arr">→</span></span>
             <span class="xbtn-a">{c.cta} <span class="arr">→</span></span>
             <span class="xbtn-b">{c.cta} <span class="arr">→</span></span>
@@ -42,61 +44,56 @@ const cards = [
 
 <style>
   .path {
-    padding: var(--x-section-gap) var(--x-pad);
+    padding: var(--x-section-gap) var(--x-pad) calc(var(--x-section-gap) * 0.6);
   }
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: clamp(20px, 3vw, 40px);
+    gap: clamp(24px, 4.2vw, 60px);
   }
+  /* 无盒开放列:仅左竖线 + pl20(参考站「编辑部感」核心) */
   .card {
-    position: relative;
-    border: 1px solid var(--x-line-dark);
-    padding: clamp(24px, 3vw, 40px);
+    border-left: 1px solid var(--x-line-dark);
+    padding-left: 20px;
     display: grid;
-    gap: 16px;
+    gap: 24px;
     align-content: start;
-    overflow: hidden;
-    min-height: 340px;
+    will-change: transform;
   }
-  .art {
-    position: absolute;
-    right: -12%;
-    top: -8%;
-    width: 68%;
-    height: 78%;
-    opacity: 0.16;
-    pointer-events: none;
-  }
-  .idx {
-    color: var(--x-accent-ink);
-    font-weight: 700;
+  .meta {
+    color: var(--x-dark-cap);
+    margin: 0;
   }
   .card h2 {
-    font-family: var(--x-font-display);
-    font-size: clamp(26px, 2.8vw, 38px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
-    color: var(--x-dark);
+    font-size: clamp(28px, 3.33vw, 48px);
+    color: var(--x-ink);
     margin: 0;
-    text-wrap: balance;
-    position: relative;
+  }
+  .art {
+    width: 100%;
+    aspect-ratio: 393 / 237;
+    display: block;
   }
   .desc {
-    color: var(--x-dark-dim);
+    color: var(--x-dark-cap);
     margin: 0;
     max-width: 420px;
     text-wrap: pretty;
-    position: relative;
+    line-height: 1.45;
   }
   .card .xbtn {
     justify-self: start;
-    margin-top: 8px;
   }
   .note {
     color: var(--x-dark-dim);
     margin: clamp(28px, 4vw, 48px) 0 0;
     text-wrap: pretty;
+  }
+  @media (max-width: 768px) {
+    .card {
+      border-left: 0;
+      border-top: 1px solid var(--x-line-dark);
+      padding: 20px 0 0;
+    }
   }
 </style>

@@ -1,6 +1,7 @@
 ---
-/* [FEAT-WEB05] How it works — 三步机制卡。axiom 方向:反白区块延续,
-   序号 01-03 + display 标题 + 等宽正文 + 等高线纹样。
+/* [FEAT-WEB05] How it works — R7(解剖报告 P1-24/25 部分/26/28,P2-19):
+   无盒左线开放列;标题升 48 档行遮罩(100ms×卡序);编号墨 0.8 打字机;
+   等高线图入流;三列滚动视差 k=[0.06,0.11,0.16]。
    机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。 */
 import { useT, type Locale } from '../i18n';
 import { contour } from '../lib/contour';
@@ -11,25 +12,26 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const steps = [1, 2, 3] as const;
-const arts = [contour(101, 12, 360, 220), contour(202, 12, 360, 220), contour(303, 12, 360, 220)];
+const arts = [contour(101, 12, 393, 237), contour(202, 12, 393, 237), contour(303, 12, 393, 237)];
+const ks = [0.06, 0.11, 0.16];
 ---
 
 <section class="how x-invert" id="how">
   <div class="head">
-    <span class="x-label lab" data-rv>{t('how.title')}</span>
+    <span class="x-label lab" data-tw>{t('how.title')}</span>
   </div>
   <div class="steps">
     {
       steps.map((n) => (
-        <article class="step" data-rv style={`--d:${(n - 1) * 0.12}s`}>
+        <article class="step rv-fade" data-rv data-plx={ks[n - 1]}>
+          <p class="meta x-mono" data-tw data-tw-delay={160 * (n - 1)}>0{n}</p>
+          <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
           <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
             {arts[n - 1].paths.map((d) => (
               <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
             ))}
           </svg>
-          <span class="n x-mono">0{n}</span>
-          <h3>{t(`how.step${n}Title`)}</h3>
-          <p class="x-mono">
+          <p class="x-mono body">
             {t(`how.step${n}Desc`)}
             {n === 3 && (
               <>
@@ -56,55 +58,43 @@ const arts = [contour(101, 12, 360, 220), contour(202, 12, 360, 220), contour(30
     margin-bottom: clamp(28px, 4vw, 52px);
   }
   .lab {
-    color: var(--x-dark);
+    color: var(--x-ink);
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: clamp(20px, 3vw, 40px);
+    gap: clamp(24px, 4.2vw, 60px);
   }
   .step {
-    position: relative;
-    border: 1px solid var(--x-line-dark);
-    padding: clamp(22px, 2.6vw, 34px);
+    border-left: 1px solid var(--x-line-dark);
+    padding-left: 20px;
     display: grid;
-    gap: 14px;
+    gap: 24px;
     align-content: start;
-    overflow: hidden;
-    min-height: 300px;
+    will-change: transform;
   }
-  .art {
-    position: absolute;
-    left: -10%;
-    bottom: -14%;
-    width: 80%;
-    height: 60%;
-    opacity: 0.14;
-    pointer-events: none;
-  }
-  .n {
-    color: var(--x-accent-ink);
-    font-weight: 700;
+  .meta {
+    color: var(--x-dark-cap);
+    margin: 0;
   }
   .step h3 {
-    font-family: var(--x-font-display);
-    font-size: clamp(22px, 2.2vw, 30px);
-    font-weight: 500;
-    letter-spacing: -0.015em;
-    line-height: 1.12;
-    color: var(--x-dark);
+    font-size: clamp(28px, 3.33vw, 48px);
+    color: var(--x-ink);
     margin: 0;
-    text-wrap: balance;
-    position: relative;
   }
-  .step p {
-    color: var(--x-dark-dim);
+  .art {
+    width: 100%;
+    aspect-ratio: 393 / 237;
+    display: block;
+  }
+  .step .body {
+    color: var(--x-dark-cap);
     margin: 0;
     text-wrap: pretty;
-    position: relative;
+    line-height: 1.45;
   }
   .vlink {
-    color: var(--x-dark);
+    color: var(--x-ink);
     text-decoration: underline;
     text-underline-offset: 3px;
   }
@@ -113,5 +103,12 @@ const arts = [contour(101, 12, 360, 220), contour(202, 12, 360, 220), contour(30
   }
   .vlink:active {
     opacity: 0.45;
+  }
+  @media (max-width: 768px) {
+    .step {
+      border-left: 0;
+      border-top: 1px solid var(--x-line-dark);
+      padding: 20px 0 0;
+    }
   }
 </style>

@@ -16,7 +16,7 @@ const cards = [1, 2, 3, 4, 5] as const;
 
 <section class="trust x-invert" id="trust">
   <div class="head">
-    <span class="x-label lab" data-rv>{t('trust.title')}</span>
+    <span class="x-label lab" data-tw>{t('trust.title')}</span>
   </div>
 
   <div class="certs" data-rv>
@@ -82,25 +82,32 @@ const cards = [1, 2, 3, 4, 5] as const;
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: 0;
-    border-top: 1px solid var(--x-line-dark);
+    gap: clamp(24px, 4.2vw, 60px);
   }
+  /* 无盒开放列(P2-20):左竖线 + pl20;编号墨 0.8/400(P1-25 部分) */
   .card {
+    border-left: 1px solid var(--x-line-dark);
+    padding-left: 20px;
     display: grid;
-    grid-template-columns: 40px 1fr;
-    gap: 12px;
-    padding: 22px 18px 22px 0;
-    border-bottom: 1px solid var(--x-line-dark);
+    gap: 16px;
     align-content: start;
   }
   .idx {
-    color: var(--x-accent-ink);
-    font-weight: 700;
+    color: var(--x-dark-cap);
+    font-weight: 400;
   }
   .card p {
     margin: 0;
-    color: var(--x-dark-dim);
+    color: var(--x-dark-cap);
     text-wrap: pretty;
+    line-height: 1.45;
+  }
+  @media (max-width: 768px) {
+    .card {
+      border-left: 0;
+      border-top: 1px solid var(--x-line-dark);
+      padding: 20px 0 0;
+    }
   }
   .poc {
     margin-top: clamp(28px, 4vw, 44px);

@@ -1,6 +1,8 @@
 ---
-/* [FEAT-WEB02] Hero — axiom 方向:全屏陈述式首屏,固定洛伦兹粒子层透底,
-   巨型 display 标题右锚 + 等宽角注 + 下载键。文案 key 一个不变。 */
+/* [FEAT-WEB02] Hero — R7(解剖报告 P1-17/18/19):
+   标题 Mega 档 clamp(56,11vw,210) 行遮罩上滑(载入+500ms);
+   scroll 指示器=1×24 竖线+两行刻度字;内容簇底部悬空 20svh;
+   副题升 16px mono 档;首载四拍由 html.x-boot CSS 时间线驱动。文案 key 不变。 */
 import DownloadButtons from './DownloadButtons.astro';
 import { useT, type Locale } from '../../i18n';
 
@@ -14,18 +16,19 @@ const t = useT(locale);
 <section class="hero" id="download">
   <div class="spacer" aria-hidden="true"></div>
 
-  <h1 data-rv>{t('hero.title')}</h1>
+  <h1 class="x-display-mega" data-lr="load" data-lr-delay="500">{t('hero.title')}</h1>
 
   <div class="foot">
     <div class="left">
-      <a class="scroll-hint x-mono x-dimlink" href="#stats" data-rv style="--d:.25s">
-        {t('hero.scrollHint')}<span class="arr" aria-hidden="true">↓</span>
+      <a class="scroll-hint x-mono" href="#stats">
+        <span class="tick" aria-hidden="true"></span>
+        <span class="txt">{t('hero.scrollHint')}</span>
       </a>
-      <p class="note x-mono" data-rv style="--d:.35s">{t('hero.note')}</p>
+      <p class="note x-mono">{t('hero.note')}</p>
     </div>
     <div class="right">
-      <p class="sub x-mono" data-rv style="--d:.15s">{t('hero.subtitle')}</p>
-      <div data-rv style="--d:.3s">
+      <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
+      <div class="dl-wrap">
         <DownloadButtons locale={locale} />
       </div>
     </div>
@@ -39,21 +42,16 @@ const t = useT(locale);
     min-height: 100svh;
     display: flex;
     flex-direction: column;
-    padding: 96px var(--x-pad) 40px;
+    padding: 96px var(--x-pad) clamp(80px, 20svh, 230px);
   }
   .spacer {
     flex: 1;
   }
   h1 {
-    font-family: var(--x-font-display);
-    font-size: clamp(52px, 9.6vw, 148px);
-    line-height: 1.02;
-    font-weight: 500;
-    letter-spacing: -0.035em;
+    font-size: clamp(56px, 11vw, 210px);
     color: var(--x-white);
-    margin: 0 0 clamp(28px, 5vh, 56px);
+    margin: 0 0 clamp(28px, 5vh, 48px);
     text-align: right;
-    text-wrap: balance;
   }
   .foot {
     display: flex;
@@ -67,21 +65,31 @@ const t = useT(locale);
     gap: 18px;
     max-width: 320px;
   }
+  /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
   .scroll-hint {
-    color: var(--x-ink-faint);
+    color: var(--x-ink-dim);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
     min-height: 44px;
+    letter-spacing: -0.03em;
   }
-  .scroll-hint .arr {
-    color: var(--x-accent);
+  .scroll-hint .tick {
+    width: 1px;
+    height: 24px;
+    background: var(--x-ink-faint);
+    flex: 0 0 auto;
+  }
+  .scroll-hint .txt {
+    max-width: 129px;
   }
   .note {
     color: var(--x-ink-dim);
     margin: 0;
+    max-width: 300px;
     text-wrap: pretty;
+    line-height: 1.5;
   }
   .right {
     display: flex;
@@ -92,7 +100,7 @@ const t = useT(locale);
   .sub {
     color: var(--x-white);
     margin: 0;
-    max-width: 430px;
+    max-width: 400px;
     text-align: right;
     text-wrap: pretty;
   }
@@ -104,10 +112,11 @@ const t = useT(locale);
     .hero {
       padding-top: 80px;
       min-height: 92svh;
+      padding-bottom: 10svh;
     }
     h1 {
       text-align: left;
-      font-size: clamp(44px, 12.5vw, 84px);
+      font-size: clamp(48px, 15.5vw, 96px);
     }
     .foot {
       flex-direction: column;

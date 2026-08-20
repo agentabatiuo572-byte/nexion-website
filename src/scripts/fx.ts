@@ -1,27 +1,24 @@
-/* 全站交互引擎 R6(axiom 方向,自研实现)。
-   粒子背景 = 2026-08-20 对参考站源码逐行解码后的同构实现:
-   ① 单 canvas、五组固定姿态(默认/A/B/C/D),各锚定一个板块;
-   ② 每帧读锚板块的视口位置 → smoothstep 过渡进度 → 五姿态**链式插值**:
-      板块内部姿态纹丝不动(顶/底永远同一形态族,偏转角小,始终是同一只"蝴蝶"),
-      跨板块连续变形,过渡中途缩放先俯冲再回弹(dip 因子);
-   ③ 鼠标极克制:中心反向漂移 ≤8px、倾角 ≤0.04/0.03 rad(lerp .035 / 离场衰减 .96);推斥 160px/90;
-   ④ 流光:4 头、尾 180、步进 0.5、暖黄 255,220,120、线宽 1.4;移动端 stride3 无流光无推斥。
-   性能层为自研改良:颜色×深度分桶批量描边 + 离屏缓存,姿态/鼠标全静止时零重渲染(输出与逐帧重画全等)。
-   设备卡 = 滑入收叠编舞(实测解码);候卡在前卡落锚瞬间现身,无远端排队。
-   鼠标一律原生光标。reduced-motion:静帧,全动效关。 */
+/* 全站交互引擎 R7(axiom 方向,自研实现;参数规格见 PRD/specs/WEBSITE-axiom-teardown.md)。
+   ① 洛伦兹背景:五姿态链式插值(界内恒定/跨界变形),首绘 1s zoom-fade 入场;
+   ② Lenis:duration 1.2 + easeOutExpo(恒定收尾时长的「奢滑」);
+   ③ 行遮罩逐行上滑(display 标题唯一进场方式)+ ④ 打字机(mono 眉标/编号);
+   ⑤ data-rv 次要块 reveal(阈值 .05/底-20px,位移 12px);
+   ⑥ 设备 deck:整排连续推进传送带(恒一步差,无显隐翻转),步距 1.0923 卡宽;
+   ⑦ 三列滚动视差(反白卡区);⑧ UTC 时钟(秒奇偶冒号,锁墙钟秒);
+   首载四拍编排由 html.x-boot + CSS 时间线承担(仅首页)。
+   reduced-motion:全部降级直显。 */
 import Lenis from 'lenis';
 
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 
-/* ---------- ① 洛伦兹吸引子背景(五姿态链式插值 + 离屏缓存) ---------- */
+/* ---------- ① 洛伦兹吸引子背景 ---------- */
 function initLorenz() {
   const canvas = document.getElementById('x-bg') as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
 
-  // 经典参数 σ=10 ρ=28 β=8/3,欧拉步 0.005,热身 6000,录 20000 点(与参考站同规格)
   const N = coarse ? 8000 : 20000;
   const pts = new Float32Array(N * 3);
   let ax = 0.1,
@@ -42,7 +39,6 @@ function initLorenz() {
     pts[i * 3 + 1] = ay;
     pts[i * 3 + 2] = az;
   }
-  // 轨迹质心(投影绕质心旋转,与参考站同法)
   let cu = 0,
     cv = 0,
     cw = 0;
@@ -59,7 +55,6 @@ function initLorenz() {
   const py = new Float32Array(N);
   const dep = new Float32Array(N);
 
-  // 颜色 20 桶(z 静态)× 深度 3 带(随旋转每次渲染重分)= 60 组批量描边
   const stride = coarse ? 3 : 1;
   const TB = 20;
   const DB = 3;
@@ -76,7 +71,7 @@ function initLorenz() {
     const g = Math.round(30 + 155 * t);
     const bl = Math.round(2 + 10 * t);
     for (let d = 0; d < DB; d++) {
-      const mMid = -1 + ((d + 0.5) * 2) / DB; // 桶中值深度 ∈ (-1,1)
+      const mMid = -1 + ((d + 0.5) * 2) / DB;
       const alpha = Math.min(1, (0.12 + 0.48 * t) * (1 + 0.4 * mMid));
       groupStyle.push(`rgba(${r},${g},${bl},${Math.max(0, alpha).toFixed(3)})`);
     }
@@ -88,7 +83,6 @@ function initLorenz() {
   let W = 0,
     H = 0;
 
-  /* —— 五姿态(参考站常量):k=min(W,H)/k 为缩放;C 姿态含专用位移单元 $ —— */
   interface Pose {
     cx: number;
     cy: number;
@@ -104,7 +98,6 @@ function initLorenz() {
     return { cx: 0.5 * W - 6 * u, cy: 0.5 * H + 14.25 * u, scl: Math.min(W, H) / 32, yaw: 0.4, pitch: 1.1 };
   };
   const poseD = (): Pose => ({ cx: 0.56 * W, cy: 0.52 * H, scl: Math.min(W, H) / 28, yaw: 0.2, pitch: 1.05 });
-  // 锚板块(本站叙事等位):A=数字条 B=How C=设备卡 D=使命;子页无锚 → 恒为默认姿态
   const ANCHOR_IDS = ['stats', 'how', 'devices', 'mission'];
   let anchors: (HTMLElement | null)[] = [];
   const smooth = (e: number) => e * e * (3 - 2 * e);
@@ -129,7 +122,6 @@ function initLorenz() {
   let dirty = true;
   let mouseStamp = 0,
     renderedStamp = -1;
-  // 上次渲染采用的姿态参数(静止判定)
   let rG = -1,
     rCx = 0,
     rCy = 0,
@@ -154,7 +146,6 @@ function initLorenz() {
       sa = Math.sin(yaw),
       cb = Math.cos(pitch),
       sbn = Math.sin(pitch);
-    // 旋转后的质心分量(投影绕质心)
     const rc1 = cu * sa + cv * ca;
     const rc2 = cu * ca - cv * sa;
     const cen1 = rc1 * cb - cw * sbn;
@@ -211,7 +202,6 @@ function initLorenz() {
     }
   };
 
-  // 流光(参考站规格:4 头 / 尾 180 / 步进 0.5 / 暖黄 / 线宽 1.4)
   let comet = 0;
   const TAIL = 180;
   const CB = 6;
@@ -243,14 +233,12 @@ function initLorenz() {
   let raf = 0;
   let running = false;
   const frame = () => {
-    // —— 姿态:锚板块进度 → 链式插值;界内进度饱和 → 姿态恒定 ——
     let P = poseHome();
     const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2]), prog(anchors[3])];
     P = mix(P, poseA(), ps[0]);
     P = mix(P, poseB(), ps[1]);
     P = mix(P, poseC(), ps[2]);
     P = mix(P, poseD(), ps[3]);
-    // 过渡中途缩放俯冲再回弹 + 完成后的净增益(参考站 dip 公式)
     const G =
       P.scl *
       (1 - 2.2 * ps[0] * (1 - ps[0])) *
@@ -259,7 +247,6 @@ function initLorenz() {
       (1 - 2 * ps[3] * (1 - ps[3])) *
       (1 + 0.45 * ps[0] + 0.2 * ps[1] + 0.2 * ps[2] + 0.2 * ps[3]);
 
-    // —— 鼠标(参考站口径:反向漂移 ≤8px,倾角 ≤.04/.03,lerp .035,离场衰减 .96)——
     if (!coarse && mouse.x > -9000) {
       const ex = (mouse.x - 0.5 * W) / (0.5 * W);
       const ey = (mouse.y - 0.5 * H) / (0.5 * H);
@@ -287,11 +274,11 @@ function initLorenz() {
     const yaw = P.yaw + tiltX;
     const pitch = P.pitch + tiltY;
 
-    // 常驻轻量状态输出(探针核规格用:倾角/漂移应精确吸附到 0.04ex / -8ex)
     dbg.tiltX = tiltX;
     dbg.tiltY = tiltY;
     dbg.driftX = driftX;
     dbg.driftY = driftY;
+
     if (
       dirty ||
       mouseStamp !== renderedStamp ||
@@ -365,12 +352,23 @@ function initLorenz() {
     return;
   }
   start();
+  // 首载第一拍:1s zoom-fade(P1-15;参考曲线 (0.22,1,.36,1),scale 起点目测 1.04)
+  canvas.animate(
+    [
+      { opacity: 0, transform: 'scale(1.04)' },
+      { opacity: 1, transform: 'scale(1)' },
+    ],
+    { duration: 1000, easing: 'cubic-bezier(0.22, 1, 0.36, 1)', fill: 'both' },
+  );
 }
 
-/* ---------- ② Lenis 平滑滚动 + 锚点接管 ---------- */
+/* ---------- ② Lenis(duration 1.2 + easeOutExpo,恒定收尾时长) ---------- */
 function initLenis() {
   if (reduced) return;
-  const lenis = new Lenis();
+  const lenis = new Lenis({
+    duration: 1.2,
+    easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+  });
   const raf = (t: number) => {
     lenis.raf(t);
     requestAnimationFrame(raf);
@@ -384,63 +382,140 @@ function initLenis() {
     const el = id && document.getElementById(id);
     if (!el) return;
     e.preventDefault();
-    // 用真实 scrollY 算绝对目标(元素目标会撞 Lenis 内部值与原生跳转失同步的坑)
     lenis.scrollTo(el.getBoundingClientRect().top + window.scrollY - 84);
     history.pushState(null, '', `#${id}`);
   });
   return lenis;
 }
 
-/* ---------- ③ 设备「滑入收叠」编舞(实测解码) ---------- */
-function initPile() {
-  const sec = document.querySelector<HTMLElement>('[data-deck]');
-  const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
-  if (!sec || !cards.length) return;
-  if (reduced || coarse || matchMedia('(max-width: 860px)').matches) return;
-  sec.classList.add('decked');
+/* ---------- ③ 行遮罩逐行上滑(display 标题;P1-01) ---------- */
+function initLineReveal() {
+  const els = [...document.querySelectorAll<HTMLElement>('[data-lr]')];
+  if (!els.length || reduced) return;
 
-  const STEP_VH = 0.8;
-  const PARK = 0.85;
-  let STEP = 0,
-    ENTER = 0;
-  const measure = () => {
-    STEP = Math.round(innerHeight * STEP_VH);
-    ENTER = Math.round(cards[0].offsetWidth * 1.23); // 候位偏移 = 1.23 卡宽(实测 710/578)
-    sec.style.height = `${innerHeight + cards.length * STEP + Math.round(innerHeight * 0.25)}px`;
+  const splitWords = (text: string, lang: string): string[] => {
+    if (lang.startsWith('zh') && 'Segmenter' in Intl) {
+      const seg = new (Intl as unknown as { Segmenter: new (l: string, o: object) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter('zh', { granularity: 'word' });
+      return [...seg.segment(text)].map((s) => s.segment);
+    }
+    return text.split(/(\s+)/).filter((s) => s.length);
   };
-  measure();
-  addEventListener('resize', measure);
 
-  const ease = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
-  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
-  let raf = 0;
-  const apply = () => {
-    raf = 0;
-    const y = -sec.getBoundingClientRect().top;
-    for (let i = 0; i < cards.length; i++) {
-      // 第 i 拍:卡 i 进场(卡 0 天生在锚位);第 i+1 拍:卡 i 缩入叠。
-      // 参考站实测:一张卡在途时,下一张**不在场**;它在前卡落锚的那一刻
-      // 才出现在候位(ENTER,右缘切边)并随自己的拍子滑入——无远处排队、无大空档。
-      const pIn = i === 0 ? 1 : clamp01((y - (i - 1) * STEP) / STEP);
-      const pSh = clamp01((y - i * STEP) / STEP);
-      const x = (1 - ease(pIn)) * ENTER;
-      const s = 1 - (1 - PARK) * ease(pSh);
-      const visible = i <= 1 || y >= (i - 1) * STEP;
-      cards[i].style.visibility = visible ? '' : 'hidden';
-      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0) scale(${s.toFixed(4)})`;
+  const build = (el: HTMLElement) => {
+    const original = el.textContent ?? '';
+    const lang = document.documentElement.lang || 'en';
+    el.setAttribute('aria-label', original.trim());
+    // 词包 span → 按 rect.top 归行
+    el.textContent = '';
+    const words = splitWords(original, lang);
+    const spans = words.map((w) => {
+      const s = document.createElement('span');
+      s.textContent = w;
+      if (!/^\s+$/.test(w)) s.style.display = 'inline-block';
+      el.appendChild(s);
+      return s;
+    });
+    const lines: HTMLSpanElement[][] = [];
+    let lastTop = -1e9;
+    for (const s of spans) {
+      const top = Math.round(s.getBoundingClientRect().top);
+      if (Math.abs(top - lastTop) > 2) {
+        lines.push([]);
+        lastTop = top;
+      }
+      lines[lines.length - 1].push(s);
+    }
+    el.textContent = '';
+    const inners: HTMLElement[] = [];
+    for (let li = 0; li < lines.length; li++) {
+      const outer = document.createElement('span');
+      outer.className = 'lr-line';
+      outer.setAttribute('aria-hidden', 'true');
+      const inner = document.createElement('span');
+      inner.className = 'lr-inner';
+      inner.style.setProperty('--lrd', `${li * 90}ms`);
+      for (const s of lines[li]) inner.appendChild(s);
+      outer.appendChild(inner);
+      el.appendChild(outer);
+      inners.push(inner);
+    }
+    const play = () => {
+      requestAnimationFrame(() => requestAnimationFrame(() => inners.forEach((n) => n.classList.add('in'))));
+      const last = inners[inners.length - 1];
+      last.addEventListener(
+        'transitionend',
+        () => {
+          el.textContent = original; // 还原原始文本(a11y/选中/SEO 一致性)
+          el.removeAttribute('aria-label');
+        },
+        { once: true },
+      );
+    };
+    const mode = el.dataset.lr;
+    const delay = Number(el.dataset.lrDelay || 0);
+    if (mode === 'load') {
+      setTimeout(play, delay);
+    } else {
+      const io = new IntersectionObserver(
+        ([en]) => {
+          if (en.isIntersecting) {
+            io.disconnect();
+            setTimeout(play, delay);
+          }
+        },
+        { threshold: 0.05, rootMargin: '0px 0px -20px 0px' },
+      );
+      io.observe(el);
     }
   };
-  apply();
-  addEventListener(
-    'scroll',
-    () => {
-      if (!raf) raf = requestAnimationFrame(apply);
-    },
-    { passive: true },
-  );
+
+  (document.fonts?.ready ?? Promise.resolve()).then(() => els.forEach(build));
 }
 
-/* ---------- ④ 滚动进场 reveal ---------- */
+/* ---------- ④ 打字机(mono 眉标/编号;P1-02) ---------- */
+function initType() {
+  const els = [...document.querySelectorAll<HTMLElement>('[data-tw]')];
+  if (!els.length || reduced) return;
+  const zh = (document.documentElement.lang || '').startsWith('zh');
+  const run = (el: HTMLElement) => {
+    const text = el.textContent ?? '';
+    const speed = Number(el.dataset.twSpeed || (zh ? 90 : 50));
+    el.style.display = 'inline-block';
+    el.style.width = `${text.length}ch`;
+    el.setAttribute('aria-label', text);
+    el.textContent = '';
+    let i = 0;
+    const iv = setInterval(() => {
+      i++;
+      el.textContent = text.slice(0, i);
+      if (i >= text.length) {
+        clearInterval(iv);
+        el.textContent = text;
+        el.style.width = '';
+        el.removeAttribute('aria-label');
+      }
+    }, speed);
+  };
+  for (const el of els) {
+    const delay = Number(el.dataset.twDelay || 0);
+    if (el.dataset.tw === 'load') {
+      setTimeout(() => run(el), delay);
+    } else {
+      const io = new IntersectionObserver(
+        ([en]) => {
+          if (en.isIntersecting) {
+            io.disconnect();
+            setTimeout(() => run(el), delay);
+          }
+        },
+        { threshold: 0.1 },
+      );
+      io.observe(el);
+    }
+  }
+}
+
+/* ---------- ⑤ 次要块 reveal(P1-03:阈值 .05/底-20px) ---------- */
 function initReveal() {
   const els = document.querySelectorAll('[data-rv]');
   if (!els.length || reduced) return;
@@ -453,12 +528,111 @@ function initReveal() {
         }
       }
     },
-    { threshold: 0.18 },
+    { threshold: 0.05, rootMargin: '0px 0px -20px 0px' },
   );
   els.forEach((el) => io.observe(el));
 }
 
-/* ---------- ⑤ UTC 时钟(冒号 CSS 闪烁) ---------- */
+/* ---------- ⑥ 设备 deck:整排连续推进(P1-29/30) ---------- */
+function initPile() {
+  const sec = document.querySelector<HTMLElement>('[data-deck]');
+  const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
+  if (!sec || !cards.length) return;
+  const engaged = () => !reduced && !coarse && !matchMedia('(max-width: 860px)').matches;
+  let active = false;
+
+  const STEP_VH = 0.8;
+  const PARK = 0.85;
+  let STEP = 0,
+    ENTER = 0;
+  const measure = () => {
+    STEP = Math.round(innerHeight * STEP_VH);
+    ENTER = Math.round(cards[0].offsetWidth * 1.0923); // 步距=1.0923 卡宽(710/650,间隙 9.23%)
+    sec.style.height = `${innerHeight + cards.length * STEP}px`;
+  };
+  const clear = () => {
+    sec.classList.remove('decked');
+    sec.style.height = '';
+    for (const c of cards) {
+      c.style.transform = '';
+      c.style.visibility = '';
+    }
+  };
+  const smooth = (t: number) => t * t * (3 - 2 * t); // smoothstep(P2-22)
+  const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+  let raf = 0;
+  const apply = () => {
+    raf = 0;
+    if (!active) return;
+    const y = -sec.getBoundingClientRect().top;
+    // 拍 k 进度;卡 i 位置 = ENTER·(i − Σ_{k<i}beats)——整排连续推进,恒一步差
+    const beats: number[] = [];
+    for (let k = 0; k < cards.length; k++) beats.push(smooth(clamp01((y - k * STEP) / STEP)));
+    for (let i = 0; i < cards.length; i++) {
+      let done = 0;
+      for (let k = 0; k < i; k++) done += beats[k];
+      const x = Math.max(0, ENTER * (i - done));
+      const s = 1 - (1 - PARK) * beats[i];
+      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0) scale(${s.toFixed(4)})`;
+    }
+  };
+  const engage = () => {
+    const want = engaged();
+    if (want && !active) {
+      active = true;
+      sec.classList.add('decked');
+      measure();
+      apply();
+    } else if (!want && active) {
+      active = false;
+      clear();
+    } else if (want && active) {
+      measure();
+      apply();
+    }
+  };
+  engage();
+  addEventListener('resize', engage);
+  addEventListener(
+    'scroll',
+    () => {
+      if (active && !raf) raf = requestAnimationFrame(apply);
+    },
+    { passive: true },
+  );
+}
+
+/* ---------- ⑦ 三列滚动视差(反白卡区;P1-28) ---------- */
+function initParallax() {
+  const els = [...document.querySelectorAll<HTMLElement>('[data-plx]')];
+  if (!els.length || reduced || coarse) return;
+  let raf = 0;
+  const apply = () => {
+    raf = 0;
+    if (matchMedia('(max-width: 850px)').matches) {
+      for (const el of els) el.style.transform = '';
+      return;
+    }
+    const vh2 = innerHeight / 2;
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      const k = Number(el.dataset.plx || 0.08);
+      const dy = (vh2 - (r.top + r.height / 2)) * k;
+      el.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0)`;
+    }
+  };
+  apply();
+  addEventListener(
+    'scroll',
+    () => {
+      if (!raf) raf = requestAnimationFrame(apply);
+    },
+    { passive: true },
+  );
+  addEventListener('resize', apply);
+}
+
+/* ---------- ⑧ UTC 时钟(秒奇偶冒号,锁墙钟秒;P1-11) ---------- */
 function initClock() {
   const el = document.getElementById('x-clock');
   if (!el) return;
@@ -476,22 +650,34 @@ function initClock() {
     h = h % 12 || 12;
     h12.textContent = String(h).padStart(2, '0');
     mm.textContent = String(d.getUTCMinutes()).padStart(2, '0');
+    colon.style.opacity = d.getUTCSeconds() % 2 === 0 ? '1' : '0'; // 2s 周期方波
   };
   tick();
-  setInterval(tick, 1000);
+  setTimeout(() => {
+    tick();
+    setInterval(tick, 1000);
+  }, 1000 - (Date.now() % 1000)); // 相位锁墙钟秒
 }
 
 /* ---------- boot ---------- */
 const boot = () => {
+  const html = document.documentElement;
+  html.classList.add('js'); // no-JS 防隐形闸(P2-09)
+  // 首载四拍编排仅首页(三语首页路径);内页即显
+  if (/^\/(vi\/?|zh\/?)?$/.test(location.pathname)) html.classList.add('x-boot');
+
   if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => initLorenz(), { timeout: 1200 });
+    requestIdleCallback(() => initLorenz(), { timeout: 800 });
   } else {
-    setTimeout(initLorenz, 300);
+    setTimeout(initLorenz, 200);
   }
   initLenis();
+  initLineReveal();
+  initType();
   initReveal();
   initClock();
   initPile();
+  initParallax();
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });

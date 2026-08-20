@@ -29,7 +29,7 @@ const shareArt = contour(77, 12, 640, 400);
 <section class="devices" id="devices" data-deck>
   <div class="pin" data-deck-pin>
     <div class="head">
-      <span class="x-label lab" data-rv>{t('devices.title')}</span>
+      <span class="x-label lab" data-tw>{t('devices.title')}</span>
       <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
     </div>
 
@@ -48,7 +48,7 @@ const shareArt = contour(77, 12, 640, 400);
                     ))}
                   </svg>
                 )}
-                <span class="serial x-mono">NX-{String(i + 1).padStart(2, '0')}</span>
+                <span class="serial x-mono" data-tw>NX-{String(i + 1).padStart(2, '0')}</span>
                 {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
                 {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
               </div>
@@ -167,7 +167,7 @@ const shareArt = contour(77, 12, 640, 400);
   }
   .media {
     position: relative;
-    aspect-ratio: 16 / 9.6;
+    aspect-ratio: 13 / 7;
     background: var(--x-bg);
     overflow: hidden;
   }
@@ -180,14 +180,18 @@ const shareArt = contour(77, 12, 640, 400);
     object-fit: cover;
     display: block;
   }
+  /* 序号章贴死图区左上角,与卡框同底色成「切口」(P2-23) */
   .serial {
     position: absolute;
-    top: 10px;
-    left: 10px;
+    top: 0;
+    left: 0;
     background: var(--x-light);
     color: var(--x-dark);
-    font-weight: 700;
-    padding: 3px 9px;
+    font-weight: 400;
+    font-size: 16px;
+    letter-spacing: -0.36px;
+    min-width: 5ch;
+    padding: 10px;
   }
   .chip {
     position: absolute;
@@ -199,17 +203,17 @@ const shareArt = contour(77, 12, 640, 400);
     padding: 3px 9px;
   }
   .body {
-    padding: clamp(18px, 1.8vw, 28px);
+    padding: 20px 10px;
     display: grid;
     gap: 14px;
     align-content: start;
   }
   h3 {
     font-family: var(--x-font-display);
-    font-size: clamp(26px, 2.6vw, 38px);
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.08;
+    font-size: clamp(26px, 2.78vw, 40px);
+    font-weight: 400;
+    letter-spacing: -0.03em;
+    line-height: 1;
     color: var(--x-ink);
     margin: 0;
     text-wrap: balance;
