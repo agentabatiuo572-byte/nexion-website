@@ -35,6 +35,43 @@
     "uptime": "Uptime",
     "asOf": "Data as of"
   },
+  "path": {
+    "freeTitle": "Start free with your phone",
+    "freeDesc": "Install the app and your phone's idle NPU starts running AI tasks. No hardware, no deposit.",
+    "freeCta": "Get started free",
+    "scaleTitle": "Scale with NexGridBox",
+    "scaleDesc": "Dedicated devices multiply your compute capacity — datacenter-hosted, active from day one.",
+    "scaleLink": "See devices",
+    "note": "Real-time earnings are transparent in the app — every task, every payout."
+  },
+  "how": {
+    "title": "How it works",
+    "step1Title": "Download & connect",
+    "step1Desc": "Install the app and connect your phone's idle compute. Setup takes about 90 seconds.",
+    "step2Title": "AI tasks run automatically",
+    "step2Desc": "Your device picks up inference jobs — image, language, speech — in the background. Nothing extra to do.",
+    "step3Title": "Get paid in USDT",
+    "step3Desc": "Every completed task settles to your in-app balance.",
+    "verifyLink": "How earnings are verified"
+  },
+  "devices": {
+    "title": "One network, every scale",
+    "subtitle": "Start with the phone in your pocket. Scale with dedicated, datacenter-hosted hardware.",
+    "free": "Free",
+    "multiplierLabel": "compute vs phone",
+    "classicBadge": "Classic",
+    "comingBadge": "Coming soon",
+    "cta": "Get the app to start",
+    "tagline": {
+      "phone": "The zero-cost entry — the device you already own.",
+      "cloud-share": "A slice of shared compute, no hardware at all.",
+      "s1": "The original dedicated box.",
+      "pro": "More cores, more throughput.",
+      "pro-v2": "The current-generation workhorse.",
+      "rack-p1": "Rack-scale for serious operators.",
+      "rack-p2": "Top-tier rack, maximum capacity."
+    }
+  },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",

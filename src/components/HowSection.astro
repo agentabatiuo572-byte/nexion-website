@@ -1,0 +1,120 @@
+---
+/* [FEAT-WEB05] How it works — 三步机制卡,滚动渐显(reduced-motion 取消)。
+   机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。 */
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const steps = [1, 2, 3] as const;
+---
+
+<section class="how" id="how">
+  <h2 class="title">{t('how.title')}</h2>
+  <div class="steps">
+    {
+      steps.map((n) => (
+        <article class="step">
+          <span class="n">{n}</span>
+          <h3>{t(`how.step${n}Title`)}</h3>
+          <p>
+            {t(`how.step${n}Desc`)}
+            {n === 3 && (
+              <>
+                {' '}
+                <a class="vlink" href="#trust">
+                  {t('how.verifyLink')} →
+                </a>
+              </>
+            )}
+          </p>
+        </article>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .how {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+  }
+  .title {
+    font-size: clamp(24px, 3vw, 30px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 28px;
+    text-align: center;
+    text-wrap: balance;
+  }
+  .steps {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 18px;
+  }
+  .step {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 26px 24px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+    animation: rise 0.6s ease both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 40%;
+  }
+  @supports not (animation-timeline: view()) {
+    .step {
+      animation: none;
+    }
+  }
+  @keyframes rise {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+  .n {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--w-radius-pill);
+    background: var(--v5-brand-soft);
+    color: var(--v5-brand);
+    display: grid;
+    place-items: center;
+    font-size: 14px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0;
+  }
+  p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .vlink {
+    color: var(--v5-brand);
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .vlink:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .vlink:active {
+    opacity: 0.8;
+  }
+</style>

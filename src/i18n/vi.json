@@ -35,6 +35,43 @@
     "uptime": "Thời gian hoạt động",
     "asOf": "Dữ liệu tính đến"
   },
+  "path": {
+    "freeTitle": "Bắt đầu miễn phí với điện thoại",
+    "freeDesc": "Cài ứng dụng và NPU nhàn rỗi của điện thoại bắt đầu chạy tác vụ AI. Không cần phần cứng, không cần đặt cọc.",
+    "freeCta": "Bắt đầu miễn phí",
+    "scaleTitle": "Mở rộng với NexGridBox",
+    "scaleDesc": "Thiết bị chuyên dụng nhân lên năng lực tính toán của bạn — đặt tại trung tâm dữ liệu, hoạt động ngay từ ngày đầu.",
+    "scaleLink": "Xem thiết bị",
+    "note": "Thu nhập theo thời gian thực minh bạch trong ứng dụng — từng tác vụ, từng lần chi trả."
+  },
+  "how": {
+    "title": "Cách hoạt động",
+    "step1Title": "Tải xuống & kết nối",
+    "step1Desc": "Cài ứng dụng và kết nối năng lực tính toán nhàn rỗi của điện thoại. Thiết lập mất khoảng 90 giây.",
+    "step2Title": "Tác vụ AI chạy tự động",
+    "step2Desc": "Thiết bị của bạn nhận các tác vụ suy luận — hình ảnh, ngôn ngữ, giọng nói — chạy nền. Không cần thao tác thêm.",
+    "step3Title": "Nhận thanh toán bằng USDT",
+    "step3Desc": "Mỗi tác vụ hoàn thành được ghi vào số dư trong ứng dụng.",
+    "verifyLink": "Thu nhập được xác minh thế nào"
+  },
+  "devices": {
+    "title": "Một mạng lưới, mọi quy mô",
+    "subtitle": "Bắt đầu từ chiếc điện thoại trong túi. Mở rộng với phần cứng chuyên dụng đặt tại trung tâm dữ liệu.",
+    "free": "Miễn phí",
+    "multiplierLabel": "năng lực so với điện thoại",
+    "classicBadge": "Bản kinh điển",
+    "comingBadge": "Sắp ra mắt",
+    "cta": "Tải ứng dụng để bắt đầu",
+    "tagline": {
+      "phone": "Lối vào không chi phí — thiết bị bạn đã có sẵn.",
+      "cloud-share": "Một phần năng lực chia sẻ, hoàn toàn không cần phần cứng.",
+      "s1": "Hộp chuyên dụng thế hệ đầu.",
+      "pro": "Nhiều lõi hơn, thông lượng cao hơn.",
+      "pro-v2": "Chủ lực thế hệ hiện tại.",
+      "rack-p1": "Cấp rack cho nhà vận hành nghiêm túc.",
+      "rack-p2": "Rack cao cấp nhất, năng lực tối đa."
+    }
+  },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",

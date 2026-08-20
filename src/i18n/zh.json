@@ -1,7 +1,7 @@
 {
   "site": {
     "name": "NexGrid",
-    "tagline": "分布式 AI 算力,让闲置设备产生收益。",
+    "tagline": "分布式 AI 算力，让闲置设备产生收益。",
     "description": "NexGrid 把闲置手机与专用算力设备变成 AI 推理能力。下载 App 即可开始。"
   },
   "nav": {
@@ -34,6 +34,43 @@
     "countries": "覆盖国家",
     "uptime": "在线率",
     "asOf": "数据截至"
+  },
+  "path": {
+    "freeTitle": "用手机免费开始",
+    "freeDesc": "装上 App，手机闲置算力就能接 AI 任务。无需硬件，无需押金。",
+    "freeCta": "免费开始",
+    "scaleTitle": "用 NexGridBox 扩大规模",
+    "scaleDesc": "专用设备成倍提升你的算力——机房托管，开通即运行。",
+    "scaleLink": "查看设备",
+    "note": "实时收益在 App 内透明可查——每个任务，每笔结算。"
+  },
+  "how": {
+    "title": "工作原理",
+    "step1Title": "下载并连接",
+    "step1Desc": "装上 App，连接手机闲置算力，约 90 秒完成设置。",
+    "step2Title": "AI 任务自动运行",
+    "step2Desc": "设备在后台承接推理任务——图像、语言、语音。无需任何额外操作。",
+    "step3Title": "收益以 USDT 结算",
+    "step3Desc": "每个完成的任务都结算进你的 App 余额。",
+    "verifyLink": "收益如何被验证"
+  },
+  "devices": {
+    "title": "一张网络，任意规模",
+    "subtitle": "从口袋里的手机开始，用机房托管的专用硬件扩大规模。",
+    "free": "免费",
+    "multiplierLabel": "算力(对比手机)",
+    "classicBadge": "经典款",
+    "comingBadge": "即将上线",
+    "cta": "下载 App 开始",
+    "tagline": {
+      "phone": "零成本入口——就是你现有的设备。",
+      "cloud-share": "共享算力份额，无需任何硬件。",
+      "s1": "最初代的专用算力盒。",
+      "pro": "更多核心，更高吞吐。",
+      "pro-v2": "当前主力机型。",
+      "rack-p1": "面向重度运营者的机架级。",
+      "rack-p2": "顶配机架，算力上限。"
+    }
   },
   "footer": {
     "disclaimer": "收益随网络需求、设备性能与在线时长浮动，平台不作任何事先承诺。本站内容不构成理财建议。",

@@ -3,6 +3,9 @@
 import Base from '../../layouts/Base.astro';
 import HeroSection from '../../components/hero/HeroSection.astro';
 import StatsBar from '../../components/StatsBar.astro';
+import PathSection from '../../components/PathSection.astro';
+import HowSection from '../../components/HowSection.astro';
+import DevicesSection from '../../components/DevicesSection.astro';
 import HomeSkeleton from '../../components/HomeSkeleton.astro';
 import { useT } from '../../i18n';
 const t = useT('vi');
@@ -12,6 +15,9 @@ const t = useT('vi');
   <main>
     <HeroSection locale="vi" />
     <StatsBar locale="vi" />
+    <PathSection locale="vi" />
+    <HowSection locale="vi" />
+    <DevicesSection locale="vi" />
     <HomeSkeleton locale="vi" />
   </main>
 </Base>

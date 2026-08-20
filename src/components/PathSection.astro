@@ -1,0 +1,98 @@
+---
+/* [FEAT-WEB04 v1.1] 收益路径 — 纯静态双卡(计算器已删,主人 2026-08-20 裁决)。
+   🔴 全板块无任何收益数字;收束句指向 App 内透明收益。V5:带 bg 卡零 border。 */
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<section class="path" id="path">
+  <div class="cards">
+    <article class="card">
+      <h2>{t('path.freeTitle')}</h2>
+      <p>{t('path.freeDesc')}</p>
+      <a class="pill primary" href="#download">{t('path.freeCta')}</a>
+    </article>
+    <article class="card">
+      <h2>{t('path.scaleTitle')}</h2>
+      <p>{t('path.scaleDesc')}</p>
+      <a class="pill" href="#devices">{t('path.scaleLink')}</a>
+    </article>
+  </div>
+  <p class="note">{t('path.note')}</p>
+</section>
+
+<style>
+  .path {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: var(--w-space-section) 20px 0;
+  }
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 18px;
+  }
+  .card {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 28px 26px;
+    display: grid;
+    gap: 12px;
+    align-content: start;
+    background-image: var(--v5-ambient-glow);
+  }
+  .card h2 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0;
+    text-wrap: balance;
+  }
+  .card p {
+    color: var(--v5-ink-2);
+    font-size: 14px;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .pill {
+    justify-self: start;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 0 22px;
+    border-radius: var(--w-radius-pill);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    color: var(--v5-ink-2);
+    border: 1px solid var(--v5-border-strong);
+    transition:
+      transform 0.15s,
+      opacity 0.15s;
+  }
+  .pill.primary {
+    background: var(--v5-brand);
+    color: var(--v5-on-brand);
+    border: 0;
+  }
+  .pill:active {
+    transform: scale(0.98);
+    opacity: 0.85;
+  }
+  .pill:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .note {
+    color: var(--v5-ink-3);
+    font-size: 13px;
+    text-align: center;
+    margin: 22px 0 0;
+    text-wrap: pretty;
+  }
+</style>
