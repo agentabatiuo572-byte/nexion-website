@@ -11,14 +11,29 @@
     "learn": "Learn",
     "nex": "NEX",
     "launchH5": "Launch Web App",
-    "download": "Download"
+    "download": "Download",
+    "ariaMain": "Main",
+    "ariaMenu": "Menu",
+    "ariaLanguage": "Language"
+  },
+  "hero": {
+    "title": "Your phone is the AI cluster.",
+    "subtitle": "Idle devices run AI inference and get paid in USDT. Start free — no hardware required.",
+    "scrollHint": "See the network"
+  },
+  "download": {
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoonIos": "Coming soon to App Store",
+    "comingSoonAndroid": "Coming soon to Google Play"
   },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "contact": "Contact",
-    "rights": "All rights reserved."
+    "rights": "All rights reserved.",
+    "ariaLegal": "Legal"
   },
   "scaffold": {
     "placeholder": "Site under construction — T2+ sections land here per website PRD."

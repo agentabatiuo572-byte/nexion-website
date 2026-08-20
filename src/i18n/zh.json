@@ -11,14 +11,29 @@
     "learn": "学习中心",
     "nex": "NEX",
     "launchH5": "打开网页版",
-    "download": "下载"
+    "download": "下载",
+    "ariaMain": "主导航",
+    "ariaMenu": "菜单",
+    "ariaLanguage": "语言"
+  },
+  "hero": {
+    "title": "你的手机，就是 AI 集群。",
+    "subtitle": "闲置设备接 AI 推理任务，收益以 USDT 结算。免费开始，无需任何硬件投入。",
+    "scrollHint": "查看网络"
+  },
+  "download": {
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoonIos": "App Store 即将上线",
+    "comingSoonAndroid": "Google Play 即将上线"
   },
   "footer": {
-    "disclaimer": "收益随网络需求、设备性能与在线时长浮动,平台不作任何事先承诺。本站内容不构成理财建议。",
+    "disclaimer": "收益随网络需求、设备性能与在线时长浮动，平台不作任何事先承诺。本站内容不构成理财建议。",
     "privacy": "隐私政策",
     "terms": "使用条款",
     "contact": "联系我们",
-    "rights": "保留所有权利。"
+    "rights": "保留所有权利。",
+    "ariaLegal": "法务"
   },
   "scaffold": {
     "placeholder": "站点建设中 — T2+ 板块按官网 PRD 陆续落地。"

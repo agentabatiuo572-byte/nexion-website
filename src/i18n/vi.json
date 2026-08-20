@@ -11,14 +11,29 @@
     "learn": "Học",
     "nex": "NEX",
     "launchH5": "Mở bản Web",
-    "download": "Tải xuống"
+    "download": "Tải xuống",
+    "ariaMain": "Chính",
+    "ariaMenu": "Menu",
+    "ariaLanguage": "Ngôn ngữ"
+  },
+  "hero": {
+    "title": "Điện thoại của bạn chính là cụm AI.",
+    "subtitle": "Thiết bị nhàn rỗi chạy suy luận AI và nhận thu nhập bằng USDT. Bắt đầu miễn phí — không cần phần cứng.",
+    "scrollHint": "Xem mạng lưới"
+  },
+  "download": {
+    "appStore": "App Store",
+    "googlePlay": "Google Play",
+    "comingSoonIos": "Sắp có trên App Store",
+    "comingSoonAndroid": "Sắp có trên Google Play"
   },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",
     "terms": "Điều khoản dịch vụ",
     "contact": "Liên hệ",
-    "rights": "Bảo lưu mọi quyền."
+    "rights": "Bảo lưu mọi quyền.",
+    "ariaLegal": "Pháp lý"
   },
   "scaffold": {
     "placeholder": "Trang đang xây dựng — các phần T2+ sẽ xuất hiện tại đây theo PRD."

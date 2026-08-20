@@ -1,0 +1,138 @@
+---
+/* [FEAT-WEB02] Hero 下载区 — LCP 钉 H1;地球岛 client:visible 懒挂不进首包;
+   球失败/低端时 poster(CSS 渐变+点网格)常驻兜底,永不阻塞文字与三键。 */
+import HeroGlobe from './HeroGlobe.tsx';
+import DownloadButtons from './DownloadButtons.astro';
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<section class="hero" id="download">
+  <div class="copy">
+    <h1>{t('hero.title')}</h1>
+    <p class="sub">{t('hero.subtitle')}</p>
+    <DownloadButtons locale={locale} />
+  </div>
+  <div class="globe" aria-hidden="true">
+    <div class="globe-poster"></div>
+    <HeroGlobe client:visible />
+  </div>
+  <a class="scroll-hint" href="#stats">{t('hero.scrollHint')} ↓</a>
+</section>
+
+<style>
+  .hero {
+    position: relative;
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: clamp(48px, 8vh, 96px) 20px 24px;
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: center;
+    gap: 32px;
+    min-height: calc(100svh - 64px);
+  }
+  .copy {
+    position: relative;
+    z-index: 1;
+  }
+  h1 {
+    /* UI/规范 14 档 hero 体系:官网新工程直接采(56 上限),字重 ≤600 */
+    font-size: clamp(34px, 5.2vw, 56px);
+    line-height: 1.08;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--v5-ink);
+    margin: 0 0 18px;
+    text-wrap: balance;
+  }
+  .sub {
+    color: var(--v5-ink-2);
+    font-size: clamp(15px, 1.6vw, 18px);
+    max-width: 480px;
+    margin: 0 0 30px;
+    text-wrap: pretty;
+  }
+  .globe {
+    position: relative;
+    aspect-ratio: 1;
+    max-width: 560px;
+    justify-self: end;
+    width: 100%;
+  }
+  .globe :global(canvas) {
+    position: relative;
+    z-index: 1;
+  }
+  /* poster 兜底:brand ambient + 点网格,球挂载成功后被 canvas 覆盖 */
+  .globe-poster {
+    position: absolute;
+    inset: 6%;
+    border-radius: 50%;
+    background:
+      var(--v5-ambient-glow),
+      radial-gradient(circle at 50% 45%, var(--v5-surface-2) 0%, var(--v5-bg) 68%);
+    -webkit-mask-image: radial-gradient(circle, #000 62%, transparent 72%);
+    mask-image: radial-gradient(circle, #000 62%, transparent 72%);
+  }
+  .globe-poster::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background-image: radial-gradient(rgba(158, 220, 29, 0.35) 1px, transparent 1.4px);
+    background-size: 14px 14px;
+    opacity: 0.35;
+  }
+  .scroll-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 10px;
+    transform: translateX(-50%);
+    color: var(--v5-ink-4);
+    font-size: 12px;
+    text-decoration: none;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .scroll-hint:hover,
+  .scroll-hint:focus-visible {
+    color: var(--v5-ink-2);
+  }
+  .scroll-hint:active {
+    opacity: 0.8;
+  }
+  .scroll-hint:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+
+  @media (max-width: 860px) {
+    .hero {
+      grid-template-columns: 1fr;
+      min-height: auto;
+      padding-top: 40px;
+      text-align: center;
+    }
+    .sub {
+      margin-inline: auto;
+    }
+    .copy :global(.dl) {
+      justify-content: center;
+    }
+    .globe {
+      justify-self: center;
+      max-width: 420px;
+      order: 2;
+    }
+    .scroll-hint {
+      display: none;
+    }
+  }
+</style>

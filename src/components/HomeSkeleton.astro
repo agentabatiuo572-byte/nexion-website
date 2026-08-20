@@ -1,6 +1,7 @@
 ---
-/* Home 板块占位骨架 — 给 SiteNav 锚点真实落点(anchor-check 门要求)。
-   T3-T12 按官网 PRD [FEAT-WEB02..12] 逐板块替换为真实现;全部替换完删除本组件。 */
+/* Home 剩余板块占位骨架 — hero 已由 HeroSection(T3)顶替,本组件只占 T4-T12 未落地板块。
+   id 一律字面量(anchor-check 门按字面量扫,OBS-3 裁决);逐板块落地后删除对应 stub,
+   全部落地后删除本组件。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -8,57 +9,42 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-const sections = [
-  { id: 'download', label: 'Hero · Download' },
-  { id: 'stats', label: 'Live platform stats' },
-  { id: 'path', label: 'Earning path' },
-  { id: 'how', label: 'How it works' },
-  { id: 'devices', label: 'Devices' },
-  { id: 'trust', label: 'Trust' },
-  { id: 'nex', label: 'NEX' },
-  { id: 'faq', label: 'FAQ' },
-];
 ---
 
-<main>
-  <section class="hero" id={sections[0].id}>
-    <h1>{t('site.name')}</h1>
-    <p class="tagline">{t('site.tagline')}</p>
-    <p class="note">{t('scaffold.placeholder')}</p>
-  </section>
-  {sections.slice(1).map((s) => (
-    <section class="stub" id={s.id} aria-label={s.label}>
-      <h2>{s.label}</h2>
-      <p class="note">{t('scaffold.placeholder')}</p>
-    </section>
-  ))}
-</main>
+<section class="stub" id="stats" aria-label="Live platform stats">
+  <h2>Live platform stats</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="path" aria-label="Earning path">
+  <h2>Earning path</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="how" aria-label="How it works">
+  <h2>How it works</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="devices" aria-label="Devices">
+  <h2>Devices</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="trust" aria-label="Trust">
+  <h2>Trust</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="nex" aria-label="NEX">
+  <h2>NEX</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
+<section class="stub" id="faq" aria-label="FAQ">
+  <h2>FAQ</h2>
+  <p class="note">{t('scaffold.placeholder')}</p>
+</section>
 
 <style>
-  main {
+  .stub {
     max-width: var(--w-content-max);
     margin: 0 auto;
-    padding: 0 20px;
-  }
-  .hero {
-    min-height: 60vh;
-    display: grid;
-    place-content: center;
-    text-align: center;
-  }
-  h1 {
-    color: var(--v5-brand);
-    font-size: clamp(28px, 5vw, 44px);
-    margin: 0 0 12px;
-    font-weight: 600;
-  }
-  .tagline {
-    color: var(--v5-ink-2);
-    max-width: 520px;
-    margin: 0 auto;
-  }
-  .stub {
-    padding: 48px 0;
+    padding: 48px 20px;
     border-top: 1px solid var(--v5-border);
   }
   .stub h2 {

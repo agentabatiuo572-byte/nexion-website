@@ -1,0 +1,99 @@
+---
+/* [FEAT-WEB02/12] 下载三键 — hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。
+   URL 未配置的键:iOS/Android → Coming soon 禁用态;H5 → 不渲染。零死链(异常1)。 */
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const IOS = import.meta.env.PUBLIC_IOS_URL ?? '';
+const ANDROID = import.meta.env.PUBLIC_ANDROID_URL ?? '';
+const H5 = import.meta.env.PUBLIC_H5_URL ?? '';
+const allEmpty = !IOS && !ANDROID && !H5;
+---
+
+<div class="dl" data-empty={allEmpty ? 'true' : undefined}>
+  {
+    IOS ? (
+      <a class="btn primary" href={IOS} target="_blank" rel="noopener">
+        {t('download.appStore')}
+      </a>
+    ) : (
+      <span class="btn disabled" aria-disabled="true">
+        {t('download.comingSoonIos')}
+      </span>
+    )
+  }
+  {
+    ANDROID ? (
+      <a class="btn primary" href={ANDROID} target="_blank" rel="noopener">
+        {t('download.googlePlay')}
+      </a>
+    ) : (
+      <span class="btn disabled" aria-disabled="true">
+        {t('download.comingSoonAndroid')}
+      </span>
+    )
+  }
+  {
+    H5 && (
+      <a class="btn ghost" href={H5} target="_blank" rel="noopener">
+        {t('nav.launchH5')}
+      </a>
+    )
+  }
+</div>
+
+<style>
+  .dl {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    padding: 0 26px;
+    border-radius: var(--w-radius-pill);
+    font-size: 15px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      transform 0.15s,
+      opacity 0.15s;
+  }
+  .btn:active {
+    transform: scale(0.98);
+    opacity: 0.85;
+  }
+  .btn:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .btn.primary {
+    background: var(--v5-brand);
+    color: var(--v5-on-brand);
+    box-shadow: var(--v5-spotlight-brand);
+  }
+  .btn.disabled {
+    background: var(--v5-surface-2);
+    color: var(--v5-ink-4);
+    cursor: default;
+    box-shadow: none;
+  }
+  .btn.ghost {
+    color: var(--v5-ink-2);
+    border: 1px solid var(--v5-border-strong);
+  }
+  @media (max-width: 520px) {
+    .dl {
+      flex-direction: column;
+      align-items: stretch;
+    }
+  }
+</style>

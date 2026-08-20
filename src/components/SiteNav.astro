@@ -22,10 +22,10 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
 ---
 
 <header class="site-nav" id="site-nav">
-  <nav aria-label="Main">
+  <nav aria-label={t('nav.ariaMain')}>
     <a class="logo" href={page('/') || '/'}>NexGrid</a>
 
-    <button class="menu-toggle" aria-expanded="false" aria-controls="nav-menu" aria-label="Menu">
+    <button class="menu-toggle" aria-expanded="false" aria-controls="nav-menu" aria-label={t('nav.ariaMenu')}>
       <span></span><span></span><span></span>
     </button>
 
@@ -36,7 +36,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       <a href={page('/learn')}>{t('nav.learn')}</a>
       <a href={page('/nex')}>{t('nav.nex')}</a>
 
-      <div class="lang" role="group" aria-label="Language">
+      <div class="lang" role="group" aria-label={t('nav.ariaLanguage')}>
         {locales.map((l) => (
           <a href={langHref(l)} class:list={[{ active: l === locale }]} aria-current={l === locale ? 'true' : undefined}>
             {LANG_LABEL[l]}

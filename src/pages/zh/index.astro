@@ -1,11 +1,15 @@
 ---
-/* Home(zh)— 板块由 HomeSkeleton 占位,T3-T12 按官网 PRD 逐板块替换 */
+/* Home(zh)— hero 已落地(T3);其余板块 HomeSkeleton 占位,T4-T12 逐板块替换 */
 import Base from '../../layouts/Base.astro';
+import HeroSection from '../../components/hero/HeroSection.astro';
 import HomeSkeleton from '../../components/HomeSkeleton.astro';
 import { useT } from '../../i18n';
 const t = useT('zh');
 ---
 
 <Base locale="zh" title={`${t('site.name')} — ${t('site.tagline')}`} description={t('site.description')} path="/">
-  <HomeSkeleton locale="zh" />
+  <main>
+    <HeroSection locale="zh" />
+    <HomeSkeleton locale="zh" />
+  </main>
 </Base>
