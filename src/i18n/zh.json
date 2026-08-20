@@ -157,6 +157,24 @@
     "getApp": "下载 App",
     "whitepaper": "阅读白皮书"
   },
+  "learn": {
+    "title": "学习中心",
+    "subtitle": "简短实用的核心功能教程——从首次注册到提现。",
+    "homeTitle": "几分钟上手 App",
+    "browseAll": "查看全部教程",
+    "backToList": "全部教程",
+    "untranslated": "本篇暂未翻译——当前显示英文版。",
+    "enOnly": "暂只有英文版",
+    "appVersionLabel": "App 版本",
+    "topics": {
+      "start": "快速开始",
+      "earn": "收益",
+      "devices": "设备",
+      "wallet": "钱包",
+      "team": "团队",
+      "nex": "NEX"
+    }
+  },
   "faq": {
     "title": "常见问题",
     "q1": "NexGrid 是什么？",

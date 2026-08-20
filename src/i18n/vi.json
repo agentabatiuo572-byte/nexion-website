@@ -157,6 +157,24 @@
     "getApp": "Tải ứng dụng",
     "whitepaper": "Đọc whitepaper"
   },
+  "learn": {
+    "title": "Học NexGrid",
+    "subtitle": "Hướng dẫn ngắn gọn, thực dụng về các tính năng cốt lõi — từ đăng ký đầu tiên đến rút tiền.",
+    "homeTitle": "Nắm ứng dụng trong vài phút",
+    "browseAll": "Xem tất cả hướng dẫn",
+    "backToList": "Tất cả hướng dẫn",
+    "untranslated": "Bài này chưa được dịch — đang hiển thị bản tiếng Anh.",
+    "enOnly": "Tạm thời chỉ có tiếng Anh",
+    "appVersionLabel": "Phiên bản ứng dụng",
+    "topics": {
+      "start": "Bắt đầu",
+      "earn": "Thu nhập",
+      "devices": "Thiết bị",
+      "wallet": "Ví",
+      "team": "Đội nhóm",
+      "nex": "NEX"
+    }
+  },
   "faq": {
     "title": "Câu hỏi thường gặp",
     "q1": "NexGrid là gì?",

@@ -1,0 +1,113 @@
+---
+/* [FEAT-WEB11] /learn 列表 — 按 order 排列;缺译条目标注回退语言 */
+import { useT, type Locale } from '../../i18n';
+import { learnList } from '../../lib/learn';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const prefix = locale === 'en' ? '' : `/${locale}`;
+const items = await learnList(locale);
+---
+
+<main class="learn">
+  <header class="head">
+    <h1>{t('learn.title')}</h1>
+    <p>{t('learn.subtitle')}</p>
+  </header>
+  <div class="grid">
+    {
+      items.map(({ entry, slug, fallback }) => (
+        <a class="card" href={`${prefix}/learn/${slug}`}>
+          <span class="topic">{t(`learn.topics.${entry.data.topic}`)}</span>
+          <h2>{entry.data.title}</h2>
+          <p>{entry.data.description}</p>
+          {fallback && <span class="fb">{t('learn.enOnly')}</span>}
+        </a>
+      ))
+    }
+  </div>
+</main>
+
+<style>
+  .learn {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: 48px 20px 0;
+  }
+  .head {
+    text-align: center;
+    margin-bottom: 34px;
+  }
+  h1 {
+    font-size: clamp(28px, 4vw, 40px);
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 0 0 10px;
+    letter-spacing: -0.01em;
+  }
+  .head p {
+    color: var(--v5-ink-3);
+    font-size: 14.5px;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .card {
+    background: var(--v5-surface);
+    border-radius: var(--w-radius-card);
+    padding: 24px 22px;
+    display: grid;
+    gap: 8px;
+    align-content: start;
+    text-decoration: none;
+    transition:
+      transform 0.15s,
+      opacity 0.15s;
+  }
+  .card:active {
+    transform: scale(0.99);
+    opacity: 0.9;
+  }
+  .card:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .topic {
+    justify-self: start;
+    font-size: 10.5px;
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    color: var(--v5-brand);
+    background: var(--v5-brand-soft);
+    border-radius: var(--w-radius-pill);
+    padding: 3px 10px;
+  }
+  h2 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--v5-ink);
+    margin: 2px 0 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-wrap: balance;
+  }
+  .card > p {
+    color: var(--v5-ink-3);
+    font-size: 13px;
+    margin: 0;
+    text-wrap: pretty;
+  }
+  .fb {
+    color: var(--v5-ink-4);
+    font-size: 11px;
+  }
+</style>

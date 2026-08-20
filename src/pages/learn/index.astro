@@ -1,0 +1,10 @@
+---
+import Base from '../../layouts/Base.astro';
+import LearnList from '../../components/learn/LearnList.astro';
+import { useT } from '../../i18n';
+const t = useT('en');
+---
+
+<Base locale="en" title={`${t('learn.title')} — NexGrid`} description={t('learn.subtitle')} path="/learn">
+  <LearnList locale="en" />
+</Base>

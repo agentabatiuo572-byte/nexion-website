@@ -157,6 +157,24 @@
     "getApp": "Get the app",
     "whitepaper": "Read the whitepaper"
   },
+  "learn": {
+    "title": "Learn NexGrid",
+    "subtitle": "Short, practical guides to the app's core features — from first sign-up to withdrawals.",
+    "homeTitle": "Learn the app in minutes",
+    "browseAll": "Browse all guides",
+    "backToList": "All guides",
+    "untranslated": "This guide is not translated yet — showing the English version.",
+    "enOnly": "English only for now",
+    "appVersionLabel": "App version",
+    "topics": {
+      "start": "Getting started",
+      "earn": "Earning",
+      "devices": "Devices",
+      "wallet": "Wallet",
+      "team": "Team",
+      "nex": "NEX"
+    }
+  },
   "faq": {
     "title": "Frequently asked questions",
     "q1": "What is NexGrid?",

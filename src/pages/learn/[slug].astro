@@ -1,0 +1,15 @@
+---
+import Base from '../../layouts/Base.astro';
+import LearnArticle from '../../components/learn/LearnArticle.astro';
+import { learnList, learnOne } from '../../lib/learn';
+
+export async function getStaticPaths() {
+  return (await learnList('en')).map(({ slug }) => ({ params: { slug } }));
+}
+const { slug } = Astro.params;
+const hit = (await learnOne('en', slug!))!;
+---
+
+<Base locale="en" title={`${hit.entry.data.title} — NexGrid`} description={hit.entry.data.description} path={`/learn/${slug}`}>
+  <LearnArticle locale="en" entry={hit.entry} fallback={hit.fallback} />
+</Base>
