@@ -8,7 +8,7 @@ order: 1
 prdRef: "App PRD §4"
 ---
 
-NexGrid is designed so that your first session takes about 90 seconds from install to dashboard.
+Your first session takes about 90 seconds from install to dashboard.
 
 ## 1. Install and open the app
 

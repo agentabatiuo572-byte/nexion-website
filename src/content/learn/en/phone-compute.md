@@ -18,10 +18,10 @@ From the home screen, tap your phone device card and enable compute. That's it �
 
 - **Staying connected**: the app periodically reports that your phone is online (a heartbeat). A phone that stays connected picks up more work than one that only checks in occasionally.
 - **Charging and temperature**: work is scheduled to respect battery and heat — plugged-in, cool devices do more.
-- **Continuous uptime**: keeping the app alive in the background counts; force-killing it drops your phone to a lighter baseline until it reconnects.
+- **Continuous uptime**: keeping the app alive in the background counts; force-killing it means your phone picks up less work until it reconnects.
 
 ## Where to see the results
 
 The device card shows task activity, and every completed task appears with its Proof-of-Compute receipt in your earnings view. Amounts vary with network demand — the app always shows the live numbers.
 
-> Tip: battery-saver modes on some phones aggressively kill background apps. Whitelisting NexGrid keeps your device on the higher-connection tier.
+> Tip: battery-saver modes on some phones aggressively kill background apps. Whitelisting NexGrid keeps it connected, so it keeps picking up work.

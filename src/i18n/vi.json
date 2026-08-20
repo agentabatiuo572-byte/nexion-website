@@ -2,7 +2,7 @@
   "site": {
     "name": "NexGrid",
     "tagline": "Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
-    "description": "NexGrid biến điện thoại nhàn rỗi và thiết bị chuyên dụng thành năng lực suy luận AI. Tải ứng dụng để bắt đầu."
+    "description": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị lưu trữ hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí."
   },
   "nav": {
     "how": "Cách hoạt động",
@@ -18,7 +18,7 @@
   },
   "hero": {
     "title": "Điện thoại của bạn chính là cụm AI.",
-    "subtitle": "Thiết bị nhàn rỗi chạy suy luận AI và nhận thu nhập bằng USDT. Bắt đầu miễn phí — không cần phần cứng.",
+    "subtitle": "Điện thoại của bạn chạy các tác vụ AI nhỏ khi rảnh rỗi. Bạn được trả bằng USDT. Bắt đầu miễn phí, không cần phần cứng.",
     "scrollHint": "Xem mạng lưới"
   },
   "download": {
@@ -37,19 +37,19 @@
   },
   "path": {
     "freeTitle": "Bắt đầu miễn phí với điện thoại",
-    "freeDesc": "Cài ứng dụng và NPU nhàn rỗi của điện thoại bắt đầu chạy tác vụ AI. Không cần phần cứng, không cần đặt cọc.",
+    "freeDesc": "Cài ứng dụng và năng lực xử lý dư thừa của điện thoại bắt đầu chạy tác vụ AI. Không phải mua phần cứng, không đặt cọc.",
     "freeCta": "Bắt đầu miễn phí",
     "scaleTitle": "Mở rộng với NexGridBox",
-    "scaleDesc": "Thiết bị chuyên dụng nhân lên năng lực tính toán của bạn — đặt tại trung tâm dữ liệu, hoạt động ngay từ ngày đầu.",
+    "scaleDesc": "Thiết bị chuyên dụng nhân lên năng lực tính toán của bạn. Chúng chạy trong trung tâm dữ liệu và hoạt động ngay từ ngày đầu.",
     "scaleLink": "Xem thiết bị",
-    "note": "Thu nhập theo thời gian thực minh bạch trong ứng dụng — từng tác vụ, từng lần chi trả."
+    "note": "Ứng dụng hiển thị từng tác vụ và từng khoản chi trả ngay khi diễn ra."
   },
   "how": {
     "title": "Cách hoạt động",
     "step1Title": "Tải xuống & kết nối",
-    "step1Desc": "Cài ứng dụng và kết nối năng lực tính toán nhàn rỗi của điện thoại. Thiết lập mất khoảng 90 giây.",
+    "step1Desc": "Cài ứng dụng và kết nối điện thoại. Thiết lập mất khoảng 90 giây.",
     "step2Title": "Tác vụ AI chạy tự động",
-    "step2Desc": "Thiết bị của bạn nhận các tác vụ suy luận — hình ảnh, ngôn ngữ, giọng nói — chạy nền. Không cần thao tác thêm.",
+    "step2Desc": "Thiết bị của bạn nhận các tác vụ AI (hình ảnh, ngôn ngữ, giọng nói) chạy nền. Không cần thao tác thêm.",
     "step3Title": "Nhận thanh toán bằng USDT",
     "step3Desc": "Mỗi tác vụ hoàn thành được ghi vào số dư trong ứng dụng.",
     "verifyLink": "Thu nhập được xác minh thế nào"
@@ -63,7 +63,7 @@
     "comingBadge": "Sắp ra mắt",
     "cta": "Tải ứng dụng để bắt đầu",
     "tagline": {
-      "phone": "Lối vào không chi phí — thiết bị bạn đã có sẵn.",
+      "phone": "Lối vào không chi phí: thiết bị bạn đã có sẵn.",
       "cloud-share": "Một phần năng lực chia sẻ, hoàn toàn không cần phần cứng.",
       "s1": "Hộp chuyên dụng thế hệ đầu.",
       "pro": "Nhiều lõi hơn, thông lượng cao hơn.",
@@ -75,10 +75,10 @@
   "trust": {
     "title": "Tự mình kiểm chứng chúng tôi",
     "subtitle": "Đừng chỉ tin lời chúng tôi. Hồ sơ đăng ký doanh nghiệp và tuân thủ là công khai — đây là cách kiểm tra.",
-    "pendingNote": "Thông tin xác minh pháp nhân đang được hoàn thiện để công bố.",
+    "pendingNote": "Số đăng ký và tài liệu xác minh sẽ xuất hiện trên trang này ngay khi được công bố.",
     "verifyCta": "Tra cứu cơ quan đăng ký chính thức",
     "pocTitle": "Thu nhập được xác minh thế nào (Proof-of-Compute)",
-    "pocBody1": "Mỗi tác vụ hoàn thành tạo một biên nhận suy luận — chạy gì, khi nào, và thu được bao nhiêu. Biên nhận được ghi vào sổ cái nền tảng kèm chứng thực on-chain.",
+    "pocBody1": "Mỗi tác vụ hoàn thành tạo một biên nhận suy luận — chạy gì, khi nào, thu được bao nhiêu. Chúng tôi ghi từng biên nhận vào sổ cái nền tảng và chứng thực on-chain.",
     "pocBody2": "Ứng dụng hiển thị toàn bộ chuỗi biên nhận cho từng lần chi trả, nên thu nhập truy vết được từ đầu đến cuối."
   },
   "social": {
@@ -86,8 +86,8 @@
     "rolesLine": "Kỹ sư, giáo viên, tài xế, sinh viên, nhà thiết kế — mọi người khắp thế giới để thiết bị nhàn rỗi làm việc."
   },
   "mission": {
-    "title": "Năng lực tính toán phục vụ tiến bộ",
-    "lead": "Năng lực của mạng lưới vận hành các khối lượng công việc AI thực — loại thúc đẩy nghiên cứu và sản phẩm hằng ngày.",
+    "title": "Mạng lưới tính toán những gì",
+    "lead": "Khách hàng trả tiền để chạy khối lượng công việc AI trên năng lực này. Các lĩnh vực dưới đây cho thấy công việc đó đi về đâu.",
     "f1": "Suy luận AI",
     "f2": "Tính toán khoa học",
     "f3": "Mô hình khí hậu",
@@ -128,7 +128,7 @@
     "src3Title": "Lãi staking",
     "src3Desc": "NEX khóa tích lũy lãi tính bằng NEX.",
     "src4Title": "Điểm danh & quà chào mừng",
-    "src4Desc": "Vòi điểm danh hằng ngày cùng thưởng chào mừng cho tài khoản mới.",
+    "src4Desc": "Thưởng điểm danh hằng ngày cùng thưởng chào mừng cho tài khoản mới.",
     "usesTitle": "Năm việc bạn có thể làm với NEX",
     "use1Title": "Đổi sang USDT",
     "use1Desc": "Quy đổi NEX sang USDT trong ví ứng dụng.",
@@ -138,8 +138,8 @@
     "use3Desc": "Dùng NEX cho việc mua và gia hạn thiết bị.",
     "use4Title": "Staking",
     "use4Desc": "Khóa NEX để nhận lãi staking.",
-    "use5Title": "Nắm giữ dài hạn",
-    "use5Desc": "Giữ NEX như một phần vị thế của bạn trong mạng lưới.",
+    "use5Title": "Nắm giữ",
+    "use5Desc": "Hoặc chưa làm gì cả. NEX nằm trong ví cho đến khi bạn quyết định.",
     "mechTitle": "Điều gì tạo nên giá trị NEX",
     "mech1Title": "Phía cầu",
     "mech1Desc": "Khách hàng AI trả tiền cho năng lực tính toán; một phần doanh thu nền tảng dùng cho các đợt mua lại định kỳ.",
@@ -178,7 +178,7 @@
   "faq": {
     "title": "Câu hỏi thường gặp",
     "q1": "NexGrid là gì?",
-    "a1": "Một mạng lưới tính toán AI phân tán. Điện thoại nhàn rỗi và thiết bị chuyên dụng chạy tác vụ suy luận AI, và chủ sở hữu được trả cho công việc hoàn thành.",
+    "a1": "Một mạng lưới tính toán AI phân tán. Điện thoại nhàn rỗi và thiết bị chuyên dụng chạy tác vụ AI, chủ sở hữu được trả cho công việc hoàn thành.",
     "q2": "Tôi kiếm thu nhập thế nào?",
     "a2": "Cài ứng dụng, kết nối năng lực nhàn rỗi của điện thoại, tác vụ chạy tự động. Sau này có thể mở rộng với thiết bị chuyên dụng. Thu nhập theo thời gian thực hiển thị trong ứng dụng.",
     "q3": "Có phải bỏ tiền để bắt đầu không?",
@@ -191,7 +191,7 @@
     "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước."
   },
   "final": {
-    "title": "Để năng lực nhàn rỗi của bạn làm việc."
+    "title": "Để những thiết bị nhàn rỗi của bạn làm việc."
   },
   "footer": {
     "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
@@ -200,9 +200,6 @@
     "contact": "Liên hệ",
     "rights": "Bảo lưu mọi quyền.",
     "ariaLegal": "Pháp lý"
-  },
-  "scaffold": {
-    "placeholder": "Trang đang xây dựng — các phần T2+ sẽ xuất hiện tại đây theo PRD."
   },
   "legal": {
     "enPrevails": "Bản tiếng Anh của tài liệu này có giá trị pháp lý. Bản dịch chỉ mang tính tham khảo."

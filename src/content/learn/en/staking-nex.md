@@ -20,7 +20,7 @@ Each USDT withdrawal carries a network confirmation fee. At the withdrawal scree
 
 ## Stake for interest
 
-The staking screen lets you lock NEX for a period and accrue NEX-denominated interest. Terms, durations, and current rates are always shown in-app before you confirm — and staking is optional; unstaked NEX stays fully liquid.
+The staking screen lets you lock NEX for a period and accrue NEX-denominated interest. Terms, durations, and current rates are always shown in-app before you confirm — and staking is optional; unstaked NEX stays available to use any time.
 
 ## Where to learn more
 

@@ -26,4 +26,4 @@ Because devices run in datacenters, there is no courier and nothing to install a
 
 The device card tracks its task activity, and settlements flow into the same USDT balance as your phone earnings — one wallet, every device.
 
-> Upgrading later? Any paid device can be traded in toward a higher-capacity model — the app's trade-in flow shows exactly what your current device offsets.
+> Upgrading later? Any paid device can be traded in toward a higher-capacity model. The app's trade-in screen shows exactly what your current device offsets.

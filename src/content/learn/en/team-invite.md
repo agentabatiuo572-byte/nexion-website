@@ -8,7 +8,7 @@ order: 5
 prdRef: "App PRD §8"
 ---
 
-NexGrid grows through its members, and the app rewards you for bringing capable people into the network.
+NexGrid grows through its members, and the app rewards you for bringing new device owners onto the network.
 
 ## Your invite code
 

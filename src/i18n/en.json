@@ -2,7 +2,7 @@
   "site": {
     "name": "NexGrid",
     "tagline": "Distributed AI compute. Earn from your idle devices.",
-    "description": "NexGrid turns idle phones and dedicated compute devices into AI inference capacity. Download the app to start."
+    "description": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free."
   },
   "nav": {
     "how": "How it works",
@@ -18,7 +18,7 @@
   },
   "hero": {
     "title": "Your phone is the AI cluster.",
-    "subtitle": "Idle devices run AI inference and get paid in USDT. Start free — no hardware required.",
+    "subtitle": "Your phone runs small AI tasks while it sits idle. You get paid in USDT. Start free, no hardware required.",
     "scrollHint": "See the network"
   },
   "download": {
@@ -37,19 +37,19 @@
   },
   "path": {
     "freeTitle": "Start free with your phone",
-    "freeDesc": "Install the app and your phone's idle NPU starts running AI tasks. No hardware, no deposit.",
+    "freeDesc": "Install the app and your phone's spare processing power starts running AI tasks. No hardware to buy, no deposit.",
     "freeCta": "Get started free",
     "scaleTitle": "Scale with NexGridBox",
-    "scaleDesc": "Dedicated devices multiply your compute capacity — datacenter-hosted, active from day one.",
+    "scaleDesc": "Dedicated devices multiply your compute capacity. They run in datacenters and are active from day one.",
     "scaleLink": "See devices",
-    "note": "Real-time earnings are transparent in the app — every task, every payout."
+    "note": "The app shows every task and every payout as it happens."
   },
   "how": {
     "title": "How it works",
     "step1Title": "Download & connect",
-    "step1Desc": "Install the app and connect your phone's idle compute. Setup takes about 90 seconds.",
+    "step1Desc": "Install the app and connect your phone. Setup takes about 90 seconds.",
     "step2Title": "AI tasks run automatically",
-    "step2Desc": "Your device picks up inference jobs — image, language, speech — in the background. Nothing extra to do.",
+    "step2Desc": "Your device picks up AI jobs (image, language, speech) in the background. Nothing extra to do.",
     "step3Title": "Get paid in USDT",
     "step3Desc": "Every completed task settles to your in-app balance.",
     "verifyLink": "How earnings are verified"
@@ -63,7 +63,7 @@
     "comingBadge": "Coming soon",
     "cta": "Get the app to start",
     "tagline": {
-      "phone": "The zero-cost entry — the device you already own.",
+      "phone": "The zero-cost entry: the device you already own.",
       "cloud-share": "A slice of shared compute, no hardware at all.",
       "s1": "The original dedicated box.",
       "pro": "More cores, more throughput.",
@@ -75,10 +75,10 @@
   "trust": {
     "title": "Verify us yourself",
     "subtitle": "Don't take our word for it. Company registration and compliance records are public — here's how to check them.",
-    "pendingNote": "Entity verification details are being finalized for publication.",
+    "pendingNote": "Registry numbers and verification documents will appear on this page as soon as they are published.",
     "verifyCta": "Check the official registry",
     "pocTitle": "How earnings are verified (Proof-of-Compute)",
-    "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. Receipts are recorded on the platform ledger with on-chain attestation.",
+    "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. We record each receipt on the platform ledger and attest it on-chain.",
     "pocBody2": "Your app shows the full receipt trail for every payout, so earnings are traceable end to end."
   },
   "social": {
@@ -86,8 +86,8 @@
     "rolesLine": "Engineers, teachers, drivers, students, designers — people all over the world put their idle devices to work."
   },
   "mission": {
-    "title": "Compute that serves progress",
-    "lead": "The network's capacity powers real AI workloads — the kind that move research and everyday products forward.",
+    "title": "What the network computes",
+    "lead": "Clients pay to run AI workloads on this capacity. The fields below show where that work goes.",
     "f1": "AI inference",
     "f2": "Scientific computing",
     "f3": "Climate modeling",
@@ -128,7 +128,7 @@
     "src3Title": "Staking interest",
     "src3Desc": "Locked NEX accrues NEX-denominated interest.",
     "src4Title": "Check-ins & welcome gift",
-    "src4Desc": "Daily check-in faucet plus a welcome bonus for new accounts.",
+    "src4Desc": "Daily check-in rewards plus a welcome bonus for new accounts.",
     "usesTitle": "Five things you can do with NEX",
     "use1Title": "Convert to USDT",
     "use1Desc": "Exchange NEX for USDT inside the app wallet.",
@@ -138,8 +138,8 @@
     "use3Desc": "Use NEX toward device purchases and renewals.",
     "use4Title": "Stake",
     "use4Desc": "Lock NEX to earn staking interest.",
-    "use5Title": "Hold long-term",
-    "use5Desc": "Keep NEX as part of your position in the network.",
+    "use5Title": "Hold",
+    "use5Desc": "Or do nothing yet. NEX stays in your wallet until you decide.",
     "mechTitle": "What drives NEX value",
     "mech1Title": "Demand side",
     "mech1Desc": "AI clients pay for compute; a share of platform revenue funds periodic buybacks.",
@@ -178,7 +178,7 @@
   "faq": {
     "title": "Frequently asked questions",
     "q1": "What is NexGrid?",
-    "a1": "A distributed AI compute network. Idle phones and dedicated devices run AI inference tasks, and their owners get paid for the work completed.",
+    "a1": "A distributed AI compute network. Idle phones and dedicated devices run AI tasks, and their owners get paid for the work completed.",
     "q2": "How do I earn?",
     "a2": "Install the app, connect your phone's idle compute, and tasks run automatically. You can scale up later with dedicated devices. Real-time earnings show inside the app.",
     "q3": "Do I have to spend money to start?",
@@ -191,7 +191,7 @@
     "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step."
   },
   "final": {
-    "title": "Put your idle compute to work."
+    "title": "Put your idle devices to work."
   },
   "footer": {
     "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
@@ -200,9 +200,6 @@
     "contact": "Contact",
     "rights": "All rights reserved.",
     "ariaLegal": "Legal"
-  },
-  "scaffold": {
-    "placeholder": "Site under construction — T2+ sections land here per website PRD."
   },
   "legal": {
     "enPrevails": "The English version of this document prevails. Translations are provided for convenience only."

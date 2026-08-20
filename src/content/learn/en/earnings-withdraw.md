@@ -22,7 +22,7 @@ Withdrawals are in USDT. Set your withdrawal address once in Wallet → Security
 
 1. Open Wallet → Withdraw.
 2. Enter the amount; the screen shows the network confirmation fee. You can burn NEX to offset that fee if you hold any.
-3. Confirm with your security verification. The request enters review and the status is trackable on the withdrawal record.
+3. Confirm with your security verification. The request enters review, and you can track its status on the withdrawal record.
 
 ## If something looks off
 
