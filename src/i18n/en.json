@@ -74,13 +74,17 @@
     }
   },
   "trust": {
-    "title": "Verify us yourself",
-    "subtitle": "Don't take our word for it. Company registration and compliance records are public — here's how to check them.",
-    "pendingNote": "Registry numbers and verification documents will appear on this page as soon as they are published.",
-    "verifyCta": "Check the official registry",
+    "title": "About NexGrid",
     "pocTitle": "How earnings are verified (Proof-of-Compute)",
     "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. We record each receipt on the platform ledger and attest it on-chain.",
-    "pocBody2": "Your app shows the full receipt trail for every payout, so earnings are traceable end to end."
+    "pocBody2": "Your app shows the full receipt trail for every payout, so earnings are traceable end to end.",
+    "certMsbAlt": "FinCEN MSB Registration Status Information for NexGrid LTD",
+    "certCoAlt": "Certificate of Document Filed for NexGrid LTD, issued by the Colorado Secretary of State",
+    "card1": "NexGrid LTD is incorporated in the State of Colorado, USA (coloradosos.gov) as a Colorado corporation, Entity ID 20221592644. It is authorized to issue 100,000,000 common shares and operates the NexGrid global distributed compute sharing platform.",
+    "card2": "Open the Colorado Secretary of State website, enter NexGrid LTD or Entity ID 20221592644 in the business database search box, and click Search. On the results page, click the ID number to view the full registration record.",
+    "card3": "NexGrid LTD has completed MSB (Money Services Business) registration with FinCEN, the Financial Crimes Enforcement Network of the U.S. Department of the Treasury — registration number 31000329265856 — under the Bank Secrecy Act regulatory framework.",
+    "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
+    "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record."
   },
   "social": {
     "scaleLine": "{devices}+ devices earning across {countries} countries",
