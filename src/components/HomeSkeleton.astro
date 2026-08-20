@@ -1,0 +1,75 @@
+---
+/* Home 板块占位骨架 — 给 SiteNav 锚点真实落点(anchor-check 门要求)。
+   T3-T12 按官网 PRD [FEAT-WEB02..12] 逐板块替换为真实现;全部替换完删除本组件。 */
+import { useT, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+const sections = [
+  { id: 'download', label: 'Hero · Download' },
+  { id: 'stats', label: 'Live platform stats' },
+  { id: 'path', label: 'Earning path' },
+  { id: 'how', label: 'How it works' },
+  { id: 'devices', label: 'Devices' },
+  { id: 'trust', label: 'Trust' },
+  { id: 'nex', label: 'NEX' },
+  { id: 'faq', label: 'FAQ' },
+];
+---
+
+<main>
+  <section class="hero" id={sections[0].id}>
+    <h1>{t('site.name')}</h1>
+    <p class="tagline">{t('site.tagline')}</p>
+    <p class="note">{t('scaffold.placeholder')}</p>
+  </section>
+  {sections.slice(1).map((s) => (
+    <section class="stub" id={s.id} aria-label={s.label}>
+      <h2>{s.label}</h2>
+      <p class="note">{t('scaffold.placeholder')}</p>
+    </section>
+  ))}
+</main>
+
+<style>
+  main {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+  .hero {
+    min-height: 60vh;
+    display: grid;
+    place-content: center;
+    text-align: center;
+  }
+  h1 {
+    color: var(--v5-brand);
+    font-size: clamp(28px, 5vw, 44px);
+    margin: 0 0 12px;
+    font-weight: 600;
+  }
+  .tagline {
+    color: var(--v5-ink-2);
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .stub {
+    padding: 48px 0;
+    border-top: 1px solid var(--v5-border);
+  }
+  .stub h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--v5-ink-2);
+    margin: 0 0 6px;
+  }
+  .note {
+    color: var(--v5-ink-4);
+    font-size: 13px;
+    margin: 6px 0 0;
+  }
+</style>

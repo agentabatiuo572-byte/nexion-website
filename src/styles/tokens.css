@@ -74,6 +74,11 @@ html {
   scroll-behavior: smooth;
 }
 
+/* sticky 导航(64px)上滚浮现时不遮锚点目标标题 */
+[id] {
+  scroll-margin-top: 76px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

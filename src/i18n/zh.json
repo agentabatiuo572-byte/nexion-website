@@ -13,6 +13,13 @@
     "launchH5": "打开网页版",
     "download": "下载"
   },
+  "footer": {
+    "disclaimer": "收益随网络需求、设备性能与在线时长浮动,平台不作任何事先承诺。本站内容不构成理财建议。",
+    "privacy": "隐私政策",
+    "terms": "使用条款",
+    "contact": "联系我们",
+    "rights": "保留所有权利。"
+  },
   "scaffold": {
     "placeholder": "站点建设中 — T2+ 板块按官网 PRD 陆续落地。"
   }

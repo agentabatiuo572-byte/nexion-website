@@ -1,5 +1,7 @@
 ---
 import '../styles/tokens.css';
+import SiteNav from '../components/SiteNav.astro';
+import SiteFooter from '../components/SiteFooter.astro';
 import { locales, type Locale } from '../i18n';
 
 interface Props {
@@ -31,7 +33,9 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
     <!-- og:image: T11 web-asset-generator 产出后挂 -->
   </head>
   <body>
+    <SiteNav locale={locale} path={path} />
     <slot />
+    <SiteFooter locale={locale} />
   </body>
 </html>
 

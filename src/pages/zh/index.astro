@@ -1,16 +1,11 @@
 ---
-/* T1 冒烟占位 — 同 en 首页,T2+ 替换 */
+/* Home(zh)— 板块由 HomeSkeleton 占位,T3-T12 按官网 PRD 逐板块替换 */
 import Base from '../../layouts/Base.astro';
+import HomeSkeleton from '../../components/HomeSkeleton.astro';
 import { useT } from '../../i18n';
 const t = useT('zh');
 ---
 
 <Base locale="zh" title={`${t('site.name')} — ${t('site.tagline')}`} description={t('site.description')} path="/">
-  <main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:24px">
-    <div>
-      <h1 style="color:var(--v5-brand);font-size:clamp(28px,5vw,44px);margin:0 0 12px">{t('site.name')}</h1>
-      <p style="color:var(--v5-ink-2);max-width:520px">{t('site.tagline')}</p>
-      <p style="color:var(--v5-ink-4);font-size:13px">{t('scaffold.placeholder')}</p>
-    </div>
-  </main>
+  <HomeSkeleton locale="zh" />
 </Base>

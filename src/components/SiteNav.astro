@@ -1,0 +1,266 @@
+---
+/* [FEAT-WEB01] 全局导航 — sticky chrome(玻璃只给 chrome 的 V5 纪律内)。
+   锚点项在 Home 用 #id,子页自动落 /#id;空配置键不渲染(异常1)。 */
+import { useT, locales, type Locale } from '../i18n';
+
+interface Props {
+  locale: Locale;
+  /** 当前页 path(不含 locale 前缀),锚点链接与语言切换都靠它 */
+  path?: string;
+}
+const { locale, path = '/' } = Astro.props;
+const t = useT(locale);
+const isHome = path === '/';
+const prefix = locale === 'en' ? '' : `/${locale}`;
+const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
+const page = (p: string) => `${prefix}${p}`;
+const langHref = (l: Locale) => (l === 'en' ? path : `/${l}${path === '/' ? '/' : path}`);
+
+// PRD §2.4 O3:H5 URL 未配置 → 按钮不渲染(零死链)
+const H5_URL = import.meta.env.PUBLIC_H5_URL ?? '';
+const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
+---
+
+<header class="site-nav" id="site-nav">
+  <nav aria-label="Main">
+    <a class="logo" href={page('/') || '/'}>NexGrid</a>
+
+    <button class="menu-toggle" aria-expanded="false" aria-controls="nav-menu" aria-label="Menu">
+      <span></span><span></span><span></span>
+    </button>
+
+    <div class="menu" id="nav-menu">
+      <a href={anchor('how')}>{t('nav.how')}</a>
+      <a href={anchor('devices')}>{t('nav.devices')}</a>
+      <a href={anchor('trust')}>{t('nav.trust')}</a>
+      <a href={page('/learn')}>{t('nav.learn')}</a>
+      <a href={page('/nex')}>{t('nav.nex')}</a>
+
+      <div class="lang" role="group" aria-label="Language">
+        {locales.map((l) => (
+          <a href={langHref(l)} class:list={[{ active: l === locale }]} aria-current={l === locale ? 'true' : undefined}>
+            {LANG_LABEL[l]}
+          </a>
+        ))}
+      </div>
+
+      <div class="ctas">
+        {H5_URL && (
+          <a class="btn ghost" href={H5_URL} target="_blank" rel="noopener">
+            {t('nav.launchH5')}
+          </a>
+        )}
+        <a class="btn primary" href={anchor('download')}>{t('nav.download')}</a>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<style>
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(0, 0, 0, 0.78);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--v5-border);
+    transition: transform 0.28s ease;
+  }
+  .site-nav.nav-hidden {
+    transform: translateY(-100%);
+  }
+  nav {
+    max-width: var(--w-content-max);
+    margin: 0 auto;
+    padding: 0 20px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    gap: 28px;
+  }
+  .logo {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--v5-brand);
+    text-decoration: none;
+    letter-spacing: -0.01em;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .menu {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    flex: 1;
+  }
+  .menu > a {
+    color: var(--v5-ink-2);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    transition: color 0.15s;
+  }
+  .menu > a:hover,
+  .menu > a:focus-visible {
+    color: var(--v5-ink);
+  }
+  .menu > a:active {
+    opacity: 0.8;
+  }
+  .lang {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+  }
+  .lang a {
+    color: var(--v5-ink-4);
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 6px 8px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .lang a.active {
+    color: var(--v5-ink);
+  }
+  .lang a:active {
+    opacity: 0.8;
+  }
+  .ctas {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: var(--w-radius-pill);
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    white-space: nowrap;
+    transition:
+      transform 0.15s,
+      opacity 0.15s;
+  }
+  .btn:active {
+    transform: scale(0.98);
+    opacity: 0.85;
+  }
+  .btn.primary {
+    background: var(--v5-brand);
+    color: var(--v5-on-brand);
+  }
+  .btn.ghost {
+    color: var(--v5-ink-2);
+  }
+  .btn:focus-visible,
+  .menu > a:focus-visible,
+  .lang a:focus-visible,
+  .menu-toggle:focus-visible {
+    outline: 2px solid var(--v5-brand);
+    outline-offset: 2px;
+  }
+  .menu-toggle {
+    display: none;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 5px;
+  }
+  .menu-toggle span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--v5-ink);
+    transition: transform 0.2s, opacity 0.2s;
+  }
+
+  @media (max-width: 860px) {
+    nav {
+      height: 56px;
+      gap: 12px;
+    }
+    .menu-toggle {
+      display: flex;
+    }
+    .menu {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0;
+      background: rgba(0, 0, 0, 0.94);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--v5-border);
+      padding: 8px 20px 20px;
+    }
+    .menu.open {
+      display: flex;
+    }
+    .menu > a {
+      min-height: 48px;
+      font-size: 15px;
+    }
+    .lang {
+      margin: 8px 0 12px;
+    }
+    .ctas {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .btn.ghost {
+      border: 1px solid var(--v5-border-strong);
+    }
+  }
+</style>
+
+<script>
+  // 汉堡开合 + 滚动下行隐藏/上行浮现(PRD WEB01 ⑤);reduced-motion 下 transition 已被全局降级
+  const nav = document.getElementById('site-nav');
+  const toggle = nav?.querySelector<HTMLButtonElement>('.menu-toggle');
+  const menu = document.getElementById('nav-menu');
+  toggle?.addEventListener('click', () => {
+    const open = menu?.classList.toggle('open') ?? false;
+    toggle.setAttribute('aria-expanded', String(open));
+  });
+  // 菜单内点击(锚点跳转)后收起
+  menu?.addEventListener('click', (e) => {
+    if ((e.target as HTMLElement).closest('a')) {
+      menu.classList.remove('open');
+      toggle?.setAttribute('aria-expanded', 'false');
+    }
+  });
+  let lastY = 0;
+  addEventListener(
+    'scroll',
+    () => {
+      const y = scrollY;
+      if (y > 120 && y > lastY && !menu?.classList.contains('open')) nav?.classList.add('nav-hidden');
+      else nav?.classList.remove('nav-hidden');
+      lastY = y;
+    },
+    { passive: true },
+  );
+</script>

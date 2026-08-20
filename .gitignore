@@ -4,3 +4,9 @@ dist/
 .verify-exit.code
 *.log
 .DS_Store
+
+# 工具残留(t1-tester 建议 2026-08-20)
+.codex/
+.agents/
+.opencode/
+.pi/

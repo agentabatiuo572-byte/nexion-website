@@ -13,6 +13,13 @@
     "launchH5": "Mở bản Web",
     "download": "Tải xuống"
   },
+  "footer": {
+    "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
+    "privacy": "Chính sách bảo mật",
+    "terms": "Điều khoản dịch vụ",
+    "contact": "Liên hệ",
+    "rights": "Bảo lưu mọi quyền."
+  },
   "scaffold": {
     "placeholder": "Trang đang xây dựng — các phần T2+ sẽ xuất hiện tại đây theo PRD."
   }
