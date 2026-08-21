@@ -1,8 +1,8 @@
 ---
-/* [FEAT-WEB09] 使命升华 — R7(解剖报告 P1-22a 宣言化):
-   自创的序号行表撤销;lead 升宣言档(clamp(28,2.78vw,53))行遮罩进场,
-   左置(与社证区右置成之字),板块 py140(<851 80)+底缘细线;
-   领域组改等宽点列 + 竖条纹装饰。内容 key 全不变。 */
+/* [FEAT-WEB09] 使命板块 — R8(about 带,画布 1440 等比):
+   定高 --x-sec-h、左置列 538→37.4vw 垂直居中;
+   眉标升 16 mono 打字机,lead 升 48 档行遮罩;
+   领域组保持竖条 + 点列(画布 pl-80/mt-40)。内容 key 全不变。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -15,7 +15,7 @@ const fields = [1, 2, 3, 4, 5, 6] as const;
 
 <section class="mission" id="mission">
   <div class="col">
-    <span class="x-label lab" data-tw>{t('mission.title')}</span>
+    <p class="kicker x-mono-lg" data-tw>{t('mission.title')}</p>
     <p class="lead x-display" data-lr>{t('mission.lead')}</p>
     <div class="aside">
       <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
@@ -30,34 +30,41 @@ const fields = [1, 2, 3, 4, 5, 6] as const;
   .mission {
     position: relative;
     z-index: 1;
-    padding: 140px var(--x-pad);
-    border-bottom: 1px solid var(--x-line);
-  }
-  .col {
+    height: var(--x-sec-h);
+    overflow: hidden;
+    padding: 0 var(--x-pad);
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    width: min(725px, 100%);
+    justify-content: center;
+    align-items: flex-start;
   }
-  .lab {
+  .col {
+    width: min(37.4vw, 717px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(24px, 2.78vw, 53px);
+  }
+  .kicker {
     color: var(--x-white);
+    margin: 0;
+    min-height: 1.2em;
   }
   .lead {
-    font-size: clamp(28px, 2.78vw, 53px);
+    font-size: clamp(32px, 3.33vw, 64px);
     color: var(--x-white);
     margin: 0;
   }
   .aside {
     display: flex;
     gap: 16px;
-    margin-top: 40px;
-    margin-left: clamp(0px, 5.5vw, 80px);
+    align-items: center;
+    margin-top: clamp(16px, 1.4vw, 27px);
+    margin-left: clamp(0px, 5.56vw, 107px);
   }
   .bars {
     display: flex;
     gap: 4px;
     flex: 0 0 auto;
-    padding-top: 4px;
   }
   .bars i {
     width: 1px;
@@ -72,10 +79,20 @@ const fields = [1, 2, 3, 4, 5, 6] as const;
     color: var(--x-ink);
     display: grid;
     gap: 6px;
+    white-space: nowrap;
   }
-  @media (max-width: 851px) {
+  @media (max-width: 860px) {
     .mission {
+      height: auto;
+      min-height: 60svh;
       padding: 80px var(--x-pad);
+      justify-content: flex-end;
+    }
+    .col {
+      width: 100%;
+    }
+    .aside {
+      margin-left: 0;
     }
   }
 </style>

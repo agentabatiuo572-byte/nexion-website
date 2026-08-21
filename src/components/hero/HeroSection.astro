@@ -1,8 +1,8 @@
 ---
-/* [FEAT-WEB02] Hero — R7(解剖报告 P1-17/18/19):
-   标题 Mega 档 clamp(56,11vw,210) 行遮罩上滑(载入+500ms);
-   scroll 指示器=1×24 竖线+两行刻度字;内容簇底部悬空 20svh;
-   副题升 16px mono 档;首载四拍由 html.x-boot CSS 时间线驱动。文案 key 不变。 */
+/* [FEAT-WEB02] Hero — R8(画布 1440 等比制,对齐参考站首屏几何):
+   区高 900→62.5vw;右置内容簇 725→50.35vw 列,标题左对齐 Mega 档(164→11.39vw)行遮罩,
+   副题 16 mono 391→27.2vw 宽贴簇右缘,底部留白 220→15.28vw;
+   scroll 指示器居左同底线;下载键(我方转化内容)挂副题下。文案 key 不变。 */
 import DownloadButtons from './DownloadButtons.astro';
 import { useT, type Locale } from '../../i18n';
 
@@ -16,8 +16,6 @@ const t = useT(locale);
 <section class="hero" id="download">
   <div class="spacer" aria-hidden="true"></div>
 
-  <h1 class="x-display-mega" data-lr="load" data-lr-delay="500">{t('hero.title')}</h1>
-
   <div class="foot">
     <div class="left">
       <a class="scroll-hint x-mono" href="#stats">
@@ -26,7 +24,9 @@ const t = useT(locale);
       </a>
       <p class="note x-mono">{t('hero.note')}</p>
     </div>
-    <div class="right">
+
+    <div class="cluster">
+      <h1 class="x-display-mega" data-lr="load" data-lr-delay="500">{t('hero.title')}</h1>
       <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
       <div class="dl-wrap">
         <DownloadButtons locale={locale} />
@@ -39,19 +39,15 @@ const t = useT(locale);
   .hero {
     position: relative;
     z-index: 1;
-    min-height: 100svh;
+    height: clamp(640px, 62.5vw, 1200px);
     display: flex;
     flex-direction: column;
-    padding: 96px var(--x-pad) clamp(80px, 20svh, 230px);
+    overflow: hidden;
+    /* 底空 11.5vw:比画布 220 略收,换取 3 行标题簇整体让开右上导航列 */
+    padding: 96px var(--x-pad) clamp(60px, 11.5vw, 220px);
   }
   .spacer {
     flex: 1;
-  }
-  h1 {
-    font-size: clamp(56px, 11vw, 210px);
-    color: var(--x-white);
-    margin: 0 0 clamp(28px, 5vh, 48px);
-    text-align: right;
   }
   .foot {
     display: flex;
@@ -64,6 +60,7 @@ const t = useT(locale);
     flex-direction: column;
     gap: 18px;
     max-width: 320px;
+    flex: 0 1 auto;
   }
   /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
   .scroll-hint {
@@ -91,44 +88,63 @@ const t = useT(locale);
     text-wrap: pretty;
     line-height: 1.5;
   }
-  .right {
+  /* 内容簇:右置定宽列,标题左对齐、副题/下载键贴列右缘 */
+  .cluster {
+    width: min(50.35vw, 967px);
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 22px;
+    gap: clamp(24px, 3.33vw, 64px);
+  }
+  /* 字号按语言收口:标题须在 725 画布列内成 2-3 行、且首行短句让开导航列 */
+  h1 {
+    width: 100%;
+    font-size: clamp(52px, 8.5vw, 163px);
+    color: var(--x-white);
+    margin: 0;
+    text-align: left;
+    text-wrap: balance; /* 首行收短句,让开右上导航/下载键区 */
+  }
+  :global(html[lang='vi']) h1 {
+    font-size: clamp(44px, 7vw, 134px);
+  }
+  :global(html[lang='zh']) h1 {
+    font-size: clamp(48px, 8vw, 154px);
   }
   .sub {
     color: var(--x-white);
     margin: 0;
-    max-width: 400px;
-    text-align: right;
+    width: min(27.2vw, 521px);
     text-wrap: pretty;
   }
-  .right :global(.dl) {
+  .dl-wrap :global(.dl) {
     justify-content: flex-end;
   }
 
   @media (max-width: 860px) {
     .hero {
-      padding-top: 80px;
+      height: auto;
       min-height: 92svh;
+      padding-top: 80px;
       padding-bottom: 10svh;
-    }
-    h1 {
-      text-align: left;
-      font-size: clamp(48px, 15.5vw, 96px);
     }
     .foot {
       flex-direction: column;
       align-items: flex-start;
     }
-    .right {
+    .cluster {
+      width: 100%;
       align-items: flex-start;
     }
-    .sub {
-      text-align: left;
+    h1 {
+      font-size: clamp(48px, 15.5vw, 96px);
     }
-    .right :global(.dl) {
+    .sub {
+      width: auto;
+      max-width: 420px;
+    }
+    .dl-wrap :global(.dl) {
       justify-content: flex-start;
     }
     .scroll-hint {

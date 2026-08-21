@@ -1,7 +1,8 @@
 ---
-/* [FEAT-WEB08] 社证板块 — R7(解剖报告 P1-20/21):整屏一句话尺度,
-   垂直居中、内容列右置(与使命区左置成之字);双段同字号同纯白,
-   层级靠断行+20px 组距+第二段延迟 220ms 行滑。证言素材未到位(O4)→ 子区隐藏。 */
+/* [FEAT-WEB08] 社证板块 — R8(statement 带,画布 1440 等比):
+   定高 --x-sec-h、内容右置列 725→50.35vw、列距 48→3.33vw;
+   新增 16 mono 打字机 kicker(social.kicker);双段陈述同字号(48 档),
+   第二段行滑延迟 120ms,陈述块宽 645/725=89%。证言素材未到位(O4)→ 子区隐藏。 */
 import { useT, type Locale } from '../i18n';
 import { STATS_SNAPSHOT, fmtStat } from '../lib/stats';
 
@@ -21,10 +22,13 @@ const TESTIMONIALS: Testimonial[] = [];
 
 <section class="social" id="social">
   <div class="col">
-    <h2 class="x-display" data-lr>
-      {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
-    </h2>
-    <p class="roles x-display" data-lr data-lr-delay="220">{t('social.rolesLine')}</p>
+    <p class="kicker x-mono-lg" data-tw>{t('social.kicker')}</p>
+    <div class="disp x-display">
+      <h2 data-lr>
+        {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
+      </h2>
+      <p data-lr data-lr-delay="120">{t('social.rolesLine')}</p>
+    </div>
 
     {
       TESTIMONIALS.length > 0 && (
@@ -47,23 +51,38 @@ const TESTIMONIALS: Testimonial[] = [];
   .social {
     position: relative;
     z-index: 1;
-    min-height: 100svh;
-    padding: var(--x-section-gap) var(--x-pad);
+    height: var(--x-sec-h);
+    overflow: hidden;
+    padding: clamp(60px, 6.94vw, 133px) var(--x-pad);
     display: flex;
     align-items: center;
     justify-content: flex-end;
   }
   .col {
-    width: min(725px, 100%);
+    width: min(50.35vw, 967px);
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    align-items: flex-start;
+    gap: clamp(28px, 3.33vw, 64px);
   }
-  h2,
-  .roles {
-    font-size: clamp(32px, 3.33vw, 64px);
+  .kicker {
     color: var(--x-white);
     margin: 0;
+    min-height: 1.2em;
+  }
+  .disp {
+    max-width: 89%;
+    font-size: clamp(32px, 3.33vw, 64px);
+    color: var(--x-white);
+  }
+  .disp h2,
+  .disp p {
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0;
+  }
+  .disp h2 {
+    margin-bottom: 20px;
   }
   .quotes {
     display: grid;
@@ -83,11 +102,18 @@ const TESTIMONIALS: Testimonial[] = [];
   .quote footer {
     color: var(--x-ink-faint);
   }
-  @media (max-width: 851px) {
+  @media (max-width: 860px) {
     .social {
+      height: auto;
+      min-height: 72svh;
       align-items: flex-end;
       padding-bottom: 60px;
-      min-height: 80svh;
+    }
+    .col {
+      width: 100%;
+    }
+    .disp {
+      max-width: 100%;
     }
   }
 </style>

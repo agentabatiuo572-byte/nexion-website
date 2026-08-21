@@ -1,6 +1,7 @@
 ---
-/* [FEAT-WEB10] Home NEX 锚点板块 — 三卡速览 + Learn more → /nex。
-   axiom 方向:黑底三列(等宽 tag + display 标题 + 等宽正文)。 */
+/* [FEAT-WEB10] Home NEX 锚点板块 — R8(白带块):
+   头行 16 mono 打字机;三卡改无盒左线开放列(编号 0.8 墨 + 48 档标题行遮罩 + 12 mono 说明),
+   三列视差 k=[0.06,0.11,0.16] + Learn more → /nex。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -10,19 +11,24 @@ const { locale } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
 const cards = ['what', 'earn', 'use'] as const;
+const ks = [0.06, 0.11, 0.16];
 ---
 
 <section class="nex-teaser" id="nex">
   <div class="head">
-    <span class="x-label lab" data-tw>{t('nex.teaserTitle')}</span>
+    <p class="lab x-mono-lg" data-tw>{t('nex.teaserTitle')}</p>
   </div>
   <div class="cards">
     {
       cards.map((c, i) => (
-        <article class="card x-paper" data-rv style={`--d:${i * 0.1}s`}>
-          <span class="idx x-mono" data-tw data-tw-delay={160 * i}>0{i + 1}</span>
-          <h3 class="x-display" data-lr data-lr-delay={100 * i}>{t(`nex.teaser.${c}Title`)}</h3>
-          <p class="x-mono">{t(`nex.teaser.${c}Desc`)}</p>
+        <article class="card rv-fade" data-rv data-plx={ks[i]}>
+          <p class="idx x-mono" data-tw data-tw-delay={160 * i}>
+            0{i + 1}
+          </p>
+          <div class="stack">
+            <h3 class="x-display" data-lr data-lr-delay={100 * i}>{t(`nex.teaser.${c}Title`)}</h3>
+            <p class="x-mono desc">{t(`nex.teaser.${c}Desc`)}</p>
+          </div>
         </article>
       ))
     }
@@ -38,50 +44,58 @@ const cards = ['what', 'earn', 'use'] as const;
 
 <style>
   .nex-teaser {
-    /* R4:板块底回黑透出粒子,白底只给信息卡(x-paper)——主人定调 */
-    position: relative;
-    z-index: 1;
-    padding: var(--x-section-gap) var(--x-pad);
+    padding: 0 var(--x-pad);
   }
   .head {
-    border-top: 1px solid var(--x-line);
-    padding-top: 18px;
-    margin-bottom: clamp(28px, 4vw, 48px);
+    margin-bottom: clamp(48px, 8.33vw, 160px);
   }
   .lab {
     color: var(--x-ink);
+    margin: 0;
+    min-height: 1.2em;
   }
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: clamp(20px, 3vw, 40px);
+    gap: clamp(24px, 4.17vw, 80px);
   }
   .card {
-    padding: clamp(20px, 2.4vw, 30px);
-    display: grid;
-    gap: 12px;
-    align-content: start;
+    border-left: 1px solid var(--x-line-dark);
+    padding-left: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(40px, 5.7vw, 110px);
+    will-change: transform;
   }
   .idx {
-    color: var(--x-accent-ink);
-    font-weight: 700;
+    color: var(--x-dark-cap);
+    margin: 0;
   }
-  .card h3 {
-    font-family: var(--x-font-display);
-    font-size: clamp(20px, 2vw, 26px);
-    font-weight: 500;
-    letter-spacing: -0.015em;
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  .stack h3 {
+    font-size: clamp(28px, 2.78vw, 53px);
     color: var(--x-ink);
     margin: 0;
-    line-height: 1.15;
-    text-wrap: balance;
   }
-  .card p {
-    color: var(--x-ink-dim);
+  .desc {
+    color: var(--x-dark-cap);
     margin: 0;
     text-wrap: pretty;
+    line-height: 1.45;
   }
   .more {
-    margin-top: clamp(24px, 3vw, 40px);
+    margin-top: clamp(32px, 4vw, 60px);
+  }
+  @media (max-width: 768px) {
+    .card {
+      border-left: 0;
+      border-top: 1px solid var(--x-line-dark);
+      padding: 20px 0 0;
+      gap: 40px;
+    }
   }
 </style>

@@ -23,11 +23,11 @@ const ld = {
 
 <section class="faq-sec" id="faq">
   <div class="head">
-    <span class="x-label lab" data-tw>{t('faq.title')}</span>
+    <p class="lab x-mono-lg" data-tw>{t('faq.title')}</p>
   </div>
   {
     qs.map((n, i) => (
-      <details class="item x-paper" data-rv style={`--d:${i * 0.05}s`}>
+      <details class="item" data-rv style={`--d:${i * 0.05}s`}>
         <summary>
           <span class="idx x-mono">Q{n}</span>
           <span class="q">{t(`faq.q${n}`)}</span>
@@ -42,24 +42,24 @@ const ld = {
 
 <style>
   .faq-sec {
-    /* R4:板块底回黑透出粒子,白底只给问答卡(x-paper)——主人定调 */
-    position: relative;
-    z-index: 1;
-    padding: var(--x-section-gap) var(--x-pad);
+    padding: 0 var(--x-pad);
   }
   .faq-sec > * {
     max-width: 1100px;
   }
   .head {
-    border-top: 1px solid var(--x-line);
-    padding-top: 18px;
-    margin-bottom: clamp(22px, 3vw, 36px);
+    margin-bottom: clamp(48px, 8.33vw, 160px);
   }
   .lab {
     color: var(--x-ink);
+    margin: 0;
+    min-height: 1.2em;
   }
   .item {
-    margin-bottom: 10px;
+    border-top: 1px solid var(--x-line-dark);
+  }
+  .item:last-of-type {
+    border-bottom: 1px solid var(--x-line-dark);
   }
   .item summary {
     cursor: pointer;
@@ -68,28 +68,28 @@ const ld = {
     align-items: center;
     gap: clamp(14px, 2vw, 28px);
     list-style: none;
-    padding: 10px clamp(16px, 1.8vw, 26px);
+    padding: 12px 0;
   }
   .item summary::-webkit-details-marker {
     display: none;
   }
   .idx {
-    color: var(--x-accent-ink);
-    font-weight: 700;
+    color: var(--x-dark-cap);
+    font-weight: 400;
     flex: 0 0 30px;
   }
   .q {
     font-family: var(--x-font-display);
-    font-size: clamp(17px, 1.8vw, 23px);
-    font-weight: 500;
-    letter-spacing: -0.01em;
+    font-size: clamp(18px, 1.8vw, 26px);
+    font-weight: 400;
+    letter-spacing: -0.02em;
     color: var(--x-ink);
     flex: 1;
     line-height: 1.25;
     text-wrap: balance;
   }
   .mark {
-    color: var(--x-ink-faint);
+    color: var(--x-dark-faint);
     font-weight: 700;
     position: relative;
   }
@@ -104,10 +104,10 @@ const ld = {
     color: var(--x-accent-ink);
   }
   .item p {
-    color: var(--x-ink-dim);
-    margin: 0 0 20px calc(30px + clamp(16px, 1.8vw, 26px) + clamp(14px, 2vw, 28px));
-    padding-right: clamp(16px, 1.8vw, 26px);
+    color: var(--x-dark-cap);
+    margin: 0 0 20px calc(30px + clamp(14px, 2vw, 28px));
     max-width: 760px;
     text-wrap: pretty;
+    line-height: 1.45;
   }
 </style>

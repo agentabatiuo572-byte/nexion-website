@@ -533,30 +533,34 @@ function initReveal() {
   els.forEach((el) => io.observe(el));
 }
 
-/* ---------- ⑥ 设备 deck:整排连续推进(P1-29/30) ---------- */
+/* ---------- ⑥ 设备 deck:画布几何连续推进(R8) ----------
+   机制:滚动总程 = N×区高,拍 k 占 [k/N,(k+1)/N];
+   卡 i 位移 = STEP·(i − Σ_{k<i}beats)(STEP=1.0923 卡宽),缩放 = 1−0.15·beats[i];
+   末态全叠于锚位(高序号在上);白幕布带(.band-light)在 decked 时上拉一个区高盖过钉屏尾段。 */
 function initPile() {
   const sec = document.querySelector<HTMLElement>('[data-deck]');
+  const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]') ?? null;
   const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
-  if (!sec || !cards.length) return;
+  const band = document.querySelector<HTMLElement>('.band-light');
+  if (!sec || !pin || !cards.length) return;
   const engaged = () => !reduced && !coarse && !matchMedia('(max-width: 860px)').matches;
   let active = false;
 
-  const STEP_VH = 0.8;
   const PARK = 0.85;
+  const N = cards.length;
   let STEP = 0,
-    ENTER = 0;
+    DIST = 0;
   const measure = () => {
-    STEP = Math.round(innerHeight * STEP_VH);
-    ENTER = Math.round(cards[0].offsetWidth * 1.0923); // 步距=1.0923 卡宽(710/650,间隙 9.23%)
-    sec.style.height = `${innerHeight + cards.length * STEP}px`;
+    const pinH = pin.offsetHeight; // = --x-sec-h(与参考站钉屏区同角色)
+    STEP = Math.round(cards[0].offsetWidth * 1.0923); // 步距=1.0923 卡宽(710/650,间隙 9.23%)
+    DIST = N * pinH; // 每拍一个区高;总高 (N+1)·区高,尾段被幕布带盖住
+    sec.style.height = `${(N + 1) * pinH}px`;
   };
   const clear = () => {
     sec.classList.remove('decked');
+    band?.classList.remove('curtain');
     sec.style.height = '';
-    for (const c of cards) {
-      c.style.transform = '';
-      c.style.visibility = '';
-    }
+    for (const c of cards) c.style.transform = '';
   };
   const smooth = (t: number) => t * t * (3 - 2 * t); // smoothstep(P2-22)
   const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
@@ -564,16 +568,15 @@ function initPile() {
   const apply = () => {
     raf = 0;
     if (!active) return;
-    const y = -sec.getBoundingClientRect().top;
-    // 拍 k 进度;卡 i 位置 = ENTER·(i − Σ_{k<i}beats)——整排连续推进,恒一步差
+    const e = clamp01(-sec.getBoundingClientRect().top / DIST);
     const beats: number[] = [];
-    for (let k = 0; k < cards.length; k++) beats.push(smooth(clamp01((y - k * STEP) / STEP)));
-    for (let i = 0; i < cards.length; i++) {
+    for (let k = 0; k < N; k++) beats.push(smooth(clamp01((e - k / N) * N)));
+    for (let i = 0; i < N; i++) {
       let done = 0;
       for (let k = 0; k < i; k++) done += beats[k];
-      const x = Math.max(0, ENTER * (i - done));
+      const x = Math.max(0, STEP * (i - done));
       const s = 1 - (1 - PARK) * beats[i];
-      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, -50%, 0) scale(${s.toFixed(4)})`;
+      cards[i].style.transform = `translate3d(${x.toFixed(1)}px, 0, 0) scale(${s.toFixed(4)})`;
     }
   };
   const engage = () => {
@@ -581,6 +584,7 @@ function initPile() {
     if (want && !active) {
       active = true;
       sec.classList.add('decked');
+      band?.classList.add('curtain');
       measure();
       apply();
     } else if (!want && active) {

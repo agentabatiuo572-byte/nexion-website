@@ -1,7 +1,8 @@
 ---
-/* [FEAT-WEB05] How it works — R7(解剖报告 P1-24/25 部分/26/28,P2-19):
-   无盒左线开放列;标题升 48 档行遮罩(100ms×卡序);编号墨 0.8 打字机;
-   等高线图入流;三列滚动视差 k=[0.06,0.11,0.16]。
+/* [FEAT-WEB05] How it works — R8(白带首块,画布 1440 等比):
+   头行=左 16 mono 打字机标签 + 右 725 列双段 40 档陈述(head1/head2,新 key);
+   三列各带「编号↔类目词」两端行(12 mono 0.8 墨,打字机),
+   标题升 48 档行遮罩、等高线图入流、三列视差 k=[0.06,0.11,0.16]。
    机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。 */
 import { useT, type Locale } from '../i18n';
 import { contour } from '../lib/contour';
@@ -16,32 +17,42 @@ const arts = [contour(101, 12, 393, 237), contour(202, 12, 393, 237), contour(30
 const ks = [0.06, 0.11, 0.16];
 ---
 
-<section class="how x-invert" id="how">
-  <div class="head">
-    <span class="x-label lab" data-tw>{t('how.title')}</span>
+<section class="how" id="how">
+  <div class="headrow">
+    <p class="lab x-mono-lg" data-tw>{t('how.title')}</p>
+    <div class="statements x-display">
+      <h2 data-lr>{t('how.head1')}</h2>
+      <p data-lr data-lr-delay="120">{t('how.head2')}</p>
+    </div>
   </div>
+
   <div class="steps">
     {
       steps.map((n) => (
         <article class="step rv-fade" data-rv data-plx={ks[n - 1]}>
-          <p class="meta x-mono" data-tw data-tw-delay={160 * (n - 1)}>0{n}</p>
-          <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
-          <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            {arts[n - 1].paths.map((d) => (
-              <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
-            ))}
-          </svg>
-          <p class="x-mono body">
-            {t(`how.step${n}Desc`)}
-            {n === 3 && (
-              <>
-                {' '}
-                <a class="vlink" href="#trust">
-                  {t('how.verifyLink')} →
-                </a>
-              </>
-            )}
+          <p class="metarow x-mono">
+            <span data-tw data-tw-delay={160 * (n - 1)}>0{n}</span>
+            <span data-tw data-tw-delay={160 * (n - 1) + 120}>{t(`how.cat${n}`)}</span>
           </p>
+          <div class="stack">
+            <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
+            <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              {arts[n - 1].paths.map((d) => (
+                <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
+              ))}
+            </svg>
+            <p class="x-mono body">
+              {t(`how.step${n}Desc`)}
+              {n === 3 && (
+                <>
+                  {' '}
+                  <a class="vlink" href="#trust">
+                    {t('how.verifyLink')} →
+                  </a>
+                </>
+              )}
+            </p>
+          </div>
         </article>
       ))
     }
@@ -50,35 +61,67 @@ const ks = [0.06, 0.11, 0.16];
 
 <style>
   .how {
-    padding: 0 var(--x-pad) var(--x-section-gap);
+    padding: 0 var(--x-pad);
   }
-  .head {
-    border-top: 1px solid var(--x-line-dark);
-    padding-top: 18px;
-    margin-bottom: clamp(28px, 4vw, 52px);
+  /* 块头行:左标签占满、右陈述列定宽(画布 gap-60/列 725/陈述 40 档) */
+  .headrow {
+    display: flex;
+    gap: clamp(24px, 4.17vw, 80px);
+    align-items: baseline;
+    margin-bottom: clamp(60px, 12.5vw, 240px);
   }
   .lab {
+    flex: 1;
+    min-width: 0;
     color: var(--x-ink);
+    margin: 0;
+    min-height: 1.2em;
+    white-space: nowrap;
+  }
+  .statements {
+    width: min(50.35vw, 967px);
+    flex: 0 0 auto;
+    font-size: clamp(28px, 2.78vw, 53px);
+    color: var(--x-ink);
+  }
+  .statements h2,
+  .statements p {
+    font-size: inherit;
+    font-weight: inherit;
+    margin: 0;
+  }
+  .statements h2 {
+    margin-bottom: 20px;
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: clamp(24px, 4.2vw, 60px);
+    gap: clamp(24px, 4.17vw, 80px);
   }
+  /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
   .step {
     border-left: 1px solid var(--x-line-dark);
     padding-left: 20px;
-    display: grid;
-    gap: 24px;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(40px, 5.7vw, 110px);
     will-change: transform;
   }
-  .meta {
-    color: var(--x-dark-cap);
+  .metarow {
+    display: flex;
+    justify-content: space-between;
     margin: 0;
+    color: var(--x-dark-cap);
+    white-space: nowrap;
   }
-  .step h3 {
-    font-size: clamp(28px, 3.33vw, 48px);
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    align-items: stretch;
+  }
+  .stack h3 {
+    font-size: clamp(32px, 3.33vw, 64px);
     color: var(--x-ink);
     margin: 0;
   }
@@ -87,7 +130,7 @@ const ks = [0.06, 0.11, 0.16];
     aspect-ratio: 393 / 237;
     display: block;
   }
-  .step .body {
+  .stack .body {
     color: var(--x-dark-cap);
     margin: 0;
     text-wrap: pretty;
@@ -104,11 +147,22 @@ const ks = [0.06, 0.11, 0.16];
   .vlink:active {
     opacity: 0.45;
   }
+  @media (max-width: 860px) {
+    .headrow {
+      flex-direction: column;
+      gap: 24px;
+      margin-bottom: 60px;
+    }
+    .statements {
+      width: 100%;
+    }
+  }
   @media (max-width: 768px) {
     .step {
       border-left: 0;
       border-top: 1px solid var(--x-line-dark);
       padding: 20px 0 0;
+      gap: 40px;
     }
   }
 </style>

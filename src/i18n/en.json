@@ -37,6 +37,9 @@
     "asOf": "Data as of"
   },
   "path": {
+    "title": "Ways to join",
+    "cat1": "Free",
+    "cat2": "Scale",
     "freeTitle": "Start free with your phone",
     "freeDesc": "Install the app and your phone's spare processing power starts running AI tasks. No hardware to buy, no deposit.",
     "freeCta": "Get started free",
@@ -47,6 +50,11 @@
   },
   "how": {
     "title": "How it works",
+    "head1": "Idle devices hold real compute.",
+    "head2": "NexGrid routes it to the work that needs it.",
+    "cat1": "Connect",
+    "cat2": "Compute",
+    "cat3": "Settle",
     "step1Title": "Download & connect",
     "step1Desc": "Install the app and connect your phone. Setup takes about 90 seconds.",
     "step2Title": "AI tasks run automatically",
@@ -87,6 +95,7 @@
     "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record."
   },
   "social": {
+    "kicker": "Network scale",
     "scaleLine": "{devices}+ devices earning across {countries} countries",
     "rolesLine": "Engineers, teachers, drivers, students, designers — people all over the world put their idle devices to work."
   },

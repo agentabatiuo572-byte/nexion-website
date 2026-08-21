@@ -37,6 +37,9 @@
     "asOf": "数据截至"
   },
   "path": {
+    "title": "参与路径",
+    "cat1": "免费",
+    "cat2": "扩展",
     "freeTitle": "用手机免费开始",
     "freeDesc": "装上 App，手机的空余处理能力就开始承接 AI 任务。无需购买硬件，无需押金。",
     "freeCta": "免费开始",
@@ -47,6 +50,11 @@
   },
   "how": {
     "title": "工作原理",
+    "head1": "闲置设备里，沉睡着真实的算力。",
+    "head2": "NexGrid 把它接到需要它的任务上。",
+    "cat1": "接入",
+    "cat2": "计算",
+    "cat3": "结算",
     "step1Title": "下载并连接",
     "step1Desc": "装上 App，连接手机，约 90 秒完成设置。",
     "step2Title": "AI 任务自动运行",
@@ -87,6 +95,7 @@
     "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。"
   },
   "social": {
+    "kicker": "网络规模",
     "scaleLine": "{devices}+ 台设备正在 {countries} 个国家产生收益",
     "rolesLine": "工程师、教师、司机、学生、设计师——世界各地的人都在让闲置设备工作起来。"
   },

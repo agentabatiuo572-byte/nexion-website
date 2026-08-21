@@ -19,20 +19,20 @@ const t = useT(locale);
 </section>
 
 <style>
+  /* R8:manifesto 位(画布 py-140,40 档陈述) */
   .final {
     position: relative;
     z-index: 1;
-    padding: var(--x-section-gap) var(--x-pad);
-    min-height: 80svh;
+    padding: clamp(80px, 9.72vw, 187px) var(--x-pad);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: clamp(24px, 4vh, 40px);
+    gap: clamp(28px, 3vw, 56px);
   }
   h2 {
-    font-size: clamp(34px, 5.4vw, 72px);
+    font-size: clamp(28px, 2.78vw, 53px);
     color: var(--x-white);
     margin: 0;
-    max-width: 18ch;
+    max-width: 24ch;
   }
 </style>
