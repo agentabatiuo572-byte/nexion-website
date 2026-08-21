@@ -18,23 +18,25 @@ const leadParas = t('mission.lead').split('\n');
   <div class="col">
     <h2 class="state x-display" data-lr>{t('mission.title')}</h2>
 
-    <div class="body" data-rv>
-      {leadParas.map((p) => <p class="x-mono">{p}</p>)}
-    </div>
+    <div class="lower">
+      <div class="body" data-rv>
+        {leadParas.map((p) => <p class="x-mono">{p}</p>)}
+      </div>
 
-    <div class="aside">
-      <svg class="bullet" viewBox="0 0 5 70" preserveAspectRatio="none" aria-hidden="true">
-        <defs>
-          <linearGradient id="mission-bullet-grad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" style="stop-color: var(--x-accent)"></stop>
-            <stop offset="1" style="stop-color: color-mix(in srgb, var(--x-accent) 55%, var(--x-bg))"></stop>
-          </linearGradient>
-        </defs>
-        <path d="M4.5 0 L4.5 1 L1 1 L1 69 L4.5 69 L4.5 70 L0 70 L0 0 Z" fill="url(#mission-bullet-grad)"></path>
-      </svg>
-      <ul class="fields x-mono" role="list">
-        {fields.map((n) => <li>{t(`mission.f${n}`)}</li>)}
-      </ul>
+      <div class="aside" data-rv style="--d:.12s">
+        <svg class="bullet" viewBox="0 0 5 70" preserveAspectRatio="none" aria-hidden="true">
+          <defs>
+            <linearGradient id="mission-bullet-grad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style="stop-color: var(--x-accent)"></stop>
+              <stop offset="1" style="stop-color: color-mix(in srgb, var(--x-accent) 55%, var(--x-bg))"></stop>
+            </linearGradient>
+          </defs>
+          <path d="M4.5 0 L4.5 1 L1 1 L1 69 L4.5 69 L4.5 70 L0 70 L0 0 Z" fill="url(#mission-bullet-grad)"></path>
+        </svg>
+        <ul class="fields x-mono" role="list">
+          {fields.map((n) => <li>{t(`mission.f${n}`)}</li>)}
+        </ul>
+      </div>
     </div>
   </div>
 </section>
@@ -52,10 +54,10 @@ const leadParas = t('mission.lead').split('\n');
     align-items: flex-start;
   }
   .col {
-    width: min(37.4vw, 717px);
+    width: min(52vw, 998px);
     display: flex;
     flex-direction: column;
-    gap: clamp(24px, 2.78vw, 53px);
+    gap: clamp(28px, 3.33vw, 64px);
   }
   /* 层1:短句大陈述(48 档,原版无眉标) */
   .state {
@@ -63,38 +65,67 @@ const leadParas = t('mission.lead').split('\n');
     color: var(--x-white);
     margin: 0;
   }
-  /* 层2:说明段 12 mono 两段(段间 12) */
+  /* 层2+3 并排(R20 主人令):说明段居左、琥珀竖标+点列居右,横向饱满 */
+  .lower {
+    display: flex;
+    align-items: flex-start;
+    gap: clamp(40px, 4.17vw, 80px);
+  }
   .body {
+    flex: 0 1 auto;
+    max-width: 46ch;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 14px;
   }
   .body p {
     color: var(--x-white);
     margin: 0;
     text-wrap: pretty;
+    font-size: clamp(16px, 1.11vw, 22px); /* 16 档画布缩放(主人裁 12 太小) */
+    line-height: 1.5;
   }
-  /* 层3:琥珀「[」竖标贴紧点列(gap 4,画布 pl-80/mt-40) */
+  :global(html[lang='zh']) .body p {
+    font-size: clamp(16.5px, 1.15vw, 22.9px);
+    line-height: 1.6;
+  }
   .aside {
+    flex: 0 0 auto;
     display: flex;
-    gap: 4px;
+    gap: 6px;
     align-items: center;
-    margin-top: clamp(24px, 2.78vw, 53px);
-    margin-left: clamp(0px, 5.56vw, 107px);
+    margin-top: 4px;
   }
   .bullet {
     width: clamp(5px, 0.35vw, 7px);
-    height: clamp(70px, 4.86vw, 93px);
+    height: clamp(84px, 5.83vw, 112px);
     flex: 0 0 auto;
     display: block;
   }
   .fields {
     list-style: disc;
     margin: 0;
-    padding-left: 18px;
+    padding-left: 20px;
     color: var(--x-ink);
     display: grid;
+    gap: 4px;
     white-space: nowrap;
+  }
+  .fields li {
+    font-size: clamp(14px, 0.97vw, 19px); /* 次级 14 档,与说明分层 */
+    line-height: 1.45;
+  }
+  :global(html[lang='zh']) .fields li {
+    font-size: clamp(14.5px, 1.01vw, 19.9px);
+  }
+  @media (max-width: 1100px) {
+    .lower {
+      flex-direction: column;
+      gap: clamp(28px, 4vw, 44px);
+    }
+    .aside {
+      margin-left: clamp(0px, 5.56vw, 107px);
+    }
   }
   @media (max-width: 860px) {
     .mission {
