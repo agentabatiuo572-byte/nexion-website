@@ -98,6 +98,7 @@
     "rolesLine": "Engineers, teachers, drivers, students, designers — people all over the world put their idle devices to work."
   },
   "mission": {
+    "kicker": "Where compute goes",
     "title": "What the network computes",
     "lead": "Clients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
     "f1": "AI inference",

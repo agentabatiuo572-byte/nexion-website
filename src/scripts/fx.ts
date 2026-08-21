@@ -92,18 +92,23 @@ function initLorenz() {
   }
   const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.54 * H, scl: Math.min(W, H) / 44, yaw: 0, pitch: 0 });
   const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, scl: Math.min(W, H) / 65, yaw: 1.25, pitch: 0.5 });
-  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, scl: Math.min(W, H) / 62, yaw: -1.55, pitch: 1.15 });
+  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, scl: Math.min(W, H) / 62, yaw: -1.55, pitch: 1.15 }); /* R26:回参考真值 0.5——v4/v5 两轮抬高实测引发顶裁+底空,三路评审同向证伪 */
   const poseC = (): Pose => {
     const u = (Math.min(W, H) / 32) * 1.85;
     return { cx: 0.5 * W - 6 * u, cy: 0.5 * H + 14.25 * u, scl: Math.min(W, H) / 32, yaw: 0.4, pitch: 1.1 };
   };
   const poseD = (): Pose => ({ cx: 0.56 * W, cy: 0.52 * H, scl: Math.min(W, H) / 28, yaw: 0.2, pitch: 1.05 });
-  const ANCHOR_IDS = ['stats', 'how', 'devices', 'mission'];
+  /* R21 重绑(R8 区序重排后旧绑定错位:页尾最大姿态 D 曾锚在页中 mission → 粒子过大):
+     statement→A(左下小) about→B(右中景) 叠卡→C(特写) 收尾黑区→D(最大);白带段被盖住 */
+  const ANCHOR_IDS = ['social', 'mission', 'devices', 'final-cta'];
   let anchors: (HTMLElement | null)[] = [];
   const smooth = (e: number) => e * e * (3 - 2 * e);
-  const prog = (el: HTMLElement | null) => {
+  /* dly:延迟起混(0-1,占进区行程比例)——特写档 C 若从区顶入视口即起混,
+     会提前撑大上一屏(mission)的背景;延后 35% 行程,mission 停位时 C≈0(R23) */
+  const prog = (el: HTMLElement | null, dly = 0) => {
     if (!el) return 0;
-    const e = Math.max(0, Math.min(1, (innerHeight - el.getBoundingClientRect().top) / innerHeight));
+    const raw = Math.max(0, Math.min(1, (innerHeight - el.getBoundingClientRect().top) / innerHeight));
+    const e = dly > 0 ? Math.max(0, Math.min(1, (raw - dly) / (1 - dly))) : raw;
     return smooth(e);
   };
   const mix = (a: Pose, b: Pose, p: number): Pose => ({
@@ -187,6 +192,7 @@ function initLorenz() {
     }
 
     bctx.clearRect(0, 0, W, H);
+    bctx.globalCompositeOperation = 'lighter'; /* R25:线条交叉叠色增亮 → 收束处自然「点燃带」(参考同观感) */
     bctx.lineWidth = 1.2;
     for (let gi = 0; gi < groups.length; gi++) {
       const idx = groups[gi];
@@ -207,10 +213,10 @@ function initLorenz() {
   const CB = 6;
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
-    return `rgba(255,220,120,${(fade * fade * 0.75).toFixed(3)})`;
+    return `rgba(255,220,120,${(fade * fade * 0.88).toFixed(3)})`; /* R24 提亮:追平参考尾流能量 */
   });
   const drawComets = () => {
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.55; /* R24 提亮配套 */
     for (let cb2 = 0; cb2 < CB; cb2++) {
       ctx.beginPath();
       const k0 = Math.floor((TAIL / CB) * cb2) + 1;
@@ -234,7 +240,7 @@ function initLorenz() {
   let running = false;
   const frame = () => {
     let P = poseHome();
-    const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2]), prog(anchors[3])];
+    const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2], 0.35), prog(anchors[3])];
     P = mix(P, poseA(), ps[0]);
     P = mix(P, poseB(), ps[1]);
     P = mix(P, poseC(), ps[2]);

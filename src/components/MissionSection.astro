@@ -1,8 +1,8 @@
 ---
-/* [FEAT-WEB09] 使命板块 — R19(对齐参考源三层结构,主人 2026-08-21):
-   ①短句大陈述开场(无眉标,48 档行遮罩)②说明段降 12 mono 两段(lead 焊 \n 拆段)
-   ③点列群:琥珀「[」形竖标(5×70 亮→暗渐变,token 化)贴紧点列(gap 4)。
-   定高 --x-sec-h、左置列 538→37.4vw 垂直居中。内容 key 全不变。 */
+/* [FEAT-WEB09] 使命板块 — R23 v3(三路复审合并 + 体例仲裁:站内体例>单屏还原、内容语义>参考站语义):
+   眉标(琥珀刻度+16 档保形)→ 大陈述 48 档(zh 焊两行)→ 说明段 16 档纯白紧行距(高反差回归)→
+   答案层=琥珀编号网格(01-06 + 展示体域名,两列;全站编号体例,去 disc 双记号),
+   「[」竖标夹持整网格、缩进精确 80 画布。设备特写姿态延迟起混在 fx(R23)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -16,27 +16,31 @@ const leadParas = t('mission.lead').split('\n');
 
 <section class="mission" id="mission">
   <div class="col">
+    <p class="kicker">
+      <span class="ktick" aria-hidden="true"></span>
+      <span class="ktxt x-mono-lg" data-tw>{t('mission.kicker')}</span>
+    </p>
+
     <h2 class="state x-display" data-lr>{t('mission.title')}</h2>
 
-    <div class="lower">
-      <div class="body" data-rv>
-        {leadParas.map((p) => <p class="x-mono">{p}</p>)}
-      </div>
+    <div class="body" data-rv>
+      {leadParas.map((p) => <p>{p}</p>)}
+    </div>
 
-      <div class="aside" data-rv style="--d:.12s">
-        <svg class="bullet" viewBox="0 0 5 70" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="mission-bullet-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" style="stop-color: var(--x-accent)"></stop>
-              <stop offset="1" style="stop-color: color-mix(in srgb, var(--x-accent) 55%, var(--x-bg))"></stop>
-            </linearGradient>
-          </defs>
-          <path d="M4.5 0 L4.5 1 L1 1 L1 69 L4.5 69 L4.5 70 L0 70 L0 0 Z" fill="url(#mission-bullet-grad)"></path>
-        </svg>
-        <ul class="fields x-mono" role="list">
-          {fields.map((n) => <li>{t(`mission.f${n}`)}</li>)}
-        </ul>
-      </div>
+    <div class="cluster" data-rv style="--d:.12s">
+      <span class="bullet" aria-hidden="true"></span>
+      <ol class="fields" role="list">
+        {
+          fields.map((n, i) => (
+            <li>
+              <span class="idx" data-tw data-tw-delay={80 * i}>
+                0{n}
+              </span>
+              <span class="name">{t(`mission.f${n}`)}</span>
+            </li>
+          ))
+        }
+      </ol>
     </div>
   </div>
 </section>
@@ -54,78 +58,107 @@ const leadParas = t('mission.lead').split('\n');
     align-items: flex-start;
   }
   .col {
-    width: min(52vw, 998px);
+    width: min(37.4vw, 717px);
     display: flex;
     flex-direction: column;
-    gap: clamp(28px, 3.33vw, 64px);
+    gap: clamp(24px, 2.78vw, 53.4px); /* cap 精确(R27) */
   }
-  /* 层1:短句大陈述(48 档,原版无眉标) */
+  /* 章节眉(全站体例:琥珀刻度 + 16 档保形眉标) */
+  .kicker {
+    color: var(--x-white);
+    margin: 0;
+    min-height: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: clamp(10px, 0.69vw, 13.3px); /* R26:px-clamp 保形(em 基曾挂死在根 16px,弃用) */
+  }
+  .ktick {
+    width: clamp(2px, 0.14vw, 3px);
+    height: clamp(20px, 1.4vw, 27px);
+    background: linear-gradient(to bottom, var(--x-accent-hot), color-mix(in srgb, var(--x-accent-hot) 10%, transparent));
+    flex: 0 0 auto;
+  }
+  /* 大陈述 48 档:能单行则单行(可越出列宽,参考站同构;主人 R24),zh 焊两行成块 */
   .state {
     font-size: clamp(32px, 3.33vw, 64px);
     color: var(--x-white);
     margin: 0;
+    white-space: pre-line;
+    width: max-content;
+    max-width: min(58vw, 1100px);
   }
-  /* 层2+3 并排(R20 主人令):说明段居左、琥珀竖标+点列居右,横向饱满 */
-  .lower {
-    display: flex;
-    align-items: flex-start;
-    gap: clamp(40px, 4.17vw, 80px);
-  }
+  /* 说明段:16 档纯白紧行距(高反差),容器随字号 em 流动(单尺) */
   .body {
-    flex: 0 1 auto;
-    max-width: 46ch;
+    font-family: var(--x-font-mono);
+    font-size: clamp(16px, 1.11vw, 22px);
+    letter-spacing: 0;
+    text-transform: uppercase;
+    line-height: 1.2; /* R26:与眉标同尺(zh 侧 1.5 对 1.5 已齐);两句密簇贴参考质感 */
+    color: var(--x-white);
+    max-width: 31em; /* en 两句各自单行(主人 R24);随字号 em 流动 */
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 0.55em; /* 两句收成一组,消左轨碎节奏(R25) */
   }
   .body p {
-    color: var(--x-white);
     margin: 0;
     text-wrap: pretty;
-    font-size: clamp(16px, 1.11vw, 22px); /* 16 档画布缩放(主人裁 12 太小) */
-    line-height: 1.5;
+    white-space: nowrap; /* 一行能展示的不换行(主人 R24);超长语言在下方按语言放开 */
   }
-  :global(html[lang='zh']) .body p {
+  :global(html[lang='vi']) .body p {
+    white-space: normal; /* vi 句长必折,保自然折行 */
+  }
+  :global(html[lang='zh']) .body {
     font-size: clamp(16.5px, 1.15vw, 22.9px);
-    line-height: 1.6;
+    line-height: 1.5; /* 与眉标同尺(R25 统一) */
+    word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
+    max-width: 26em;
   }
-  .aside {
-    flex: 0 0 auto;
+  /* 答案层:琥珀编号网格(两列 3×2),「[」竖标夹持,缩进 80 画布 */
+  .cluster {
     display: flex;
-    gap: 6px;
-    align-items: center;
-    margin-top: 4px;
+    gap: clamp(14px, 1.39vw, 26.7px);
+    align-items: stretch;
+    margin-left: clamp(0px, 5.56vw, 106.8px); /* cap=80×1.3333 精确(R26) */
   }
   .bullet {
     width: clamp(5px, 0.35vw, 7px);
-    height: clamp(84px, 5.83vw, 112px);
+    align-self: stretch;
     flex: 0 0 auto;
-    display: block;
+    border-style: solid;
+    border-width: 1px 0 1px 1px; /* 与参考竖标同为 1px 线(R25 明示,DPR1 下不再降级) */
+    /* 渐变只暗 ~25%(对齐参考竖标顶亮→微暗比例,R24 收敛) */
+    border-image: linear-gradient(to bottom, var(--x-accent-hot), color-mix(in srgb, var(--x-accent-hot) 78%, var(--x-bg))) 1;
   }
+  /* R27:单列(参考站同构)——en 双列曾越列压图、双列行序有歧义、左下空场,单列三消 */
   .fields {
-    list-style: disc;
+    list-style: none;
     margin: 0;
-    padding-left: 20px;
-    color: var(--x-ink);
+    padding: 0;
     display: grid;
-    gap: 4px;
-    white-space: nowrap;
+    grid-template-columns: 1fr;
+    row-gap: clamp(12px, 1.11vw, 21.4px);
+    align-content: center;
   }
   .fields li {
-    font-size: clamp(14px, 0.97vw, 19px); /* 次级 14 档,与说明分层 */
-    line-height: 1.45;
+    display: flex;
+    align-items: baseline;
+    gap: clamp(10px, 0.69vw, 13.3px); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
+    white-space: nowrap;
   }
-  :global(html[lang='zh']) .fields li {
-    font-size: clamp(14.5px, 1.01vw, 19.9px);
+  .idx {
+    font-family: var(--x-font-mono);
+    font-size: clamp(13px, 0.97vw, 19px);
+    letter-spacing: 0;
+    color: var(--x-accent-hot); /* 黑底编号走亮金(2A) */
   }
-  @media (max-width: 1100px) {
-    .lower {
-      flex-direction: column;
-      gap: clamp(28px, 4vw, 44px);
-    }
-    .aside {
-      margin-left: clamp(0px, 5.56vw, 107px);
-    }
+  .name {
+    font-family: var(--x-font-display);
+    font-size: clamp(21px, 1.67vw, 32.1px); /* 24 档:答案层权重对齐语义(R24;cap 精确 R26) */
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+    color: var(--x-white);
   }
   @media (max-width: 860px) {
     .mission {
@@ -137,8 +170,13 @@ const leadParas = t('mission.lead').split('\n');
     .col {
       width: 100%;
     }
-    .aside {
-      margin-left: 0;
+    .cluster {
+      margin-left: clamp(12px, 5vw, 60px);
+    }
+  }
+  @media (max-width: 560px) {
+    .fields {
+      grid-template-columns: 1fr;
     }
   }
 </style>
