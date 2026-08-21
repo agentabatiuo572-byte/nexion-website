@@ -99,7 +99,7 @@
   },
   "mission": {
     "title": "What the network computes",
-    "lead": "Clients pay to run AI workloads on this capacity. The fields below show where that work goes.",
+    "lead": "Clients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
     "f1": "AI inference",
     "f2": "Scientific computing",
     "f3": "Climate modeling",
