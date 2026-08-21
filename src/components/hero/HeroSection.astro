@@ -104,7 +104,8 @@ const t = useT(locale);
   :global(html[lang='zh']) .cluster {
     width: min(50.35vw, 967px);
   }
-  /* 标题恒两行:i18n 文案带 \n 强制断行(pre-line),字号按语言收口保单段不折行 */
+  /* 标题:i18n 文案带 \n 强制「NexGrid」独行(pre-line);
+     vi 与 en 同字号(主人 R11 拍板),第二句自然折行、全题最多三行 */
   h1 {
     width: 100%;
     font-size: clamp(44px, 7vw, 134px);
@@ -112,9 +113,6 @@ const t = useT(locale);
     margin: 0;
     text-align: left;
     white-space: pre-line;
-  }
-  :global(html[lang='vi']) h1 {
-    font-size: clamp(30px, 3.9vw, 75px);
   }
   :global(html[lang='zh']) h1 {
     font-size: clamp(48px, 8vw, 154px);
@@ -146,9 +144,6 @@ const t = useT(locale);
     }
     h1 {
       font-size: clamp(40px, 11vw, 88px);
-    }
-    :global(html[lang='vi']) h1 {
-      font-size: clamp(28px, 8vw, 60px);
     }
     :global(html[lang='zh']) h1 {
       font-size: clamp(44px, 14vw, 92px);
