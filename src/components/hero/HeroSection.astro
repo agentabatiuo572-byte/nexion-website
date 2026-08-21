@@ -129,7 +129,9 @@ const t = useT(locale);
   .sub {
     color: var(--x-white);
     margin: 0;
-    width: min(27.2vw, 521px);
+    /* R14:标准视口两行(45ch 容量);窄桌面字号撞 16px 下限后自然变三行,
+       300px 下限保证最窄桌面也不落到四行 */
+    width: clamp(300px, 30.5vw, 585px);
     text-wrap: pretty;
     font-size: clamp(16px, 1.11vw, 22px); /* 原版副题 16 @1440,随视口放大(R13) */
   }
