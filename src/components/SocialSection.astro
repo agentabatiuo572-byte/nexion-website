@@ -22,13 +22,16 @@ const TESTIMONIALS: Testimonial[] = [];
 
 <section class="social" id="social">
   <div class="col">
-    <p class="kicker x-mono-lg" data-tw>{t('social.kicker')}</p>
+    <p class="kicker">
+      <span class="ktick" aria-hidden="true"></span>
+      <span class="x-mono-lg" data-tw>{t('social.kicker')}</span>
+    </p>
     <div class="disp x-display">
       <h2 data-lr>
         {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
       </h2>
-      <p data-lr data-lr-delay="120">{t('social.rolesLine')}</p>
     </div>
+    <p class="roles x-mono-lg" data-rv>{t('social.rolesLine')}</p>
 
     {
       TESTIMONIALS.length > 0 && (
@@ -65,24 +68,38 @@ const TESTIMONIALS: Testimonial[] = [];
     align-items: flex-start;
     gap: clamp(28px, 3.33vw, 64px);
   }
+  /* 层级(R17 主人令):琥珀刻度+眉标(锚点)→ 大白数字句(唯一大字)→ 暗色小注 */
   .kicker {
     color: var(--x-white);
     margin: 0;
     min-height: 1.2em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .ktick {
+    width: clamp(2px, 0.14vw, 3px);
+    height: clamp(20px, 1.4vw, 27px);
+    background: linear-gradient(to bottom, var(--x-accent), color-mix(in srgb, var(--x-accent) 10%, transparent));
+    flex: 0 0 auto;
   }
   .disp {
     max-width: 89%;
     font-size: clamp(32px, 3.33vw, 64px);
     color: var(--x-white);
   }
-  .disp h2,
-  .disp p {
+  .disp h2 {
     font-size: inherit;
     font-weight: inherit;
     margin: 0;
+    white-space: pre-line; /* zh 焊定断点(「正在」不拆行) */
   }
-  .disp h2 {
-    margin-bottom: 20px;
+  .roles {
+    color: var(--x-ink-dim);
+    margin: 0;
+    max-width: min(46ch, 100%);
+    text-wrap: pretty;
+    line-height: 1.5;
   }
   .quotes {
     display: grid;

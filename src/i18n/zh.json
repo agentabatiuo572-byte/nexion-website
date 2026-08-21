@@ -94,7 +94,7 @@
   },
   "social": {
     "kicker": "网络规模",
-    "scaleLine": "{devices}+ 台设备正在 {countries} 个国家产生收益",
+    "scaleLine": "{devices}+ 台设备\n正在 {countries} 个国家产生收益",
     "rolesLine": "工程师、教师、司机、学生、设计师——世界各地的人都在让闲置设备工作起来。"
   },
   "mission": {
