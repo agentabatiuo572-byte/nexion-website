@@ -76,9 +76,9 @@ const t = useT(locale);
   :global(html[lang='zh']) .scroll-hint {
     font-size: clamp(12.5px, 0.868vw, 16.7px);
   }
-  /* 竖线=琥珀顶亮、向下淡出 10%(对齐原版刻度线规格,R15) */
+  /* 竖线=琥珀顶亮、向下淡出 10%;粗细 2px 起随画布放大(主人 R16 加粗) */
   .scroll-hint .tick {
-    width: 1px;
+    width: clamp(2px, 0.14vw, 3px);
     height: clamp(24px, 1.67vw, 32px);
     background: linear-gradient(to bottom, var(--x-accent), color-mix(in srgb, var(--x-accent) 10%, transparent));
     flex: 0 0 auto;
