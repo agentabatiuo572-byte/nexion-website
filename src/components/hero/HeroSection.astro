@@ -88,26 +88,33 @@ const t = useT(locale);
     text-wrap: pretty;
     line-height: 1.5;
   }
-  /* 内容簇:右置定宽列,标题左对齐、副题/下载键贴列右缘 */
+  /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
+     宽度按语言定:en/vi 第二行长 → 列加宽(整体左移)换字号(主人 R9-4)。 */
   .cluster {
-    width: min(50.35vw, 967px);
+    width: min(62vw, 1190px);
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: clamp(24px, 3.33vw, 64px);
   }
-  /* 字号按语言收口:标题须在 725 画布列内成 2-3 行、且首行短句让开导航列 */
+  :global(html[lang='vi']) .cluster {
+    width: min(66vw, 1268px);
+  }
+  :global(html[lang='zh']) .cluster {
+    width: min(50.35vw, 967px);
+  }
+  /* 标题恒两行:i18n 文案带 \n 强制断行(pre-line),字号按语言收口保单段不折行 */
   h1 {
     width: 100%;
-    font-size: clamp(52px, 8.5vw, 163px);
+    font-size: clamp(44px, 7vw, 134px);
     color: var(--x-white);
     margin: 0;
     text-align: left;
-    text-wrap: balance; /* 首行收短句,让开右上导航/下载键区 */
+    white-space: pre-line;
   }
   :global(html[lang='vi']) h1 {
-    font-size: clamp(44px, 7vw, 134px);
+    font-size: clamp(30px, 3.9vw, 75px);
   }
   :global(html[lang='zh']) h1 {
     font-size: clamp(48px, 8vw, 154px);
@@ -134,11 +141,17 @@ const t = useT(locale);
       align-items: flex-start;
     }
     .cluster {
-      width: 100%;
+      width: 100% !important; /* 覆盖桌面按语言定宽 */
       align-items: flex-start;
     }
     h1 {
-      font-size: clamp(48px, 15.5vw, 96px);
+      font-size: clamp(40px, 11vw, 88px);
+    }
+    :global(html[lang='vi']) h1 {
+      font-size: clamp(28px, 8vw, 60px);
+    }
+    :global(html[lang='zh']) h1 {
+      font-size: clamp(44px, 14vw, 92px);
     }
     .sub {
       width: auto;
