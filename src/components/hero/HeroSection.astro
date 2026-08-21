@@ -62,6 +62,9 @@ const t = useT(locale);
     max-width: 320px;
     flex: 0 1 auto;
   }
+  :global(html[lang='vi']) .left {
+    max-width: 52ch; /* 随 note 两行制放宽(R12) */
+  }
   /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
   .scroll-hint {
     color: var(--x-ink-dim);
@@ -87,6 +90,10 @@ const t = useT(locale);
     max-width: 300px;
     text-wrap: pretty;
     line-height: 1.5;
+    white-space: pre-line; /* 文案内 \n 生效(vi 两行制,主人 R12) */
+  }
+  :global(html[lang='vi']) .note {
+    max-width: 50ch; /* 容住焊定的第一行(48ch),恒两行 */
   }
   /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
      宽度按语言定:en/vi 第二行长 → 列加宽(整体左移)换字号(主人 R9-4)。 */
