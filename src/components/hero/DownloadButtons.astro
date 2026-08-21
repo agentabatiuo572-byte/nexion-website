@@ -1,7 +1,8 @@
 ---
-/* [FEAT-WEB02/12] 下载三键 — hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。
-   URL 未配置的键:iOS/Android → Coming soon 禁用态;H5 → 不渲染。零死链(异常1)。
-   axiom 方向:slide-swap 等宽按钮(hover 文字滑出/滑入)。 */
+/* [FEAT-WEB02/12] 下载三键 — R9(主人 2026-08-21 第一屏令⑤):
+   文案改「iOS 下载 / Android 下载 / H5 版入口」,iOS/Android 带自绘平台图标;
+   H5 键恒渲染。URL 未配置 → 同文案禁用态(零死链,异常1)。
+   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -16,43 +17,57 @@ const ANDROID = import.meta.env.PUBLIC_ANDROID_URL ?? '';
 const H5 = import.meta.env.PUBLIC_H5_URL ?? '';
 const allEmpty = !IOS && !ANDROID && !H5;
 const lightCls = onLight ? 'on-light' : '';
+
+const btns = [
+  { url: IOS, label: t('download.ios'), icon: 'apple', solid: true, arr: '→' },
+  { url: ANDROID, label: t('download.android'), icon: 'android', solid: true, arr: '→' },
+  { url: H5, label: t('nav.launchH5'), icon: 'h5', solid: false, arr: '↗' },
+];
 ---
 
 <div class="dl" data-empty={allEmpty ? 'true' : undefined}>
   {
-    IOS ? (
-      <a class:list={['xbtn', 'solid', lightCls]} href={IOS} target="_blank" rel="noopener">
-        <span class="xbtn-ghost">{t('download.appStore')} <span class="arr">→</span></span>
-        <span class="xbtn-a">{t('download.appStore')} <span class="arr">→</span></span>
-        <span class="xbtn-b">{t('download.appStore')} <span class="arr">→</span></span>
-      </a>
-    ) : (
-      <span class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
-        <span class="static">{t('download.comingSoonIos')}</span>
-      </span>
-    )
-  }
-  {
-    ANDROID ? (
-      <a class:list={['xbtn', 'solid', lightCls]} href={ANDROID} target="_blank" rel="noopener">
-        <span class="xbtn-ghost">{t('download.googlePlay')} <span class="arr">→</span></span>
-        <span class="xbtn-a">{t('download.googlePlay')} <span class="arr">→</span></span>
-        <span class="xbtn-b">{t('download.googlePlay')} <span class="arr">→</span></span>
-      </a>
-    ) : (
-      <span class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
-        <span class="static">{t('download.comingSoonAndroid')}</span>
-      </span>
-    )
-  }
-  {
-    H5 && (
-      <a class:list={['xbtn', lightCls]} href={H5} target="_blank" rel="noopener">
-        <span class="xbtn-ghost">{t('nav.launchH5')} <span class="arr">↗</span></span>
-        <span class="xbtn-a">{t('nav.launchH5')} <span class="arr">↗</span></span>
-        <span class="xbtn-b">{t('nav.launchH5')} <span class="arr">↗</span></span>
-      </a>
-    )
+    btns.map((b) => {
+      const inner = (
+        <>
+          {b.icon === 'apple' && (
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M16.9 12.7c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.6-2.9-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.2 1.1-2.3 1.1-2.4 0-.1-2.2-.9-2.2-3.3z"
+              />
+              <path fill="currentColor" d="M14.2 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z" />
+            </svg>
+          )}
+          {b.icon === 'android' && (
+            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
+              <path
+                d="M5.8 14.2c.3-3.1 3-5.4 6.2-5.4s5.9 2.3 6.2 5.4z"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                stroke-linejoin="round"
+              />
+              <path d="M8.4 9.7 7 7.4M15.6 9.7 17 7.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+              <circle cx="9.4" cy="12.3" r="0.9" fill="currentColor" />
+              <circle cx="14.6" cy="12.3" r="0.9" fill="currentColor" />
+            </svg>
+          )}
+          {b.label} <span class="arr">{b.arr}</span>
+        </>
+      );
+      return b.url ? (
+        <a class:list={['xbtn', { solid: b.solid }, lightCls]} href={b.url} target="_blank" rel="noopener">
+          <span class="xbtn-ghost">{inner}</span>
+          <span class="xbtn-a">{inner}</span>
+          <span class="xbtn-b">{inner}</span>
+        </a>
+      ) : (
+        <span class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
+          <span class="static">{inner}</span>
+        </span>
+      );
+    })
   }
 </div>
 
@@ -62,9 +77,20 @@ const lightCls = onLight ? 'on-light' : '';
     gap: 12px;
     flex-wrap: wrap;
   }
+  /* 保留品牌拼写(iOS/Android 小写规范),不吃 xbtn 的全大写制式 */
+  .dl :global(.xbtn) {
+    text-transform: none;
+  }
+  .ic {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    display: block;
+  }
   .static {
     display: inline-flex;
     align-items: center;
+    gap: 8px;
   }
   @media (max-width: 520px) {
     .dl {

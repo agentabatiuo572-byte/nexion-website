@@ -10,23 +10,21 @@
     "trust": "Tin cậy",
     "learn": "Học",
     "nex": "NEX",
-    "launchH5": "Mở bản Web",
+    "launchH5": "Bản Web H5",
     "download": "Tải xuống",
     "ariaMain": "Chính",
     "ariaMenu": "Menu",
     "ariaLanguage": "Ngôn ngữ"
   },
   "hero": {
-    "title": "NexGrid. Để sức mạnh tính toán tuôn chảy.",
+    "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
     "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
     "scrollHint": "Xem mạng lưới",
     "note": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao và giải pháp lưu trữ đám mây GPU."
   },
   "download": {
-    "appStore": "App Store",
-    "googlePlay": "Google Play",
-    "comingSoonIos": "Sắp có trên App Store",
-    "comingSoonAndroid": "Sắp có trên Google Play"
+    "ios": "Tải bản iOS",
+    "android": "Tải bản Android"
   },
   "stats": {
     "activeDevices": "Thiết bị hoạt động",

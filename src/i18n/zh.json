@@ -10,23 +10,21 @@
     "trust": "信任",
     "learn": "学习中心",
     "nex": "NEX",
-    "launchH5": "打开网页版",
+    "launchH5": "H5 版入口",
     "download": "下载",
     "ariaMain": "主导航",
     "ariaMenu": "菜单",
     "ariaLanguage": "语言"
   },
   "hero": {
-    "title": "NexGrid，让算力流动。",
+    "title": "NexGrid\n让算力流动",
     "subtitle": "全球领先的分布式计算能力共享服务提供商。",
     "scrollHint": "查看网络",
     "note": "为您提供高性能计算服务和 GPU 云托管解决方案。"
   },
   "download": {
-    "appStore": "App Store",
-    "googlePlay": "Google Play",
-    "comingSoonIos": "App Store 即将上线",
-    "comingSoonAndroid": "Google Play 即将上线"
+    "ios": "iOS 下载",
+    "android": "Android 下载"
   },
   "stats": {
     "activeDevices": "在线设备",

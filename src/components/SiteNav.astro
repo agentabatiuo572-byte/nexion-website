@@ -1,10 +1,8 @@
 ---
-/* [FEAT-WEB01] 全局导航 — R7(解剖报告 P1-10~14):
-   常驻最顶层,滑过反白区整体 0.25s 翻色(currentColor 贯通);
-   logo 定宽列 + 时钟独立居中 + meta「标签 0.6 透明/值全亮定宽」+ 值打字机入场;
-   时钟排印 -0.03em/400,链接 0 字距/400。锚点/语言/下载逻辑不变。 */
+/* [FEAT-WEB01] 全局导航 — R9(主人 2026-08-21 第一屏逐项令):
+   ①删 meta 数字列(与第二屏数字条重复);②UTC 时钟贴 LOGO 右侧;
+   ③链接横向单行(链接组+语言+下载键一行);翻色/汉堡/锚点/语言逻辑不变。 */
 import { useT, locales, type Locale } from '../i18n';
-import { STATS_SNAPSHOT, fmtStat } from '../lib/stats';
 
 interface Props {
   locale: Locale;
@@ -20,11 +18,6 @@ const langHref = (l: Locale) => (l === 'en' ? path : `/${l}${path === '/' ? '/' 
 
 const H5_URL = import.meta.env.PUBLIC_H5_URL ?? '';
 const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
-const meta = [
-  { label: t('stats.activeDevices'), value: fmtStat(STATS_SNAPSHOT.activeDevices, 0), delay: 1000 },
-  { label: t('stats.nodes'), value: fmtStat(STATS_SNAPSHOT.nodes, 0), delay: 1120 },
-  { label: t('stats.uptime'), value: `${fmtStat(STATS_SNAPSHOT.uptime, 1)}%`, delay: 1240 },
-];
 ---
 
 <header class="site-nav" id="site-nav">
@@ -41,22 +34,10 @@ const meta = [
         </svg>
         <span>nexgrid</span>
       </a>
+      <span class="clock" id="x-clock" aria-hidden="true"></span>
     </div>
 
-    <span class="clock" id="x-clock" aria-hidden="true"></span>
-
     <div class="right">
-      <div class="meta" aria-hidden="true">
-        {
-          meta.map((m) => (
-            <span class="kv">
-              <span class="k">{m.label}:</span>
-              <b data-tw={isHome ? 'load' : undefined} data-tw-delay={m.delay} style={`width:${m.value.length}ch`}>{m.value}</b>
-            </span>
-          ))
-        }
-      </div>
-
       <button class="menu-toggle" aria-expanded="false" aria-controls="nav-menu" aria-label={t('nav.ariaMenu')}>
         <span></span><span></span>
       </button>
@@ -114,14 +95,18 @@ const meta = [
   }
   nav {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
-    gap: 0;
-    padding: 18px var(--x-pad) 0;
+    gap: clamp(20px, 3vw, 60px);
+    padding: 14px var(--x-pad) 0;
   }
+  /* LOGO + 时钟同格(时钟贴 LOGO 右侧) */
   .logo-cell {
-    width: clamp(217px, 31.6vw, 455px);
+    display: flex;
+    align-items: center;
+    gap: clamp(20px, 2.5vw, 44px);
     flex: 0 1 auto;
+    min-width: 0;
   }
   .logo {
     display: inline-flex;
@@ -149,45 +134,19 @@ const meta = [
   }
   .right {
     display: flex;
-    align-items: flex-start;
-    gap: clamp(24px, 4vw, 60px);
+    align-items: center;
+    min-width: 0;
   }
-  .meta {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-family: var(--x-font-mono);
-    font-size: 12px;
-    font-weight: 400;
-    letter-spacing: 0;
-    line-height: 1.2;
-    text-transform: uppercase;
-    color: currentColor;
-    padding-top: 13px;
-    white-space: nowrap;
-  }
-  .kv .k {
-    opacity: 0.6;
-  }
-  .kv b {
-    font-weight: 400;
-    display: inline-block;
-    margin-left: 6px;
-  }
+  /* 链接组 + 语言 + 下载键:横向单行 */
   .menu {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 14px;
+    flex-direction: row;
+    align-items: center;
+    gap: clamp(16px, 2.2vw, 40px);
   }
-  /* R8:桌面链接改竖排列(对齐参考站头部右缘竖列) */
   .links {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-  .links a {
-    min-height: 20px;
+    gap: clamp(14px, 1.6vw, 26px);
   }
   .links a,
   .lang a,
@@ -200,7 +159,7 @@ const meta = [
     text-transform: uppercase;
     color: currentColor;
     text-decoration: none;
-    min-height: 30px;
+    min-height: 44px;
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
@@ -208,8 +167,7 @@ const meta = [
   .row2 {
     display: flex;
     align-items: center;
-    gap: 18px;
-    margin-top: 4px;
+    gap: clamp(12px, 1.6vw, 24px);
   }
   .lang {
     display: flex;
@@ -259,8 +217,8 @@ const meta = [
       opacity 0.2s;
   }
 
-  @media (max-width: 900px) {
-    .meta {
+  @media (max-width: 1080px) {
+    .clock {
       display: none;
     }
   }
@@ -268,13 +226,6 @@ const meta = [
     nav {
       align-items: center;
       padding-top: 10px;
-    }
-    .logo-cell {
-      width: auto;
-    }
-    .clock {
-      margin-left: auto;
-      margin-right: 14px;
     }
     .menu-toggle {
       display: flex;
@@ -287,6 +238,7 @@ const meta = [
       background: var(--x-bg);
       color: var(--x-white);
       padding: 84px var(--x-pad) 32px;
+      flex-direction: column;
       align-items: flex-start;
       justify-content: flex-start;
       gap: 26px;

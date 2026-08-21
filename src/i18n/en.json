@@ -10,23 +10,21 @@
     "trust": "Trust",
     "learn": "Learn",
     "nex": "NEX",
-    "launchH5": "Launch Web App",
+    "launchH5": "H5 Web App",
     "download": "Download",
     "ariaMain": "Main",
     "ariaMenu": "Menu",
     "ariaLanguage": "Language"
   },
   "hero": {
-    "title": "NexGrid. Let compute flow.",
+    "title": "NexGrid\nLet compute flow",
     "subtitle": "The world's leading provider of distributed computing power sharing services.",
     "scrollHint": "See the network",
     "note": "Offering you high-performance computing services and GPU cloud hosting solutions."
   },
   "download": {
-    "appStore": "App Store",
-    "googlePlay": "Google Play",
-    "comingSoonIos": "Coming soon to App Store",
-    "comingSoonAndroid": "Coming soon to Google Play"
+    "ios": "Download for iOS",
+    "android": "Download for Android"
   },
   "stats": {
     "activeDevices": "Active devices",
