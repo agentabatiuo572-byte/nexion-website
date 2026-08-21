@@ -31,6 +31,8 @@
   /* Accent — amber(--x-accent-ink 供文字:暗底原琥珀,纸面自动换深琥珀) */
   --x-accent: #da840a;
   --x-accent-ink: #da840a;
+  /* 亮金:仅黑底强调件(刻度线/竖标/编号)——追参考「点火」热感,不动品牌主色(主人 2026-08-21 拍板 2A) */
+  --x-accent-hot: #eeb64b;
   --x-accent-soft: rgba(218, 132, 10, 0.16);
   --x-on-accent: #0c0c0d;
 
@@ -56,11 +58,11 @@
     monospace;
 
   /* Layout — 全出血;>1440 随视口放大(等效参考站画布 ×1.333 上限) */
-  --x-pad: clamp(20px, 2.78vw, 53px);
+  --x-pad: clamp(20px, 2.78vw, 53.4px); /* cap=40×1.3333 精确(R26) */
   --x-section-gap: clamp(80px, 9.7vw, 140px);
   --x-prose-max: 760px;
-  /* 画布制区高:定高带(statement/about/deck pin)= 画布 800 → 55.56vw */
-  --x-sec-h: clamp(560px, 55.56vw, 1000px);
+  /* 画布制区高:定高带(statement/about/deck pin)= 画布 800 → 55.56vw;cap=800×1.3333(R26) */
+  --x-sec-h: clamp(560px, 55.56vw, 1067px);
 }
 
 html[lang='vi'] {
@@ -106,16 +108,17 @@ html[lang='zh'] .x-mono {
   line-height: 1.6; /* CJK 密排不变量豁免 */
 }
 
-/* 等宽引言档:16px(板块引言/kicker/副题) */
+/* 等宽引言档:16 档画布缩放(板块引言/kicker/副题;R23 全站保形,zh +3.5% 光学补偿) */
 .x-mono-lg {
   font-family: var(--x-font-mono);
-  font-size: 16px;
+  font-size: clamp(16px, 1.11vw, 22px);
   font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;
 }
 html[lang='zh'] .x-mono-lg {
+  font-size: clamp(16.5px, 1.15vw, 22.9px);
   line-height: 1.5;
 }
 
