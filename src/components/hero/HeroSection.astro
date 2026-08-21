@@ -76,10 +76,11 @@ const t = useT(locale);
   :global(html[lang='zh']) .scroll-hint {
     font-size: clamp(12.5px, 0.868vw, 16.7px);
   }
+  /* 竖线=琥珀顶亮、向下淡出 10%(对齐原版刻度线规格,R15) */
   .scroll-hint .tick {
     width: 1px;
     height: clamp(24px, 1.67vw, 32px);
-    background: var(--x-ink-faint);
+    background: linear-gradient(to bottom, var(--x-accent), color-mix(in srgb, var(--x-accent) 10%, transparent));
     flex: 0 0 auto;
   }
   .scroll-hint .txt {
