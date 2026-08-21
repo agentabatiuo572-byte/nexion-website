@@ -59,13 +59,10 @@ const t = useT(locale);
     display: flex;
     flex-direction: column;
     gap: 18px;
-    max-width: 320px;
-    flex: 0 1 auto;
-  }
-  :global(html[lang='vi']) .left {
-    max-width: 52ch; /* 随 note 两行制放宽(R12) */
+    flex: 0 1 auto; /* 上限交给子元素各自的 max-width(hint 129 画布 / note 50ch) */
   }
   /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
+  /* 画布制小字(R13):原版 12px @1440,随视口 ×1.333 上限 */
   .scroll-hint {
     color: var(--x-ink-dim);
     text-decoration: none;
@@ -74,26 +71,31 @@ const t = useT(locale);
     gap: 6px;
     min-height: 44px;
     letter-spacing: -0.03em;
+    font-size: clamp(12px, 0.833vw, 16px);
+  }
+  :global(html[lang='zh']) .scroll-hint {
+    font-size: clamp(12.5px, 0.868vw, 16.7px);
   }
   .scroll-hint .tick {
     width: 1px;
-    height: 24px;
+    height: clamp(24px, 1.67vw, 32px);
     background: var(--x-ink-faint);
     flex: 0 0 auto;
   }
   .scroll-hint .txt {
-    max-width: 129px;
+    max-width: clamp(129px, 8.96vw, 172px);
   }
   .note {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: 300px;
+    max-width: 50ch; /* 容住焊定断行的首段(en/vi 各 48ch;zh 短句仍单行) */
     text-wrap: pretty;
     line-height: 1.5;
-    white-space: pre-line; /* 文案内 \n 生效(vi 两行制,主人 R12) */
+    white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
+    font-size: clamp(12px, 0.833vw, 16px);
   }
-  :global(html[lang='vi']) .note {
-    max-width: 50ch; /* 容住焊定的第一行(48ch),恒两行 */
+  :global(html[lang='zh']) .note {
+    font-size: clamp(12.5px, 0.868vw, 16.7px);
   }
   /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
      宽度按语言定:en/vi 第二行长 → 列加宽(整体左移)换字号(主人 R9-4)。 */
@@ -129,6 +131,7 @@ const t = useT(locale);
     margin: 0;
     width: min(27.2vw, 521px);
     text-wrap: pretty;
+    font-size: clamp(16px, 1.11vw, 22px); /* 原版副题 16 @1440,随视口放大(R13) */
   }
   .dl-wrap :global(.dl) {
     justify-content: flex-end;
