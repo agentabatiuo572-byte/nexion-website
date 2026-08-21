@@ -1,7 +1,8 @@
 ---
-/* [FEAT-WEB04 v1.1] 收益路径 — R7(解剖报告 P1-24/25 部分/26/28,P2-19):
-   盒卡改无盒左线开放列;标题升 48 档行遮罩;编号去琥珀去粗改墨 0.8;
-   等高线图入流(标题↔正文之间);双列滚动视差 k=[0.06,0.11]。
+/* [FEAT-WEB04] 收益路径 — R8(白带块):
+   头行=16 mono 打字机标签(path.title,新 key);
+   双列各带「编号↔类目词」两端行(path.cat1/2,新 key),
+   标题 48 档行遮罩、等高线图入流、双列视差 k=[0.06,0.11]。
    🔴 全板块无任何收益数字。 */
 import { useT, type Locale } from '../i18n';
 import { contour } from '../lib/contour';
@@ -12,29 +13,37 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const cards = [
-  { n: '01', title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.06 },
-  { n: '02', title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.11 },
+  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.06 },
+  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.11 },
 ];
 ---
 
-<section class="path x-invert" id="path">
+<section class="path" id="path">
+  <div class="headrow">
+    <p class="lab x-mono-lg" data-tw>{t('path.title')}</p>
+  </div>
   <div class="cards">
     {
-      cards.map((c) => (
+      cards.map((c, i) => (
         <article class="card rv-fade" data-rv data-plx={c.k}>
-          <p class="meta x-mono" data-tw>{c.n}</p>
-          <h2 class="x-display" data-lr>{c.title}</h2>
-          <svg class="art" viewBox={c.art.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-            {c.art.paths.map((d) => (
-              <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
-            ))}
-          </svg>
-          <p class="desc x-mono">{c.desc}</p>
-          <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
-            <span class="xbtn-ghost">{c.cta} <span class="arr">→</span></span>
-            <span class="xbtn-a">{c.cta} <span class="arr">→</span></span>
-            <span class="xbtn-b">{c.cta} <span class="arr">→</span></span>
-          </a>
+          <p class="metarow x-mono">
+            <span data-tw data-tw-delay={160 * i}>{c.n}</span>
+            <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
+          </p>
+          <div class="stack">
+            <h3 class="x-display" data-lr data-lr-delay={100 * i}>{c.title}</h3>
+            <svg class="art" viewBox={c.art.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+              {c.art.paths.map((d) => (
+                <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
+              ))}
+            </svg>
+            <p class="desc x-mono">{c.desc}</p>
+            <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
+              <span class="xbtn-ghost">{c.cta} <span class="arr">→</span></span>
+              <span class="xbtn-a">{c.cta} <span class="arr">→</span></span>
+              <span class="xbtn-b">{c.cta} <span class="arr">→</span></span>
+            </a>
+          </div>
         </article>
       ))
     }
@@ -44,28 +53,45 @@ const cards = [
 
 <style>
   .path {
-    padding: var(--x-section-gap) var(--x-pad) calc(var(--x-section-gap) * 0.6);
+    padding: 0 var(--x-pad);
+  }
+  .headrow {
+    margin-bottom: clamp(48px, 8.33vw, 160px);
+  }
+  .lab {
+    color: var(--x-ink);
+    margin: 0;
+    min-height: 1.2em;
   }
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: clamp(24px, 4.2vw, 60px);
+    gap: clamp(24px, 4.17vw, 80px);
   }
-  /* 无盒开放列:仅左竖线 + pl20(参考站「编辑部感」核心) */
+  /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
   .card {
     border-left: 1px solid var(--x-line-dark);
     padding-left: 20px;
-    display: grid;
-    gap: 24px;
-    align-content: start;
+    display: flex;
+    flex-direction: column;
+    gap: clamp(40px, 5.7vw, 110px);
     will-change: transform;
   }
-  .meta {
-    color: var(--x-dark-cap);
+  .metarow {
+    display: flex;
+    justify-content: space-between;
     margin: 0;
+    color: var(--x-dark-cap);
+    white-space: nowrap;
   }
-  .card h2 {
-    font-size: clamp(28px, 3.33vw, 48px);
+  .stack {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 24px;
+  }
+  .stack h3 {
+    font-size: clamp(32px, 3.33vw, 64px);
     color: var(--x-ink);
     margin: 0;
   }
@@ -81,9 +107,6 @@ const cards = [
     text-wrap: pretty;
     line-height: 1.45;
   }
-  .card .xbtn {
-    justify-self: start;
-  }
   .note {
     color: var(--x-dark-dim);
     margin: clamp(28px, 4vw, 48px) 0 0;
@@ -94,6 +117,7 @@ const cards = [
       border-left: 0;
       border-top: 1px solid var(--x-line-dark);
       padding: 20px 0 0;
+      gap: 40px;
     }
   }
 </style>

@@ -1,9 +1,10 @@
 ---
-/* [FEAT-WEB06] 设备阶梯 — 预热面纯展示(不承载购买);🔴 卡上无任何收益金额,
-   只展示价格与算力倍数(事实性);legacy=Classic 角标。
-   R4(主人依参考站卡板块截图定):横排轨道,多卡同屏、随滚动整排左移;
-   卡=图上文下、序号章贴图角、底部两栏小字(R3 版式);CTA 钉在屏内不提前滚走;
-   移动/reduced 原生横滑。产品图沿用 App 映射。 */
+/* [FEAT-WEB06] 设备叠卡 — R8(画布 1440 等比,几何全对齐):
+   钉屏高 --x-sec-h;卡锚位 left 27.43% / top 16.63%,卡宽 45.14%、比例 650/534;
+   卡=浅框内衬(10/10/20)+ 白底图区 + 序号章切口 + 标题 40 档 + 双列 12 mono;
+   区头=左 gutter:16 mono 打字机标题 + 12 mono 副题 + CTA(钉屏全程可见);
+   移动/coarse/reduced 兜底:全部卡竖向依次排开(520 宽)。
+   🔴 卡上无任何收益金额,只展示价格与算力倍数(事实性)。 */
 import { useT, type Locale } from '../i18n';
 import { SKUS, fmtPrice, fmtMultiplier } from '../lib/skus';
 import { contour } from '../lib/contour';
@@ -28,54 +29,49 @@ const shareArt = contour(77, 12, 640, 400);
 
 <section class="devices" id="devices" data-deck>
   <div class="pin" data-deck-pin>
-    <div class="head">
-      <span class="x-label lab" data-tw>{t('devices.title')}</span>
-      <p class="sub x-mono" data-rv style="--d:.1s">{t('devices.subtitle')}</p>
-    </div>
-
-    <div class="viewport">
-      <div class="track" data-deck-track>
-        {
-          SKUS.map((s, i) => (
-            <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
-              <div class="media">
-                {PHOTO[s.id] ? (
-                  <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" />
-                ) : (
-                  <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-                    {shareArt.paths.map((d) => (
-                      <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.45" />
-                    ))}
-                  </svg>
-                )}
-                <span class="serial x-mono" data-tw>NX-{String(i + 1).padStart(2, '0')}</span>
-                {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
-                {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
-              </div>
-              <div class="body">
-                <h3>{s.name}</h3>
-                <div class="cols">
-                  <div class="col x-mono">
-                    <b class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</b>
-                    <span class="mult">
-                      <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
-                    </span>
-                  </div>
-                  <p class="col tagcol x-mono">{t(`devices.tagline.${s.id}`)}</p>
-                </div>
-              </div>
-            </article>
-          ))
-        }
-      </div>
-    </div>
-
-    <div class="cta-row" data-rv>
-      <a class="xbtn solid on-dark" href="#download">
+    <div class="gutter">
+      <h2 class="lab x-mono-lg" data-tw>{t('devices.title')}</h2>
+      <p class="sub x-mono">{t('devices.subtitle')}</p>
+      <a class="xbtn solid on-dark cta" href="#download">
         <span class="xbtn-ghost">{t('devices.cta')} <span class="arr">→</span></span>
         <span class="xbtn-a">{t('devices.cta')} <span class="arr">→</span></span>
         <span class="xbtn-b">{t('devices.cta')} <span class="arr">→</span></span>
       </a>
+    </div>
+
+    <div class="stage">
+      {
+        SKUS.map((s, i) => (
+          <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
+            <div class="media">
+              {PHOTO[s.id] ? (
+                <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" />
+              ) : (
+                <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                  {shareArt.paths.map((d) => (
+                    <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.45" />
+                  ))}
+                </svg>
+              )}
+              <span class="serial x-mono" data-tw>NX-{String(i + 1).padStart(2, '0')}</span>
+              {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
+              {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
+            </div>
+            <div class="body">
+              <h3>{s.name}</h3>
+              <div class="cols">
+                <p class="col x-mono">
+                  <b class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</b>
+                  <span class="mult">
+                    <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
+                  </span>
+                </p>
+                <p class="col x-mono">{t(`devices.tagline.${s.id}`)}</p>
+              </div>
+            </div>
+          </article>
+        ))
+      }
     </div>
   </div>
 </section>
@@ -85,90 +81,65 @@ const shareArt = contour(77, 12, 640, 400);
     position: relative;
     z-index: 1;
   }
+
+  /* —— 静态兜底(移动/coarse/reduced/无 JS):区头在上,卡竖向依次排开 —— */
   .pin {
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
-    gap: clamp(18px, 3vh, 30px);
-    padding: 90px var(--x-pad) 26px;
-    min-height: 86svh;
+    padding: 60px var(--x-pad) 100px;
+    gap: clamp(40px, 6vw, 80px);
   }
-  .devices:global(.decked) .pin {
-    position: sticky;
-    top: 0;
-    height: 100svh;
-    min-height: 0;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-  .head {
-    border-top: 1px solid var(--x-line);
-    padding-top: 18px;
-    display: grid;
-    gap: 10px;
+  .gutter {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
   }
   .lab {
     color: var(--x-white);
+    margin: 0;
+    min-height: 1.2em;
   }
   .sub {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: 520px;
+    max-width: 340px;
     text-wrap: pretty;
+    line-height: 1.5;
   }
-
-  /* —— 轨道:默认原生横滑(移动/reduced/无 JS);decked 后由 fx 平移 —— */
-  .viewport {
-    margin: 0 calc(-1 * var(--x-pad));
-    overflow-x: auto;
-    scroll-snap-type: x proximity;
-    padding: 0 var(--x-pad);
+  .cta {
+    margin-top: 10px;
   }
-  .devices:global(.decked) .viewport {
-    overflow: visible;
-    scroll-snap-type: none;
-    flex: 1;
-    min-height: 0;
-    position: relative;
+  .cta.on-dark {
+    background: var(--x-white);
+    color: var(--x-dark);
+    border-color: var(--x-white);
   }
-  .track {
+  .stage {
     display: flex;
-    align-items: stretch;
-    gap: clamp(20px, 2.6vw, 44px);
-    width: max-content;
-  }
-  /* 收叠编舞(fx.ts initPile):卡绝对定位于同一锚位,层级按序号,
-     进场偏移与缩放全由 JS 写 transform(初始置于场外右) */
-  .devices:global(.decked) .track {
-    display: block;
-    width: auto;
-    height: 100%;
-    position: relative;
-  }
-  .devices:global(.decked) .card {
-    position: absolute;
-    left: clamp(120px, 26vw, 460px);
-    top: 52%;
-    width: min(45vw, 660px);
-    z-index: calc(1 + var(--i));
-    transform: translate3d(120vw, -50%, 0);
-    will-change: transform;
+    flex-direction: column;
+    align-items: center;
+    gap: clamp(48px, 8vw, 80px);
   }
 
-  /* —— 卡:图上文下(R3 版式),x-paper 自动纸面配色 —— */
+  /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
   .card {
-    flex: 0 0 min(40vw, 640px);
-    display: grid;
-    grid-template-rows: auto 1fr;
-    scroll-snap-align: start;
+    width: min(520px, 100%);
+    aspect-ratio: 650 / 534;
+    padding: 10px 10px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    box-sizing: border-box;
   }
   .card.coming .body {
     opacity: 0.66;
   }
   .media {
     position: relative;
-    aspect-ratio: 13 / 7;
-    background: var(--x-bg);
+    flex: 1;
+    min-height: 0;
+    background: var(--x-white);
     overflow: hidden;
   }
   .media img,
@@ -180,7 +151,7 @@ const shareArt = contour(77, 12, 640, 400);
     object-fit: cover;
     display: block;
   }
-  /* 序号章贴死图区左上角,与卡框同底色成「切口」(P2-23) */
+  /* 序号章贴死图区左上角,与卡框同底色成「切口」 */
   .serial {
     position: absolute;
     top: 0;
@@ -192,6 +163,7 @@ const shareArt = contour(77, 12, 640, 400);
     letter-spacing: -0.36px;
     min-width: 5ch;
     padding: 10px;
+    text-align: center;
   }
   .chip {
     position: absolute;
@@ -203,14 +175,16 @@ const shareArt = contour(77, 12, 640, 400);
     padding: 3px 9px;
   }
   .body {
-    padding: 20px 10px;
-    display: grid;
-    gap: 14px;
-    align-content: start;
+    flex: 0 0 auto;
+    padding: 0 10px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(16px, 2.5vw, 48px);
   }
   h3 {
     font-family: var(--x-font-display);
-    font-size: clamp(26px, 2.78vw, 40px);
+    font-size: clamp(24px, 2.78vw, 53px);
     font-weight: 400;
     letter-spacing: -0.03em;
     line-height: 1;
@@ -219,19 +193,22 @@ const shareArt = contour(77, 12, 640, 400);
     text-wrap: balance;
   }
   .cols {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
-    gap: clamp(16px, 2vw, 32px);
-    align-items: start;
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    align-items: flex-start;
   }
   .col {
+    flex: 1;
+    min-width: 0;
     margin: 0;
-    color: var(--x-ink-dim);
+    color: var(--x-ink-cap);
+    text-wrap: pretty;
   }
   .price {
     display: block;
     font-family: var(--x-font-display);
-    font-size: clamp(19px, 1.8vw, 24px);
+    font-size: clamp(17px, 1.4vw, 27px);
     font-weight: 500;
     color: var(--x-ink);
     font-variant-numeric: tabular-nums;
@@ -242,36 +219,46 @@ const shareArt = contour(77, 12, 640, 400);
     font-weight: 700;
     white-space: nowrap;
   }
-  .tagcol {
-    text-wrap: pretty;
-  }
 
-  /* CTA 常驻钉屏区底部(decked 时随 pin 全程可见,不提前滚走) */
-  .cta-row {
-    display: flex;
-    justify-content: center;
+  /* —— decked 桌面编舞(fx.ts 置 .decked):画布几何,卡绝对锚位,fx 写 transform —— */
+  .devices:global(.decked) .pin {
+    position: sticky;
+    top: 0;
+    height: var(--x-sec-h);
+    padding: 0;
+    overflow: hidden;
+    box-sizing: border-box;
+    display: block;
   }
-  /* 暗底上的 xbtn 强制暗色系(卡是 x-paper,但按钮在轨道外的黑底上) */
-  .cta-row .xbtn.on-dark {
-    background: var(--x-white);
-    color: var(--x-dark);
-    border-color: var(--x-white);
+  .devices:global(.decked) .gutter {
+    position: absolute;
+    left: var(--x-pad);
+    top: 18.4%;
+    width: calc(27.4% - var(--x-pad) - 20px);
+    z-index: 20;
+  }
+  .devices:global(.decked) .stage {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+  .devices:global(.decked) .card {
+    position: absolute;
+    left: 27.43%;
+    top: 16.63%;
+    width: 45.14%;
+    z-index: calc(1 + var(--i));
+    transform: translate3d(160vw, 0, 0);
+    will-change: transform;
   }
 
   @media (max-width: 860px) {
     .pin {
-      padding-top: 70px;
-      min-height: auto;
+      padding-top: 50px;
+      padding-bottom: 80px;
     }
-    .track {
-      padding-left: 0;
-    }
-    .card {
-      flex-basis: 82vw;
-    }
-    .cols {
-      grid-template-columns: 1fr;
-      gap: 10px;
+    .stage {
+      gap: clamp(40px, 9vw, 60px);
     }
   }
 </style>

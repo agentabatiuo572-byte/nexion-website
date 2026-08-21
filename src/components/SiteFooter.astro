@@ -1,6 +1,8 @@
 ---
-/* [FEAT-WEB01] 页脚 — Legal 链 / 联系 / 风险披露(key 不变,零死链)。
-   axiom 方向:等宽信息层 + 巨型 wordmark 收底。 */
+/* [FEAT-WEB01] 页脚 — R8(画布 1440 等比构图):
+   定高 660→45.83vw 房间;上行=左品牌记号(90→6.25vw)+ 右列 723→50.2vw
+   (wordmark 120→8.33vw 行遮罩 + 信息列 585→40.6vw:披露 + legal 链);
+   版权行钉底。key 不变,零死链。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -14,42 +16,80 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
-  <div class="upper">
-    <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
-    <nav aria-label={t('footer.ariaLegal')}>
-      <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy`}>{t('footer.privacy')}</a>
-      <a class="x-mono x-dimlink" href={`${prefix}/legal/terms`}>{t('footer.terms')}</a>
-      {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
-    </nav>
+  <div class="top">
+    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
+      <g fill="none" stroke="currentColor" stroke-width="1.1">
+        <rect x="3" y="3" width="18" height="18"></rect>
+        <rect x="7.5" y="7.5" width="9" height="9"></rect>
+        <path d="M3 12h4.5M16.5 12H21M12 3v4.5M12 16.5V21"></path>
+        <circle cx="12" cy="12" r="1.6" fill="var(--x-accent)" stroke="none"></circle>
+      </g>
+    </svg>
+
+    <div class="colr">
+      <div class="wordmark x-display-mega" data-lr>NexGrid</div>
+      <div class="info">
+        <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
+        <nav aria-label={t('footer.ariaLegal')}>
+          <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy`}>{t('footer.privacy')}</a>
+          <a class="x-mono x-dimlink" href={`${prefix}/legal/terms`}>{t('footer.terms')}</a>
+          {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
+        </nav>
+      </div>
+    </div>
   </div>
-  <div class="wordmark x-display-mega" data-lr>NexGrid</div>
+
   <p class="copy x-mono">© {year} NexGrid. {t('footer.rights')}</p>
 </footer>
 
 <style>
-  /* 定高房间 + 弹性空气钉底(P1-31 最小参数版:保留满宽大甲板) */
   .site-footer {
     position: relative;
     z-index: 1;
     border-top: 1px solid var(--x-line);
-    min-height: 660px;
+    height: clamp(560px, 45.83vw, 880px);
     display: flex;
     flex-direction: column;
-    padding: 80px var(--x-pad) 30px;
+    justify-content: space-between;
+    padding: clamp(60px, 5.56vw, 107px) var(--x-pad) 30px;
     overflow: hidden;
   }
-  .upper {
+  .top {
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 32px;
-    margin-bottom: clamp(30px, 5vh, 60px);
+    gap: 40px;
+  }
+  .mark {
+    width: clamp(48px, 6.25vw, 120px);
+    height: auto;
+    color: var(--x-white);
+    flex: 0 0 auto;
+  }
+  .colr {
+    width: min(50.2vw, 964px);
+    display: flex;
+    flex-direction: column;
+    gap: clamp(28px, 4.17vw, 80px);
+  }
+  .wordmark {
+    font-size: clamp(56px, 8.33vw, 160px);
+    color: var(--x-white);
+    white-space: nowrap;
+    user-select: none;
+  }
+  .info {
+    width: min(40.6vw, 780px);
+    max-width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
   }
   .disclaimer {
     color: var(--x-ink-dim);
-    max-width: 560px;
     margin: 0;
     text-wrap: pretty;
+    line-height: 1.5;
   }
   nav {
     display: flex;
@@ -64,33 +104,31 @@ const year = new Date().getFullYear();
     align-items: center;
     white-space: nowrap;
     text-transform: uppercase;
-    font-weight: 700;
     letter-spacing: 0;
-  }
-  .wordmark {
-    font-size: clamp(72px, 16.5vw, 250px);
-    color: var(--x-white);
-    white-space: nowrap;
-    text-align: right;
-    user-select: none;
-    margin-top: auto;
   }
   .copy {
     color: var(--x-ink-faint);
-    margin: clamp(24px, 4vh, 40px) 0 0;
+    margin: 0;
     letter-spacing: -0.03em;
   }
-  @media (max-width: 720px) {
+  @media (max-width: 860px) {
     .site-footer {
-      min-height: 0;
+      height: auto;
+      min-height: 70svh;
       padding-top: 60px;
+      gap: 60px;
     }
-    .upper {
+    .top {
       flex-direction: column;
     }
+    .colr {
+      width: 100%;
+    }
     .wordmark {
-      text-align: left;
-      margin-top: 80px;
+      font-size: clamp(48px, 13vw, 96px);
+    }
+    .info {
+      width: 100%;
     }
   }
 </style>

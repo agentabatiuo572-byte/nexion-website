@@ -1,14 +1,14 @@
 ---
-/* Home(en)— hero 已落地(T3);其余板块 HomeSkeleton 占位,T4-T12 逐板块替换 */
+/* Home(en)— R8 区带结构:黑带(hero/stats/statement/about/叠卡)→ 白幕布带(六块)→ 黑收尾 */
 import Base from '../layouts/Base.astro';
 import HeroSection from '../components/hero/HeroSection.astro';
 import StatsBar from '../components/StatsBar.astro';
-import PathSection from '../components/PathSection.astro';
-import HowSection from '../components/HowSection.astro';
-import DevicesSection from '../components/DevicesSection.astro';
-import TrustSection from '../components/TrustSection.astro';
 import SocialSection from '../components/SocialSection.astro';
 import MissionSection from '../components/MissionSection.astro';
+import DevicesSection from '../components/DevicesSection.astro';
+import HowSection from '../components/HowSection.astro';
+import PathSection from '../components/PathSection.astro';
+import TrustSection from '../components/TrustSection.astro';
 import NexTeaser from '../components/nex/NexTeaser.astro';
 import LearnTeaser from '../components/learn/LearnTeaser.astro';
 import FaqSection from '../components/FaqSection.astro';
@@ -21,15 +21,17 @@ const t = useT('en');
   <main>
     <HeroSection locale="en" />
     <StatsBar locale="en" />
-    <PathSection locale="en" />
-    <HowSection locale="en" />
-    <DevicesSection locale="en" />
-    <TrustSection locale="en" />
     <SocialSection locale="en" />
     <MissionSection locale="en" />
-    <NexTeaser locale="en" />
-    <LearnTeaser locale="en" />
-    <FaqSection locale="en" />
+    <DevicesSection locale="en" />
+    <div class="band-light x-invert">
+      <HowSection locale="en" />
+      <PathSection locale="en" />
+      <TrustSection locale="en" />
+      <NexTeaser locale="en" />
+      <LearnTeaser locale="en" />
+      <FaqSection locale="en" />
+    </div>
     <FinalCta locale="en" />
   </main>
 </Base>

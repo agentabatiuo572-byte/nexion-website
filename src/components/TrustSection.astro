@@ -14,9 +14,9 @@ const t = useT(locale);
 const cards = [1, 2, 3, 4, 5] as const;
 ---
 
-<section class="trust x-invert" id="trust">
+<section class="trust" id="trust">
   <div class="head">
-    <span class="x-label lab" data-tw>{t('trust.title')}</span>
+    <p class="lab x-mono-lg" data-tw>{t('trust.title')}</p>
   </div>
 
   <div class="certs" data-rv>
@@ -51,15 +51,15 @@ const cards = [1, 2, 3, 4, 5] as const;
 
 <style>
   .trust {
-    padding: var(--x-section-gap) var(--x-pad);
+    padding: 0 var(--x-pad);
   }
   .head {
-    border-top: 1px solid var(--x-line-dark);
-    padding-top: 18px;
-    margin-bottom: clamp(28px, 4vw, 52px);
+    margin-bottom: clamp(48px, 8.33vw, 160px);
   }
   .lab {
-    color: var(--x-dark);
+    color: var(--x-ink);
+    margin: 0;
+    min-height: 1.2em;
   }
   .certs {
     display: grid;

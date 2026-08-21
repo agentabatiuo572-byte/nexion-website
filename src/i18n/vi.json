@@ -37,6 +37,9 @@
     "asOf": "Dữ liệu tính đến"
   },
   "path": {
+    "title": "Cách tham gia",
+    "cat1": "Miễn phí",
+    "cat2": "Mở rộng",
     "freeTitle": "Bắt đầu miễn phí với điện thoại",
     "freeDesc": "Cài ứng dụng và năng lực xử lý dư thừa của điện thoại bắt đầu chạy tác vụ AI. Không phải mua phần cứng, không đặt cọc.",
     "freeCta": "Bắt đầu miễn phí",
@@ -47,6 +50,11 @@
   },
   "how": {
     "title": "Cách hoạt động",
+    "head1": "Thiết bị nhàn rỗi chứa sức mạnh tính toán thực.",
+    "head2": "NexGrid đưa nó đến đúng công việc đang cần.",
+    "cat1": "Kết nối",
+    "cat2": "Tính toán",
+    "cat3": "Thanh toán",
     "step1Title": "Tải xuống & kết nối",
     "step1Desc": "Cài ứng dụng và kết nối điện thoại. Thiết lập mất khoảng 90 giây.",
     "step2Title": "Tác vụ AI chạy tự động",
@@ -87,6 +95,7 @@
     "card5": "Tra cứu đăng ký MSB: mở trang MSB Registrant Search của FinCEN (www.fincen.gov/msb-state-selector), nhập NexGrid LTD vào trường LEGAL NAME, hoặc 31000329265856 vào trường MSB REGISTRATION NUMBER/DCN để xem hồ sơ đăng ký của NexGrid."
   },
   "social": {
+    "kicker": "Quy mô mạng lưới",
     "scaleLine": "{devices}+ thiết bị đang tạo thu nhập tại {countries} quốc gia",
     "rolesLine": "Kỹ sư, giáo viên, tài xế, sinh viên, nhà thiết kế — mọi người khắp thế giới để thiết bị nhàn rỗi làm việc."
   },
