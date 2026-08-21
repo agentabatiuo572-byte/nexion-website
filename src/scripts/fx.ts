@@ -663,6 +663,54 @@ function initClock() {
   }, 1000 - (Date.now() % 1000)); // 相位锁墙钟秒
 }
 
+/* ---------- ⑨ 导航字符扰动 hover(R10):悬停即扰动、左→右每 4 帧定格一字 ----------
+   字池按文种分:拉丁→A-Z、数字→0-9、CJK→基础笔画(一丨丿丶乛十),
+   空格/标点不动 → 宽度稳定不跳版;中文不闪随机汉字(避免乱码感,笔画=「字在组装」)。
+   移开立即还原;按下取消(点击瞬间文本必须稳定);reduced/无 hover 设备不挂。 */
+function initScramble() {
+  const els = [...document.querySelectorAll<HTMLElement>('[data-scr]')];
+  if (!els.length || reduced || !matchMedia('(hover: hover)').matches) return;
+  const LAT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const DIG = '0123456789';
+  const CJK = '一丨丿丶乛十';
+  const isCjk = (ch: string) => /[㐀-鿿豈-﫿]/.test(ch);
+  const pick = (pool: string) => pool[Math.floor(Math.random() * pool.length)];
+  const scrambleChar = (ch: string) => {
+    if (/\s/.test(ch)) return ch;
+    if (isCjk(ch)) return pick(CJK);
+    if (/[0-9]/.test(ch)) return pick(DIG);
+    if (/[A-Za-zÀ-ỹ]/.test(ch)) return pick(LAT);
+    return ch; // 标点/符号不扰动
+  };
+  for (const el of els) {
+    const original = el.textContent ?? '';
+    if (!original.trim()) continue;
+    const chars = [...original]; // 码点级拆分(vi 声调字 NFC 单码点,安全)
+    el.setAttribute('aria-label', original.trim());
+    let raf = 0;
+    let frame = 0;
+    const stop = (restore: boolean) => {
+      cancelAnimationFrame(raf);
+      raf = 0;
+      if (restore) el.textContent = original;
+    };
+    const run = () => {
+      const settled = Math.min(Math.floor(frame / 4), chars.length);
+      el.textContent = chars.map((c, i) => (i < settled ? c : scrambleChar(c))).join('');
+      frame++;
+      if (settled < chars.length) raf = requestAnimationFrame(run);
+      else raf = 0;
+    };
+    el.addEventListener('mouseenter', () => {
+      stop(false);
+      frame = 0;
+      raf = requestAnimationFrame(run);
+    });
+    el.addEventListener('mouseleave', () => stop(true));
+    el.addEventListener('pointerdown', () => stop(true));
+  }
+}
+
 /* ---------- boot ---------- */
 const boot = () => {
   const html = document.documentElement;
@@ -682,6 +730,7 @@ const boot = () => {
   initClock();
   initPile();
   initParallax();
+  initScramble();
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });
