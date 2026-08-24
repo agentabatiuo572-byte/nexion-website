@@ -89,6 +89,12 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
   main {
     position: relative;
     z-index: 2;
+    /* 画布上限 1920 + 居中(R39):内含所有 % 几何以此为参照系,与参考站画布同构 */
+    padding-inline: var(--x-gut);
+    /* R39-fix:横向裁切必须落在**屏缘**,不能跟着画布内缩——否则叠卡从屏内一条硬边
+       凭空冒出来(参考站实测:裁切盒 [0,2560] 距屏右 0;本站曾是 [320,2240] 距屏右 320)。
+       用 clip 不用 hidden:clip 不制造滚动容器,钉屏 sticky 仍以视口为参照系。 */
+    overflow-x: clip;
   }
   ::selection {
     background: var(--x-accent);

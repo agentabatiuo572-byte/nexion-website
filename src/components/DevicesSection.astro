@@ -224,7 +224,9 @@ const shareArt = contour(77, 12, 640, 400);
     top: 0;
     height: var(--x-sec-h);
     padding: 0;
-    overflow: hidden;
+    /* R39-fix:停放卡的横向裁切交给 main 的 overflow-x:clip(裁在屏缘);
+       此处再裁一次会把裁切边拉回画布边 = 卡在屏内硬边处凭空出现 */
+    overflow: visible;
     box-sizing: border-box;
     display: block;
   }

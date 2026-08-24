@@ -65,6 +65,9 @@ const t = useT(locale);
     z-index: 1;
     max-width: 780px;
     margin-top: 84px;
+    /* R39-fix:画布留白必须加在盒外。本站 box-sizing:border-box,把 gut 塞进 padding
+       会从 max-width 的 780 里倒扣 —— 2560 视口下正文被挤成 33px(三路评审独立实测)。 */
+    margin-left: var(--x-gut);
     padding: 46px var(--x-pad) 40px;
   }
   .prevails {

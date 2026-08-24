@@ -64,7 +64,12 @@
     'Microsoft YaHei',
     monospace;
 
-  /* Layout — 全出血;>1440 随视口放大(等效参考站画布 ×1.333 上限) */
+  /* Layout — 画布制:1440 基准随视口放大,**1920 封顶**(=1440×1.3333),再宽居中留白。
+     R39:此前只有字号/区高走 clamp 有封顶,横向百分比(叠卡宽/锚位)裸用 vw 无上限 →
+     2560 视口下卡宽 1156px vs 参考站 866.7px(+33.3%),且整站内容贴左不居中。
+     --x-gut 由 main 吃成左右内边距 ⇒ 内含一切 % 几何自动以 ≤1920 为参照系并居中,
+     背景层(粒子 canvas / 导航条 / 白幕布带)仍全出血,与参考站同构。 */
+  --x-gut: max(0px, (100vw - 1920px) / 2);
   --x-pad: clamp(20px, 2.78vw, 53.4px); /* cap=40×1.3333 精确(R26) */
   --x-section-gap: clamp(80px, 9.7vw, 140px);
   --x-prose-max: 760px;
@@ -331,6 +336,9 @@ summary:focus-visible {
    decked 时 fx 加 .curtain → 整带上拉一个区高盖过钉屏尾段(z10 压过 z1 的 deck) */
 .band-light {
   background: var(--x-light);
+  /* 背景全出血:抵消 main 的画布留白后再自己补回,子块内容仍落在 ≤1920 画布内 */
+  margin-inline: calc(-1 * var(--x-gut));
+  padding-inline: var(--x-gut);
   position: relative;
   z-index: 10;
   display: flex;

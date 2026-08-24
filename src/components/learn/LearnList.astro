@@ -40,7 +40,7 @@ const items = await learnList(locale);
     position: relative;
     z-index: 1;
     margin-top: 84px;
-    padding: 46px var(--x-pad) 40px;
+    padding: 46px calc(var(--x-pad) + var(--x-gut)) 40px; /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
   }
   .head {
     margin-bottom: clamp(30px, 5vw, 56px);

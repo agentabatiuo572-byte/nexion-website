@@ -115,7 +115,7 @@ const faqs = [1, 2, 3, 4] as const;
   .nex-page {
     /* R3:内容页=纸白;顶部留 84px 黑带,导航在暗带上可见,滚动后按层叠哲学被盖 */
     margin-top: 84px;
-    padding: 46px var(--x-pad) 40px;
+    padding: 46px calc(var(--x-pad) + var(--x-gut)) 40px; /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
   }
   .nex-page > * {
     max-width: 1100px;

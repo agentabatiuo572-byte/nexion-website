@@ -129,7 +129,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     align-items: center;
     justify-content: space-between;
     gap: clamp(20px, 3vw, 60px);
-    padding: 14px var(--x-pad) 0;
+    padding: 14px calc(var(--x-pad) + var(--x-gut)) 0; /* R39:导航条全出血,内容随画布居中 */
   }
   /* LOGO + 时钟同格(时钟贴 LOGO 右侧) */
   .logo-cell {

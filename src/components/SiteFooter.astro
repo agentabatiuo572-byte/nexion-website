@@ -52,7 +52,7 @@ const year = new Date().getFullYear();
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: clamp(60px, 5.56vw, 107px) var(--x-pad) 30px;
+    padding: clamp(60px, 5.56vw, 107px) calc(var(--x-pad) + var(--x-gut)) 30px; /* R39:页脚实底全出血,内容随画布居中 */
     overflow: hidden;
   }
   .top {
