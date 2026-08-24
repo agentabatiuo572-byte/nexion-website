@@ -46,6 +46,7 @@ const year = new Date().getFullYear();
   .site-footer {
     position: relative;
     z-index: 1;
+    background: var(--x-bg); /* R30:实底(法务小字不压粒子线,参考站页脚同为实底黑场) */
     border-top: 1px solid var(--x-line);
     height: clamp(560px, 45.83vw, 880px);
     display: flex;
@@ -107,7 +108,7 @@ const year = new Date().getFullYear();
     letter-spacing: 0;
   }
   .copy {
-    color: var(--x-ink-faint);
+    color: var(--x-ink-dim); /* R35:版权行升 dim 档(AA) */
     margin: 0;
     letter-spacing: -0.03em;
   }

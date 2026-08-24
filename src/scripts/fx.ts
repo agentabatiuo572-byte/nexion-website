@@ -67,18 +67,28 @@ function initLorenz() {
   const groupStyle: string[] = [];
   for (let b = 0; b < TB; b++) {
     const t = (b + 0.5) / TB;
-    const r = Math.round(55 + 200 * t);
-    const g = Math.round(30 + 155 * t);
-    const bl = Math.round(2 + 10 * t);
+    /* R30 同相位:暗端→亮端全程与品牌 #9EDC1D 同 hue(~79°)。
+       R38:色相由 verify 门 particle-hue 守——下面两行标注是门的读取点,改字面量必同步改标注。
+       HUE-GUARD:dark-end (40, 55, 7)
+       HUE-GUARD:bright-end (190, 245, 52) */
+    const r = Math.round(40 + 150 * t);
+    const g = Math.round(55 + 190 * t);
+    const bl = Math.round(7 + 45 * t);
     for (let d = 0; d < DB; d++) {
       const mMid = -1 + ((d + 0.5) * 2) / DB;
-      const alpha = Math.min(1, (0.12 + 0.48 * t) * (1 + 0.4 * mMid));
-      groupStyle.push(`rgba(${r},${g},${bl},${Math.max(0, alpha).toFixed(3)})`);
+      const alpha = Math.max(0, Math.min(1, (0.12 + 0.48 * t) * (1 + 0.4 * mMid)));
+      /* R33:透明度预乘为亮度、线条层全不透明(黑底+screen 合成下等效)——
+         段接头/交叉重画只是同色覆盖,物理上无法增亮 → 串珠亮点根治 */
+      groupStyle.push(`rgb(${Math.round(r * alpha)},${Math.round(g * alpha)},${Math.round(bl * alpha)})`);
     }
   }
 
   const body = document.createElement('canvas');
   const bctx = body.getContext('2d')!;
+  /* R32:辉光离屏——线条图的模糊副本承载「点燃带」,与线条层同帧贴合成;
+     只在主体重渲时烘焙一次,帧循环零滤镜成本 */
+  const glow = document.createElement('canvas');
+  const gctx = glow.getContext('2d')!;
 
   let W = 0,
     H = 0;
@@ -135,13 +145,20 @@ function initLorenz() {
   const dbg = { renders: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
   (window as unknown as Record<string, unknown>).__xbg = dbg;
 
+  /* R36:高分屏适配——渲染精度乘 DPR(性能上限 1.5:主体重渲像素 ≤2.25×,离屏缓存机制不变) */
+  let DPR = 1;
   const resize = () => {
     W = canvas.clientWidth;
     H = canvas.clientHeight;
-    canvas.width = W;
-    canvas.height = H;
-    body.width = W;
-    body.height = H;
+    DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    for (const c of [canvas, body, glow, cometLayer]) {
+      c.width = Math.round(W * DPR);
+      c.height = Math.round(H * DPR);
+    }
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    gctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     dirty = true;
   };
 
@@ -191,8 +208,10 @@ function initLorenz() {
       groups[tBucket[i] * DB + d].push(i);
     }
 
-    bctx.clearRect(0, 0, W, H);
-    bctx.globalCompositeOperation = 'lighter'; /* R25:线条交叉叠色增亮 → 收束处自然「点燃带」(参考同观感) */
+    /* R33:不透明黑底(screen 合成下黑=无效果),配合预乘亮度色实现零增亮覆盖 */
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.fillStyle = '#000000';
+    bctx.fillRect(0, 0, W, H);
     bctx.lineWidth = 1.2;
     for (let gi = 0; gi < groups.length; gi++) {
       const idx = groups[gi];
@@ -206,34 +225,54 @@ function initLorenz() {
       bctx.strokeStyle = groupStyle[gi];
       bctx.stroke();
     }
+    /* R32:烘焙辉光副本(仅重渲帧执行);drawImage 显式逻辑尺寸(DPR 变换下源为物理像素) */
+    gctx.clearRect(0, 0, W, H);
+    gctx.filter = 'blur(7px)';
+    gctx.globalAlpha = 0.85;
+    gctx.drawImage(body, 0, 0, W, H);
+    gctx.filter = 'none';
+    gctx.globalAlpha = 1;
   };
 
   let comet = 0;
   const TAIL = 180;
-  const CB = 6;
+  const CB = 12; /* R34:衰减档 6→12,亮度台阶平滑 */
+  /* R34:预乘不透明色(黑底离屏 + screen 合成)——接头/重画零增亮 */
+  /* HUE-GUARD:comet (225, 255, 150) */
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
-    return `rgba(255,220,120,${(fade * fade * 0.88).toFixed(3)})`; /* R24 提亮:追平参考尾流能量 */
+    const a = fade * fade * 0.88;
+    return `rgb(${Math.round(225 * a)},${Math.round(255 * a)},${Math.round(150 * a)})`;
   });
+  /* R34:流光独立离屏。旧实现逐点位画 1 点距短段——涡内圈点距 <1px,
+     每段退化成 1.55px 圆点,慢速区整条流光渲染成串珠(主人两次抓到的「小点」主源)。
+     改连续折线:零长段物理消失;桶间共享端点在不透明覆盖下零增亮。 */
+  const cometLayer = document.createElement('canvas');
+  const cctx = cometLayer.getContext('2d')!;
   const drawComets = () => {
-    ctx.lineWidth = 1.55; /* R24 提亮配套 */
-    for (let cb2 = 0; cb2 < CB; cb2++) {
-      ctx.beginPath();
-      const k0 = Math.floor((TAIL / CB) * cb2) + 1;
-      const k1 = Math.floor((TAIL / CB) * (cb2 + 1));
-      for (let c = 0; c < 4; c++) {
-        const head = Math.floor((comet + (N / 4) * c) % N);
-        for (let k = k0; k <= k1; k++) {
+    cctx.globalCompositeOperation = 'source-over';
+    cctx.fillStyle = '#000000';
+    cctx.fillRect(0, 0, W, H);
+    cctx.lineWidth = 1.55;
+    cctx.lineJoin = 'round';
+    cctx.lineCap = 'round';
+    for (let c = 0; c < 4; c++) {
+      const head = Math.floor((comet + (N / 4) * c) % N);
+      for (let cb2 = 0; cb2 < CB; cb2++) {
+        const k0 = Math.floor((TAIL / CB) * cb2);
+        const k1 = Math.floor((TAIL / CB) * (cb2 + 1));
+        cctx.beginPath();
+        const i0 = (head - k0 + N) % N;
+        cctx.moveTo(px[i0], py[i0]);
+        for (let k = k0 + 1; k <= k1; k++) {
           const i = (head - k + N) % N;
-          const j = (i + 1) % N;
-          ctx.moveTo(px[i], py[i]);
-          ctx.lineTo(px[j], py[j]);
+          cctx.lineTo(px[i], py[i]);
         }
+        cctx.strokeStyle = cometStyles[cb2];
+        cctx.stroke();
       }
-      ctx.strokeStyle = cometStyles[cb2];
-      ctx.stroke();
     }
-    ctx.lineWidth = 1.2;
+    ctx.drawImage(cometLayer, 0, 0, W, H); /* ctx 处于 screen 模式,黑底无效果 */
   };
 
   let raf = 0;
@@ -308,7 +347,8 @@ function initLorenz() {
     ctx.fillStyle = '#0c0c0d';
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(body, 0, 0);
+    ctx.drawImage(glow, 0, 0, W, H); /* R32:辉光垫底(点燃带) */
+    ctx.drawImage(body, 0, 0, W, H);
     if (!coarse) {
       comet = (comet + 0.5) % N;
       drawComets();
@@ -354,7 +394,8 @@ function initLorenz() {
     ctx.fillStyle = '#0c0c0d';
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(body, 0, 0);
+    ctx.drawImage(glow, 0, 0, W, H);
+    ctx.drawImage(body, 0, 0, W, H);
     return;
   }
   start();

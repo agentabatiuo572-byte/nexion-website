@@ -91,6 +91,78 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   results.push({ gate: 'anchor-check(src 近似)', pass: detail.length === 0, detail });
 }
 
+/* ── 门 5:品牌同值哨兵(R37,R38 收紧)──────────────────────
+   官网 --x-accent/--x-on-accent 必须来自 App tokens 的**同一主题块**(官网锚定暗主题柠檬)。
+   why:跨仓「单源」此前只活在注释里,App 改品牌值官网会静默漂移;
+        R38 再收:只校验「值域命中」时,跨主题错配(电蓝底+黑字 ≈2.4:1)也会绿灯。
+   App 仓不存在(独立部署环境)时 warn-only 放行。 */
+{
+  const APP_TOKENS = 'D:/WORKS/PLAN/Nexion-uniapp/src/styles/tokens.css';
+  const detail = [];
+  let warn = false;
+  if (!existsSync(APP_TOKENS)) {
+    warn = true;
+    detail.push('App tokens 不在本机(独立环境),跳过比对');
+  } else {
+    const site = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8');
+    const app = readFileSync(APP_TOKENS, 'utf8');
+    const hex = (text, name) => {
+      const m = text.match(new RegExp(`${name}:\\s*(#[0-9a-fA-F]{3,8})`));
+      return m ? m[1].toLowerCase() : null;
+    };
+    // 取所有最内层 `{...}` 块(选择器写法不限:root/属性选择器/媒体查询内层皆可),
+    // 再筛「同块内同时声明 brand 与 on-brand」的配对集
+    const blocks = [...app.matchAll(/\{([^{}]*)\}/g)].map((m) => m[1]);
+    const appPairs = blocks
+      .map((b) => ({ brand: hex(b, '--v5-brand'), on: hex(b, '--v5-on-brand') }))
+      .filter((p) => p.brand && p.on);
+    const sBrand = hex(site, '--x-accent');
+    const sOn = hex(site, '--x-on-accent');
+    if (!sBrand || !sOn) detail.push('官网缺 --x-accent / --x-on-accent 声明');
+    else if (!appPairs.length) detail.push('App 未找到「同块声明 brand+on-brand」的主题块');
+    else if (!appPairs.some((p) => p.brand === sBrand && p.on === sOn))
+      detail.push(
+        `官网 (${sBrand} / ${sOn}) 不是 App 任一主题块的完整配对 [${appPairs.map((p) => `${p.brand}/${p.on}`).join(', ')}] — 品牌漂移或跨主题错配`,
+      );
+    // 强调文字档必须引用主档,不得另写字面量(封漂移旁路)
+    if (!/--x-accent-ink:\s*var\(--x-accent\)/.test(site))
+      detail.push('--x-accent-ink 未以 var(--x-accent) 引用主档 — 品牌值第二字面量,门锁不住');
+  }
+  results.push({ gate: 'brand-parity(App V5)', pass: detail.length === 0 || warn, warn, detail });
+}
+
+/* ── 门 6:粒子色相同族哨兵(R38)────────────────────────────
+   fx.ts 的粒子三端(暗端/亮端/流光)与品牌主档必须同色相带(±6°)。
+   why:三端是 JS 字面量,改一个数就能悄悄漂出柠檬族,评审只能事后靠像素采样发现。 */
+{
+  const detail = [];
+  const fx = readFileSync(join(SRC, 'scripts/fx.ts'), 'utf8');
+  const site = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8');
+  const bm = site.match(/--x-accent:\s*#([0-9a-fA-F]{6})/);
+  const hue = (r, g, b) => {
+    const mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn;
+    if (!d) return 0;
+    let h;
+    if (mx === r) h = ((g - b) / d) % 6;
+    else if (mx === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    return ((h * 60) % 360 + 360) % 360;
+  };
+  if (!bm) detail.push('tokens 缺 --x-accent,无法取品牌色相');
+  else {
+    const bh = hue(parseInt(bm[1].slice(0, 2), 16), parseInt(bm[1].slice(2, 4), 16), parseInt(bm[1].slice(4, 6), 16));
+    // fx 注释里以 `HUE-GUARD:<名> (r, g, b)` 标注三端,门只认标注点(零运行时代码)
+    const marks = [...fx.matchAll(/HUE-GUARD:(\w[\w-]*)\s*\((\d+),\s*(\d+),\s*(\d+)\)/g)];
+    if (marks.length < 3) detail.push(`fx.ts 粒子色相标注点不足(找到 ${marks.length},应 ≥3:暗端/亮端/流光)`);
+    for (const m of marks) {
+      const h = hue(+m[2], +m[3], +m[4]);
+      const diff = Math.abs(((h - bh + 540) % 360) - 180);
+      if (diff > 6) detail.push(`粒子 ${m[1]} 色相 ${h.toFixed(1)}° 偏离品牌 ${bh.toFixed(1)}° 达 ${diff.toFixed(1)}°(>6°)`);
+    }
+  }
+  results.push({ gate: 'particle-hue(同族 ±6°)', pass: detail.length === 0, detail });
+}
+
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {

@@ -49,7 +49,7 @@ const shareArt = contour(77, 12, 640, 400);
               ) : (
                 <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                   {shareArt.paths.map((d) => (
-                    <path d={d} fill="none" stroke="var(--x-accent)" stroke-width="1" opacity="0.45" />
+                    <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
                   ))}
                 </svg>
               )}
@@ -110,11 +110,7 @@ const shareArt = contour(77, 12, 640, 400);
   .cta {
     margin-top: 10px;
   }
-  .cta.on-dark {
-    background: var(--x-white);
-    color: var(--x-dark);
-    border-color: var(--x-white);
-  }
+  /* R30:CTA 恒柠檬 solid,on-dark 白底覆写撤销 */
   .stage {
     display: flex;
     flex-direction: column;
@@ -170,8 +166,10 @@ const shareArt = contour(77, 12, 640, 400);
     top: 10px;
     right: 10px;
     font-weight: 700;
-    background: var(--x-accent);
-    color: var(--x-on-accent);
+    /* R35:章底改不透明浅面(soft 半透明底在深色产品照上会隐没)——
+       非满饱和柠檬不稀释转化件,与序号章同族浅面体例 */
+    background: var(--x-light);
+    color: var(--x-accent-ink);
     padding: 3px 9px;
   }
   .body {

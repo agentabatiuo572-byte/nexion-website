@@ -18,23 +18,30 @@
   /* Ink on dark */
   --x-ink: #ffffff;
   --x-ink-dim: rgba(255, 255, 255, 0.62);
-  --x-ink-faint: rgba(255, 255, 255, 0.4);
+  /* R38:--x-ink-faint / --x-dark-faint 清退(0.4 档全站升 dim 后零消费;死 token 纪律) */
 
   /* Ink on light */
   --x-dark: #0c0c0d;
   --x-dark-dim: rgba(12, 12, 13, 0.62);
-  --x-dark-faint: rgba(12, 12, 13, 0.4);
   /* 次级墨 0.8 档(参考站卡片说明层) */
   --x-ink-cap: rgba(255, 255, 255, 0.8);
   --x-dark-cap: rgba(12, 12, 13, 0.8);
 
-  /* Accent — amber(--x-accent-ink 供文字:暗底原琥珀,纸面自动换深琥珀) */
-  --x-accent: #da840a;
-  --x-accent-ink: #da840a;
-  /* 亮金:仅黑底强调件(刻度线/竖标/编号)——追参考「点火」热感,不动品牌主色(主人 2026-08-21 拍板 2A) */
-  --x-accent-hot: #eeb64b;
-  --x-accent-soft: rgba(218, 132, 10, 0.16);
-  --x-on-accent: #0c0c0d;
+  /* Accent — 柠檬系(主人 2026-08-21 拍板:对齐本项目 V5 品牌 lemon green #9EDC1D;
+     --x-accent-ink 供文字:暗底柠檬,纸面自动换深柠檬)。
+     R36 交底:锚定的是 App **暗主题**品牌身份;App 亮主题 brand 为电蓝 #0E48E6,
+     官网为暗底站不随亮主题分叉——两产品亮暗语境各自成立,此处按暗系单源 */
+  --x-accent: #9edc1d;
+  --x-accent-ink: var(--x-accent); /* R38:引用而非第二字面量——品牌值漂移旁路封死(门只需锁 --x-accent) */
+  /* 亮柠檬:仅黑底静态强调件(刻度线/竖标/编号)——「点火」热档(2A 分层机制)。
+     R35 交底:此为官网自持派生档(主档提亮同色相);数值与 App legacy --brand-hover 相同属巧合级同值,
+     不锚定其语义(hover),App 清退 legacy 后本档独立存续 */
+  --x-accent-hot: #d4ff55;
+  /* R36:--x-accent-soft 清退(品类章改浅面底后零消费;死 token 纪律,需要 soft-tint 时再定义) */
+  --x-on-accent: #0a0a0a; /* R31:对齐 App on-brand,消双源 */
+  /* 纸面深柠檬单源(白带与全局浮层共用;对 #f2f2f2 实测 6.05:1)。
+     R35 交底:不采 App --v5-brand-deep #84B82A——其对 #f2f2f2 仅 ≈2.1:1,浅底文字不可用 */
+  --x-accent-ink-paper: #486405;
 
   /* Hairlines(浅底 0.23 对齐参考) */
   --x-line: rgba(255, 255, 255, 0.16);
@@ -147,13 +154,7 @@ html[lang='zh'] .x-display-mega {
   letter-spacing: -0.02em;
 }
 
-/* 键值 chip(卡片场景保留;导航已改参考站纯文本层级) */
-.x-kv b {
-  font-weight: 700;
-  color: var(--x-on-accent);
-  background: var(--x-accent);
-  padding: 0 8px;
-}
+/* R35:.x-kv 满饱和柠檬 chip 规则清退(零消费死规则,且违「满饱和只给可点转化件」分层纪律) */
 
 /* slide-swap 按钮 */
 .xbtn {
@@ -208,13 +209,15 @@ html[lang='zh'] .x-display-mega {
   opacity: 0.8;
 }
 .xbtn.solid {
-  background: var(--x-white);
-  color: var(--x-dark);
-  border-color: var(--x-white);
+  /* R30:实心键=品牌柠檬底黑字(双语境统一,与 App CTA 语义同构) */
+  background: var(--x-accent);
+  color: var(--x-on-accent);
+  border-color: var(--x-accent);
 }
 .xbtn.disabled {
-  color: var(--x-ink-faint);
+  color: var(--x-ink-dim); /* R35:禁用键文字仍可读(faint 档 3.79:1 不过 AA,交互性文字升 dim 档) */
   border-color: var(--x-line-soft);
+  background: var(--x-bg); /* R36:实底护字——透明底会被亮流光扫穿(局部 1.82:1) */
   cursor: default;
 }
 .xbtn .arr {
@@ -229,7 +232,7 @@ html[lang='zh'] .x-display-mega {
   opacity: 0.6;
 }
 .x-dimlink:active {
-  opacity: 0.45;
+  opacity: 0.58; /* R38:纸面按压 4.65:1 过 AA(0.55 档为 4.17:1,过 AA 的 alpha 下限 0.571) */
 }
 
 /* 滚动进场 reveal(次要块):位移收敛 12px,曲线换急起长尾;
@@ -288,7 +291,7 @@ html.x-boot .hero .dl-wrap {
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--x-accent);
+  outline: 2px solid var(--x-accent-ink); /* R30:走带纸面变体的档(白带上自动深柠檬,非文本 ≥3:1) */
   outline-offset: 2px;
 }
 
@@ -299,11 +302,10 @@ summary:focus-visible {
   color: var(--x-dark);
   --x-ink: var(--x-dark);
   --x-ink-dim: var(--x-dark-dim);
-  --x-ink-faint: var(--x-dark-faint);
   --x-ink-cap: var(--x-dark-cap);
   --x-line: var(--x-line-dark);
   --x-line-soft: rgba(12, 12, 13, 0.1);
-  --x-accent-ink: #8a5405;
+  --x-accent-ink: var(--x-accent-ink-paper); /* R31:走单源纸面深档 */
 }
 .x-invert {
   position: relative;
@@ -313,14 +315,16 @@ summary:focus-visible {
   border-color: var(--x-line-dark);
   color: var(--x-dark);
 }
+/* 纸面 solid 同柠檬(R30 起不再翻黑,黑字压柠底任意语境成立);
+   R31 补回边框;R35 补回字色;R36 边框改深柠檬——亮柠檬块压纯白边界发虚,深描边为浅底可读性补偿(同族只动明度) */
 :is(.x-invert, .x-paper) .xbtn.solid {
-  background: var(--x-dark);
-  color: var(--x-white);
-  border-color: var(--x-dark);
+  border-color: var(--x-accent-ink);
+  color: var(--x-on-accent);
 }
 :is(.x-invert, .x-paper) .xbtn.disabled {
-  color: var(--x-dark-faint);
+  color: var(--x-dark-dim); /* R37:交互文字 dim 档(faint 支路漏升的休眠缺陷) */
   border-color: var(--x-line-dark);
+  background: var(--x-light); /* R37:实底随语境翻转(黑实底曾致纸面「黑块隐形字」休眠态) */
 }
 
 /* 反白幕布带:叠卡区之后唯一的白色大带(内含多个子块,块距=画布 180);
