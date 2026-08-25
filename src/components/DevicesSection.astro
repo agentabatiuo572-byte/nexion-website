@@ -86,8 +86,8 @@ const shareArt = contour(77, 12, 640, 400);
   .pin {
     display: flex;
     flex-direction: column;
-    padding: max(40px, calc(60 * var(--u))) var(--x-pad) calc(100 * var(--uc));
-    gap: max(40px, calc(80 * var(--u)));
+    padding: clamp(40px, 9vw, calc(60 * var(--uc))) var(--x-pad) calc(100 * var(--uc));
+    gap: clamp(40px, 6vw, calc(80 * var(--uc)));
   }
   .gutter {
     display: flex;
@@ -115,7 +115,7 @@ const shareArt = contour(77, 12, 640, 400);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: max(48px, calc(80 * var(--u)));
+    gap: clamp(48px, 8vw, calc(80 * var(--uc)));
   }
 
   /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
@@ -263,7 +263,7 @@ const shareArt = contour(77, 12, 640, 400);
       padding-bottom: calc(80 * var(--uc));
     }
     .stage {
-      gap: calc(60 * var(--uc));
+      gap: clamp(40px, 9vw, calc(60 * var(--uc)));
     }
   }
 </style>

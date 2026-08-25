@@ -38,7 +38,7 @@ const CANVAS = 1440;      // 设计画布宽
 const CAP = 1920;         // 画布封顶宽
 const SCALE = CAP / CANVAS;
 const WIDTHS = [390, 1024, 1440, 1920, 2560];
-const SEAM = [1439, 1440, 1441];
+const SEAM = []; // R43:断点由产物 CSS 动态读出,此处不再写死(旧值是死代码,却被写进成功行)
 const MIN_FONT = 11;      // 画布制下可见文字渲染字号下限
 const MIN_TAP = 44;       // 画布像素
 const MIN_SAMPLES = 24;
@@ -125,6 +125,35 @@ const readAll = () => {
     leaves.push([i, rendered, t.slice(0, 40)]);
     if (rendered < minFont) { minFont = rendered; minFontWhere = el.tagName + '.' + String(el.className).slice(0, 20); }
   });
+  /* B 判据的量法:.x-frame 的 overflow-x:clip 让 scrollWidth 恒等于 clientWidth,
+     原来的 scrollWidth 差值是**恒真空转**(评审注入超宽卡越屏 480~1430px,判据报 0)。
+     改为逐元素越界,并把「设计上就该停在屏外」的叠卡编舞显式排除。 */
+  /* 谁先裁住它,谁决定性质:
+       · 内层容器先裁(按钮悬停滑层、可滚表格、SVG 视口)→ 合法,是设计
+       · 一路到 .x-frame / main / body / html 才被裁 → 真缺陷(内容被静默切掉,用户既看不见也滚不到)
+     🔴 不可把 .x-frame 的 clip 也算作合法裁剪 —— 那是全站兜底网,把它当合法会让本判据对一切失明。 */
+  const legit = (el) => {
+    if (el.ownerSVGElement || el.tagName === "svg") return true;
+    for (let q = el.parentElement; q; q = q.parentElement) {
+      if (q.classList.contains("x-frame") || q.tagName === "MAIN" || q.tagName === "BODY" || q.tagName === "HTML") return false;
+      const ox = getComputedStyle(q).overflowX;
+      if (ox === "hidden" || ox === "clip" || ox === "auto" || ox === "scroll") return true;
+    }
+    return false;
+  };
+  let worstOver = 0;
+  let worstWho = "";
+  for (const el of document.querySelectorAll("*")) {
+    if (el.closest("[data-deck]")) continue;   // 叠卡编舞:卡片故意停在屏外由屏缘裁入
+    const st = getComputedStyle(el);
+    if (st.position === "fixed") continue;
+    const r = el.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) continue;
+    if (legit(el)) continue;
+    const over = Math.max(r.right - de.clientWidth, -r.left, 0);
+    if (over > worstOver) { worstOver = over; worstWho = el.tagName + "." + String(el.className).slice(0, 22); }
+  }
+
   // 导航可点件(画布像素 = 渲染量 / navZoom)
   const nav = document.querySelector('nav');
   const nz = nav ? parseFloat(getComputedStyle(nav).zoom) || 1 : 1;
@@ -140,7 +169,9 @@ const readAll = () => {
     canvasL: cb ? Math.round(cb.left * 100) / 100 : null,
     canvasW: cb ? Math.round(cb.width * 100) / 100 : null,
     client: de.clientWidth,
-    overflow: de.scrollWidth - de.clientWidth,
+    inner: window.innerWidth,
+    overflow: Math.round(worstOver * 10) / 10,
+    overflowWho: worstWho,
     docH: de.scrollHeight,
     leaves,
     minFont: minFont === Infinity ? null : minFont,
@@ -180,7 +211,10 @@ for (const route of routes) {
     const s = snap[w];
     // A 画布
     if (s.canvasW === null) { fails.push(`A 画布 ${route} @${w}:页面无画布壳 .x-canvas`); continue; }
-    const wantW = Math.min(s.client, CAP);
+    /* CSS 里 --x-zoom 用 100vw(**含**经典滚动条),而 clientWidth 不含。
+       真浏览器上两者差一条滚动条 ⇒ 画布比可视区宽 ~15px,右侧留白被啃掉。
+       门必须与实现同源(用 innerWidth)判 zoom,另立一条判据查「画布不得超出可视区」。 */
+    const wantW = Math.min(s.inner, CAP);
     if (w >= CANVAS && Math.abs(s.canvasW - wantW) > 1.5)
       fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} ≠ min(视口,${CAP})=${wantW}`);
     if (w >= CANVAS && Math.abs(s.canvasL - (s.client - s.canvasW) / 2) > 1.5)
@@ -188,7 +222,9 @@ for (const route of routes) {
     if (w >= CANVAS && Math.abs(s.zoom - wantW / CANVAS) > 0.003)
       fails.push(`A 画布 ${route} @${w}:zoom ${s.zoom} ≠ 画布宽/${CANVAS}=${(wantW / CANVAS).toFixed(4)}`);
     // B 溢出
-    if (s.overflow > 1) fails.push(`B 溢出 ${route} @${w}:横向溢出 ${s.overflow}px`);
+    if (s.canvasW !== null && s.canvasW > s.client + 1.5)
+      fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} 超出可视区 ${s.client}(经典滚动条下 100vw ≠ 布局宽)`);
+    if (s.overflow > 1.5) fails.push(`B 溢出 ${route} @${w}:元素越界 ${s.overflow}px(${s.overflowWho})`);
     // E 可读
     if (s.minFont !== null && s.minFont < MIN_FONT)
       fails.push(`E 可读 ${route} @${w}:最小可见字号 ${s.minFont}px < ${MIN_FONT}(${s.minFontWhere})`);
@@ -261,7 +297,7 @@ if (fails.length) {
   process.exit(2);
 }
 console.log(
-  `[geo] ✓ 画布几何:${routes.length} 路由 × {${WIDTHS.join(',')}} + 断点 {${SEAM.join(',')}} 七判据全过` +
-    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample})`,
+  `[geo] ✓ 画布几何:${routes.length} 路由 × {${WIDTHS.join(',')}} + 断点两侧 {${seamW.join(',')}} 七判据全过` +
+    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample};实测服务 ${base})`,
 );
 process.exit(0);

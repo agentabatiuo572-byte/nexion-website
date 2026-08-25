@@ -429,7 +429,11 @@ function initLenis() {
     const el = id && document.getElementById(id);
     if (!el) return;
     e.preventDefault();
-    lenis.scrollTo(el.getBoundingClientRect().top + window.scrollY - 84);
+    /* R43:此前写死 84(屏幕量),而 [id]{scroll-margin-top} 是画布量、会随画布缩,
+       两者在 >=1440 分家 16px —— 点击站内链接后目标标题被导航条压住(实测净空 -16.1px)。
+       改为实测导航条高度,单位天然一致。 */
+    const navH = document.querySelector('.site-nav')?.getBoundingClientRect().height ?? 0;
+    lenis.scrollTo(el.getBoundingClientRect().top + window.scrollY - navH - 10);
     history.pushState(null, '', `#${id}`);
   });
   return lenis;
@@ -686,7 +690,10 @@ function initParallax() {
     for (const el of els) {
       const r = el.getBoundingClientRect();
       const k = Number(el.dataset.plx || 0.08);
-      const dy = (vh2 - (r.top + r.height / 2)) * k;
+      /* R43:dy 由 rect(屏幕量)算出,却写进画布内元素的 transform(画布量),渲染时再乘一次 zoom
+         ⇒ >=1440 位移超出 1.333 倍。除以缩放换算回画布量。同族第三处(前两处在叠卡编舞里已修)。 */
+      const zx = el.offsetWidth ? el.getBoundingClientRect().width / el.offsetWidth : 1;
+      const dy = ((vh2 - (r.top + r.height / 2)) * k) / (zx || 1);
       el.style.transform = `translate3d(0, ${dy.toFixed(1)}px, 0)`;
     }
   };

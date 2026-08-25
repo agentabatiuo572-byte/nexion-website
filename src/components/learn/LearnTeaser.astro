@@ -59,7 +59,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     display: flex;
     align-items: baseline;
     gap: max(14px, calc(34.56 * var(--u)));
-    padding: max(18px, calc(28 * var(--u))) 0;
+    padding: clamp(18px, 2vw, calc(28 * var(--uc))) 0;
     border-top: 1px solid var(--x-line-dark);
     text-decoration: none;
     color: var(--x-ink);
@@ -71,7 +71,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
   }
   .topic {
     color: var(--x-dark-dim);
-    flex: 0 0 max(90px, calc(150 * var(--u)));
+    flex: 0 0 clamp(90px, 12vw, calc(150 * var(--uc)));
   }
   .name {
     font-family: var(--x-font-display);

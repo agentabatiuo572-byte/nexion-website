@@ -63,7 +63,7 @@ const { Content } = await render(entry);
     font-weight: 700;
   }
   h1 {
-    font-size: max(30px, calc(54 * var(--u)));
+    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
     color: var(--x-ink);
     margin: calc(10 * var(--uc)) 0 calc(12 * var(--uc));
   }
@@ -72,7 +72,7 @@ const { Content } = await render(entry);
     margin: 0 0 calc(30 * var(--uc));
   }
   .prose {
-    padding: max(20px, calc(34 * var(--u)));
+    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
     margin-top: calc(10 * var(--uc));
   }
   .prose :global(h2:first-child) {
@@ -80,7 +80,7 @@ const { Content } = await render(entry);
   }
   .prose :global(h2) {
     font-family: var(--x-font-display);
-    font-size: max(19px, calc(25 * var(--u)));
+    font-size: clamp(19px, 2vw, calc(25 * var(--uc)));
     font-weight: 500;
     letter-spacing: -0.015em;
     color: var(--x-ink);

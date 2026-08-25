@@ -82,7 +82,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     left: 0;
     right: 0;
     z-index: 40;
-    --x-nav-feather: calc(16 * var(--uc)); /* 幕布羽化带;不透明段 = 条高,故不可能短于导航 */
+    --x-nav-feather: calc(16px * var(--x-zoom)); /* R43:幕布在画布壳外、不吃 zoom,须显式乘;此前用画布单位被冻结在 1440 值 */
     color: var(--x-white);
     /* R38:文字换色滞后于幕布(幕布 0.12s 先就位,文字 0.16s 后起步)——
        同步交叉时两灰会在中点擦身(实测瞬时 4.31:1),错峰后文字始终踩在已就位的幕布上 */
@@ -160,7 +160,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     font-size: max(20px, calc(28 * var(--u)));
     font-weight: 500;
     letter-spacing: -0.01em;
-    min-height: calc(44 * var(--uc)); /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */
+    min-height: calc(44 * var(--uc)); /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */ /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */
   }
   .logo svg {
     width: max(30px, calc(41 * var(--u)));
@@ -350,7 +350,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   });
 
   const lightSections = [...document.querySelectorAll<HTMLElement>('.x-invert')];
-  const NAV_BAND = 84;
+  const NAV_BAND = (document.querySelector('.site-nav')?.getBoundingClientRect().height ?? 74) + 10; // R43:同上,实测代替写死
   let raf = 0;
   const recolor = () => {
     raf = 0;

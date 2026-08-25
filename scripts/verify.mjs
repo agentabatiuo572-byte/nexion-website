@@ -183,7 +183,11 @@ results.push(canvasUnitGate(SRC, rel));
   const detail = out.filter((l) => !/^\[geo\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
   if (r.status === 3) {
     // 跑不起来 ≠ 放行:非 prod 走可见 warn(与 brand-parity 的跨仓缺席同体例),prod 硬红
-    results.push({ gate: 'canvas-geometry(运行时)', pass: !PROD, warn: !PROD, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+    // R43:NOT-RUN 一律判红。此前 pass:!PROD ⇒ 人读的那行说「未执行不算过」,
+    //      而机器读的 .verify-exit.code 写的是 0 —— 两条结论相反,且仓规指定读文件。
+    //      要放行须显式 --allow-not-run。
+    const allow = process.argv.includes('--allow-not-run');
+    results.push({ gate: 'canvas-geometry(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
     results.push({ gate: 'canvas-geometry(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }

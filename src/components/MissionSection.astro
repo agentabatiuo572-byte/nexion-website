@@ -171,7 +171,7 @@ const leadParas = t('mission.lead').split('\n');
       width: 100%;
     }
     .cluster {
-      margin-left: max(12px, calc(60 * var(--u)));
+      margin-left: clamp(12px, 5vw, calc(60 * var(--uc)));
     }
   }
   @media (max-width: 560px) {

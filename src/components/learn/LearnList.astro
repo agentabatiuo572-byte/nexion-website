@@ -43,10 +43,10 @@ const items = await learnList(locale);
     padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc)); /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
   }
   .head {
-    margin-bottom: max(30px, calc(56 * var(--u)));
+    margin-bottom: clamp(30px, 5vw, calc(56 * var(--uc)));
   }
   h1 {
-    font-size: max(40px, calc(88 * var(--u)));
+    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
     color: var(--x-ink);
     margin: 0 0 calc(14 * var(--uc));
   }
@@ -59,7 +59,7 @@ const items = await learnList(locale);
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(calc(280 * var(--uc)), 1fr));
-    gap: max(14px, calc(24 * var(--u)));
+    gap: clamp(14px, 1.8vw, calc(24 * var(--uc)));
   }
   .card {
     padding: calc(22 * var(--uc));
@@ -90,7 +90,7 @@ const items = await learnList(locale);
   }
   h2 {
     font-family: var(--x-font-display);
-    font-size: max(19px, calc(24 * var(--u)));
+    font-size: clamp(19px, 1.8vw, calc(24 * var(--uc)));
     font-weight: 500;
     letter-spacing: -0.015em;
     line-height: 1.18;

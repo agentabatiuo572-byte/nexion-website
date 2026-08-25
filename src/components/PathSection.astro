@@ -112,7 +112,7 @@ const cards = [
   }
   .note {
     color: var(--x-dark-dim);
-    margin: max(28px, calc(48 * var(--u))) 0 0;
+    margin: clamp(28px, 4vw, calc(48 * var(--uc))) 0 0;
     text-wrap: pretty;
   }
   @media (max-width: 768px) {

@@ -156,10 +156,10 @@ const t = useT(locale);
       align-items: flex-start;
     }
     h1 {
-      font-size: max(40px, calc(88 * var(--u)));
+      font-size: clamp(40px, 11vw, calc(88 * var(--uc)));
     }
     :global(html[lang='zh']) h1 {
-      font-size: max(44px, calc(92 * var(--u)));
+      font-size: clamp(44px, 14vw, calc(92 * var(--uc)));
     }
     .sub {
       width: auto;

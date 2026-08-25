@@ -80,6 +80,8 @@
              (用于今天是固定像素的值,以及各类「天花板」——保证窄屏零变化) */
   /* 画布缩放系数(纯数):画布壳、导航壳、以及一切需要「把视口量换算成画布量」的地方共用同一真源 */
   --x-zoom: calc(min(100vw, 1920px) / 1440px);
+  /* 画布外溢量(画布单位):屏宽超出画布的那一半,换算回画布量后给全出血块用 */
+  --x-bleed: calc(max(0px, (100vw - 1920px) / 2) / var(--x-zoom));
   --u: 1px;
   --uc: 1px;
   /* ↑ 默认「只涨不缩」保护窄屏既有设计;桌面画布段(≥1200)由下方 media 改为真正跟着缩 */
@@ -361,9 +363,12 @@ summary:focus-visible {
    decked 时 fx 加 .curtain → 整带上拉一个区高盖过钉屏尾段(z10 压过 z1 的 deck) */
 .band-light {
   background: var(--x-light);
-  /* 背景全出血:抵消 main 的画布留白后再自己补回,子块内容仍落在 ≤1920 画布内 */
-  margin-inline: calc(-1 * var(--x-gut));
-  padding-inline: var(--x-gut);
+  /* 背景全出血:向画布外各溢出「屏宽超出画布的那一半」,子块内容仍落在画布内。
+     R43:R42 删掉留白变量却漏删这两处引用 —— 引用未定义变量会让整条声明**静默作废**,
+     于是 2560 下白带只有 1920 宽、两侧各露 320px 黑边(占全页 41% 的滚动长度)。
+     换算:屏幕量 ÷ 画布缩放 = 画布量(画布内禁裸视口单位,除非像这样显式换算)。 */
+  margin-inline: calc(-1 * var(--x-bleed));
+  padding-inline: var(--x-bleed);
   position: relative;
   z-index: 10;
   display: flex;
