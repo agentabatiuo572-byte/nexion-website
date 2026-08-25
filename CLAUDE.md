@@ -6,7 +6,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
 
 - **视觉体系 = axiom 方向**(主人 2026-08-20 指令:样式 100% 参照 axiom.peppermint.id,内容不变)。`src/styles/tokens.css` 自此为**本仓自有 SoT**(近黑 `--x-bg` / 反白 `--x-light` / 柠檬 `--x-accent`=V5 品牌 #9EDC1D 同值,2026-08-21 主人拍板由琥珀换系,粒子引擎双色公式同步柠檬族),不再镜像 App V5 dark tokens;App 侧 `nexion-design` 的 V5 字号/色板规则**对本仓不适用**(i18n/触达 44pt/focus/reduced-motion 纪律仍适用)。
 - Astro 5 + Tailwind 4(`@tailwindcss/vite`,无 config)。**零框架 JS**:React 岛已全部移除(cobe 地球 → 自研洛伦兹 canvas)。交互引擎单文件 `src/scripts/fx.ts`(R2 契约,主人 2026-08-20):①洛伦兹粒子背景——**静止不旋转不缩放(离屏缓存+分桶批量描边,主体零重渲染),只有流光沿轨迹跑;滚动才驱动缩放/旋转;鼠标倾斜+推斥** ②Lenis 平滑滚动(velocity 喂粒子) ③data-rv 进场 reveal ④UTC 时钟——reduced-motion 全降级。**鼠标一律原生光标(圆点已移除,勿回加)**;**R8 区带制(2026-08-21)**:整站按参考站 1440 画布等比(px→px/14.4 vw,±1.333 clamp;区高 token `--x-sec-h`),首页=黑带(hero/stats/statement/about/叠卡)→白幕布带 `.band-light.x-invert`(六块,decked 时 fx 加 `.curtain` 上拉一个区高盖钉屏尾)→黑收尾;设备叠卡=fx `initPile` 画布节拍(锚 27.43%/16.63%、卡宽 45.14%、STEP=1.0923 卡宽、拍距=区高、总高=(N+1)·区高、末态全叠 0.85),移动/coarse/reduced=竖排静态列;导航 z40 常驻置顶,过 `.x-invert` 翻墨 0.25s(R7);小字密集板块/页必须不透明底,禁文字直压粒子线。
-- 🔴 **画布单位(R40,2026-08-25 主人拍板 A+)**:参考站是「1440 画布整体等比缩放、1920 封顶、再宽居中」。本站用两个单位表达同一条曲线,**零 JS**:`--u`(随视口伸缩,=原 clamp 中值)与 `--uc`(≤1440 恒 1px 只涨不缩,用于原本写死的值与各类真天花板)。**一切尺寸写 `calc(N * var(--u|--uc))`,N = 1440 画布上的设计值;任何地方不得再手写上限** — why:上一版 126 条尺寸声明有 54 条的上限是手算的且算错(最多偏 −48%),宽屏上字号/间距/块高各涨各的 — 检查:`canvas-unit`(静态,禁手写上限)+ `canvas-geometry` 判据 E(运行时,1440→1920 字号等比 ≥92%/路由)
+- 🔴 **画布单位(R40,2026-08-25 主人拍板 A+)**:参考站是「1440 画布整体等比缩放、1920 封顶、再宽居中」。本站用两个单位表达同一条曲线,**零 JS**:`--u`(随视口伸缩,=原 clamp 中值)与 `--uc`(≤1440 恒 1px 只涨不缩,用于原本写死的值与各类真天花板)。**一切尺寸写 `calc(N * var(--u|--uc))`,N = 1440 画布上的设计值;任何地方不得再手写上限** — why:上一版 126 条尺寸声明有 54 条的上限是手算的且算错(最多偏 −48%),宽屏上字号/间距/块高各涨各的 — 检查:`canvas-unit`(静态·**白名单**:长度值默认必须是画布单位形态,例外须写 canvas-exempt 注释)+ `canvas-geometry`(运行时八判据:塌缩/留白/封顶/溢出/等比/**冻结**/**盒子**/**窄屏**,报绿必带样本量)
 - 字体 @fontsource 自托管:Funnel Display(display)+ Space Mono(mono)+ Be Vietnam Pro(vi 专用 display,Funnel 无 vietnamese 字集,`html[lang=vi]` 覆写)。zh 的 CJK 由系统字体栈接。
 - 文案全 key 化进 `src/i18n/{en,vi,zh}.json`,三语 key 树必须全等(verify 门);硬编码文案=回归。
 - 🔴 **本机截图验证坑(2026-08-20 实证)**:主人 Windows 全暗色主题,Chromium 无头/被遮挡窗口会**非确定性**触发强制暗色(Auto Dark)——反白板块被翻成黑底亮字(彩色/图片不动),连 `meta color-scheme` 都可能被无视,且同一配方时好时坏。**站点代码无罪**(最小复现页复现同症;计算样式/产物 CSS 全对;可见 GPU 窗口渲染正确)。协议:**DOM/计算样式断言任何模式都可信;亮区块(path/how/trust)的像素级截图必须用「废 canvas 无头」配方(addInitScript 令 #x-bg getContext 返回 null)或可见有头窗,且拍完必须回看**。暗区块截图不受影响。
@@ -19,7 +19,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
 - dev:`npm run dev`(端口 **4321**;Browser pane 用 launch.json 名 `nexgrid-website`)
 - 类型:`npm run typecheck`(astro check,完成前 0 错)
 - 验证:`npm run verify`(**8 门**:禁用词/三语 parity/部署门 warn/锚点/brand-parity/particle-hue/**canvas-unit**/**canvas-geometry**);**退出码读 `.verify-exit.code` 文件不读管道**(开跑即置 2,崩溃/中止不会留下上一次的绿)
-  - 后两门较慢(要构建+起预览+真渲染 33 路由×3 档宽),verify 因此是分钟级不是秒级 —— 这是刻意的:前六门全是文本/token 检查,**没有一门看渲染盒子**,R39 的「正文被挤成 33px」正是在六门全绿时溜进产物的
+  - 后两门要构建+起预览+真渲染 33 路由×5 档宽(390/768/1440/1920/2560),**实测全链约 11 秒**;前六门全是文本/token 检查,**没有一门看渲染盒子**,R39 的「正文被挤成 33px」正是在六门全绿时溜进产物的
   - `brand-parity`:官网 `--x-accent`+`--x-on-accent` 必须是 App `Nexion-uniapp/src/styles/tokens.css` **同一主题块**内的 brand+on-brand 配对(锁跨主题错配),且 `--x-accent-ink` 必须 `var(--x-accent)` 引用(封第二字面量漂移旁路);App 仓不在本机时 warn 放行
   - `particle-hue`:`fx.ts` 注释里 `HUE-GUARD:<名> (r,g,b)` 标注的粒子三端须与品牌同色相带 ±6°——**改粒子色值必同步改标注**,否则门失效
 - 生产门:`npm run verify:prod`(部署门升硬红:`PENDING-TRUST-ASSETS` 标记或 Legal 页缺失 → exit 2)

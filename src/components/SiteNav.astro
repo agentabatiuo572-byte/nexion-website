@@ -82,6 +82,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     left: 0;
     right: 0;
     z-index: 40;
+    --x-nav-feather: calc(16 * var(--uc)); /* 幕布羽化带;不透明段 = 条高,故不可能短于导航 */
     color: var(--x-white);
     /* R38:文字换色滞后于幕布(幕布 0.12s 先就位,文字 0.16s 后起步)——
        同步交叉时两灰会在中点擦身(实测瞬时 4.31:1),错峰后文字始终踩在已就位的幕布上 */
@@ -95,18 +96,22 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     content: '';
     position: absolute;
     inset: 0 0 auto 0;
-    height: calc(72 * var(--uc)); /* R38:裙边再收(84→72,羽化仅 16px)——半透残影带压到最薄 */
+    /* R41 根治:幕布高度与不透明段**由导航条自身高度驱动**,不再写死数值。
+       why:R40 把条高从 14 抬到 30,幕布仍停在写死的 72/56,导航文字下半截失去底板,
+       亮区滚动时正文从字缝透出(实测透出率 0%→69%)。改成 100% 派生后,
+       「条长高了幕布没跟上」这一族结构上不可能再发生。 */
+    height: calc(100% + var(--x-nav-feather));
     pointer-events: none;
     z-index: -1;
     transition: opacity 0.12s ease; /* R38:幕布先行 */
   }
   .site-nav::before {
     /* R36:平台段全不透明(与底色同色=视觉无缝)——90%/94% 半透曾留 15-25% 大字残影 */
-    background: linear-gradient(to bottom, var(--x-bg) 0 56px, transparent);
+    background: linear-gradient(to bottom, var(--x-bg) 0 calc(100% - var(--x-nav-feather)), transparent);
     opacity: 1;
   }
   .site-nav::after {
-    background: linear-gradient(to bottom, var(--x-light) 0 56px, transparent);
+    background: linear-gradient(to bottom, var(--x-light) 0 calc(100% - var(--x-nav-feather)), transparent);
     opacity: 0;
   }
   .site-nav.on-light {

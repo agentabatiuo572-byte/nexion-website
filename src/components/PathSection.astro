@@ -65,7 +65,7 @@ const cards = [
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(300 * var(--uc)), 1fr));
     gap: max(24px, calc(60 * var(--u)));
   }
   /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */

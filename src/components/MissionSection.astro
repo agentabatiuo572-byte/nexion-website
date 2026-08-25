@@ -70,7 +70,7 @@ const leadParas = t('mission.lead').split('\n');
     min-height: 1.2em;
     display: flex;
     align-items: center;
-    gap: clamp(10px, 0.69vw, calc(13.3 * var(--uc))); /* R26:px-clamp 保形(em 基曾挂死在根 16px,弃用) */
+    gap: calc(10 * var(--uc)); /* R26:px-clamp 保形(em 基曾挂死在根 16px,弃用) */
   }
   .ktick {
     width: max(2px, calc(2 * var(--u)));
@@ -90,7 +90,7 @@ const leadParas = t('mission.lead').split('\n');
   /* 说明段:16 档纯白紧行距(高反差),容器随字号 em 流动(单尺) */
   .body {
     font-family: var(--x-font-mono);
-    font-size: clamp(16px, 1.11vw, calc(22 * var(--uc)));
+    font-size: calc(16 * var(--uc));
     letter-spacing: 0;
     text-transform: uppercase;
     line-height: 1.2; /* R26:与眉标同尺(zh 侧 1.5 对 1.5 已齐);两句密簇贴参考质感 */
@@ -143,7 +143,7 @@ const leadParas = t('mission.lead').split('\n');
   .fields li {
     display: flex;
     align-items: baseline;
-    gap: clamp(10px, 0.69vw, calc(13.3 * var(--uc))); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
+    gap: calc(10 * var(--uc)); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
     white-space: nowrap;
   }
   .idx {

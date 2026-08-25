@@ -56,7 +56,7 @@ const ks = [0.06, 0.11, 0.16];
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
     gap: max(24px, calc(60 * var(--u)));
   }
   .card {

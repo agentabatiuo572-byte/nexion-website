@@ -76,7 +76,7 @@ const ld = {
   .idx {
     color: var(--x-dark-cap);
     font-weight: 400;
-    flex: 0 0 30px;
+    flex: 0 0 calc(30 * var(--uc));
   }
   .q {
     font-family: var(--x-font-display);
@@ -105,7 +105,7 @@ const ld = {
   }
   .item p {
     color: var(--x-dark-cap);
-    margin: 0 0 20px calc(30px + clamp(14px, 2vw, calc(28 * var(--uc))));
+    margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     max-width: calc(760 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;

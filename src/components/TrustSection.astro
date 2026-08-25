@@ -63,7 +63,7 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .certs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 330px));
+    grid-template-columns: repeat(auto-fit, minmax(calc(220 * var(--uc)), calc(330 * var(--uc))));
     justify-content: center;
     gap: calc(28 * var(--uc));
     margin-bottom: clamp(36px, 5vw, calc(64 * var(--uc)));
@@ -81,7 +81,7 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(280 * var(--uc)), 1fr));
     gap: clamp(24px, 4.2vw, calc(60 * var(--uc)));
   }
   /* 无盒开放列(P2-20):左竖线 + pl20;编号墨 0.8/400(P1-25 部分) */

@@ -120,7 +120,7 @@ const shareArt = contour(77, 12, 640, 400);
 
   /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
   .card {
-    width: min(520px, 100%);
+    width: min(calc(520 * var(--uc)), 100%);
     aspect-ratio: 650 / 534;
     padding: calc(10 * var(--uc)) calc(10 * var(--uc)) calc(20 * var(--uc));
     display: flex;
@@ -221,7 +221,12 @@ const shareArt = contour(77, 12, 640, 400);
   /* —— decked 桌面编舞(fx.ts 置 .decked):画布几何,卡绝对锚位,fx 写 transform —— */
   .devices:global(.decked) .pin {
     position: sticky;
-    top: 0;
+    /* R41:屏比钉屏区高时,把钉屏区**垂直居中**,而不是顶在最上面。
+       why:钉屏高只随宽度走(画布制),在 1440 高的屏上 1067 的区高会在屏底留 551px 死区,
+       而这一段占全页 41% 的滚动行程 —— 观感是「放大了但空洞」。
+       居中后空白总量不变、上下对半,且卡片不再紧贴导航条。
+       刻意不改区高本身:pinH 一旦跟屏高走,叠卡节奏就会因屏而异,与「宽度驱动画布」冲突。 */
+    top: max(0px, calc((100svh - var(--x-sec-h)) / 2));
     height: var(--x-sec-h);
     padding: 0;
     /* R39-fix:停放卡的横向裁切交给 main 的 overflow-x:clip(裁在屏缘);
@@ -234,7 +239,7 @@ const shareArt = contour(77, 12, 640, 400);
     position: absolute;
     left: var(--x-pad);
     top: 18.4%;
-    width: calc(27.4% - var(--x-pad) - 20px);
+    width: calc(27.4% - var(--x-pad) - calc(20 * var(--uc)));
     z-index: 20;
   }
   .devices:global(.decked) .stage {

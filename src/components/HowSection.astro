@@ -95,7 +95,7 @@ const ks = [0.06, 0.11, 0.16];
   }
   .steps {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
     gap: max(24px, calc(60 * var(--u)));
   }
   /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
@@ -142,7 +142,7 @@ const ks = [0.06, 0.11, 0.16];
   .vlink {
     color: var(--x-ink);
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-underline-offset: calc(3 * var(--uc));
   }
   .vlink:hover {
     opacity: 0.6;

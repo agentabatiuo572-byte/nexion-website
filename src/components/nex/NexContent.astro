@@ -185,7 +185,7 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .list li {
     display: grid;
-    grid-template-columns: 36px minmax(140px, 220px) 1fr;
+    grid-template-columns: calc(36 * var(--uc)) minmax(calc(140 * var(--uc)), calc(220 * var(--uc))) 1fr;
     gap: calc(14 * var(--uc));
     align-items: baseline;
     border-bottom: 1px solid var(--x-line-soft);
@@ -208,7 +208,7 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .mech {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
     gap: clamp(16px, 2vw, calc(28 * var(--uc)));
   }
   .mcard {
@@ -246,7 +246,7 @@ const faqs = [1, 2, 3, 4] as const;
   .faq .idx {
     color: var(--x-accent-ink);
     font-weight: 700;
-    flex: 0 0 28px;
+    flex: 0 0 calc(28 * var(--uc));
   }
   .faq .q {
     font-family: var(--x-font-display);
@@ -286,7 +286,7 @@ const faqs = [1, 2, 3, 4] as const;
 
   @media (max-width: 640px) {
     .list li {
-      grid-template-columns: 30px 1fr;
+      grid-template-columns: calc(30 * var(--uc)) 1fr;
     }
     .list span:last-child {
       grid-column: 2;

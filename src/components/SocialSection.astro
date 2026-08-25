@@ -103,7 +103,7 @@ const TESTIMONIALS: Testimonial[] = [];
   }
   .quotes {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
     gap: calc(20 * var(--uc));
     margin-top: calc(28 * var(--uc));
   }
