@@ -134,7 +134,12 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     align-items: center;
     justify-content: space-between;
     gap: max(20px, calc(43.2 * var(--u)));
-    padding: calc(30 * var(--uc)) calc(var(--x-pad) + var(--x-gut)) 0; /* R39:导航条全出血,内容随画布居中 */
+    /* R42:导航条在画布壳外(fixed 全宽,幕布要全出血),故内层自套一份画布——
+       条内排印随画布缩放,底板仍铺满屏宽。断点与全站画布一致(1440)。 */
+    width: 1440px;
+    margin-inline: auto;
+    zoom: var(--x-zoom);
+    padding: calc(30 * var(--uc)) var(--x-pad) 0; /* R39:导航条全出血,内容随画布居中 */
   }
   /* LOGO + 时钟同格(时钟贴 LOGO 右侧) */
   .logo-cell {
@@ -155,7 +160,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     font-size: max(20px, calc(28 * var(--u)));
     font-weight: 500;
     letter-spacing: -0.01em;
-    min-height: calc(44 * var(--uc));
+    min-height: calc(44 * var(--uc)); /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */
   }
   .logo svg {
     width: max(30px, calc(41 * var(--u)));
@@ -222,7 +227,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     border-bottom: 1px solid var(--x-accent-ink); /* R30:带纸面变体的档(过白带不隐形) */
   }
   .dl-btn {
-    min-height: max(34px, calc(41.76 * var(--u)));
+    min-height: calc(44 * var(--uc)); /* R42:本仓触达 44pt 纪律;此前 41.76 未达标(基线即如此,新门揪出) */
     padding: 0 max(14px, calc(18 * var(--u)));
     font-size: max(11px, calc(12 * var(--u)));
     border-color: var(--x-accent-ink); /* R37:随翻墨态自动深描边(黑区=主柠檬同现状,白带=深柠檬边界补偿) */
@@ -260,6 +265,13 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       display: none;
     }
   }
+  @media (max-width: 1439px) {
+    nav {
+      width: auto;
+      zoom: 1;
+    }
+  }
+
   @media (max-width: 860px) {
     nav {
       align-items: center;
@@ -294,7 +306,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     }
     .links a {
       font-family: var(--x-font-display);
-      font-size: clamp(30px, 8.5vw, calc(44 * var(--uc)));
+      font-size: calc(44 * var(--uc));
       font-weight: 500;
       letter-spacing: -0.02em;
       text-transform: none;

@@ -52,7 +52,7 @@ const year = new Date().getFullYear();
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: max(60px, calc(80 * var(--u))) calc(var(--x-pad) + var(--x-gut)) calc(30 * var(--uc)); /* R39:页脚实底全出血,内容随画布居中 */
+    padding: max(60px, calc(80 * var(--u))) var(--x-pad) calc(30 * var(--uc)); /* R39:页脚实底全出血,内容随画布居中 */
     overflow: hidden;
   }
   .top {
@@ -126,7 +126,7 @@ const year = new Date().getFullYear();
       width: 100%;
     }
     .wordmark {
-      font-size: clamp(48px, 13vw, calc(96 * var(--uc)));
+      font-size: max(48px, calc(96 * var(--u)));
     }
     .info {
       width: 100%;

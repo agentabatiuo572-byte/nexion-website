@@ -64,7 +64,6 @@ const t = useT(locale);
     margin-top: calc(84 * var(--uc));
     /* R39-fix:画布留白必须加在盒外。本站 box-sizing:border-box,把 gut 塞进 padding
        会从 max-width 的 780 里倒扣 —— 2560 视口下正文被挤成 33px(三路评审独立实测)。 */
-    margin-left: var(--x-gut);
     padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
   }
   .prevails {
@@ -77,7 +76,7 @@ const t = useT(locale);
   }
   h1 {
     font-family: var(--x-font-display);
-    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
+    font-size: max(30px, calc(54 * var(--u)));
     font-weight: 500;
     color: var(--x-ink);
     margin: 0 0 calc(8 * var(--uc));
@@ -91,7 +90,7 @@ const t = useT(locale);
   }
   h2 {
     font-family: var(--x-font-display);
-    font-size: clamp(18px, 1.9vw, calc(23 * var(--uc)));
+    font-size: max(18px, calc(23 * var(--u)));
     font-weight: 500;
     color: var(--x-ink);
     margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
@@ -106,7 +105,7 @@ const t = useT(locale);
     text-wrap: pretty;
   }
   .sheet {
-    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    padding: max(20px, calc(34 * var(--u)));
     margin-top: calc(8 * var(--uc));
   }
   .sheet > h2:first-child {

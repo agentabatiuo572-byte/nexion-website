@@ -465,6 +465,14 @@ function initLineReveal() {
     const lines: HTMLSpanElement[][] = [];
     let lastTop = -1e9;
     for (const s of spans) {
+      // R42:空白块保持 inline(行盒高),词块是 inline-block(内容盒高),两者 rect.top 实测差 7px,
+      // 超过 2px 阈值 ⇒ 每个空白开一新「行」、其后每个词再开一新「行」,标题被裂成「一词一行」的词梯。
+      // 实测后果:首屏标题载入后 2.4 秒内高 531px(应 212px),33 路由 75 个标题全中。
+      // 空白不参与归行判定,跟着前一行走即可。
+      if (/^\s+$/.test(s.textContent || '')) {
+        if (lines.length) lines[lines.length - 1].push(s);
+        continue;
+      }
       const top = Math.round(s.getBoundingClientRect().top);
       if (Math.abs(top - lastTop) > 2) {
         lines.push([]);
@@ -595,13 +603,19 @@ function initPile() {
 
   const PARK = 0.85;
   const N = cards.length;
+  let ZOOM = 1;
   let STEP = 0,
     DIST = 0;
   const measure = () => {
-    const pinH = pin.offsetHeight; // = --x-sec-h(与参考站钉屏区同角色)
-    STEP = Math.round(cards[0].offsetWidth * 1.0923); // 步距=1.0923 卡宽(710/650,间隙 9.23%)
-    DIST = N * pinH; // 每拍一个区高;总高 (N+1)·区高,尾段被幕布带盖住
-    sec.style.height = `${(N + 1) * pinH}px`;
+    const pinH = pin.offsetHeight; // = --x-sec-h(与参考站钉屏区同角色);画布单位
+    STEP = Math.round(cards[0].offsetWidth * 1.0923); // 步距=1.0923 卡宽(710/650,间隙 9.23%);画布单位
+    /* R42:页面套了画布壳(zoom),于是「布局单位」与「屏幕单位」不再等价 ——
+       offsetHeight / style.height 是画布单位,getBoundingClientRect 是屏幕单位。
+       推进量拿 rect 算,故 DIST 必须换算到屏幕单位,否则编舞跑得快一个缩放倍数、提前收完。
+       zoom 直接由「同一元素的两种读数之比」得出,不依赖 CSS 变量。 */
+    ZOOM = pin.getBoundingClientRect().height / (pinH || 1) || 1;
+    DIST = N * pinH * ZOOM; // 每拍一个区高(屏幕单位)
+    sec.style.height = `${(N + 1) * pinH}px`; // 画布单位(它是 CSS 长度,住在画布内)
   };
   const clear = () => {
     sec.classList.remove('decked');
@@ -615,7 +629,11 @@ function initPile() {
   const apply = () => {
     raf = 0;
     if (!active) return;
-    const e = clamp01(-sec.getBoundingClientRect().top / DIST);
+    // R42:钉屏区在高屏上垂直居中(sticky top = T),推进量必须同步平移 —— 否则先有一段
+    // 「钉住但什么都不发生」的死区,末段编舞又发生在钉屏区已开始上移、幕布已盖上之后
+    // (实测 1440 高屏:336px 死区 + 末卡只收到 0.90 而非 0.85)。
+    const T = (parseFloat(getComputedStyle(pin).top) || 0) * ZOOM; // CSS 值是画布单位,换算到屏幕单位
+    const e = clamp01((T - sec.getBoundingClientRect().top) / DIST);
     const beats: number[] = [];
     for (let k = 0; k < N; k++) beats.push(smooth(clamp01((e - k / N) * N)));
     for (let i = 0; i < N; i++) {

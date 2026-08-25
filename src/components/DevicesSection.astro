@@ -86,8 +86,8 @@ const shareArt = contour(77, 12, 640, 400);
   .pin {
     display: flex;
     flex-direction: column;
-    padding: calc(60 * var(--uc)) var(--x-pad) calc(100 * var(--uc));
-    gap: clamp(40px, 6vw, calc(80 * var(--uc)));
+    padding: max(40px, calc(60 * var(--u))) var(--x-pad) calc(100 * var(--uc));
+    gap: max(40px, calc(80 * var(--u)));
   }
   .gutter {
     display: flex;
@@ -115,7 +115,7 @@ const shareArt = contour(77, 12, 640, 400);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(48px, 8vw, calc(80 * var(--uc)));
+    gap: max(48px, calc(80 * var(--u)));
   }
 
   /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
@@ -226,7 +226,7 @@ const shareArt = contour(77, 12, 640, 400);
        而这一段占全页 41% 的滚动行程 —— 观感是「放大了但空洞」。
        居中后空白总量不变、上下对半,且卡片不再紧贴导航条。
        刻意不改区高本身:pinH 一旦跟屏高走,叠卡节奏就会因屏而异,与「宽度驱动画布」冲突。 */
-    top: max(0px, calc((100svh - var(--x-sec-h)) / 2));
+    top: max(0px, calc((100svh / var(--x-zoom) - var(--x-sec-h)) / 2)); /* R42:把屏高换算成画布单位,否则被 zoom 二次放大 */
     height: var(--x-sec-h);
     padding: 0;
     /* R39-fix:停放卡的横向裁切交给 main 的 overflow-x:clip(裁在屏缘);
@@ -253,7 +253,7 @@ const shareArt = contour(77, 12, 640, 400);
     top: 16.63%;
     width: 45.14%;
     z-index: calc(1 + var(--i));
-    transform: translate3d(160vw, 0, 0);
+    transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 body 裁在屏缘 */
     will-change: transform;
   }
 
@@ -263,7 +263,7 @@ const shareArt = contour(77, 12, 640, 400);
       padding-bottom: calc(80 * var(--uc));
     }
     .stage {
-      gap: clamp(40px, 9vw, calc(60 * var(--uc)));
+      gap: calc(60 * var(--uc));
     }
   }
 </style>

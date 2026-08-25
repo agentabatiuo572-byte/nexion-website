@@ -46,7 +46,6 @@ const { Content } = await render(entry);
     margin-top: calc(84 * var(--uc));
     /* R39-fix:画布留白必须加在盒外。本站 box-sizing:border-box,把 gut 塞进 padding
        会从 max-width 的 780 里倒扣 —— 2560 视口下正文被挤成 33px(三路评审独立实测)。 */
-    margin-left: var(--x-gut);
     padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
   }
   .notice {
@@ -64,7 +63,7 @@ const { Content } = await render(entry);
     font-weight: 700;
   }
   h1 {
-    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
+    font-size: max(30px, calc(54 * var(--u)));
     color: var(--x-ink);
     margin: calc(10 * var(--uc)) 0 calc(12 * var(--uc));
   }
@@ -73,7 +72,7 @@ const { Content } = await render(entry);
     margin: 0 0 calc(30 * var(--uc));
   }
   .prose {
-    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    padding: max(20px, calc(34 * var(--u)));
     margin-top: calc(10 * var(--uc));
   }
   .prose :global(h2:first-child) {
@@ -81,7 +80,7 @@ const { Content } = await render(entry);
   }
   .prose :global(h2) {
     font-family: var(--x-font-display);
-    font-size: clamp(19px, 2vw, calc(25 * var(--uc)));
+    font-size: max(19px, calc(25 * var(--u)));
     font-weight: 500;
     letter-spacing: -0.015em;
     color: var(--x-ink);

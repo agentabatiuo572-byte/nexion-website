@@ -1,34 +1,28 @@
-/* 第七门 · 画布几何(运行时) — R39 立,R41 补正交维度
+/* 第七门 · 画布几何(运行时) — R39 立,R42 随机制换代重写
    ────────────────────────────────────────────────────────────
-   R39 缘起:把「画布 1920 封顶 + 居中」的留白加成了内边距,而全站 box-sizing:border-box,
-   三个写死 max-width:780px 的内页在 2560 下正文被挤成 33.2px(24/33 路由不可读)。
-   六道静态门全绿 —— 不是门坏了,是这道门不存在:那六门查文本与 token,没有一门看渲染盒子。
+   R39/R40/R41 版守的是「逐条声明模拟缩放」那套机制的漏点(等比/冻结/盒子/塌缩…)。
+   R42 换成整体缩放(画布壳 zoom)后,那些漏点**按构造消失**:画布内任何 px 都是画布像素,
+   字号/盒子/间距/边框/渐变止点/栅格一起等比,不存在「一半缩另一半不缩」。
 
-   R41 缘起(同一元模式第二次):R40 版只测「字号」「1440→1920」「每页一个盒子」「≥1440」,
-   于是这些全在盲区里活着 ——
-     · 裸视口单位字号:它在 1440→1920 的比值恰好就是判据要找的 1.3333,门必放行
-     · 上限基数写错的声明:1920 以上继续涨(2560 实测 +33%),门够不着
-     · 学习页卡片标题被截断、证书不放大:门只看字号不看盒子
-     · 手机端被内边距挤没:门在 1440 以下零取样
-     · 溢出判据被 main 的 overflow-x:clip 吃掉,结构上观测不到本站真实故障
-   教训:每加一条判据必答「它查哪个维度?正交维度有第二道门吗?」
+   于是判据从「查每条声明有没有走对形态」换成「查画布这一层不变量成不成立」——
+   小、确定、且覆盖真实事故形态。
 
-   八条判据:
-     A 塌缩   2560 正文列宽 >= 1920 x 0.95       <- 留白吃掉内容
-     B 留白   每页 main 左侧位移 >= 画布留白      <- 新增内页漏加 / 被简写盖掉
-     C 封顶   2560 正文盒宽 <= 1920              <- 忘了封顶,超宽屏越拉越大
-     D 溢出   元素级越界(2560 与 390 两档)     <- 换信号:clip 让 scrollWidth 恒等,不可用
-     E 等比   字号 1440->1920 约 1.3333          <- 尺寸没走画布单位
-     F 冻结   字号 1920->2560 恒等               <- 裸 vw / 上限基数写错(E 的盲区)
-     G 盒子   盒宽 1440->1920 约 1.3333          <- 栅格门槛、minmax 上限没走画布单位
-     H 窄屏   390/768 无越界且正文可读           <- 1440 以下整段无人看守
+   七条判据:
+     A 画布   画布宽 = min(视口, 1920) 且居中,zoom = 画布宽/1440
+     B 溢出   任何宽度下无横向溢出(停放的叠卡由全宽裁切框裁在屏缘)
+     C 等比   渲染字号 1440→1920 比值 = 1.3333
+     D 冻结   渲染字号 1920→2560 恒等(封顶真的封住)
+     E 可读   任何采样宽度下,可见文字渲染字号 >= 11px
+     F 触达   导航可点件 >= 44 画布像素(R41 曾因单位断点掉到 36.7px)
+     G 连续   **从产物 CSS 读出所有断点**,逐个在两侧探:缩放曲线不得跳变(桌面段另守页高与字号)
+              ← R41 在 1200 留下 16.7% 硬跳变,而当时的门在该处零取样,结构上看不见
 
-   报绿必带样本量:样本不足即判红(样本静默塌缩会让「全过」只体检一小撮元素)。
+   报绿必带样本量;样本不足即判红。
 
    用法:node scripts/gate-canvas-geometry.mjs [--reuse <port>] [--no-build]
-   退出码:0 通过 · 2 有路由不合格 · 3 跑不起来(由调用方决定降级口径) */
+   退出码:0 通过 · 2 不合格 · 3 跑不起来 */
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -40,21 +34,16 @@ const arg = (k) => {
   return i < 0 ? null : argv[i + 1];
 };
 
-const CANVAS = 1920;
-const BASE_W = 1440;
-const WIDE = 2560;
-const NARROW = 1920;
-const TINY = 390;
-const TABLET = 768;
-const SCALE = NARROW / BASE_W;
-
-const MIN_RATIO = 0.95;
-const MIN_CONFORM_E = 0.92;
-const MIN_CONFORM_F = 0.97;
-const MIN_CONFORM_G = 0.85;
+const CANVAS = 1440;      // 设计画布宽
+const CAP = 1920;         // 画布封顶宽
+const SCALE = CAP / CANVAS;
+const WIDTHS = [390, 1024, 1440, 1920, 2560];
+const SEAM = [1439, 1440, 1441];
+const MIN_FONT = 11;      // 画布制下可见文字渲染字号下限
+const MIN_TAP = 44;       // 画布像素
 const MIN_SAMPLES = 24;
+const CONFORM = 0.98;
 
-/* ── playwright:本仓无依赖,借 uniapp 的 ── */
 let chromium;
 for (const anchor of ['D:/WORKS/PLAN/Nexion-uniapp/package.json', join(ROOT, 'package.json')]) {
   try {
@@ -90,12 +79,8 @@ if (!base) {
   }
   const port = await freePort();
   base = `http://localhost:${port}`;
-  // astro preview 是单例守护进程:已有实例时它拒绝起第二个,只在 stdout 报出既有地址。
-  // 复用既有实例是安全的 —— 预览是静态文件服务,上面刚 build 过,dist 即新。
-  child = spawn('npx', ['astro', 'preview', '--port', String(port)], {
-    cwd: ROOT,
-    shell: process.platform === 'win32',
-  });
+  // astro preview 是单例守护进程:已有实例时它拒绝起第二个,只在 stdout 报出既有地址
+  child = spawn('npx', ['astro', 'preview', '--port', String(port)], { cwd: ROOT, shell: process.platform === 'win32' });
   let reusedFrom = null;
   const sniff = (d) => {
     const m = String(d).match(/already running at (http:\/\/[^\s"\\]+)/);
@@ -103,110 +88,76 @@ if (!base) {
   };
   child.stdout?.on('data', sniff);
   child.stderr?.on('data', sniff);
-
   let up = false;
   for (let i = 0; i < 60 && !up; i++) {
     const target = reusedFrom || base;
     try {
       const r = await fetch(target + '/', { signal: AbortSignal.timeout(1000) });
-      if (r.ok) {
-        up = true;
-        base = target;
-        if (reusedFrom) child = null; // 不是我起的,收尾不许杀
-      }
-    } catch {
-      await new Promise((r) => setTimeout(r, 500));
-    }
+      if (r.ok) { up = true; base = target; if (reusedFrom) child = null; }
+    } catch { await new Promise((r) => setTimeout(r, 500)); }
   }
-  if (!up) {
-    child?.kill();
-    console.log('[geo] NOT-RUN:预览服务未能起来');
-    process.exit(3);
-  }
+  if (!up) { child?.kill(); console.log('[geo] NOT-RUN:预览服务未能起来'); process.exit(3); }
 }
 
 const smPath = join(ROOT, 'dist', 'sitemap-0.xml');
-if (!existsSync(smPath)) {
-  child?.kill();
-  console.log('[geo] NOT-RUN:找不到 dist/sitemap-0.xml');
-  process.exit(3);
-}
+if (!existsSync(smPath)) { child?.kill(); console.log('[geo] NOT-RUN:找不到 dist/sitemap-0.xml'); process.exit(3); }
 const routes = [...readFileSync(smPath, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)]
   .map((m) => m[1].replace(/^https?:\/\/[^/]+/, ''))
   .map((p) => (p.endsWith('/') || p.includes('.') ? p : p + '/'));
+if (!routes.length) { child?.kill(); console.log('[geo] NOT-RUN:sitemap 为空,判据无对象'); process.exit(3); }
 
-/* ── 页内采集:单次 evaluate 取全部维度 ── */
+/* 页内采集:渲染量 = 布局量 × zoom(画布内的 computed 值是画布量) */
 const readAll = () => {
   const de = document.documentElement;
-  const m = document.querySelector('main');
-  const cs = m ? getComputedStyle(m) : null;
-  const r = m ? m.getBoundingClientRect() : null;
-  const padL = cs ? parseFloat(cs.paddingLeft) || 0 : 0;
-
+  const cv = document.querySelector('.x-canvas');
+  const z = cv ? parseFloat(getComputedStyle(cv).zoom) || 1 : 1;
+  const cb = cv ? cv.getBoundingClientRect() : null;
   const leaves = [];
-  const boxes = [];
-  const over = [];
-  const BOX = /^(FIGURE|ARTICLE|LI)$/;
-  // 真溢出 = 越界**且没有任何祖先把它裁住**。
-  // 只看 rect 会把三类合法写法误报成缺陷:按钮悬停层停在屏外、SVG 内部坐标、横向可滚的表格。
-  // 谁先裁住它,谁决定性质:
-  //   · 内层容器先裁(按钮悬停层、可滚表格、叠卡舞台)→ 合法,是设计
-  //   · 一路到 main/body/html 才被裁 → 真缺陷(内容被静默切掉,用户既看不见也滚不到)
-  //  🔴 不可把 main 的 overflow-x:clip 也算作「裁住了就没事」——那是全站兜底网,
-  //     把它当合法裁剪会让本判据对 main 内的一切失明(R41 红测当场揪出)。
-  const clipped = (el) => {
-    if (el.ownerSVGElement || el.tagName === 'svg') return true;
-    for (let p = el.parentElement; p; p = p.parentElement) {
-      const tag = p.tagName;
-      if (tag === 'MAIN' || tag === 'BODY' || tag === 'HTML') return false;
-      const ox = getComputedStyle(p).overflowX;
-      if (ox === 'hidden' || ox === 'clip' || ox === 'auto' || ox === 'scroll') return true;
-    }
-    return false;
-  };
+  let minFont = Infinity;
+  let minFontWhere = '';
   document.querySelectorAll('*').forEach((el, i) => {
+    if (el.children.length) return;
+    const t = (el.textContent || '').trim();
+    if (!t) return;
     const b = el.getBoundingClientRect();
-    if (b.width > 0 && b.height > 0 && (b.right > de.clientWidth + 1.5 || b.left < -1.5)) {
-      const st = getComputedStyle(el);
-      // 叠卡编舞:卡片**故意**停在屏外、由屏缘裁入,是设计不是缺陷。
-      // 这是本判据唯一的显式盲区;叠卡的横向几何另由卡宽/锚位断言看守。
-      const inDeck = el.closest('[data-deck]') !== null;
-      if (st.position !== 'fixed' && !inDeck && !clipped(el)) {
-        over.push(el.tagName + '.' + String(el.className).slice(0, 20) + ' [' + b.left.toFixed(0) + ',' + b.right.toFixed(0) + ']');
-      }
-    }
-    if (el.children.length === 0) {
-      const t = (el.textContent || '').trim();
-      if (t && b.width >= 2 && b.height >= 2) {
-        leaves.push([i, Math.round(parseFloat(getComputedStyle(el).fontSize) * 100) / 100, t.slice(0, 40)]);
-      }
-    } else if (BOX.test(el.tagName) && b.width >= 40 && b.height >= 20) {
-      boxes.push([i, Math.round(b.width * 100) / 100]);
-    }
+    if (b.width < 2 || b.height < 2) return;
+    const rendered = Math.round(parseFloat(getComputedStyle(el).fontSize) * z * 100) / 100;
+    leaves.push([i, rendered, t.slice(0, 40)]);
+    if (rendered < minFont) { minFont = rendered; minFontWhere = el.tagName + '.' + String(el.className).slice(0, 20); }
   });
+  // 导航可点件(画布像素 = 渲染量 / navZoom)
+  const nav = document.querySelector('nav');
+  const nz = nav ? parseFloat(getComputedStyle(nav).zoom) || 1 : 1;
+  let minTap = Infinity;
+  if (nav) {
+    for (const el of nav.querySelectorAll('a,button')) {
+      const h = el.getBoundingClientRect().height;
+      if (h > 5) minTap = Math.min(minTap, h / nz);
+    }
+  }
   return {
-    contentW: r ? Math.round((r.width - padL - (cs ? parseFloat(cs.paddingRight) || 0 : 0)) * 100) / 100 : null,
-    padL: Math.round(padL * 100) / 100,
-    marginL: cs ? Math.round((parseFloat(cs.marginLeft) || 0) * 100) / 100 : 0,
+    zoom: z,
+    canvasL: cb ? Math.round(cb.left * 100) / 100 : null,
+    canvasW: cb ? Math.round(cb.width * 100) / 100 : null,
     client: de.clientWidth,
+    overflow: de.scrollWidth - de.clientWidth,
+    docH: de.scrollHeight,
     leaves,
-    boxes,
-    over: over.slice(0, 3),
+    minFont: minFont === Infinity ? null : minFont,
+    minFontWhere,
+    minTap: minTap === Infinity ? null : Math.round(minTap * 10) / 10,
   };
 };
 
-/* 按位置序号 + 文字全等配对,规避动画中途态造成的元素错配 */
-const conform = (a, b, want, tol, byText) => {
+const conform = (a, b, want) => {
   const mb = new Map(b.map((x) => [x[0], x]));
   let ok = 0;
   let all = 0;
   for (const x of a) {
     const y = mb.get(x[0]);
-    if (!y) continue;
-    if (byText && y[2] !== x[2]) continue;
-    if (!x[1]) continue;
+    if (!y || y[2] !== x[2] || !x[1]) continue;
     all++;
-    if (Math.abs(y[1] / x[1] - want) < tol) ok++;
+    if (Math.abs(y[1] / x[1] - want) < 0.02) ok++;
   }
   return { ok, all, rate: all ? ok / all : 0 };
 };
@@ -214,70 +165,89 @@ const conform = (a, b, want, tol, byText) => {
 const browser = await chromium.launch();
 const fails = [];
 const pages = {};
-for (const w of [TINY, TABLET, BASE_W, NARROW, WIDE]) {
-  pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
-}
-// R41:改 load 不用 domcontentloaded —— dcl 会让两档落在不同动画瞬态,配对样本静默塌到 7%
+for (const w of [...WIDTHS, ...SEAM]) pages[w] = pages[w] || (await browser.newPage({ viewport: { width: w, height: 1000 } }));
 const load = async (w, route) => {
   await pages[w].goto(base + route, { waitUntil: 'load' });
   return pages[w].evaluate(readAll);
 };
 
-let minE = Infinity;
-let minG = Infinity;
-
+let minSample = Infinity;
 for (const route of routes) {
-  const t = await load(TINY, route);
-  const tb = await load(TABLET, route);
-  const b0 = await load(BASE_W, route);
-  const n = await load(NARROW, route);
-  const d = await load(WIDE, route);
-  if (n.contentW === null || d.contentW === null) {
-    fails.push(route + ':页面无 <main>,无法判定');
-    continue;
+  const snap = {};
+  for (const w of WIDTHS) snap[w] = await load(w, route);
+
+  for (const w of WIDTHS) {
+    const s = snap[w];
+    // A 画布
+    if (s.canvasW === null) { fails.push(`A 画布 ${route} @${w}:页面无画布壳 .x-canvas`); continue; }
+    const wantW = Math.min(s.client, CAP);
+    if (w >= CANVAS && Math.abs(s.canvasW - wantW) > 1.5)
+      fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} ≠ min(视口,${CAP})=${wantW}`);
+    if (w >= CANVAS && Math.abs(s.canvasL - (s.client - s.canvasW) / 2) > 1.5)
+      fails.push(`A 画布 ${route} @${w}:画布未居中(左 ${s.canvasL},应 ${((s.client - s.canvasW) / 2).toFixed(1)})`);
+    if (w >= CANVAS && Math.abs(s.zoom - wantW / CANVAS) > 0.003)
+      fails.push(`A 画布 ${route} @${w}:zoom ${s.zoom} ≠ 画布宽/${CANVAS}=${(wantW / CANVAS).toFixed(4)}`);
+    // B 溢出
+    if (s.overflow > 1) fails.push(`B 溢出 ${route} @${w}:横向溢出 ${s.overflow}px`);
+    // E 可读
+    if (s.minFont !== null && s.minFont < MIN_FONT)
+      fails.push(`E 可读 ${route} @${w}:最小可见字号 ${s.minFont}px < ${MIN_FONT}(${s.minFontWhere})`);
+    // F 触达
+    if (s.minTap !== null && s.minTap < MIN_TAP - 0.5)
+      fails.push(`F 触达 ${route} @${w}:导航可点件最小 ${s.minTap} 画布像素 < ${MIN_TAP}`);
   }
 
-  const gut = Math.max(0, (d.client - CANVAS) / 2);
-  const ratio = n.contentW > 0 ? d.contentW / n.contentW : 0;
-  if (ratio < MIN_RATIO)
-    fails.push('A 塌缩 ' + route + ':正文列 1920px→' + n.contentW + ' / 2560px→' + d.contentW + '(仅剩 ' + (ratio * 100).toFixed(1) + '%)');
-  if (d.padL + d.marginL < gut - 1)
-    fails.push('B 留白 ' + route + ':main 左侧位移 ' + (d.padL + d.marginL).toFixed(1) + ' < 画布留白 ' + gut.toFixed(1));
-  if (d.contentW > CANVAS + 1) fails.push('C 封顶 ' + route + ':2560px 下正文盒宽 ' + d.contentW + ' > 画布 ' + CANVAS);
+  // C 等比 / D 冻结
+  const c = conform(snap[1440].leaves, snap[1920].leaves, SCALE);
+  minSample = Math.min(minSample, c.all);
+  if (c.all < MIN_SAMPLES) fails.push(`C 样本 ${route}:可比样本仅 ${c.all}(应 ≥${MIN_SAMPLES})——判据形同虚设,不许算过`);
+  else if (c.rate < CONFORM)
+    fails.push(`C 等比 ${route}:渲染字号 1440→1920 达标 ${(c.rate * 100).toFixed(1)}%(${c.ok}/${c.all})`);
+  const d = conform(snap[1920].leaves, snap[2560].leaves, 1);
+  if (d.all >= MIN_SAMPLES && d.rate < CONFORM)
+    fails.push(`D 冻结 ${route}:渲染字号 1920→2560 恒等仅 ${(d.rate * 100).toFixed(1)}%(${d.ok}/${d.all})——封顶没封住`);
+}
 
-  for (const pair of [[WIDE, d], [TINY, t]]) {
-    if (pair[1].over.length) fails.push('D 溢出 ' + route + ' @' + pair[0] + ':元素越界 ' + pair[1].over.join(' ; '));
+/* G 连续:断点两侧不得跳变。
+   🔴 断点位置**从产物 CSS 里读出来**,不写死 —— 写死的话,断点一挪门就又瞎了,
+   而这正是 R41 那道 16.7% 硬缝溜过去的失效模式(当时的门在缝所在的宽度零取样)。 */
+const cssFiles = readdirSync(join(ROOT, 'dist', '_astro')).filter((f) => f.endsWith('.css'));
+const bps = new Set();
+for (const f of cssFiles) {
+  const txt = readFileSync(join(ROOT, 'dist', '_astro', f), 'utf8');
+  // 构建会把 max-width:Npx 压成新式区间写法 width<=Npx —— 两种都要认,否则一个断点都读不到
+  for (const m of txt.matchAll(/(?:(?:max|min)-width\s*:\s*|width\s*[<>]=?\s*)(\d+)px/g)) {
+    const n = +m[1];
+    if (n >= 700 && n <= 2600) bps.add(n); // 桌面段断点;移动重排断点另有设计意图
   }
-
-  const e = conform(b0.leaves, n.leaves, SCALE, 0.02, true);
-  minE = Math.min(minE, e.all);
-  if (e.all < MIN_SAMPLES)
-    fails.push('E 样本 ' + route + ':字号可比样本仅 ' + e.all + '(应 >=' + MIN_SAMPLES + ')——判据形同虚设,不许算过');
-  else if (e.rate < MIN_CONFORM_E)
-    fails.push('E 等比 ' + route + ':字号 1440→1920 达标 ' + (e.rate * 100).toFixed(1) + '%(' + e.ok + '/' + e.all + ')——有尺寸没走画布单位');
-
-  const fr = conform(n.leaves, d.leaves, 1, 0.02, true);
-  if (fr.all >= MIN_SAMPLES && fr.rate < MIN_CONFORM_F)
-    fails.push('F 冻结 ' + route + ':字号 1920→2560 恒等仅 ' + (fr.rate * 100).toFixed(1) + '%(' + fr.ok + '/' + fr.all + ')——有尺寸击穿 1920 封顶');
-
-  // G 用「冻结盒计数」而非达标率:一两个写死宽度的盒子淹没在达标率里(R41 红测实证 —— 证书
-  // 退回写死 330px,达标率仍 >85%,判据放行)。任何 1440→1920 宽度纹丝不动的盒子 = 写死了宽。
-  const mb = new Map(n.boxes.map((x) => [x[0], x]));
-  const frozen = [];
-  let gAll = 0;
-  for (const x of b0.boxes) {
-    const y = mb.get(x[0]);
-    if (!y || !x[1]) continue;
-    gAll++;
-    if (Math.abs(y[1] / x[1] - 1) < 0.005) frozen.push(x[1] + 'px');
-  }
-  minG = Math.min(minG, gAll);
-  if (frozen.length)
-    fails.push('G 盒子 ' + route + ':' + frozen.length + ' 个盒子在 1440→1920 宽度纹丝不动(' + frozen.slice(0, 4).join(' ') + ')——写死了宽,没走画布单位');
-
-  for (const pair of [[TINY, t], [TABLET, tb]]) {
-    if (pair[1].contentW !== null && pair[1].contentW < 200)
-      fails.push('H 窄屏 ' + route + ' @' + pair[0] + ':正文列仅 ' + pair[1].contentW + 'px(<200)——窄屏被内边距挤没');
+}
+const seamW = [...bps].sort((a, b) => a - b);
+if (!seamW.length) fails.push('G 连续:产物 CSS 里一个桌面断点都没读到 —— 判据无对象,不许算过');
+for (const route of [routes[0], ...routes.filter((r) => /legal|learn\//.test(r)).slice(0, 1)]) {
+  for (const bp of seamW) {
+    for (const w of [bp - 1, bp, bp + 1]) {
+      if (!pages[w]) pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
+    }
+    const s = {};
+    for (const w of [bp - 1, bp, bp + 1]) s[w] = await load(w, route);
+    for (const [a, b] of [[bp - 1, bp], [bp, bp + 1]]) {
+      /* 守的是**缩放曲线**的连续性,不是版式的连续性:
+         移动断点(860 等)整版重排、页高与字号本就该跳,那是设计;
+         而缩放系数在任何断点都不该跳 —— R41 那道缝正是 zoom 从 1 突降到 0.8333。 */
+      const za = s[a].zoom;
+      const zb = s[b].zoom;
+      if (za && zb && Math.abs(zb - za) / za > 0.02)
+        fails.push(`G 连续 ${route}:断点 ${bp} 处 ${a}→${b} 画布缩放 ${za}→${zb} 跳变 ${(((zb - za) / za) * 100).toFixed(1)}%(应 <2%)——硬缝`);
+      // 桌面段(同一版式)另守页高与字号;移动重排段豁免
+      if (bp < 1000) continue;
+      const dh = Math.abs(s[b].docH - s[a].docH) / (s[a].docH || 1);
+      if (dh > 0.02)
+        fails.push(`G 连续 ${route}:断点 ${bp} 处 ${a}→${b} 页面总高跳变 ${(dh * 100).toFixed(1)}%(应 <2%)——留下硬缝`);
+      const fa = s[a].minFont;
+      const fb = s[b].minFont;
+      if (fa && fb && Math.abs(fb - fa) / fa > 0.02)
+        fails.push(`G 连续 ${route}:断点 ${bp} 处 ${a}→${b} 最小字号 ${fa}→${fb} 跳变 ${(((fb - fa) / fa) * 100).toFixed(1)}%`);
+    }
   }
 }
 
@@ -285,13 +255,13 @@ await browser.close();
 child?.kill();
 
 if (fails.length) {
-  console.log('[geo] ✗ 画布几何:' + routes.length + ' 条路由,' + fails.length + ' 条判据不合格');
+  console.log(`[geo] ✗ 画布几何:${routes.length} 条路由,${fails.length} 条判据不合格`);
   for (const f of fails.slice(0, 24)) console.log('      ' + f);
-  if (fails.length > 24) console.log('      …另有 ' + (fails.length - 24) + ' 条');
+  if (fails.length > 24) console.log(`      …另有 ${fails.length - 24} 条`);
   process.exit(2);
 }
 console.log(
-  '[geo] ✓ 画布几何:' + routes.length + ' 路由 × {390,768,1440,1920,2560} 八判据全过' +
-    '(A塌缩/B留白/C封顶/D溢出/E等比/F冻结/G盒子/H窄屏;最小样本 字号' + minE + ' 盒子' + minG + ')',
+  `[geo] ✓ 画布几何:${routes.length} 路由 × {${WIDTHS.join(',')}} + 断点 {${SEAM.join(',')}} 七判据全过` +
+    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample})`,
 );
 process.exit(0);

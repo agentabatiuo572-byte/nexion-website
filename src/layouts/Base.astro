@@ -60,8 +60,12 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
   <body>
     <canvas id="x-bg" aria-hidden="true"></canvas>
     <SiteNav locale={locale} path={path} />
-    <slot />
-    <SiteFooter locale={locale} />
+    <div class="x-frame">
+      <div class="x-canvas">
+        <slot />
+        <SiteFooter locale={locale} />
+      </div>
+    </div>
     <script src="../scripts/fx.ts"></script>
   </body>
 </html>
@@ -86,15 +90,38 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
   }
   /* 层叠哲学(参考站同款):canvas z0 < 导航 z1 < 内容 z2。
      导航透过暗区块的透明底可见;反白区块(不透明)滑上来时直接盖过导航。 */
+  /* 全宽裁切框:停放的叠卡裁在**屏缘**(参考站同口径:裁切盒 = [0, 视口宽])。
+     不能放 body —— body 的溢出属性会被上交给视口、body 自己反而不裁,文档宽度照样被撑开(实测溢出 5153px);
+     也不能放画布 —— 那会把裁切边拉回画布边,卡片从屏内一条硬边凭空冒出(R39 实录)。
+     用 clip 不用 hidden:clip 不制造滚动容器,吸顶不受影响。 */
+  .x-frame {
+    overflow-x: clip;
+  }
+
+  /* ── R42 画布壳 ──
+     参考站是「1440 画布整体缩放、1920 封顶、再宽居中」。本站此前用三百多条声明逐个模拟,
+     两轮评审证明那条路的缺陷族补不完(门被换个写法即绕过)。改为**整体缩放**后,
+     字号/盒子/间距/边框/渐变止点/栅格全部按构造等比,该族结构性绝种。
+     用 zoom 不用 transform:zoom 影响布局(无需 JS 补高)且**不破坏 sticky**(叠卡编舞得以原样保留);
+     transform 两条都不满足(已逐项实测)。
+     ⚠️ 画布内禁用视口单位 —— 会被 zoom 二次放大。 */
+  .x-canvas {
+    width: 1440px;
+    margin-inline: auto;
+    zoom: var(--x-zoom);
+  }
+  /* 断点定在 1440:该处画布宽 = 视口宽、zoom 恰为 1,两条曲线天然接合 —— **裂缝在构造上不存在**。
+     定在 1200 会有 16.7% 的硬跳变(R41 实测),且 1200-1439 段小字掉到 10px、触达破 44px。 */
+  @media (max-width: 1439px) {
+    .x-canvas {
+      width: auto;
+      zoom: 1;
+    }
+  }
+
   main {
     position: relative;
     z-index: 2;
-    /* 画布上限 1920 + 居中(R39):内含所有 % 几何以此为参照系,与参考站画布同构 */
-    padding-inline: var(--x-gut);
-    /* R39-fix:横向裁切必须落在**屏缘**,不能跟着画布内缩——否则叠卡从屏内一条硬边
-       凭空冒出来(参考站实测:裁切盒 [0,2560] 距屏右 0;本站曾是 [320,2240] 距屏右 320)。
-       用 clip 不用 hidden:clip 不制造滚动容器,钉屏 sticky 仍以视口为参照系。 */
-    overflow-x: clip;
   }
   ::selection {
     background: var(--x-accent);
