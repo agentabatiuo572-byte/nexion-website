@@ -39,12 +39,12 @@ const t = useT(locale);
   .hero {
     position: relative;
     z-index: 1;
-    height: clamp(640px, 62.5vw, 1200px);
+    height: max(640px, calc(900 * var(--u)));
     display: flex;
     flex-direction: column;
     overflow: hidden;
     /* 底空 11.5vw:比画布 220 略收,换取 3 行标题簇整体让开右上导航列 */
-    padding: 96px var(--x-pad) clamp(60px, 11.5vw, 220px);
+    padding: calc(96 * var(--uc)) var(--x-pad) max(60px, calc(165.6 * var(--u)));
   }
   .spacer {
     flex: 1;
@@ -53,12 +53,12 @@ const t = useT(locale);
     display: flex;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 32px;
+    gap: calc(32 * var(--uc));
   }
   .left {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: calc(18 * var(--uc));
     flex: 0 1 auto; /* 上限交给子元素各自的 max-width(hint 129 画布 / note 50ch) */
   }
   /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
@@ -68,23 +68,23 @@ const t = useT(locale);
     text-decoration: none;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    min-height: 44px;
+    gap: calc(6 * var(--uc));
+    min-height: calc(44 * var(--uc));
     letter-spacing: -0.03em;
-    font-size: clamp(12px, 0.833vw, 16px);
+    font-size: max(12px, calc(12 * var(--u)));
   }
   :global(html[lang='zh']) .scroll-hint {
-    font-size: clamp(12.5px, 0.868vw, 16.7px);
+    font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 竖线=琥珀顶亮、向下淡出 10%;粗细 2px 起随画布放大(主人 R16 加粗) */
   .scroll-hint .tick {
-    width: clamp(2px, 0.14vw, 3px);
-    height: clamp(24px, 1.67vw, 32px);
+    width: max(2px, calc(2 * var(--u)));
+    height: max(24px, calc(24 * var(--u)));
     background: linear-gradient(to bottom, var(--x-accent-hot), color-mix(in srgb, var(--x-accent-hot) 10%, transparent));
     flex: 0 0 auto;
   }
   .scroll-hint .txt {
-    max-width: clamp(129px, 8.96vw, 172px);
+    max-width: max(129px, calc(129 * var(--u)));
   }
   .note {
     color: var(--x-ink-dim);
@@ -93,48 +93,48 @@ const t = useT(locale);
     text-wrap: pretty;
     line-height: 1.5;
     white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
-    font-size: clamp(12px, 0.833vw, 16px);
+    font-size: max(12px, calc(12 * var(--u)));
   }
   :global(html[lang='zh']) .note {
-    font-size: clamp(12.5px, 0.868vw, 16.7px);
+    font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
      宽度按语言定:en/vi 第二行长 → 列加宽(整体左移)换字号(主人 R9-4)。 */
   .cluster {
-    width: min(62vw, 1190px);
+    width: calc(892.8 * var(--u));
     flex: 0 0 auto;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: clamp(24px, 3.33vw, 64px);
+    gap: max(24px, calc(48 * var(--u)));
   }
   :global(html[lang='vi']) .cluster {
-    width: min(66vw, 1268px);
+    width: calc(950.4 * var(--u));
   }
   :global(html[lang='zh']) .cluster {
-    width: min(50.35vw, 967px);
+    width: calc(725 * var(--u));
   }
   /* 标题:i18n 文案带 \n 强制「NexGrid」独行(pre-line);
      vi 与 en 同字号(主人 R11 拍板),第二句自然折行、全题最多三行 */
   h1 {
     width: 100%;
-    font-size: clamp(44px, 7vw, 134px);
+    font-size: max(44px, calc(100.8 * var(--u)));
     color: var(--x-white);
     margin: 0;
     text-align: left;
     white-space: pre-line;
   }
   :global(html[lang='zh']) h1 {
-    font-size: clamp(48px, 8vw, 154px);
+    font-size: max(48px, calc(115.2 * var(--u)));
   }
   .sub {
     color: var(--x-white);
     margin: 0;
     /* R14:标准视口两行(45ch 容量);窄桌面字号撞 16px 下限后自然变三行,
        300px 下限保证最窄桌面也不落到四行 */
-    width: clamp(300px, 30.5vw, 585px);
+    width: max(300px, calc(439.2 * var(--u)));
     text-wrap: pretty;
-    font-size: clamp(16px, 1.11vw, 22px); /* 原版副题 16 @1440,随视口放大(R13) */
+    font-size: calc(16 * var(--uc)); /* 原版副题 16 @1440,随视口放大(R13) */
   }
   .dl-wrap :global(.dl) {
     justify-content: flex-end;
@@ -144,7 +144,7 @@ const t = useT(locale);
     .hero {
       height: auto;
       min-height: 92svh;
-      padding-top: 80px;
+      padding-top: calc(80 * var(--uc));
       padding-bottom: 10svh;
     }
     .foot {
@@ -156,14 +156,14 @@ const t = useT(locale);
       align-items: flex-start;
     }
     h1 {
-      font-size: clamp(40px, 11vw, 88px);
+      font-size: clamp(40px, 11vw, calc(88 * var(--uc)));
     }
     :global(html[lang='zh']) h1 {
-      font-size: clamp(44px, 14vw, 92px);
+      font-size: clamp(44px, 14vw, calc(92 * var(--uc)));
     }
     .sub {
       width: auto;
-      max-width: 420px;
+      max-width: calc(420 * var(--uc));
     }
     .dl-wrap :global(.dl) {
       justify-content: flex-start;

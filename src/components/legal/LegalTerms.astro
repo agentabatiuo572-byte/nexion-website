@@ -63,51 +63,53 @@ const t = useT(locale);
   .legal {
     position: relative;
     z-index: 1;
-    max-width: 780px;
-    margin-top: 84px;
-    padding: 46px var(--x-pad) 40px;
+    max-width: calc(780 * var(--uc));
+    margin-top: calc(84 * var(--uc));
+    /* R39-fix:画布留白必须加在盒外。本站 box-sizing:border-box,把 gut 塞进 padding
+       会从 max-width 的 780 里倒扣 —— 2560 视口下正文被挤成 33px(三路评审独立实测)。 */
+    padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
   }
   .prevails {
     font-family: var(--x-font-mono);
     border: 1px solid var(--x-line);
     color: var(--x-ink-dim);
-    font-size: 12px;
-    padding: 10px 16px;
-    margin: 0 0 20px;
+    font-size: calc(12 * var(--uc));
+    padding: calc(10 * var(--uc)) calc(16 * var(--uc));
+    margin: 0 0 calc(20 * var(--uc));
   }
   h1 {
     font-family: var(--x-font-display);
-    font-size: clamp(30px, 4.6vw, 54px);
+    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
     font-weight: 500;
     color: var(--x-ink);
-    margin: 0 0 8px;
+    margin: 0 0 calc(8 * var(--uc));
     letter-spacing: -0.02em;
   }
   .updated {
     font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: 12px;
-    margin: 0 0 30px;
+    font-size: calc(12 * var(--uc));
+    margin: 0 0 calc(30 * var(--uc));
   }
   h2 {
     font-family: var(--x-font-display);
-    font-size: clamp(18px, 1.9vw, 23px);
+    font-size: clamp(18px, 1.9vw, calc(23 * var(--uc)));
     font-weight: 500;
     color: var(--x-ink);
-    margin: 30px 0 10px;
+    margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
     letter-spacing: -0.015em;
   }
   p {
     font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: 13px;
+    font-size: calc(13 * var(--uc));
     line-height: 1.85;
-    margin: 0 0 12px;
+    margin: 0 0 calc(12 * var(--uc));
     text-wrap: pretty;
   }
   .sheet {
-    padding: clamp(20px, 2.6vw, 34px);
-    margin-top: 8px;
+    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    margin-top: calc(8 * var(--uc));
   }
   .sheet > h2:first-child {
     margin-top: 0;

@@ -54,7 +54,7 @@ const cards = [1, 2, 3, 4, 5] as const;
     padding: 0 var(--x-pad);
   }
   .head {
-    margin-bottom: clamp(48px, 8.33vw, 160px);
+    margin-bottom: max(48px, calc(120 * var(--u)));
   }
   .lab {
     color: var(--x-ink);
@@ -63,15 +63,15 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .certs {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 330px));
+    grid-template-columns: repeat(auto-fit, minmax(calc(220 * var(--uc)), calc(330 * var(--uc))));
     justify-content: center;
-    gap: 28px;
-    margin-bottom: clamp(36px, 5vw, 64px);
+    gap: calc(28 * var(--uc));
+    margin-bottom: clamp(36px, 5vw, calc(64 * var(--uc)));
   }
   .certs figure {
     margin: 0;
     border: 1px solid var(--x-line-dark);
-    padding: 8px;
+    padding: calc(8 * var(--uc));
     background: var(--x-white);
   }
   .certs img {
@@ -81,15 +81,15 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-    gap: clamp(24px, 4.2vw, 60px);
+    grid-template-columns: repeat(auto-fit, minmax(calc(280 * var(--uc)), 1fr));
+    gap: clamp(24px, 4.2vw, calc(60 * var(--uc)));
   }
   /* 无盒开放列(P2-20):左竖线 + pl20;编号墨 0.8/400(P1-25 部分) */
   .card {
     border-left: 1px solid var(--x-line-dark);
-    padding-left: 20px;
+    padding-left: calc(20 * var(--uc));
     display: grid;
-    gap: 16px;
+    gap: calc(16 * var(--uc));
     align-content: start;
   }
   .idx {
@@ -106,22 +106,22 @@ const cards = [1, 2, 3, 4, 5] as const;
     .card {
       border-left: 0;
       border-top: 1px solid var(--x-line-dark);
-      padding: 20px 0 0;
+      padding: calc(20 * var(--uc)) 0 0;
     }
   }
   .poc {
-    margin-top: clamp(28px, 4vw, 44px);
+    margin-top: clamp(28px, 4vw, calc(44 * var(--uc)));
     border: 1px solid var(--x-line-dark);
-    padding: 4px 20px;
+    padding: calc(4 * var(--uc)) calc(20 * var(--uc));
   }
   .poc summary {
     cursor: pointer;
-    min-height: 52px;
+    min-height: calc(52 * var(--uc));
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: calc(12 * var(--uc));
     font-family: var(--x-font-display);
-    font-size: clamp(17px, 1.6vw, 21px);
+    font-size: clamp(17px, 1.6vw, calc(21 * var(--uc)));
     font-weight: 500;
     color: var(--x-dark);
     list-style: none;
@@ -132,7 +132,7 @@ const cards = [1, 2, 3, 4, 5] as const;
   .poc .mark {
     color: var(--x-accent-ink);
     font-weight: 700;
-    font-size: 16px;
+    font-size: calc(16 * var(--uc));
   }
   .poc[open] .mark {
     /* + → − */
@@ -147,8 +147,8 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .poc p {
     color: var(--x-dark-dim);
-    margin: 0 0 16px;
-    max-width: 760px;
+    margin: 0 0 calc(16 * var(--uc));
+    max-width: calc(760 * var(--uc));
     text-wrap: pretty;
   }
 </style>

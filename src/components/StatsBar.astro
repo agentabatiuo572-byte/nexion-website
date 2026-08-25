@@ -40,26 +40,26 @@ const items = [
   .stats {
     position: relative;
     z-index: 1;
-    padding: clamp(40px, 6vh, 72px) var(--x-pad);
+    padding: calc(54 * var(--uc)) var(--x-pad);
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: 24px;
+    gap: calc(24 * var(--uc));
   }
   .cell {
     display: grid;
-    gap: 8px;
+    gap: calc(8 * var(--uc));
     justify-items: start;
     border-left: 1px solid var(--x-line-soft);
-    padding-left: 18px;
+    padding-left: calc(18 * var(--uc));
   }
   .idx {
     color: var(--x-accent-hot); /* 黑底编号走亮柠檬热档(R38 换系后正名,原注「亮金」为琥珀时代残留) */
   }
   .num {
     font-family: var(--x-font-display);
-    font-size: clamp(30px, 3.6vw, 52px);
+    font-size: max(30px, calc(51.84 * var(--u)));
     font-weight: 500;
     color: var(--x-white);
     font-variant-numeric: tabular-nums;
@@ -72,12 +72,12 @@ const items = [
   }
   .asof {
     color: var(--x-ink-dim);
-    margin: 26px 0 0;
+    margin: calc(26 * var(--uc)) 0 0;
   }
   @media (max-width: 900px) {
     .grid {
       grid-template-columns: repeat(2, minmax(0, 1fr));
-      row-gap: 32px;
+      row-gap: calc(32 * var(--uc));
     }
     .grid .cell:last-child {
       grid-column: 1 / -1;

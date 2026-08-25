@@ -6,11 +6,16 @@
    退出码写 .verify-exit.code(外部判定读文件不读管道——PLAN 全局纪律)。 */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { canvasUnitGate } from './gate-canvas-unit.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
 const results = [];
+// 开跑先把退出码文件置红:verify 若中途崩溃或被中止,读文件的人拿到的是红,
+// 而不是**上一次的绿**(「中止 ≠ 判红」是本仓踩过的坑——半路崩掉时红门数反而变少)
+writeFileSync(join(ROOT, '.verify-exit.code'), '2');
 
 function walk(dir, exts, out = []) {
   for (const name of readdirSync(dir)) {
@@ -163,6 +168,31 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   results.push({ gate: 'particle-hue(同族 ±6°)', pass: detail.length === 0, detail });
 }
 
+results.push(canvasUnitGate(SRC, rel));
+
+/* ── 第七门:画布几何(运行时,自建自起产物) ──
+   前六门全是静态文本/token 检查,没有一门看渲染盒子——R39 的「正文被挤成 33px」
+   在六门全绿的情况下溜进产物,靠人肉才发现。判据与红测见 gate-canvas-geometry.mjs。
+   代价:本门要构建+起预览+真渲染,verify 因此从「秒级」变成「分钟级」。 */
+{
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-canvas-geometry.mjs')], {
+    cwd: ROOT,
+    encoding: 'utf8',
+  });
+  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const detail = out.filter((l) => !/^\[geo\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
+  if (r.status === 3) {
+    // 跑不起来 ≠ 放行:非 prod 走可见 warn(与 brand-parity 的跨仓缺席同体例),prod 硬红
+    // R43:NOT-RUN 一律判红。此前 pass:!PROD ⇒ 人读的那行说「未执行不算过」,
+    //      而机器读的 .verify-exit.code 写的是 0 —— 两条结论相反,且仓规指定读文件。
+    //      要放行须显式 --allow-not-run。
+    const allow = process.argv.includes('--allow-not-run');
+    results.push({ gate: 'canvas-geometry(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+  } else {
+    results.push({ gate: 'canvas-geometry(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+  }
+}
+
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {
@@ -172,6 +202,10 @@ for (const r of results) {
   if (!r.pass) failed++;
 }
 const code = failed ? 2 : 0;
-console.log(`[verify] ${results.length - failed}/${results.length} gates pass${PROD ? ' (prod mode)' : ''}`);
+// NOT-RUN 不许混进 pass 计数——「跳过 ≠ 放宽」,报绿必须说清跑了几道
+const notRun = results.filter((r) => r.detail.some((d) => d.startsWith('NOT-RUN'))).length;
+console.log(
+  `[verify] ${results.length - failed - notRun}/${results.length} gates pass${notRun ? ` · ${notRun} NOT-RUN(未执行,不算过)` : ''}${PROD ? ' (prod mode)' : ''}`,
+);
 writeFileSync(join(ROOT, '.verify-exit.code'), String(code));
 process.exit(code);

@@ -56,7 +56,7 @@ const cards = [
     padding: 0 var(--x-pad);
   }
   .headrow {
-    margin-bottom: clamp(48px, 8.33vw, 160px);
+    margin-bottom: max(48px, calc(120 * var(--u)));
   }
   .lab {
     color: var(--x-ink);
@@ -65,16 +65,16 @@ const cards = [
   }
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: clamp(24px, 4.17vw, 80px);
+    grid-template-columns: repeat(auto-fit, minmax(calc(300 * var(--uc)), 1fr));
+    gap: max(24px, calc(60 * var(--u)));
   }
   /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
   .card {
     border-left: 1px solid var(--x-line-dark);
-    padding-left: 20px;
+    padding-left: calc(20 * var(--uc));
     display: flex;
     flex-direction: column;
-    gap: clamp(40px, 5.7vw, 110px);
+    gap: max(40px, calc(82 * var(--u)));
     will-change: transform;
   }
   .metarow {
@@ -91,10 +91,10 @@ const cards = [
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 24px;
+    gap: calc(24 * var(--uc));
   }
   .stack h3 {
-    font-size: clamp(32px, 3.33vw, 64px);
+    font-size: max(32px, calc(48 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
@@ -106,21 +106,21 @@ const cards = [
   .desc {
     color: var(--x-dark-cap);
     margin: 0;
-    max-width: 420px;
+    max-width: calc(420 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
   }
   .note {
     color: var(--x-dark-dim);
-    margin: clamp(28px, 4vw, 48px) 0 0;
+    margin: clamp(28px, 4vw, calc(48 * var(--uc))) 0 0;
     text-wrap: pretty;
   }
   @media (max-width: 768px) {
     .card {
       border-left: 0;
       border-top: 1px solid var(--x-line-dark);
-      padding: 20px 0 0;
-      gap: 40px;
+      padding: calc(20 * var(--uc)) 0 0;
+      gap: calc(40 * var(--uc));
     }
   }
 </style>

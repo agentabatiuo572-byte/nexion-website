@@ -86,14 +86,14 @@ const shareArt = contour(77, 12, 640, 400);
   .pin {
     display: flex;
     flex-direction: column;
-    padding: 60px var(--x-pad) 100px;
-    gap: clamp(40px, 6vw, 80px);
+    padding: clamp(40px, 9vw, calc(60 * var(--uc))) var(--x-pad) calc(100 * var(--uc));
+    gap: clamp(40px, 6vw, calc(80 * var(--uc)));
   }
   .gutter {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 14px;
+    gap: calc(14 * var(--uc));
   }
   .lab {
     color: var(--x-white);
@@ -103,29 +103,29 @@ const shareArt = contour(77, 12, 640, 400);
   .sub {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: 340px;
+    max-width: calc(340 * var(--uc));
     text-wrap: pretty;
     line-height: 1.5;
   }
   .cta {
-    margin-top: 10px;
+    margin-top: calc(10 * var(--uc));
   }
   /* R30:CTA 恒柠檬 solid,on-dark 白底覆写撤销 */
   .stage {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: clamp(48px, 8vw, 80px);
+    gap: clamp(48px, 8vw, calc(80 * var(--uc)));
   }
 
   /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
   .card {
-    width: min(520px, 100%);
+    width: min(calc(520 * var(--uc)), 100%);
     aspect-ratio: 650 / 534;
-    padding: 10px 10px 20px;
+    padding: calc(10 * var(--uc)) calc(10 * var(--uc)) calc(20 * var(--uc));
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: calc(20 * var(--uc));
     box-sizing: border-box;
   }
   .card.coming .body {
@@ -155,34 +155,34 @@ const shareArt = contour(77, 12, 640, 400);
     background: var(--x-light);
     color: var(--x-dark);
     font-weight: 400;
-    font-size: 16px;
-    letter-spacing: -0.36px;
+    font-size: calc(16 * var(--uc));
+    letter-spacing: calc(-0.36 * var(--uc));
     min-width: 5ch;
-    padding: 10px;
+    padding: calc(10 * var(--uc));
     text-align: center;
   }
   .chip {
     position: absolute;
-    top: 10px;
-    right: 10px;
+    top: calc(10 * var(--uc));
+    right: calc(10 * var(--uc));
     font-weight: 700;
     /* R35:章底改不透明浅面(soft 半透明底在深色产品照上会隐没)——
        非满饱和柠檬不稀释转化件,与序号章同族浅面体例 */
     background: var(--x-light);
     color: var(--x-accent-ink);
-    padding: 3px 9px;
+    padding: calc(3 * var(--uc)) calc(9 * var(--uc));
   }
   .body {
     flex: 0 0 auto;
-    padding: 0 10px;
+    padding: 0 calc(10 * var(--uc));
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: clamp(16px, 2.5vw, 48px);
+    gap: max(16px, calc(36 * var(--u)));
   }
   h3 {
     font-family: var(--x-font-display);
-    font-size: clamp(24px, 2.78vw, 53px);
+    font-size: max(24px, calc(40 * var(--u)));
     font-weight: 400;
     letter-spacing: -0.03em;
     line-height: 1;
@@ -192,7 +192,7 @@ const shareArt = contour(77, 12, 640, 400);
   }
   .cols {
     display: flex;
-    gap: 20px;
+    gap: calc(20 * var(--uc));
     width: 100%;
     align-items: flex-start;
   }
@@ -206,11 +206,11 @@ const shareArt = contour(77, 12, 640, 400);
   .price {
     display: block;
     font-family: var(--x-font-display);
-    font-size: clamp(17px, 1.4vw, 27px);
+    font-size: max(17px, calc(20.16 * var(--u)));
     font-weight: 500;
     color: var(--x-ink);
     font-variant-numeric: tabular-nums;
-    margin-bottom: 4px;
+    margin-bottom: calc(4 * var(--uc));
   }
   .mult b {
     color: var(--x-accent-ink);
@@ -221,10 +221,17 @@ const shareArt = contour(77, 12, 640, 400);
   /* —— decked 桌面编舞(fx.ts 置 .decked):画布几何,卡绝对锚位,fx 写 transform —— */
   .devices:global(.decked) .pin {
     position: sticky;
-    top: 0;
+    /* R41:屏比钉屏区高时,把钉屏区**垂直居中**,而不是顶在最上面。
+       why:钉屏高只随宽度走(画布制),在 1440 高的屏上 1067 的区高会在屏底留 551px 死区,
+       而这一段占全页 41% 的滚动行程 —— 观感是「放大了但空洞」。
+       居中后空白总量不变、上下对半,且卡片不再紧贴导航条。
+       刻意不改区高本身:pinH 一旦跟屏高走,叠卡节奏就会因屏而异,与「宽度驱动画布」冲突。 */
+    top: max(0px, calc((100svh / var(--x-zoom) - var(--x-sec-h)) / 2)); /* R42:把屏高换算成画布单位,否则被 zoom 二次放大 */
     height: var(--x-sec-h);
     padding: 0;
-    overflow: hidden;
+    /* R39-fix:停放卡的横向裁切交给 main 的 overflow-x:clip(裁在屏缘);
+       此处再裁一次会把裁切边拉回画布边 = 卡在屏内硬边处凭空出现 */
+    overflow: visible;
     box-sizing: border-box;
     display: block;
   }
@@ -232,7 +239,7 @@ const shareArt = contour(77, 12, 640, 400);
     position: absolute;
     left: var(--x-pad);
     top: 18.4%;
-    width: calc(27.4% - var(--x-pad) - 20px);
+    width: calc(27.4% - var(--x-pad) - calc(20 * var(--uc)));
     z-index: 20;
   }
   .devices:global(.decked) .stage {
@@ -246,17 +253,17 @@ const shareArt = contour(77, 12, 640, 400);
     top: 16.63%;
     width: 45.14%;
     z-index: calc(1 + var(--i));
-    transform: translate3d(160vw, 0, 0);
+    transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 body 裁在屏缘 */
     will-change: transform;
   }
 
   @media (max-width: 860px) {
     .pin {
-      padding-top: 50px;
-      padding-bottom: 80px;
+      padding-top: calc(50 * var(--uc));
+      padding-bottom: calc(80 * var(--uc));
     }
     .stage {
-      gap: clamp(40px, 9vw, 60px);
+      gap: clamp(40px, 9vw, calc(60 * var(--uc)));
     }
   }
 </style>
