@@ -41,66 +41,66 @@ const { Content } = await render(entry);
   .article {
     position: relative;
     z-index: 1;
-    max-width: 780px;
+    max-width: calc(780 * var(--uc));
     margin: 0;
-    margin-top: 84px;
+    margin-top: calc(84 * var(--uc));
     /* R39-fix:画布留白必须加在盒外。本站 box-sizing:border-box,把 gut 塞进 padding
        会从 max-width 的 780 里倒扣 —— 2560 视口下正文被挤成 33px(三路评审独立实测)。 */
     margin-left: var(--x-gut);
-    padding: 46px var(--x-pad) 40px;
+    padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
   }
   .notice {
     border: 1px solid var(--x-accent-ink);
     color: var(--x-accent-ink);
-    padding: 10px 16px;
-    margin: 0 0 18px;
+    padding: calc(10 * var(--uc)) calc(16 * var(--uc));
+    margin: 0 0 calc(18 * var(--uc));
   }
   .back {
     color: var(--x-ink-dim);
     text-decoration: none;
-    min-height: 44px;
+    min-height: calc(44 * var(--uc));
     display: inline-flex;
     align-items: center;
     font-weight: 700;
   }
   h1 {
-    font-size: clamp(30px, 4.6vw, 54px);
+    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
     color: var(--x-ink);
-    margin: 10px 0 12px;
+    margin: calc(10 * var(--uc)) 0 calc(12 * var(--uc));
   }
   .meta {
     color: var(--x-ink-dim);
-    margin: 0 0 30px;
+    margin: 0 0 calc(30 * var(--uc));
   }
   .prose {
-    padding: clamp(20px, 2.6vw, 34px);
-    margin-top: 10px;
+    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    margin-top: calc(10 * var(--uc));
   }
   .prose :global(h2:first-child) {
     margin-top: 0;
   }
   .prose :global(h2) {
     font-family: var(--x-font-display);
-    font-size: clamp(19px, 2vw, 25px);
+    font-size: clamp(19px, 2vw, calc(25 * var(--uc)));
     font-weight: 500;
     letter-spacing: -0.015em;
     color: var(--x-ink);
-    margin: 34px 0 12px;
+    margin: calc(34 * var(--uc)) 0 calc(12 * var(--uc));
   }
   .prose :global(p),
   .prose :global(li) {
     font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: 13px;
+    font-size: calc(13 * var(--uc));
     line-height: 1.85;
     text-wrap: pretty;
   }
   .prose :global(ul) {
-    padding-left: 20px;
+    padding-left: calc(20 * var(--uc));
   }
   .prose :global(blockquote) {
-    margin: 20px 0;
-    padding: 12px 18px;
+    margin: calc(20 * var(--uc)) 0;
+    padding: calc(12 * var(--uc)) calc(18 * var(--uc));
     border-left: 2px solid var(--x-accent-ink);
   }
   .prose :global(blockquote p) {
@@ -113,6 +113,6 @@ const { Content } = await render(entry);
     font-weight: 700;
   }
   .cta {
-    margin-top: 40px;
+    margin-top: calc(40 * var(--uc));
   }
 </style>

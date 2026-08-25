@@ -45,10 +45,10 @@ const ld = {
     padding: 0 var(--x-pad);
   }
   .faq-sec > * {
-    max-width: 1100px;
+    max-width: calc(1100 * var(--uc));
   }
   .head {
-    margin-bottom: clamp(48px, 8.33vw, 160px);
+    margin-bottom: max(48px, calc(120 * var(--u)));
   }
   .lab {
     color: var(--x-ink);
@@ -63,12 +63,12 @@ const ld = {
   }
   .item summary {
     cursor: pointer;
-    min-height: 60px;
+    min-height: calc(60 * var(--uc));
     display: flex;
     align-items: center;
-    gap: clamp(14px, 2vw, 28px);
+    gap: clamp(14px, 2vw, calc(28 * var(--uc)));
     list-style: none;
-    padding: 12px 0;
+    padding: calc(12 * var(--uc)) 0;
   }
   .item summary::-webkit-details-marker {
     display: none;
@@ -80,7 +80,7 @@ const ld = {
   }
   .q {
     font-family: var(--x-font-display);
-    font-size: clamp(18px, 1.8vw, 26px);
+    font-size: max(18px, calc(26 * var(--u)));
     font-weight: 400;
     letter-spacing: -0.02em;
     color: var(--x-ink);
@@ -105,8 +105,8 @@ const ld = {
   }
   .item p {
     color: var(--x-dark-cap);
-    margin: 0 0 20px calc(30px + clamp(14px, 2vw, 28px));
-    max-width: 760px;
+    margin: 0 0 20px calc(30px + clamp(14px, 2vw, calc(28 * var(--uc))));
+    max-width: calc(760 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
   }

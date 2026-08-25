@@ -70,11 +70,22 @@
      --x-gut 由 main 吃成左右内边距 ⇒ 内含一切 % 几何自动以 ≤1920 为参照系并居中,
      背景层(粒子 canvas / 导航条 / 白幕布带)仍全出血,与参考站同构。 */
   --x-gut: max(0px, (100vw - 1920px) / 2);
-  --x-pad: clamp(20px, 2.78vw, 53.4px); /* cap=40×1.3333 精确(R26) */
-  --x-section-gap: clamp(80px, 9.7vw, 140px);
+
+  /* ── 画布单位(R40 · A+)──
+     参考站是「1440 画布整体等比缩放、1920 封顶」;本站改用两个单位表达同一条曲线,
+     零 JS、零架构改动。任何尺寸写成 calc(N * var(--u)) 即自动等比,
+     **各处不再手写上限** ⇒「上限算错」这一族(实测 54/126 条)结构性消失。
+       --u   随视口伸缩:1440 处 =1px,>1920 封顶 1.3333px,窄屏按比例缩小
+             (用于今天就跟着视口缩的值 —— 等价于原来的 clamp 中值)
+       --uc  只涨不缩:≤1440 恒 =1px,>1920 封顶 1.3333px
+             (用于今天是固定像素的值,以及各类「天花板」——保证窄屏零变化) */
+  --u: min(0.0694444vw, 1.3333px);
+  --uc: clamp(1px, 0.0694444vw, 1.3333px);
+  --x-pad: max(20px, calc(40 * var(--u))); /* cap=40×1.3333 精确(R26) */
+  --x-section-gap: max(80px, calc(139.68 * var(--u)));
   --x-prose-max: 760px;
   /* 画布制区高:定高带(statement/about/deck pin)= 画布 800 → 55.56vw;cap=800×1.3333(R26) */
-  --x-sec-h: clamp(560px, 55.56vw, 1067px);
+  --x-sec-h: max(560px, calc(800 * var(--u)));
 }
 
 html[lang='vi'] {
@@ -82,6 +93,9 @@ html[lang='vi'] {
 }
 
 html {
+  /* R40:根字号也走画布单位 —— 否则一切「没显式写字号」的文字(继承根值)
+     在宽屏上永远停在 16px 不长,rem 类尺寸同理。≤1440 时 --uc=1px ⇒ 恒等 16px,零回归。 */
+  font-size: calc(16 * var(--uc));
   background: var(--x-bg);
   color: var(--x-ink);
   scroll-behavior: smooth;
@@ -91,7 +105,7 @@ html {
 }
 
 [id] {
-  scroll-margin-top: 84px;
+  scroll-margin-top: calc(84 * var(--uc));
 }
 
 /* ============ 排版尺子(全站型类) ============ */
@@ -99,7 +113,7 @@ html {
 /* 等宽标签:大写、零字距、700(参考站标签/按钮唯二 700 位) */
 .x-label {
   font-family: var(--x-font-mono);
-  font-size: 12px;
+  font-size: calc(12 * var(--uc));
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -109,28 +123,28 @@ html {
 /* 等宽正文:12px/1.2/零字距/400 */
 .x-mono {
   font-family: var(--x-font-mono);
-  font-size: 12px;
+  font-size: calc(12 * var(--uc));
   font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;
 }
 html[lang='zh'] .x-mono {
-  font-size: 12.5px;
+  font-size: calc(12.5 * var(--uc));
   line-height: 1.6; /* CJK 密排不变量豁免 */
 }
 
 /* 等宽引言档:16 档画布缩放(板块引言/kicker/副题;R23 全站保形,zh +3.5% 光学补偿) */
 .x-mono-lg {
   font-family: var(--x-font-mono);
-  font-size: clamp(16px, 1.11vw, 22px);
+  font-size: clamp(16px, 1.11vw, calc(22 * var(--uc)));
   font-weight: 400;
   letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;
 }
 html[lang='zh'] .x-mono-lg {
-  font-size: clamp(16.5px, 1.15vw, 22.9px);
+  font-size: max(16.5px, calc(16.56 * var(--u)));
   line-height: 1.5;
 }
 
@@ -166,14 +180,14 @@ html[lang='zh'] .x-display-mega {
   position: relative;
   display: inline-flex;
   overflow: hidden;
-  min-height: 44px;
+  min-height: calc(44 * var(--uc));
   align-items: center;
-  padding: 0 18px;
+  padding: 0 calc(18 * var(--uc));
   border: 1px solid var(--x-line);
   background: none;
   color: var(--x-ink);
   font-family: var(--x-font-mono);
-  font-size: 12px;
+  font-size: calc(12 * var(--uc));
   font-weight: 700;
   letter-spacing: 0;
   line-height: 1.2;
@@ -185,7 +199,7 @@ html[lang='zh'] .x-display-mega {
 .xbtn-ghost {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: calc(8 * var(--uc));
   visibility: hidden;
   pointer-events: none;
 }
@@ -196,7 +210,7 @@ html[lang='zh'] .x-display-mega {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: calc(8 * var(--uc));
   transition: transform 0.3s ease-in-out;
 }
 .xbtn-b {
@@ -343,9 +357,9 @@ summary:focus-visible {
   z-index: 10;
   display: flex;
   flex-direction: column;
-  gap: clamp(60px, 12.5vw, 240px);
-  padding-top: clamp(80px, 8.33vw, 160px);
-  padding-bottom: clamp(100px, 11.11vw, 213px);
+  gap: max(60px, calc(180 * var(--u)));
+  padding-top: max(80px, calc(120 * var(--u)));
+  padding-bottom: max(100px, calc(160 * var(--u)));
 }
 .band-light.curtain {
   margin-top: calc(-1 * var(--x-sec-h));

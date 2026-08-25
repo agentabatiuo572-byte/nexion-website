@@ -39,32 +39,32 @@ const items = await learnList(locale);
   .learn {
     position: relative;
     z-index: 1;
-    margin-top: 84px;
-    padding: 46px calc(var(--x-pad) + var(--x-gut)) 40px; /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
+    margin-top: calc(84 * var(--uc));
+    padding: calc(46 * var(--uc)) calc(var(--x-pad) + var(--x-gut)) calc(40 * var(--uc)); /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
   }
   .head {
-    margin-bottom: clamp(30px, 5vw, 56px);
+    margin-bottom: clamp(30px, 5vw, calc(56 * var(--uc)));
   }
   h1 {
-    font-size: clamp(40px, 6.4vw, 88px);
+    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
     color: var(--x-ink);
-    margin: 0 0 14px;
+    margin: 0 0 calc(14 * var(--uc));
   }
   .head p {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: 520px;
+    max-width: calc(520 * var(--uc));
     text-wrap: pretty;
   }
   .grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: clamp(14px, 1.8vw, 24px);
+    gap: clamp(14px, 1.8vw, calc(24 * var(--uc)));
   }
   .card {
-    padding: 22px;
+    padding: calc(22 * var(--uc));
     display: grid;
-    gap: 12px;
+    gap: calc(12 * var(--uc));
     align-content: start;
     text-decoration: none;
     transition: opacity 0.2s;
@@ -90,7 +90,7 @@ const items = await learnList(locale);
   }
   h2 {
     font-family: var(--x-font-display);
-    font-size: clamp(19px, 1.8vw, 24px);
+    font-size: clamp(19px, 1.8vw, calc(24 * var(--uc)));
     font-weight: 500;
     letter-spacing: -0.015em;
     line-height: 1.18;

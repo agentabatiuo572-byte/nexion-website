@@ -7,11 +7,15 @@
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { canvasUnitGate } from './gate-canvas-unit.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
 const results = [];
+// 开跑先把退出码文件置红:verify 若中途崩溃或被中止,读文件的人拿到的是红,
+// 而不是**上一次的绿**(「中止 ≠ 判红」是本仓踩过的坑——半路崩掉时红门数反而变少)
+writeFileSync(join(ROOT, '.verify-exit.code'), '2');
 
 function walk(dir, exts, out = []) {
   for (const name of readdirSync(dir)) {
@@ -163,6 +167,8 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   }
   results.push({ gate: 'particle-hue(同族 ±6°)', pass: detail.length === 0, detail });
 }
+
+results.push(canvasUnitGate(SRC, rel));
 
 /* ── 第七门:画布几何(运行时,自建自起产物) ──
    前六门全是静态文本/token 检查,没有一门看渲染盒子——R39 的「正文被挤成 33px」

@@ -58,10 +58,10 @@ const leadParas = t('mission.lead').split('\n');
     align-items: flex-start;
   }
   .col {
-    width: min(37.4vw, 717px);
+    width: calc(538.56 * var(--u));
     display: flex;
     flex-direction: column;
-    gap: clamp(24px, 2.78vw, 53.4px); /* cap 精确(R27) */
+    gap: max(24px, calc(40 * var(--u))); /* cap 精确(R27) */
   }
   /* 章节眉(全站体例:琥珀刻度 + 16 档保形眉标) */
   .kicker {
@@ -70,27 +70,27 @@ const leadParas = t('mission.lead').split('\n');
     min-height: 1.2em;
     display: flex;
     align-items: center;
-    gap: clamp(10px, 0.69vw, 13.3px); /* R26:px-clamp 保形(em 基曾挂死在根 16px,弃用) */
+    gap: clamp(10px, 0.69vw, calc(13.3 * var(--uc))); /* R26:px-clamp 保形(em 基曾挂死在根 16px,弃用) */
   }
   .ktick {
-    width: clamp(2px, 0.14vw, 3px);
-    height: clamp(20px, 1.4vw, 27px);
+    width: max(2px, calc(2 * var(--u)));
+    height: max(20px, calc(20.16 * var(--u)));
     background: linear-gradient(to bottom, var(--x-accent-hot), color-mix(in srgb, var(--x-accent-hot) 10%, transparent));
     flex: 0 0 auto;
   }
   /* 大陈述 48 档:能单行则单行(可越出列宽,参考站同构;主人 R24),zh 焊两行成块 */
   .state {
-    font-size: clamp(32px, 3.33vw, 64px);
+    font-size: max(32px, calc(48 * var(--u)));
     color: var(--x-white);
     margin: 0;
     white-space: pre-line;
     width: max-content;
-    max-width: min(58vw, 1100px);
+    max-width: calc(835.2 * var(--u));
   }
   /* 说明段:16 档纯白紧行距(高反差),容器随字号 em 流动(单尺) */
   .body {
     font-family: var(--x-font-mono);
-    font-size: clamp(16px, 1.11vw, 22px);
+    font-size: clamp(16px, 1.11vw, calc(22 * var(--uc)));
     letter-spacing: 0;
     text-transform: uppercase;
     line-height: 1.2; /* R26:与眉标同尺(zh 侧 1.5 对 1.5 已齐);两句密簇贴参考质感 */
@@ -109,7 +109,7 @@ const leadParas = t('mission.lead').split('\n');
     white-space: normal; /* vi 句长必折,保自然折行 */
   }
   :global(html[lang='zh']) .body {
-    font-size: clamp(16.5px, 1.15vw, 22.9px);
+    font-size: max(16.5px, calc(16.56 * var(--u)));
     line-height: 1.5; /* 与眉标同尺(R25 统一) */
     word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
     max-width: 26em;
@@ -117,12 +117,12 @@ const leadParas = t('mission.lead').split('\n');
   /* 答案层:琥珀编号网格(两列 3×2),「[」竖标夹持,缩进 80 画布 */
   .cluster {
     display: flex;
-    gap: clamp(14px, 1.39vw, 26.7px);
+    gap: max(14px, calc(20 * var(--u)));
     align-items: stretch;
-    margin-left: clamp(0px, 5.56vw, 106.8px); /* cap=80×1.3333 精确(R26) */
+    margin-left: max(0px, calc(80 * var(--u))); /* cap=80×1.3333 精确(R26) */
   }
   .bullet {
-    width: clamp(5px, 0.35vw, 7px);
+    width: max(5px, calc(5 * var(--u)));
     align-self: stretch;
     flex: 0 0 auto;
     border-style: solid;
@@ -137,24 +137,24 @@ const leadParas = t('mission.lead').split('\n');
     padding: 0;
     display: grid;
     grid-template-columns: 1fr;
-    row-gap: clamp(12px, 1.11vw, 21.4px);
+    row-gap: max(12px, calc(16 * var(--u)));
     align-content: center;
   }
   .fields li {
     display: flex;
     align-items: baseline;
-    gap: clamp(10px, 0.69vw, 13.3px); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
+    gap: clamp(10px, 0.69vw, calc(13.3 * var(--uc))); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
     white-space: nowrap;
   }
   .idx {
     font-family: var(--x-font-mono);
-    font-size: clamp(13px, 0.97vw, 19px);
+    font-size: max(13px, calc(14 * var(--u)));
     letter-spacing: 0;
     color: var(--x-accent-hot); /* 黑底编号走亮柠檬热档(R38 换系后正名) */
   }
   .name {
     font-family: var(--x-font-display);
-    font-size: clamp(21px, 1.67vw, 32.1px); /* 24 档:答案层权重对齐语义(R24;cap 精确 R26) */
+    font-size: max(21px, calc(24 * var(--u))); /* 24 档:答案层权重对齐语义(R24;cap 精确 R26) */
     font-weight: 500;
     letter-spacing: -0.01em;
     line-height: 1.15;
@@ -164,14 +164,14 @@ const leadParas = t('mission.lead').split('\n');
     .mission {
       height: auto;
       min-height: 60svh;
-      padding: 80px var(--x-pad);
+      padding: calc(80 * var(--uc)) var(--x-pad);
       justify-content: flex-end;
     }
     .col {
       width: 100%;
     }
     .cluster {
-      margin-left: clamp(12px, 5vw, 60px);
+      margin-left: clamp(12px, 5vw, calc(60 * var(--uc)));
     }
   }
   @media (max-width: 560px) {

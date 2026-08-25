@@ -95,7 +95,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     content: '';
     position: absolute;
     inset: 0 0 auto 0;
-    height: 72px; /* R38:裙边再收(84→72,羽化仅 16px)——半透残影带压到最薄 */
+    height: calc(72 * var(--uc)); /* R38:裙边再收(84→72,羽化仅 16px)——半透残影带压到最薄 */
     pointer-events: none;
     z-index: -1;
     transition: opacity 0.12s ease; /* R38:幕布先行 */
@@ -128,14 +128,14 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: clamp(20px, 3vw, 60px);
-    padding: 14px calc(var(--x-pad) + var(--x-gut)) 0; /* R39:导航条全出血,内容随画布居中 */
+    gap: max(20px, calc(43.2 * var(--u)));
+    padding: calc(30 * var(--uc)) calc(var(--x-pad) + var(--x-gut)) 0; /* R39:导航条全出血,内容随画布居中 */
   }
   /* LOGO + 时钟同格(时钟贴 LOGO 右侧) */
   .logo-cell {
     display: flex;
     align-items: center;
-    gap: clamp(20px, 2.5vw, 44px);
+    gap: max(20px, calc(36 * var(--u)));
     flex: 0 1 auto;
     min-width: 0;
   }
@@ -143,27 +143,27 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   .logo {
     display: inline-flex;
     align-items: center;
-    gap: 12px;
+    gap: calc(12 * var(--uc));
     color: currentColor;
     text-decoration: none;
     font-family: var(--x-font-display);
-    font-size: clamp(20px, 1.94vw, 37px);
+    font-size: max(20px, calc(28 * var(--u)));
     font-weight: 500;
     letter-spacing: -0.01em;
-    min-height: 44px;
+    min-height: calc(44 * var(--uc));
   }
   .logo svg {
-    width: clamp(30px, 2.85vw, 55px);
+    width: max(30px, calc(41 * var(--u)));
     height: auto;
   }
   .clock {
     font-family: var(--x-font-mono);
-    font-size: clamp(12px, 0.833vw, 16px);
+    font-size: max(12px, calc(12 * var(--u)));
     font-weight: 400;
     letter-spacing: -0.03em;
     line-height: 1.2;
     color: currentColor;
-    min-height: 44px;
+    min-height: calc(44 * var(--uc));
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
@@ -178,24 +178,24 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     display: flex;
     flex-direction: row;
     align-items: center;
-    gap: clamp(16px, 2.2vw, 40px);
+    gap: max(16px, calc(31.68 * var(--u)));
   }
   .links {
     display: flex;
-    gap: clamp(16px, 1.8vw, 34px);
+    gap: max(16px, calc(26 * var(--u)));
   }
   .links a,
   .lang a,
   .h5 {
     font-family: var(--x-font-mono);
-    font-size: clamp(12px, 0.833vw, 16px);
+    font-size: max(12px, calc(12 * var(--u)));
     font-weight: 400;
     letter-spacing: 0;
     line-height: 1.2;
     text-transform: uppercase;
     color: currentColor;
     text-decoration: none;
-    min-height: 44px;
+    min-height: calc(44 * var(--uc));
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
@@ -203,11 +203,11 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   .row2 {
     display: flex;
     align-items: center;
-    gap: clamp(12px, 1.6vw, 24px);
+    gap: max(12px, calc(23 * var(--u)));
   }
   .lang {
     display: flex;
-    gap: 10px;
+    gap: calc(10 * var(--uc));
   }
   .lang a {
     opacity: 0.62; /* R35:可交互小字升 dim 档(0.4 档 3.79:1 不过 AA) */
@@ -217,9 +217,9 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     border-bottom: 1px solid var(--x-accent-ink); /* R30:带纸面变体的档(过白带不隐形) */
   }
   .dl-btn {
-    min-height: clamp(34px, 2.9vw, 50px);
-    padding: 0 clamp(14px, 1.25vw, 24px);
-    font-size: clamp(11px, 0.833vw, 16px);
+    min-height: max(34px, calc(41.76 * var(--u)));
+    padding: 0 max(14px, calc(18 * var(--u)));
+    font-size: max(11px, calc(12 * var(--u)));
     border-color: var(--x-accent-ink); /* R37:随翻墨态自动深描边(黑区=主柠檬同现状,白带=深柠檬边界补偿) */
     transition:
       background 0.25s ease,
@@ -232,17 +232,17 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     background: none;
     border: 0;
     cursor: pointer;
-    width: 44px;
-    height: 44px;
+    width: calc(44 * var(--uc));
+    height: calc(44 * var(--uc));
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: calc(6 * var(--uc));
     z-index: 60;
   }
   .menu-toggle span {
     display: block;
-    width: 22px;
+    width: calc(22 * var(--uc));
     height: 2px;
     background: currentColor;
     transition:
@@ -258,7 +258,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   @media (max-width: 860px) {
     nav {
       align-items: center;
-      padding-top: 10px;
+      padding-top: calc(10 * var(--uc));
     }
     .menu-toggle {
       display: flex;
@@ -270,11 +270,11 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       z-index: 55;
       background: var(--x-bg);
       color: var(--x-white);
-      padding: 84px var(--x-pad) 32px;
+      padding: calc(84 * var(--uc)) var(--x-pad) calc(32 * var(--uc));
       flex-direction: column;
       align-items: flex-start;
       justify-content: flex-start;
-      gap: 26px;
+      gap: calc(26 * var(--uc));
     }
     .site-nav.menu-open {
       z-index: 100;
@@ -285,29 +285,29 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     }
     .links {
       flex-direction: column;
-      gap: 6px;
+      gap: calc(6 * var(--uc));
     }
     .links a {
       font-family: var(--x-font-display);
-      font-size: clamp(30px, 8.5vw, 44px);
+      font-size: clamp(30px, 8.5vw, calc(44 * var(--uc)));
       font-weight: 500;
       letter-spacing: -0.02em;
       text-transform: none;
-      min-height: 52px;
+      min-height: calc(52 * var(--uc));
     }
     .row2 {
       flex-direction: column;
       align-items: flex-start;
-      gap: 18px;
-      margin-top: 6px;
+      gap: calc(18 * var(--uc));
+      margin-top: calc(6 * var(--uc));
     }
     .lang a {
-      min-height: 44px;
+      min-height: calc(44 * var(--uc));
     }
     .dl-btn {
-      min-height: 48px;
-      padding: 0 22px;
-      font-size: 12px;
+      min-height: calc(48 * var(--uc));
+      padding: 0 calc(22 * var(--uc));
+      font-size: calc(12 * var(--uc));
     }
   }
 </style>

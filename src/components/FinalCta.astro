@@ -23,14 +23,14 @@ const t = useT(locale);
   .final {
     position: relative;
     z-index: 1;
-    padding: clamp(80px, 9.72vw, 187px) var(--x-pad);
+    padding: max(80px, calc(140 * var(--u))) var(--x-pad);
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: clamp(28px, 3vw, 56px);
+    gap: max(28px, calc(43.2 * var(--u)));
   }
   h2 {
-    font-size: clamp(28px, 2.78vw, 53px);
+    font-size: max(28px, calc(40 * var(--u)));
     color: var(--x-white);
     margin: 0;
     max-width: 24ch;

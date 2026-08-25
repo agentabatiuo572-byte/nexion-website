@@ -12,6 +12,7 @@
      B 留白  每页 main 左内边距 ≥ 画布留白           ← 新增内页漏加 / 被简写盖掉
      C 封顶  2560 正文盒宽 ≤ 1920                    ← 忘了封顶,超宽屏越拉越大
      D 溢出  2560 下无横向溢出
+     E 等比  1440→1920 可见文字字号比值 ≈1.3333(守住「一切尺寸走画布单位」,不被裸像素值绕过)
 
    用法:node scripts/gate-canvas-geometry.mjs [--reuse <port>] [--no-build]
    退出码:0 通过 · 2 有路由不合格 · 3 跑不起来(playwright 缺失等,由调用方决定降级口径) */
@@ -32,6 +33,9 @@ const CANVAS = 1920; // 画布封顶宽(=参考站 1440 基准 ×1.3333)
 const WIDE = 2560;
 const NARROW = 1920;
 const MIN_RATIO = 0.95;
+const BASE_W = 1440;      // 设计画布宽
+const SCALE = 1920 / 1440; // 1920 处应有的等比倍率
+const MIN_CONFORM = 0.92;  // 单条路由等比达标率下限(留动画中途态噪声余量)
 
 /* ── playwright:本仓无依赖,借 uniapp 的(与仓内其它探针同口径) ── */
 let chromium;
@@ -116,6 +120,17 @@ const routes = [...readFileSync(smPath, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)
   .map((m) => m[1].replace(/^https?:\/\/[^/]+/, ''))
   .map((p) => (p.endsWith('/') || p.includes('.') ? p : p + '/'));
 
+const readLeaves = () => {
+  const o = [];
+  document.querySelectorAll('*').forEach((el, i) => {
+    if (el.children.length) return;                        // 只取叶子
+    const t = (el.textContent || '').trim(); if (!t) return; // 必须真显示文字
+    const b = el.getBoundingClientRect(); if (b.width < 2 || b.height < 2) return;
+    o.push([i, Math.round(parseFloat(getComputedStyle(el).fontSize) * 100) / 100, t.slice(0, 40)]);
+  });
+  return o;
+};
+
 const readMain = () => {
   const m = document.querySelector('main');
   if (!m) return null;
@@ -135,7 +150,7 @@ const readMain = () => {
 const browser = await chromium.launch();
 const fails = [];
 const pages = {};
-for (const w of [NARROW, WIDE]) pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
+for (const w of [BASE_W, NARROW, WIDE]) pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
 
 for (const route of routes) {
   const got = {};
@@ -157,6 +172,20 @@ for (const route of routes) {
   if (d.padL + d.marginL < gut - 1)
     fails.push(`B 留白 ${route}:main 左侧位移 ${(d.padL + d.marginL).toFixed(1)} < 画布留白 ${gut.toFixed(1)}`);
   if (d.contentW > CANVAS + 1) fails.push(`C 封顶 ${route}:${WIDE}px 下正文盒宽 ${d.contentW} > 画布 ${CANVAS}`);
+  // E 等比:只比「同一位置且文字相同」的叶子,规避动画中途态造成的元素错配
+  await pages[BASE_W].goto(base + route, { waitUntil: 'domcontentloaded' });
+  const L0 = await pages[BASE_W].evaluate(readLeaves);
+  const L1 = await pages[NARROW].evaluate(readLeaves);
+  const m1 = new Map(L1.map((x) => [x[0], x]));
+  let okN = 0, allN = 0;
+  for (const x of L0) {
+    const y = m1.get(x[0]);
+    if (!y || y[2] !== x[2] || !x[1]) continue;
+    allN++;
+    if (Math.abs(y[1] / x[1] - SCALE) < 0.02) okN++;
+  }
+  if (allN >= 8 && okN / allN < MIN_CONFORM)
+    fails.push(`E 等比 ${route}:1440→1920 字号等比达标率仅 ${((okN / allN) * 100).toFixed(1)}%(应 ≥${MIN_CONFORM * 100}%)——有尺寸没走画布单位`);
   if (d.overflow > 1) fails.push(`D 溢出 ${route}:${WIDE}px 下横向溢出 ${d.overflow}px`);
 }
 
@@ -169,5 +198,5 @@ if (fails.length) {
   if (fails.length > 24) console.log(`      …另有 ${fails.length - 24} 条`);
   process.exit(2);
 }
-console.log(`[geo] ✓ 画布几何:${routes.length} 条路由 × {${NARROW},${WIDE}} 四判据全过`);
+console.log(`[geo] ✓ 画布几何:${routes.length} 条路由 × {${BASE_W},${NARROW},${WIDE}} 五判据全过(A 塌缩 / B 留白 / C 封顶 / D 溢出 / E 等比)`);
 process.exit(0);

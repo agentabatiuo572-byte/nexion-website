@@ -74,7 +74,7 @@ const btns = [
 <style>
   .dl {
     display: flex;
-    gap: 12px;
+    gap: calc(12 * var(--uc));
     flex-wrap: wrap;
   }
   /* 保留品牌拼写(iOS/Android 小写规范),不吃 xbtn 的全大写制式 */
@@ -82,15 +82,15 @@ const btns = [
     text-transform: none;
   }
   .ic {
-    width: 15px;
-    height: 15px;
+    width: calc(15 * var(--uc));
+    height: calc(15 * var(--uc));
     flex: 0 0 auto;
     display: block;
   }
   .static {
     display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: calc(8 * var(--uc));
   }
   @media (max-width: 520px) {
     .dl {

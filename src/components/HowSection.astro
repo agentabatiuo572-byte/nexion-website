@@ -66,9 +66,9 @@ const ks = [0.06, 0.11, 0.16];
   /* 块头行:左标签占满、右陈述列定宽(画布 gap-60/列 725/陈述 40 档) */
   .headrow {
     display: flex;
-    gap: clamp(24px, 4.17vw, 80px);
+    gap: max(24px, calc(60 * var(--u)));
     align-items: baseline;
-    margin-bottom: clamp(60px, 12.5vw, 240px);
+    margin-bottom: max(60px, calc(180 * var(--u)));
   }
   .lab {
     flex: 1;
@@ -79,9 +79,9 @@ const ks = [0.06, 0.11, 0.16];
     white-space: nowrap;
   }
   .statements {
-    width: min(50.35vw, 967px);
+    width: calc(725 * var(--u));
     flex: 0 0 auto;
-    font-size: clamp(28px, 2.78vw, 53px);
+    font-size: max(28px, calc(40 * var(--u)));
     color: var(--x-ink);
   }
   .statements h2,
@@ -91,20 +91,20 @@ const ks = [0.06, 0.11, 0.16];
     margin: 0;
   }
   .statements h2 {
-    margin-bottom: 20px;
+    margin-bottom: calc(20 * var(--uc));
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-    gap: clamp(24px, 4.17vw, 80px);
+    gap: max(24px, calc(60 * var(--u)));
   }
   /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
   .step {
     border-left: 1px solid var(--x-line-dark);
-    padding-left: 20px;
+    padding-left: calc(20 * var(--uc));
     display: flex;
     flex-direction: column;
-    gap: clamp(40px, 5.7vw, 110px);
+    gap: max(40px, calc(82 * var(--u)));
     will-change: transform;
   }
   .metarow {
@@ -120,11 +120,11 @@ const ks = [0.06, 0.11, 0.16];
   .stack {
     display: flex;
     flex-direction: column;
-    gap: 24px;
+    gap: calc(24 * var(--uc));
     align-items: stretch;
   }
   .stack h3 {
-    font-size: clamp(32px, 3.33vw, 64px);
+    font-size: max(32px, calc(48 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
@@ -153,8 +153,8 @@ const ks = [0.06, 0.11, 0.16];
   @media (max-width: 860px) {
     .headrow {
       flex-direction: column;
-      gap: 24px;
-      margin-bottom: 60px;
+      gap: calc(24 * var(--uc));
+      margin-bottom: calc(60 * var(--uc));
     }
     .statements {
       width: 100%;
@@ -164,8 +164,8 @@ const ks = [0.06, 0.11, 0.16];
     .step {
       border-left: 0;
       border-top: 1px solid var(--x-line-dark);
-      padding: 20px 0 0;
-      gap: 40px;
+      padding: calc(20 * var(--uc)) 0 0;
+      gap: calc(40 * var(--uc));
     }
   }
 </style>
