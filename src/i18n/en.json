@@ -90,7 +90,9 @@
     "card2": "Open the Colorado Secretary of State website, enter NexGrid LTD or Entity ID 20221592644 in the business database search box, and click Search. On the results page, click the ID number to view the full registration record.",
     "card3": "NexGrid LTD has completed MSB (Money Services Business) registration with FinCEN, the Financial Crimes Enforcement Network of the U.S. Department of the Treasury — registration number 31000329265856 — under the Bank Secrecy Act regulatory framework.",
     "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
-    "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record."
+    "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record.",
+    "certZoom": "View full size",
+    "certClose": "Close"
   },
   "social": {
     "kicker": "Network scale",

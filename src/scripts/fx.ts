@@ -440,6 +440,25 @@ function initLenis() {
 }
 
 /* ---------- ③ 行遮罩逐行上滑(display 标题;P1-01) ---------- */
+/* ---------- ⑨ 证书放大(R44) ----------
+   此前证书在屏上字高约 3px 且无放大出口,而信任区唯一的作用就是让人核验。
+   用原生 <dialog>:Esc 关闭、焦点管理、背景遮罩全部由浏览器负责,零框架。 */
+function initCertZoom() {
+  const dlg = document.querySelector<HTMLDialogElement>('.cert-zoom');
+  const img = dlg?.querySelector('img') as HTMLImageElement | null;
+  if (!dlg || !img) return;
+  for (const btn of document.querySelectorAll<HTMLElement>('.cert-open')) {
+    btn.addEventListener('click', () => {
+      img.src = btn.dataset.src ?? '';
+      img.alt = btn.dataset.alt ?? '';
+      dlg.showModal();
+    });
+  }
+  dlg.addEventListener('click', (e) => {
+    if (e.target === dlg) dlg.close(); // 点背景关闭(对话框本体在内容之外的区域)
+  });
+}
+
 function initLineReveal() {
   const els = [...document.querySelectorAll<HTMLElement>('[data-lr]')];
   if (!els.length || reduced) return;
@@ -797,6 +816,7 @@ const boot = () => {
   }
   initLenis();
   initLineReveal();
+  initCertZoom();
   initType();
   initReveal();
   initClock();

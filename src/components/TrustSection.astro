@@ -21,12 +21,25 @@ const cards = [1, 2, 3, 4, 5] as const;
 
   <div class="certs" data-rv>
     <figure>
-      <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} width="660" height="880" />
+      <button class="cert-open" type="button" data-src="/cert-msb.png" data-alt={t('trust.certMsbAlt')} aria-label={t('trust.certZoom')}>
+        <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} width="660" height="880" />
+        <span class="cert-hint x-mono">{t('trust.certZoom')}</span>
+      </button>
     </figure>
     <figure>
-      <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} width="660" height="880" />
+      <button class="cert-open" type="button" data-src="/cert-colorado.png" data-alt={t('trust.certCoAlt')} aria-label={t('trust.certZoom')}>
+        <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} width="660" height="880" />
+        <span class="cert-hint x-mono">{t('trust.certZoom')}</span>
+      </button>
     </figure>
   </div>
+
+  <dialog class="cert-zoom" aria-label={t('trust.certZoom')}>
+    <form method="dialog" class="cert-zoom-close">
+      <button class="xbtn" aria-label={t('trust.certClose')}>{t('trust.certClose')}</button>
+    </form>
+    <img alt="" />
+  </dialog>
 
   <div class="cards">
     {
@@ -67,6 +80,50 @@ const cards = [1, 2, 3, 4, 5] as const;
     justify-content: center;
     gap: calc(28 * var(--uc));
     margin-bottom: clamp(36px, 5vw, calc(64 * var(--uc)));
+  }
+  /* R44:证书此前屏上字高约 3px 且无放大出口 —— 而信任区唯一的作用就是让人核验。
+     图片包进按钮(键盘可达),点开用原生 <dialog>:Esc 关闭、焦点管理、背景遮罩全部自带,零框架。 */
+  .cert-open {
+    display: block;
+    width: 100%;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: zoom-in;
+    position: relative;
+  }
+  .cert-hint {
+    position: absolute;
+    inset: auto 0 0 0;
+    padding: calc(6 * var(--uc));
+    background: var(--x-dark);
+    color: var(--x-light);
+    opacity: 0;
+    transition: opacity 0.18s ease;
+  }
+  .cert-open:hover .cert-hint,
+  .cert-open:focus-visible .cert-hint {
+    opacity: 1;
+  }
+  .cert-zoom {
+    border: 0;
+    padding: calc(16 * var(--uc));
+    background: var(--x-light);
+    max-width: min(calc(96vw / var(--x-zoom)), calc(760 * var(--uc))); /* 画布内须换算,否则被二次放大 */
+    max-height: calc(94vh / var(--x-zoom));
+  }
+  .cert-zoom::backdrop {
+    background: rgb(12 12 13 / 0.82);
+  }
+  .cert-zoom img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .cert-zoom-close {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: calc(12 * var(--uc));
   }
   .certs figure {
     margin: 0;
@@ -121,7 +178,7 @@ const cards = [1, 2, 3, 4, 5] as const;
     align-items: center;
     gap: calc(12 * var(--uc));
     font-family: var(--x-font-display);
-    font-size: clamp(17px, 1.6vw, calc(21 * var(--uc)));
+    font-size: clamp(17px, 1.7vw, calc(24 * var(--uc))); /* R44 并档后上限降到 24,视口项需相应抬到能被夹住 */
     font-weight: 500;
     color: var(--x-dark);
     list-style: none;
@@ -131,7 +188,7 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .poc .mark {
     color: var(--x-accent-ink);
-    font-weight: 700;
+    font-weight: 400;
     font-size: calc(16 * var(--uc));
   }
   .poc[open] .mark {
