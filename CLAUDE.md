@@ -32,6 +32,10 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
   - 后两门要构建+起预览+真渲染 33 路由×5 档宽(390/768/1440/1920/2560),**实测全链约 11 秒**;前六门全是文本/token 检查,**没有一门看渲染盒子**,R39 的「正文被挤成 33px」正是在六门全绿时溜进产物的
   - `brand-parity`:官网 `--x-accent`+`--x-on-accent` 必须是 App `Nexion-uniapp/src/styles/tokens.css` **同一主题块**内的 brand+on-brand 配对(锁跨主题错配),且 `--x-accent-ink` 必须 `var(--x-accent)` 引用(封第二字面量漂移旁路);App 仓不在本机时 warn 放行
   - `particle-hue`:`fx.ts` 注释里 `HUE-GUARD:<名> (r,g,b)` 标注的粒子三端须与品牌同色相带 ±6°——**改粒子色值必同步改标注**,否则门失效
+- 🔴 **机械改写后必跑逐元素回归**:`node scripts/visual-diff.mjs snap <url> <a.json> [宽度]` 前后各一次,再 `diff a.json b.json [容差%]`
+  — why:R40-R42 三轮,每轮都在修好真东西的同时造新伤,同一个模式——**大范围改写后用总量指标(页高/门全绿)验收,总量对逐元素回归是瞎的**。
+  R42 用页高「修好」了手机端,而那个修法本身把窄屏标题砍掉 44%,页高恰好正常所以没被发现,直到独立评审逐元素量才抓到。
+  键 = 标签+类名+**数字归一后的文本**+序号(插包装层不影响;不归一则实时时钟会让该元素被静默排除出比对)。
 - 生产门:`npm run verify:prod`(部署门升硬红:`PENDING-TRUST-ASSETS` 标记或 Legal 页缺失 → exit 2)
 - 运行时探针(29 项交互断言):`node <scratchpad>/axiom-probe.mjs`(会话临时件,模式可复制:Lenis/canvas 动画/光标/时钟/reveal/横向轨/三语/移动/reduced)
 
