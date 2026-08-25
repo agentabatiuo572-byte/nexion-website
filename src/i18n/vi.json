@@ -90,7 +90,9 @@
     "card2": "Mở trang web Thư ký Bang Colorado, nhập NexGrid LTD hoặc mã thực thể 20221592644 vào ô tìm kiếm cơ sở dữ liệu doanh nghiệp rồi bấm Search. Ở trang kết quả, bấm vào số ID để xem hồ sơ đăng ký đầy đủ.",
     "card3": "NexGrid LTD đã hoàn tất đăng ký MSB (Dịch vụ tiền tệ) với FinCEN — Mạng lưới Thực thi Tội phạm Tài chính thuộc Bộ Tài chính Hoa Kỳ — số đăng ký 31000329265856, theo khung pháp lý Đạo luật Bảo mật Ngân hàng.",
     "card4": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ. Hoàn tất đăng ký MSB nghĩa là doanh nghiệp đã đăng ký với FinCEN theo luật định, chịu các nghĩa vụ tuân thủ tương ứng và có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó.",
-    "card5": "Tra cứu đăng ký MSB: mở trang MSB Registrant Search của FinCEN (www.fincen.gov/msb-state-selector), nhập NexGrid LTD vào trường LEGAL NAME, hoặc 31000329265856 vào trường MSB REGISTRATION NUMBER/DCN để xem hồ sơ đăng ký của NexGrid."
+    "card5": "Tra cứu đăng ký MSB: mở trang MSB Registrant Search của FinCEN (www.fincen.gov/msb-state-selector), nhập NexGrid LTD vào trường LEGAL NAME, hoặc 31000329265856 vào trường MSB REGISTRATION NUMBER/DCN để xem hồ sơ đăng ký của NexGrid.",
+    "certZoom": "Xem kích thước đầy đủ",
+    "certClose": "Đóng"
   },
   "social": {
     "kicker": "Quy mô mạng lưới",

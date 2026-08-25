@@ -127,7 +127,7 @@ html {
 .x-label {
   font-family: var(--x-font-mono);
   font-size: calc(12 * var(--uc));
-  font-weight: 700;
+  font-weight: 400; /* R44:粗体等宽收回给转化按钮;此前全站 141 处在用,原版全页只有按钮上 2 处 */
   letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;

@@ -90,7 +90,9 @@
     "card2": "在浏览器中打开科罗拉多州州务卿官方网站，在「Search business database」搜索框输入 NexGrid LTD 或实体编号 20221592644，点击 Search；在结果页点击 ID 编号，即可查看公司注册详情。",
     "card3": "NexGrid LTD 已在美国财政部金融犯罪执法网络（FinCEN）完成 MSB（货币服务业务）登记，登记编号 31000329265856，按《银行保密法》相关法规接受 FinCEN 监管框架约束。",
     "card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。",
-    "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。"
+    "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。",
+    "certZoom": "查看大图",
+    "certClose": "关闭"
   },
   "social": {
     "kicker": "网络规模",
