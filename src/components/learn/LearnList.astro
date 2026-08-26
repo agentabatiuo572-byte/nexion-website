@@ -1,6 +1,7 @@
 ---
 /* [FEAT-WEB11] /learn 列表 — 按 order 排列;缺译条目标注回退语言。
-   axiom 方向:display 大标题 + 细线卡栅格 + 等宽 topic 标记。 */
+   axiom 方向:display 大标题 + 细线卡栅格 + 等宽 topic 标记。
+   R45:补下载 CTA(此前是唯一没有转化出口的内容页);内链尾斜杠。 */
 import { useT, type Locale } from '../../i18n';
 import { learnList } from '../../lib/learn';
 
@@ -21,7 +22,7 @@ const items = await learnList(locale);
   <div class="grid">
     {
       items.map(({ entry, slug, fallback }, i) => (
-        <a class="card x-paper" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
+        <a class="card x-paper" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
           <span class="row1">
             <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
@@ -32,6 +33,13 @@ const items = await learnList(locale);
         </a>
       ))
     }
+  </div>
+  <div class="cta">
+    <a class="xbtn solid" href={`${prefix}/#download`}>
+      <span class="xbtn-ghost" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
+    </a>
   </div>
 </main>
 
@@ -92,8 +100,8 @@ const items = await learnList(locale);
     font-family: var(--x-font-display);
     font-size: clamp(19px, 1.8vw, calc(24 * var(--uc)));
     font-weight: 500;
-    letter-spacing: -0.015em;
-    line-height: 1.18;
+    letter-spacing: -0.02em;
+    line-height: 1.1;
     color: var(--x-ink);
     margin: 0;
     display: -webkit-box;
@@ -102,6 +110,10 @@ const items = await learnList(locale);
     overflow: hidden;
     text-wrap: balance;
   }
+  h2:lang(vi):not(html),
+  h2:lang(zh):not(html) {
+    line-height: 1.35; /* display 档:1.1 在 vi/zh 折行时相邻行相接;1.35 够开且不破紧凑观感 */
+  }
   .card > p {
     color: var(--x-ink-dim);
     margin: 0;
@@ -109,5 +121,8 @@ const items = await learnList(locale);
   }
   .fb {
     color: var(--x-ink-dim);
+  }
+  .cta {
+    margin-top: calc(40 * var(--uc));
   }
 </style>

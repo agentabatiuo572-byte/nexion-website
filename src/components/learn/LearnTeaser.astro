@@ -1,7 +1,7 @@
 ---
 /* [FEAT-WEB11 + §2.3 ⑩] Home 学习中心入口卡 — R8(白带块):
    头行 16 mono 打字机;行卡改细线行式(上缘 hairline、无底色),
-   编号 0.8 墨 + display 标题 + 箭头。 */
+   编号 0.8 墨 + display 标题 + 箭头。R45:内链尾斜杠;按钮滑层 aria-hidden。 */
 import { useT, type Locale } from '../../i18n';
 import { learnList } from '../../lib/learn';
 
@@ -21,7 +21,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
   <div class="rows">
     {
       picks.map(({ entry, slug }, i) => (
-        <a class="row x-dimlink" href={`${prefix}/learn/${slug}`} data-rv style={`--d:${i * 0.08}s`}>
+        <a class="row x-dimlink" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${i * 0.08}s`}>
           <span class="idx x-mono">0{i + 1}</span>
           <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
           <span class="name">{entry.data.title}</span>
@@ -31,10 +31,10 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     }
   </div>
   <div class="more" data-rv>
-    <a class="xbtn" href={`${prefix}/learn`}>
-      <span class="xbtn-ghost">{t('learn.browseAll')} <span class="arr">→</span></span>
+    <a class="xbtn" href={`${prefix}/learn/`}>
+      <span class="xbtn-ghost" aria-hidden="true">{t('learn.browseAll')} <span class="arr">→</span></span>
       <span class="xbtn-a">{t('learn.browseAll')} <span class="arr">→</span></span>
-      <span class="xbtn-b">{t('learn.browseAll')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('learn.browseAll')} <span class="arr">→</span></span>
     </a>
   </div>
 </section>
@@ -63,7 +63,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     border-top: 1px solid var(--x-line-dark);
     text-decoration: none;
     color: var(--x-ink);
-    min-height: calc(44 * var(--uc));
+    min-height: var(--x-touch);
   }
   .idx {
     color: var(--x-dark-cap);

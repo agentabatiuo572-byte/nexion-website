@@ -1,14 +1,21 @@
 ---
-/* 全局壳 — axiom 方向(2026-08-20 主人指令):自托管双字体 + 固定洛伦兹粒子背景
-   + 全站交互引擎(fx.ts)。SEO/hreflang/JSON-LD 契约不变。 */
+/* 全局壳 — axiom 方向(2026-08-20 主人指令):自托管三族字体 + 固定洛伦兹粒子背景
+   + 全站交互引擎(fx.ts)。SEO/hreflang/JSON-LD 契约不变。
+   R45:头部内联脚本在首帧前挂 html.js / html.x-boot / --x-vw(开场隐藏态不再是脚本后置注入;
+   可用视口宽不含经典滚动条);display 500 字体预载;vi 补 400 字重;canonical/hreflang 统一尾斜杠(与 sitemap 同形)。 */
 import '@fontsource/funnel-display/400.css';
 import '@fontsource/funnel-display/500.css';
 import '@fontsource/space-mono/400.css';
 import '@fontsource/space-mono/700.css';
+import '@fontsource/be-vietnam-pro/400.css';
 import '@fontsource/be-vietnam-pro/500.css';
+import funnel500 from '@fontsource/funnel-display/files/funnel-display-latin-500-normal.woff2?url';
+import bvpVi500 from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-500-normal.woff2?url';
+import bvpLatin500 from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-500-normal.woff2?url';
 import '../styles/tokens.css';
 import SiteNav from '../components/SiteNav.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import { useT } from '../i18n';
 import { locales, type Locale } from '../i18n';
 
 interface Props {
@@ -17,14 +24,23 @@ interface Props {
   description: string;
   /** path without locale prefix, e.g. "/" or "/learn" — for hreflang alternates */
   path?: string;
+  /** 404 等无对应语言版的页面:不发 canonical / hreflang,标 noindex */
+  noindex?: boolean;
 }
-const { locale, title, description, path = '/' } = Astro.props;
+const { locale, title, description, path = '/', noindex = false } = Astro.props;
 const site = Astro.site ?? new URL('https://nexgrid.ai');
-const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).href;
+/* 与 @astrojs/sitemap 的目录型 URL 同形(此前无尾斜杠,同一页两种 URL 送给爬虫) */
+const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
+const urlFor = (l: Locale) => new URL(withSlash(l === 'en' ? path : `/${l}${path}`), site).href;
+/* 首屏标题字体预载:缩短首屏那档字重(500)的就绪时间——fx 的标题引擎每个标题只等自身字重,拍锚开场钟 */
+const preloadFonts = locale === 'vi' ? [bvpVi500, bvpLatin500] : [funnel500];
+/* 页标题体例:不含品牌名的标题统一追加后缀(zh「学习中心」这类本语 key 不含 NexGrid),含的不重复 */
+const t = useT(locale);
+const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
 ---
 
 <!doctype html>
-<html lang={locale} data-theme="dark">
+<html lang={locale} data-theme="dark" class:list={[{ 'x-inner': path !== '/' }]}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -32,14 +48,20 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
          注意:CSS 里的 color-scheme 声明实测不被本机 Chromium 的 auto-dark 认,
          必须用 meta(最小复现页 A/B 实证,2026-08-20)。 -->
     <meta name="color-scheme" content="dark" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>{title}</title>
+    <meta name="theme-color" content="#0c0c0d" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    {preloadFonts.map((href) => <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />)}
+    <title>{fullTitle}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={urlFor(locale)} />
-    {locales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
-    <link rel="alternate" hreflang="x-default" href={urlFor('en')} />
+    {noindex && <meta name="robots" content="noindex" />}
+    {!noindex && <link rel="canonical" href={urlFor(locale)} />}
+    {!noindex && locales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
+    {!noindex && <link rel="alternate" hreflang="x-default" href={urlFor('en')} />}
     <meta property="og:type" content="website" />
-    <meta property="og:title" content={title} />
+    <meta property="og:title" content={fullTitle} />
     <meta property="og:description" content={description} />
     <meta property="og:url" content={urlFor(locale)} />
     <meta property="og:image" content={new URL('/og.png', site).href} />
@@ -53,24 +75,73 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
         '@type': 'Organization',
         name: 'NexGrid',
         url: site.href,
-        logo: new URL('/favicon.svg', site).href,
+        logo: new URL('/icon-512.png', site).href,
       })}
     />
+    <!-- 首帧前的三件事(在正文之前;不依赖样式表——Astro 把样式链接排在本脚本之后,滚动条槽由脚本自己以内联样式设上再量):
+         ① html.js —— 进场/遮罩/打字机的隐藏初始态只在 JS 可用时存在(无 JS 全部直显);
+         ② html.x-boot —— 四拍开场只给首页的 navigate 型导航(刷新 / 后退 / 带锚点不重放);
+         ③ --x-vw —— 可用视口宽(不含经典滚动条),画布缩放系数的输入。
+         fx.ts 里同名动作只作兜底。 -->
+    <script is:inline>
+      (function () {
+        var h = document.documentElement;
+        h.classList.add('js');
+        /* 可用宽取 html 的布局宽(不含滚动条槽):clientWidth 在无头/隐藏滚动条环境下不减槽宽,与布局分家(实测 1440 vs 1425)。
+           槽先以内联样式设上(本脚本在样式表之前执行),量到的就是终态。 */
+        h.style.scrollbarGutter = 'stable';
+        h.style.setProperty('--x-vw', h.getBoundingClientRect().width + 'px');
+        var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
+        var fresh = !nav || nav.type === 'navigate';
+        if (fresh && !location.hash && /^\/(vi\/?|zh\/?)?$/.test(location.pathname)) h.classList.add('x-boot');
+      })();
+    </script>
+    {/* 交互引擎放 head:module 脚本本就 defer(不阻塞渲染),但放在 body 末尾时预扫描器最后才发现它,
+        0.75Mbps 实测 11.3KB 的引擎排在十个字体 + 两张字标 PNG(约 230KB)之后,3615ms 才到 ——
+        而副题的进场是 CSS 驱动、2411ms 就亮了,于是首屏拍序倒过来:副题先于标题出现。
+        放进 head 后引擎与样式表同批发现,顺序恢复。这是投递优先级问题,不是编舞问题。 */}
+    <script src="../scripts/fx.ts"></script>
   </head>
   <body>
     <canvas id="x-bg" aria-hidden="true"></canvas>
-    <SiteNav locale={locale} path={path} />
+    {/* noindex 页(404)无对应语言版:语言链回各语首页(不生成 /vi/404/ 这种死链),
+        但页内锚点在该页不成立——导航链接必须指回首页的锚点,否则点了只改 URL 不动 */}
+    {/* 跳至正文:导航里有 10 个可聚焦件,没有这条链接的话,键盘用户每换一页都要按 10 次 Tab 才够到内容。
+        只在获得焦点时出现(默认挪出屏外,不占版面)。目标挂在画布壳上 —— 每条路由的内容都在它里面。 */}
+    <a class="x-skip" href="#main">{t('nav.skip')}</a>
+    <SiteNav locale={locale} path={noindex ? '/' : path} inPageAnchors={!noindex && path === '/'} neutralLang={noindex} />
     <div class="x-frame">
-      <div class="x-canvas">
+      <div class="x-canvas" id="main" tabindex="-1">
         <slot />
         <SiteFooter locale={locale} />
       </div>
     </div>
-    <script src="../scripts/fx.ts"></script>
   </body>
 </html>
 
 <style is:global>
+  /* 跳至正文:平时挪出屏外(不用 display:none,那样键盘也够不到),聚焦时落回左上角 */
+  .x-skip {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 60; /* 导航是 40,这条要盖在它上面 */
+    padding: 10px 16px;
+    background: var(--x-accent);
+    color: var(--x-on-accent);
+    font-family: var(--x-font-mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    text-decoration: none;
+    transform: translateY(-120%);
+  }
+  .x-skip:focus-visible {
+    transform: translateY(0);
+  }
+  /* 焦点落到画布壳上时不画默认轮廓(它是整页容器,轮廓会框住整屏) */
+  .x-canvas:focus {
+    outline: none;
+  }
   body {
     margin: 0;
     font-family: var(--x-font-display);
@@ -88,8 +159,7 @@ const urlFor = (l: Locale) => new URL(l === 'en' ? path : `/${l}${path}`, site).
     display: block;
     background: var(--x-bg);
   }
-  /* 层叠哲学(参考站同款):canvas z0 < 导航 z1 < 内容 z2。
-     导航透过暗区块的透明底可见;反白区块(不透明)滑上来时直接盖过导航。 */
+  /* 层叠哲学(参考站同款):canvas z0 < 内容 z2 < 导航 z40(磨砂底板,过白带翻色)。 */
   /* 全宽裁切框:停放的叠卡裁在**屏缘**(参考站同口径:裁切盒 = [0, 视口宽])。
      不能放 body —— body 的溢出属性会被上交给视口、body 自己反而不裁,文档宽度照样被撑开(实测溢出 5153px);
      也不能放画布 —— 那会把裁切边拉回画布边,卡片从屏内一条硬边凭空冒出(R39 实录)。

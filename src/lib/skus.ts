@@ -3,7 +3,10 @@
    算力倍数(multiplier)为事实性展示。status 快照按 §7.1 表 status 列;
    'coming' 渲染逻辑保留(unlocksAtPhase 未达机型的预热态),当前快照无 coming 项
    ——官网无 App phase 状态面,不虚构上架节奏,接真接口后由 server 下发。
-   快照口径日 2026-08-20;App PRD §7.1 表变更时同步此处。 */
+   快照口径日 2026-08-20;App PRD §7.1 表变更时同步此处。
+   R45 B8:倍数千分位随语言;价格是 USD,保持国际 $1,199 写法不随语言变。 */
+import type { Locale } from '../i18n';
+import { localeTag } from './stats';
 
 export interface WebSku {
   id: string;
@@ -28,6 +31,6 @@ export function fmtPrice(n: number): string {
   return n === 0 ? '' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
 }
 
-export function fmtMultiplier(n: number): string {
-  return `${n.toLocaleString('en-US')}×`;
+export function fmtMultiplier(n: number, locale: Locale = 'en'): string {
+  return `${n.toLocaleString(localeTag(locale))}×`;
 }

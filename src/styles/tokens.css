@@ -1,6 +1,6 @@
 /* NexGrid website design tokens — "axiom" direction R7(2026-08-20 解剖报告落地)。
    排版尺子对齐参考站(见 PRD/specs/WEBSITE-axiom-teardown.md §1):
-   行高三档 0.79/1.0/1.2 · 字距无正值 · display 标题 400(Mega 500)· mono 正文 400/标签按钮 700。
+   行高三档 0.79/1.0/1.2 · 字距无正值 · display 标题 400(Mega 500)· mono 正文 400 / 标签 400 / 按钮 700。
    颜色一律用 token,组件禁硬编码 hex。自研实现。 */
 
 *,
@@ -56,6 +56,11 @@
     'Microsoft YaHei',
     system-ui,
     sans-serif;
+  /* 透底区块里给小字垫的局部暗底(页脚披露段 / 版权行 / 404 三块);打印时翻成透明 */
+  --x-scrim: rgb(12 12 13 / 0.9);
+  /* 底色的裸分量:给需要「同色不同 alpha」的地方用(导航磨砂底板),避免第二处 hex 字面量 */
+  --x-bg-rgb: 12 12 13;
+  --x-light-rgb: 242 242 242;
   --x-font-mono:
     'Space Mono',
     ui-monospace,
@@ -64,31 +69,33 @@
     'Microsoft YaHei',
     monospace;
 
-  /* Layout — 画布制:1440 基准随视口放大,**1920 封顶**(=1440×1.3333),再宽居中留白。
-     R39:此前只有字号/区高走 clamp 有封顶,横向百分比(叠卡宽/锚位)裸用 vw 无上限 →
-     2560 视口下卡宽 1156px vs 参考站 866.7px(+33.3%),且整站内容贴左不居中。
-     --x-gut 由 main 吃成左右内边距 ⇒ 内含一切 % 几何自动以 ≤1920 为参照系并居中,
-     背景层(粒子 canvas / 导航条 / 白幕布带)仍全出血,与参考站同构。 */
-
-  /* ── 画布单位(R40 · A+)──
-     参考站是「1440 画布整体等比缩放、1920 封顶」;本站改用两个单位表达同一条曲线,
-     零 JS、零架构改动。任何尺寸写成 calc(N * var(--u)) 即自动等比,
-     **各处不再手写上限** ⇒「上限算错」这一族(实测 54/126 条)结构性消失。
-       --u   随视口伸缩:1440 处 =1px,>1920 封顶 1.3333px,窄屏按比例缩小
-             (用于今天就跟着视口缩的值 —— 等价于原来的 clamp 中值)
-       --uc  只涨不缩:≤1440 恒 =1px,>1920 封顶 1.3333px
-             (用于今天是固定像素的值,以及各类「天花板」——保证窄屏零变化) */
-  /* 画布缩放系数(纯数):画布壳、导航壳、以及一切需要「把视口量换算成画布量」的地方共用同一真源 */
-  --x-zoom: calc(min(100vw, 1920px) / 1440px);
+  /* ── Layout · 画布制(R42)──
+     参考站是「1440 画布整体等比缩放、1920 封顶、再宽居中」。本站用一层画布壳(Base.astro `.x-canvas`)
+     以 CSS zoom 整体缩放,画布内一切尺寸都是 1440 画布上的固定像素;≤1439 退回自适应(zoom 1)。
+     两个单位 --u / --uc 在画布内恒为 1px,只在断点以下(自适应段)分别表示「随视口缩」与「只涨不缩」。
+     ⚠️ 画布内禁用视口单位(会被 zoom 二次放大)——静态门 canvas-hazard 守。 */
+  /* 画布缩放系数(纯数):画布壳、导航壳、以及一切需要「把视口量换算成画布量」的地方共用同一真源。
+     R45:输入改用 --x-vw(可用视口宽,不含经典滚动条;由 Base.astro 内联脚本与 fx.ts 维护,100vw 兜底)——
+     100vw 含滚动条而 fixed/流盒不含,Windows 经典滚动条 15px 曾让 1440–1935 宽画布多 15px 被裁切框裁掉。 */
+  --x-zoom: calc(min(var(--x-vw, 100vw), 1920px) / 1440px);
   /* 画布外溢量(画布单位):屏宽超出画布的那一半,换算回画布量后给全出血块用 */
-  --x-bleed: calc(max(0px, (100vw - 1920px) / 2) / var(--x-zoom));
+  --x-bleed: calc(max(0px, (var(--x-vw, 100vw) - 1920px) / 2) / var(--x-zoom));
   --u: 1px;
   --uc: 1px;
-  /* ↑ 默认「只涨不缩」保护窄屏既有设计;桌面画布段(≥1200)由下方 media 改为真正跟着缩 */
+  /* ↑ 默认「只涨不缩」保护窄屏既有设计;断点以下由下方 media 改为真正跟着缩 */
   --x-pad: max(20px, calc(40 * var(--u))); /* cap=40×1.3333 精确(R26) */
-  --x-section-gap: max(80px, calc(139.68 * var(--u)));
-  /* 画布制区高:定高带(statement/about/deck pin)= 画布 800 → 55.56vw;cap=800×1.3333(R26) */
+  /* 画布制区高:定高带(statement/about/deck pin)= 画布 800(R42 起随画布 zoom 等比;cap=800×1.3333) */
   --x-sec-h: max(560px, calc(800 * var(--u)));
+  /* 导航条高度(画布单位)。它是首屏上内衬的**唯一来源** —— 此前两处各写各的常数,
+     矮视口档写 64/80 而 >860 的导航实高是 74,1920×360 上标题的墨被蒙版压掉 29px。
+     ⚠️ 这个数是内容撑出来的(字标 40 + 上下内衬),改字标尺寸要同步改这里;
+     门 render-fit 判据 C 会拿实测值钉住它,漂了就红。 */
+  --x-nav-h: 74px;
+  /* 触达底线:画布内写 44px 也会被 zoom 缩(1440–1455 这段带经典滚动条时 zoom<1,实测只有 43.53)。
+     取两者较大:除以 zoom 保证屏幕上不低于 44,画布单位保证 >1440 时仍跟着放大。 */
+  --x-touch: max(calc(44px / var(--x-zoom)), calc(44 * var(--uc)));
+  /* AA 目标尺寸下限 24×24(WCAG 2.2)。给那些做不到 44 宽的窄标签用,如两个字母的语言键。 */
+  --x-touch-aa: max(calc(24px / var(--x-zoom)), calc(24 * var(--uc)));
 }
 
 /* R42:断点以下退回自适应(= 画布制之前的行为,窄屏逐像素不变);
@@ -100,9 +107,29 @@
     --x-zoom: 1;
   }
 }
+/* 窄屏导航是收起态,比桌面矮 20 画布像素 */
+@media (max-width: 860px) {
+  :root {
+    --x-nav-h: 54px;
+  }
+}
 
-html[lang='vi'] {
+/* 语言尺一律挂在元素自身的 :lang()(不是 html[lang]):404 页三语并列块、法务页 <main lang=en> 这类块级语言也要各吃各的尺。
+   每条带 :not(html) 只为补回原 html[lang] 前缀的 (0,0,1) 特异度——降一档会与组件同级规则打平、按源顺序输掉(zh 页脚小字行高实测被压回 1.5) */
+:lang(vi) {
   --x-font-display: 'Be Vietnam Pro', system-ui, sans-serif;
+}
+:lang(en) {
+  /* vi/zh 页里的英文岛(法务正文)也各吃各的尺,变量不从 html 穿进来。
+     值必须与 :root 逐项相同(含 CJK 回退)——只换掉 Be Vietnam Pro,不是顺手瘦身:
+     404 页 html 是 lang=en,并列的 zh 块会继承到这里,少了回退栈中文就落到 system-ui */
+  --x-font-display:
+    'Funnel Display',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    system-ui,
+    sans-serif;
 }
 
 html {
@@ -111,8 +138,12 @@ html {
      当初的理由不成立;代价却是实的:吞掉用户在浏览器里调大的默认字号,缩放增益 2.0×→1.5×。 */
   background: var(--x-bg);
   color: var(--x-ink);
-  scroll-behavior: smooth;
+  /* 站内平滑由 Lenis 管;浏览器自带的 smooth 会把「带锚点直达 / 跨页跳锚」做成从页顶滚 1.3–2s 的动画,沿途批量触发进场 */
+  scroll-behavior: auto;
   color-scheme: dark;
+  /* R45:滚动条槽常驻,首帧量到的 html 布局宽就是终态可用宽(--x-vw 不会在正文撑出滚动条后再跳 15px;
+     量 getBoundingClientRect 宽而不是 clientWidth——后者在隐藏滚动条环境不减槽宽,与布局分家) */
+  scrollbar-gutter: stable;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -120,17 +151,38 @@ html {
 [id] {
   scroll-margin-top: calc(84 * var(--uc));
 }
+/* 站内锚点补间后目标获焦(键盘焦点起点随之移动),程序化焦点不画框 */
+[tabindex='-1']:focus {
+  outline: none;
+}
+
+/* 视觉隐藏(可访问文本):行遮罩 / 打字机把原文留给辅助技术与查找 */
+.x-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
 
 /* ============ 排版尺子(全站型类) ============ */
 
-/* 等宽标签:大写、零字距、700(参考站标签/按钮唯二 700 位) */
+/* 等宽标签:大写、零字距、400(R44 起;700 只剩 .xbtn 按钮) */
 .x-label {
   font-family: var(--x-font-mono);
   font-size: calc(12 * var(--uc));
-  font-weight: 400; /* R44:粗体等宽收回给转化按钮;此前全站 141 处在用,原版全页只有按钮上 2 处 */
+  font-weight: 400; /* R44:粗体等宽收回给转化按钮;此前全站 141 处在用,原版全页只有按钮上 2 处 */
   letter-spacing: 0;
   text-transform: uppercase;
   line-height: 1.2;
+}
+/* vi 变音符与 CJK 同性质:1.2 会让上一行的下点压住下一行的帽子。与 .x-mono 的例外同层。 */
+.x-label:lang(vi):not(html) {
+  line-height: 1.45;
 }
 
 /* 等宽正文:12px/1.2/零字距/400 */
@@ -142,9 +194,14 @@ html {
   text-transform: uppercase;
   line-height: 1.2;
 }
-html[lang='zh'] .x-mono {
+.x-mono:lang(zh):not(html) {
   font-size: calc(12.5 * var(--uc));
   line-height: 1.6; /* CJK 密排不变量豁免 */
+}
+/* vi 与 CJK 同性质:叠音符(帽子+钩)向上出框、下点向下出框,1.2 会让上一行的下点压住下一行的帽子。
+   与 zh 同层写在这里,而不是逐个组件补 —— 前者一条覆盖全站,后者每加一个新组件就漏一处。 */
+.x-mono:lang(vi):not(html) {
+  line-height: 1.45;
 }
 
 /* 等宽引言档:16 档画布缩放(板块引言/kicker/副题;R23 全站保形,zh +3.5% 光学补偿) */
@@ -156,9 +213,12 @@ html[lang='zh'] .x-mono {
   text-transform: uppercase;
   line-height: 1.2;
 }
-html[lang='zh'] .x-mono-lg {
+.x-mono-lg:lang(zh):not(html) {
   font-size: max(16.5px, calc(16.56 * var(--u)));
   line-height: 1.5;
+}
+.x-mono-lg:lang(vi):not(html) {
+  line-height: 1.45; /* 同上;首屏副题走的是这一档 */
 }
 
 /* display 陈述体:1.0/-3%/400(参考站 48 档也是 400) */
@@ -169,9 +229,15 @@ html[lang='zh'] .x-mono-lg {
   line-height: 1;
   text-wrap: balance;
 }
-html[lang='zh'] .x-display {
+.x-display:lang(zh):not(html) {
   line-height: 1.15;
   letter-spacing: -0.01em;
+}
+/* vi 与 CJK 同性质但更极端:一个字母可同时挂叠音符与下点,实测最坏墨高 1.37 倍字号。
+   1.25 覆盖当前全部标题串(实测最坏 1.19)并留余量;再往上会明显偏离参考站的 display 观感,
+   由门 render-fit 判据 A 兜住 —— 文案换成更极端的串时它会红,而不是靠人再扫一遍。 */
+.x-display:lang(vi):not(html) {
+  line-height: 1.25;
 }
 
 /* Mega 档(hero h1 / 页脚巨字):0.79/-4%/500 */
@@ -181,9 +247,16 @@ html[lang='zh'] .x-display {
   letter-spacing: -0.04em;
   line-height: 0.79;
 }
-html[lang='zh'] .x-display-mega {
+/* zh 覆写只给 CJK 文本;页脚 Latin 字标(.wordmark)在 zh 页也要 0.79——此前吃了 1.05 把页脚右列撑高 31px */
+.x-display-mega:lang(zh):not(html):not(.wordmark) {
   line-height: 1.05;
   letter-spacing: -0.02em;
+}
+/* vi 同理,且比 CJK 更极端(叠音符 + 下点可同时出现在一个字母上)。
+   0.79 时逐行实测行间 −29.2px:上一行的 g 尾与下一行的帽子直接叠在一起。
+   门 render-fit 判据 A 逐行量墨,换了更极端的文案会红。字标(.wordmark)是拉丁字,不吃这一档。 */
+.x-display-mega:lang(vi):not(html):not(.wordmark) {
+  line-height: 1.12;
 }
 
 /* R35:.x-kv 满饱和柠檬 chip 规则清退(零消费死规则,且违「满饱和只给可点转化件」分层纪律) */
@@ -193,7 +266,7 @@ html[lang='zh'] .x-display-mega {
   position: relative;
   display: inline-flex;
   overflow: hidden;
-  min-height: calc(44 * var(--uc));
+  min-height: var(--x-touch);
   align-items: center;
   padding: 0 calc(18 * var(--uc));
   border: 1px solid var(--x-line);
@@ -268,29 +341,76 @@ html[lang='zh'] .x-display-mega {
 }
 
 /* 滚动进场 reveal(次要块):位移收敛 12px,曲线换急起长尾;
-   no-JS 防隐形:仅 html.js 下才有隐藏初始态(fx 首行挂 .js) */
+   no-JS 防隐形:仅 html.js 下才有隐藏初始态(Base.astro 头部内联脚本首帧前挂 .js)。
+   R45:透明度/位移经自定义属性下发,且 opacity 规则只用 [data-rv](0,1,0)——
+   进场结束后元素自己的 hover 规则(.x-dimlink:hover 等)才能再赢回 opacity;此前 html.js [data-rv].in{opacity:1}
+   压死了学习中心行 / /learn 卡 / 语言切换的所有 hover。过渡结束加 .rv-done 把时长/延迟也交还。 */
+[data-rv] {
+  opacity: var(--rv-o, 1);
+  transform: var(--rv-t, none);
+}
 html.js [data-rv] {
-  opacity: 0;
-  transform: translateY(12px);
   transition:
     opacity 0.9s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.9s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--d, 0s);
 }
-html.js [data-rv].rv-fade {
-  transform: none; /* 视差卡解耦:reveal 只动透明度 */
+html.js [data-rv]:not(.in) {
+  --rv-o: 0;
+  --rv-t: translateY(12px);
 }
-html.js [data-rv].in {
-  opacity: 1;
-  transform: none;
+html.js [data-rv].rv-fade {
+  --rv-t: none; /* 视差卡解耦:reveal 只动透明度,transform 交给 fx 视差逐帧写 */
+  transition-property: opacity;
+}
+html.js [data-rv].rv-done {
+  transition-duration: 0.2s;
+  transition-delay: 0s;
 }
 
 /* 行遮罩逐行上滑(display 标题引擎,fx initLineReveal 注入结构) */
+html.js [data-lr].lr-ready {
+  display: flow-root; /* 行盒的负外边距不再穿透宿主(否则整块在动画期上移、还原时跳回) */
+}
+/* 首屏标题(load 模式)在遮罩建好前不可见——否则先以回退字体画出、建遮罩时消失、再滑入。
+   兜底:脚本失败 3s 后自行现身。 */
+html.js [data-lr='load']:not(.lr-ready) {
+  visibility: hidden;
+  animation: x-unhide 0s linear 3s forwards;
+}
+@keyframes x-unhide {
+  to {
+    visibility: visible;
+  }
+}
+/* 遮罩窗用 clip-path 的负 inset(向外扩裁切框、**不参与布局**),不是 overflow + 内衬 + 负外边距:
+   后者的负外边距在相邻行之间会**折叠**(取最负的一个而不是相加),每条行缝净多出一个余量
+   (Mega .24em / vi .14em)——动画期行距被撑开、还原时整行上跳(实测首屏 h1 第 2 行差 23px,三语全中)。
+   余量数值与折叠版逐边相同,所以遮罩严实度不变;宿主高度回到与纯文本一致,锁高兜底不再触发。
+   四边含义:下 .1em 防降部;左右 .05em 防末字「s/x」外扩墨迹被切 1–2 列;上按语言/档位给叠音符留位。 */
+/* 未播态:行盒里本该一个墨点都没有(内层整体在 110% 之下),下边**向内收**把它压死。
+   为什么非收不可:行高 <1 时字形本身高出行盒(Mega 0.79 档高出约 .205em),110% 位移只挪走 .869em,
+   字顶反而落回行盒下缘内——两路独立实测都看到起滑前漏墨(首屏 h1 与页脚字标,en/vi 皆中)。
+   起滑同帧换成 .lr-open 放开下边余量(防降部/叠音符),那时内层正在上行,收与放的切换看不出来。 */
 .lr-line {
   display: block;
-  overflow: hidden;
-  padding-bottom: 0.1em; /* 行高 ≤1.0 时降部字符防裁 */
-  margin-bottom: -0.1em;
+  clip-path: inset(0 -0.05em 0.3em);
+}
+.lr-line.lr-open {
+  clip-path: inset(0 -0.05em -0.1em); /* 下 .1em 防降部 */
+}
+/* vi 叠音符(ệ / ấ 上方两层)在 1.0 档顶出行盒 2–6px、ạ 下点更低:上 .16em / 下 .14em */
+.lr-line:lang(vi):not(html).lr-open {
+  clip-path: inset(-0.16em -0.05em -0.14em);
+}
+/* Mega 档(0.79 行高)遮罩窗要更深:vi 叠音符顶部曾切 21px、ạ 下点 21px、en 降部 9px */
+.x-display-mega .lr-line.lr-open,
+.x-display-mega .lr-line:lang(vi):not(html).lr-open {
+  clip-path: inset(-0.26em -0.05em -0.24em);
+}
+/* 未播放的宿主里,读屏文本与行内文本并存;复制时只取读屏那份,避免复制出双份 */
+.lr-line {
+  user-select: none;
 }
 .lr-inner {
   display: block;
@@ -303,28 +423,66 @@ html.js [data-rv].in {
   transform: none;
 }
 
-/* 首载四拍编排(fx 在首页挂 html.x-boot;内页即显) */
+/* 打字机(fx initType 注入结构):影子层定版面、打字层同格叠打;注册前原文不可见(脚本失败 3s 后现身) */
+html.js [data-tw]:not(.tw):not(.tw-done) {
+  visibility: hidden;
+  animation: x-unhide 0s linear 3s forwards;
+}
+html.js .tw-block {
+  display: grid;
+}
+html.js .tw-inline {
+  display: inline-grid;
+}
+.tw > .tw-ghost,
+.tw > .tw-live {
+  grid-area: 1 / 1;
+}
+.tw > .tw-ghost {
+  visibility: hidden;
+}
+
+/* 首载编排:背景 canvas 第一拍(1s zoom-fade,参考曲线 (0.22,1,.36,1))由 CSS 承担,首帧即起、不等空闲回调;
+   与四拍(导航 / 标题 / 副题)同样只挂 html.x-boot(首页 navigate 型导航);内页 / 刷新 / 后退即显,不重放 */
+html.x-boot #x-bg {
+  animation: x-zoom-fade 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes x-zoom-fade {
+  from {
+    opacity: 0;
+    transform: scale(1.05);
+  }
+}
 @keyframes x-fade {
   from {
     opacity: 0;
   }
 }
+/* 🔴 用 backwards 不用 both:both 会让这条 opacity 动画**永久保持在 fill 态**,
+   于是 .site-nav 一直是个 backdrop root,它 ::before 的 backdrop-filter 采不到页面内容——
+   主人拍板的磨砂在首页三语一层都没上(内容原样清晰透过来压着导航自己的字,实测残留细节量与「关掉模糊」无差别)。
+   keyframes 只有 from{opacity:0},to 就是元素自身的 1,所以 backwards 与 both **视觉等价**。
+   ⚠️ 这坑之所以躲过前几轮:reduced-motion 下这条动画被清成 none,磨砂就正常——
+   而探针默认开 reducedMotion:'reduce' 跑,看到的是好的,普通访客看到的是坏的。 */
 html.x-boot .site-nav,
 html.x-boot .hero .scroll-hint,
 html.x-boot .hero .note {
-  animation: x-fade 0.6s ease 0.4s both;
+  animation: x-fade 0.6s ease 0.4s backwards;
 }
 html.x-boot .hero .sub,
-html.x-boot .hero .dl-wrap {
-  animation: x-fade 0.5s ease 1.4s both;
+html.x-boot .hero .dl-wrap,
+html.x-boot #stats {
+  animation: x-fade 0.5s ease 1.4s both; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
 }
 
 /* 焦点可见性 */
 a:focus-visible,
 button:focus-visible,
 summary:focus-visible {
-  outline: 2px solid var(--x-accent-ink); /* R30:走带纸面变体的档(白带上自动深柠檬,非文本 ≥3:1) */
-  outline-offset: 2px;
+  /* 2.05 不是 2:画布 zoom 在 1440–1454 视口为 0.9896,Chrome 把 zoom 后的 outline 宽按设备像素**下取整**,
+     2px 会变成 1 设备像素(焦点环细一半);2.05 过完 zoom 仍 ≥2 */
+  outline: calc(2.05 * var(--uc)) solid var(--x-accent-ink); /* R30:走带纸面变体的档(白带上自动深柠檬,非文本 ≥3:1) */
+  outline-offset: calc(2.05 * var(--uc)); /* 与环宽同口径:2 会在 zoom 0.9896 下被取整成 1 设备像素 */
 }
 
 /* 纸面变量组:x-invert=整块反白区(带 z);x-paper=信息面 */
@@ -385,20 +543,34 @@ summary:focus-visible {
   html {
     scroll-behavior: auto;
   }
+  /* 翻色延迟也归零:reduce 只清 duration,延迟仍让文字在瞬切前隐形 ≈190ms */
+  .site-nav,
+  .site-nav.on-light {
+    transition-delay: 0s !important;
+  }
+  html.js [data-rv]:not(.in) {
+    --rv-o: 1;
+    --rv-t: none;
+  }
   html.js [data-rv] {
-    opacity: 1;
-    transform: none;
     transition: none;
   }
   .lr-inner {
     transform: none;
     transition: none;
   }
+  html.js [data-lr='load']:not(.lr-ready),
+  html.js [data-tw]:not(.tw):not(.tw-done) {
+    visibility: visible;
+    animation: none;
+  }
+  html.js #x-bg,
   html.x-boot .site-nav,
   html.x-boot .hero .scroll-hint,
   html.x-boot .hero .note,
   html.x-boot .hero .sub,
-  html.x-boot .hero .dl-wrap {
+  html.x-boot .hero .dl-wrap,
+  html.x-boot #stats {
     animation: none;
   }
   *,
@@ -408,5 +580,81 @@ summary:focus-visible {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     animation-timeline: auto !important;
+  }
+}
+
+/* 打印:此前零 print 规则——进场态全部隐藏、遮罩不归位、导航/粒子固定层重复,打出来是黑纸(法务页尤甚)。
+   口径:墨色 token 翻成深字浅底,进场/遮罩/打字机全归位,固定层与钉屏编舞撤掉。 */
+@media print {
+  :root {
+    --x-scrim: transparent; /* 打印无粒子,护字层那层暗底会盖住已翻成黑字的合规免责声明 */
+    --x-bg: #ffffff;
+    --x-ink: #000000;
+    --x-white: #000000;
+    --x-ink-dim: rgba(0, 0, 0, 0.7);
+    --x-ink-cap: rgba(0, 0, 0, 0.85);
+    --x-line: rgba(0, 0, 0, 0.25);
+    --x-line-soft: rgba(0, 0, 0, 0.12);
+    --x-accent-ink: #486405;
+    --x-accent-hot: #486405;
+  }
+  html,
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  #x-bg,
+  .site-nav {
+    display: none !important;
+  }
+  html.js [data-rv],
+  html.js [data-rv]:not(.in) {
+    --rv-o: 1;
+    --rv-t: none;
+    opacity: 1 !important; /* 常驻的 :not(.in) 规则特异度更高,变量法压不住;视差卡另有内联 transform */
+    transform: none !important;
+    transition: none;
+  }
+  .lr-inner {
+    transform: none !important;
+    transition: none !important;
+  }
+  html.js [data-lr='load']:not(.lr-ready),
+  html.js [data-tw]:not(.tw):not(.tw-done) {
+    visibility: visible !important;
+    animation: none !important;
+  }
+  /* 打字机注册即进 .tw 态(影子层隐藏、打字层空,IO 到了才打字):打印把影子层亮出来 */
+  html.js .tw > .tw-ghost {
+    visibility: visible !important;
+  }
+  html.js .tw > .tw-live {
+    display: none !important;
+  }
+  .x-canvas {
+    zoom: 1 !important;
+    width: auto !important;
+  }
+  .band-light,
+  .band-light.curtain {
+    margin-top: 0 !important;
+  }
+  [data-deck] {
+    height: auto !important;
+  }
+  [data-deck-pin] {
+    position: static !important;
+    height: auto !important;
+    display: flex !important;
+  }
+  [data-deck] .stage {
+    position: static !important;
+    display: flex !important;
+  }
+  [data-deck-card] {
+    position: static !important;
+    transform: none !important;
+    width: min(520px, 100%) !important;
+    margin-bottom: 20px;
   }
 }

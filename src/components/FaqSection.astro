@@ -1,7 +1,7 @@
 ---
 /* [FEAT-WEB12] Home FAQ — 6 问手风琴(原生 details)+ FAQPage JSON-LD。
    涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。
-   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。 */
+   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。本规格同时是 /nex FAQ 与信任区 PoC 手风琴的样板(R45 B7 归一)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -88,6 +88,10 @@ const ld = {
     line-height: 1.25;
     text-wrap: balance;
   }
+  .q:lang(vi):not(html),
+  .q:lang(zh):not(html) {
+    line-height: 1.45; /* 窄屏问句必折两行,1.25 在 vi/zh 下相邻行的墨相接 */
+  }
   .mark {
     color: var(--x-accent-ink); /* R30:与信任区手风琴记号统一档 */
     font-weight: 400;
@@ -109,5 +113,15 @@ const ld = {
     max-width: calc(760 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
+  }
+  .item p:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量(曾被本规则特异度压回 1.45) */
+  }
+  .q {
+    transition: opacity 0.2s;
+  }
+  .item summary:hover .q,
+  .item summary:focus-visible .q {
+    opacity: 0.6;
   }
 </style>

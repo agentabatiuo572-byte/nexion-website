@@ -13,8 +13,8 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
 const results = [];
-// 开跑先把退出码文件置红:verify 若中途崩溃或被中止,读文件的人拿到的是红,
-// 而不是**上一次的绿**(「中止 ≠ 判红」是本仓踩过的坑——半路崩掉时红门数反而变少)
+// 置红的正主是 npm script 里先跑的 verify-preamble.mjs(独立进程,门模块语法错也拦得住);
+// 这里再写一次,给「直接 node scripts/verify.mjs」的调用方兜底
 writeFileSync(join(ROOT, '.verify-exit.code'), '2');
 
 function walk(dir, exts, out = []) {
@@ -31,12 +31,25 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 /* ── 门 1:禁用词(PRD §1.4-1/3/4)──────────────────────────────
    注意:"not guaranteed" 是免责声明合法用法,模式只抓「保证收益」组合。 */
 {
+  /* 族要覆盖「保证 + 收益词」「百分比 + 周期/收益词」「定额 + 周期」「零/无风险」三语;
+     U5 变异测试曾用 12 种常见表述探针,旧清单只命中 3 种(主人红线全靠此门) */
   const PATTERNS = [
-    [/guaranteed\s+(returns?|income|profits?|earnings?|yields?)/i, 'guaranteed+收益词'],
-    [/risk[-\s]?free/i, 'risk-free'],
-    [/\d+(\.\d+)?\s*%\s*(annual\s+|yearly\s+)?(returns?|yields?|APY|APR)/i, '百分比收益承诺'],
-    [/(稳赚|保本|包赚|躺赚保证|看涨)/, '中文收益承诺/投机词'],
-    [/(lãi\s+suất\s+đảm\s+bảo|không\s+rủi\s+ro)/i, '越南语收益承诺'],
+    [/guarantee[ds]?\s+(your\s+)?(returns?|income|profits?|earnings?|yields?|payouts?)/i, 'guarantee+收益词'],
+    [/(risk[-\s]?free|(zero|no)[-\s]risk)/i, 'risk-free / zero-risk'],
+    [/\d+(\.\d+)?\s*%\s*(monthly|weekly|daily|annual(ly)?|yearly|per\s+(month|year|week|day)|a\s+(month|year|week|day))?\s*(returns?|yields?|APY|APR|ROI|profits?|income|interest|gains?)\b/i, '百分比收益承诺'],
+    /* 「百分比 + 周期」必须邻近收益名词才算承诺:本站文案天生充满抽成 % 与在线率 %
+       (fee / uptime / commission 各自合法),不加这道守卫,门会变成日常绕行的对象 */
+    [/\d+(\.\d+)?\s*%\s*(monthly|weekly|daily|annual(ly)?|yearly|per\s+(month|year|week|day)|a\s+(month|year|week|day))\s*(in\s+)?(returns?|yields?|profits?|income|earnings?|interest|gains?|payouts?)/i, '百分比+周期+收益词'],
+    [/(APY|APR|ROI)\s+of\s+\d/i, 'APY/APR/ROI of N'],
+    [/\d+(\.\d+)?\s*(USDT|USD|\$|NEX)\s+(per|every|each|a)\s+(day|week|month|year)/i, '定额周期收益'],
+    [/(up\s+to|earn|make)\s+\$\d+(\.\d+)?\s*(per|every|each|a)\s+(day|week|month|year)/i, '定额周期收益($)'],
+    /* 中文/越南语没有英文 "not guaranteed" 那种天然守卫,而否定式免责声明(「本站不保证收益」)
+       与承诺共用同一批词 → 承诺类一律加否定前瞻 */
+    [/(稳赚|保本|包赚|躺赚|看涨|(?<!不|非|无)保证(收益|回报|盈利|赚)|年化(收益)?(率)?\s*\d|收益率\s*\d|每(天|日|周|月)(收益|赚|回报|收入)\s*\d)/, '中文收益承诺/投机词'],
+    [/(?<!不存在|没有|不是)(零风险|无风险)(?!是不存在|并不存在)/, '中文零风险'],
+    [/(lãi\s+suất\s+đảm\s+bảo|lợi\s+nhuận\s+(đảm\s+bảo|cố\s+định)|đảm\s+bảo\s+(thu\s+nhập|lợi\s+nhuận)|không\s+rủi\s+ro)/i, '越南语收益承诺'],
+    /* vi 的「% 每月」同样要邻近收益名词——手续费 5% mỗi tháng 是合法文案 */
+    [/(lợi\s+nhuận|lãi)[^.。\n]{0,20}\d+(\.\d+)?\s*%\s*(mỗi|một|hàng)\s+(tháng|năm|ngày|tuần)|\d+(\.\d+)?\s*%\s*(mỗi|một|hàng)\s+(tháng|năm|ngày|tuần)[^.。\n]{0,20}(lợi\s+nhuận|lãi)/i, '越南语百分比周期收益'],
   ];
   const files = walk(SRC, ['.astro', '.ts', '.tsx', '.jsx', '.json', '.md']);
   const hits = [];
@@ -170,6 +183,22 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 
 results.push(canvasUnitGate(SRC, rel));
 
+/* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
+   同型两次都是「写进去了但从未生效,而且没有任何反馈」:
+   ① 同一条规则里写了两个 max-width(新值在前旧值在后),「已修」从未生效;
+   ② 手机菜单的矮屏压缩块写在它要压的基础规则**前面**,嵌套 media 不加特异度 → 六条只落地三条。
+   两次都是独立评审逐像素量出来的,肉眼与「我改了」的记忆都发现不了。
+   判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向 7 条)。 */
+{
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  results.push({
+    gate: 'css-shadowed(死声明)',
+    pass: r.status === 0,
+    detail: r.status === 0 ? [] : out.filter((l) => !/^\[css-shadowed\] ✓/.test(l)).map((l) => l.replace(/^\s*/, '')),
+  });
+}
+
 /* ── 第七门:画布几何(运行时,自建自起产物) ──
    前六门全是静态文本/token 检查,没有一门看渲染盒子——R39 的「正文被挤成 33px」
    在六门全绿的情况下溜进产物,靠人肉才发现。判据与红测见 gate-canvas-geometry.mjs。
@@ -190,6 +219,27 @@ results.push(canvasUnitGate(SRC, rel));
     results.push({ gate: 'canvas-geometry(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
     results.push({ gate: 'canvas-geometry(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+  }
+}
+
+/* ── 第八门:墨迹不能相撞(运行时) ──
+   前七门里没有一门看得见「字挤在一起」:行高有值(只是值不够)、版面不溢出、逐元素回归也对得上,
+   坏的只是相邻两行的墨互相压、或首屏文字钻进导航的磨砂蒙版底下。
+   这一族在 R44、R45 连续两轮由独立评审逐字量出来,两轮都是「治了几处、漏了同族其余处」。
+   本门的三条判据全部**构造性**,不依赖任何手写清单——路由从产物枚举、视口从产物 CSS 的断点推导、
+   墨高用 canvas 逐行实测(上一版三张手写清单各漏一块:漏 9 条路由、漏窄屏、漏了 Be Vietnam Pro 的字身)。
+   放在 canvas-geometry 之后:那一门已经把 dist 构建好,本门自带静态服务直接伺服 dist,不再重复构建。
+   判据、豁免与自检见 gate-render-fit.mjs(`--self-test` 六条,红绿两向)。 */
+{
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-render-fit.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const detail = out.filter((l) => !/^\[render-fit\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
+  if (r.status === 3) {
+    // 与 canvas-geometry 同体例:跑不起来 ≠ 放行,NOT-RUN 一律算红,要放行须显式 --allow-not-run
+    const allow = process.argv.includes('--allow-not-run');
+    results.push({ gate: 'render-fit(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+  } else {
+    results.push({ gate: 'render-fit(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
 }
 

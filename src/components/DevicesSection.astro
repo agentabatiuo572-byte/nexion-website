@@ -4,6 +4,8 @@
    卡=浅框内衬(10/10/20)+ 白底图区 + 序号章切口 + 标题 40 档 + 双列 12 mono;
    区头=左 gutter:16 mono 打字机标题 + 12 mono 副题 + CTA(钉屏全程可见);
    移动/coarse/reduced 兜底:全部卡竖向依次排开(520 宽)。
+   R45:序号章脱离全局 .x-mono(zh 曾被压成 12.5/1.6),5ch 最小宽算上内衬;phone 图白底对白底改 contain 整机可见(B9 过渡);
+   桌面编舞卡图 eager 由 fx 负责;数字格式随语言(B8)。
    🔴 卡上无任何收益金额,只展示价格与算力倍数(事实性)。 */
 import { useT, type Locale } from '../i18n';
 import { SKUS, fmtPrice, fmtMultiplier } from '../lib/skus';
@@ -24,6 +26,8 @@ const PHOTO: Record<string, string | undefined> = {
   'rack-p1': '/devices/rack.jpg',
   'rack-p2': '/devices/rack.jpg',
 };
+/* 正方形白底产品图(手机)cover 会切掉上下 42%——白底对白底,contain 整机可见;黑底摄影图保持 cover */
+const CONTAIN = new Set(['phone']);
 const shareArt = contour(77, 12, 640, 400);
 ---
 
@@ -33,9 +37,9 @@ const shareArt = contour(77, 12, 640, 400);
       <h2 class="lab x-mono-lg" data-tw>{t('devices.title')}</h2>
       <p class="sub x-mono">{t('devices.subtitle')}</p>
       <a class="xbtn solid on-dark cta" href="#download">
-        <span class="xbtn-ghost">{t('devices.cta')} <span class="arr">→</span></span>
+        <span class="xbtn-ghost" aria-hidden="true">{t('devices.cta')} <span class="arr">→</span></span>
         <span class="xbtn-a">{t('devices.cta')} <span class="arr">→</span></span>
-        <span class="xbtn-b">{t('devices.cta')} <span class="arr">→</span></span>
+        <span class="xbtn-b" aria-hidden="true">{t('devices.cta')} <span class="arr">→</span></span>
       </a>
     </div>
 
@@ -45,7 +49,7 @@ const shareArt = contour(77, 12, 640, 400);
           <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
             <div class="media">
               {PHOTO[s.id] ? (
-                <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" />
+                <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" class:list={[{ contain: CONTAIN.has(s.id) }]} />
               ) : (
                 <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                   {shareArt.paths.map((d) => (
@@ -53,7 +57,7 @@ const shareArt = contour(77, 12, 640, 400);
                   ))}
                 </svg>
               )}
-              <span class="serial x-mono" data-tw>NX-{String(i + 1).padStart(2, '0')}</span>
+              <span class="serial" data-tw>NX-{String(i + 1).padStart(2, '0')}</span>
               {s.status === 'legacy' && <span class="chip x-mono">{t('devices.classicBadge')}</span>}
               {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
             </div>
@@ -63,7 +67,7 @@ const shareArt = contour(77, 12, 640, 400);
                 <p class="col x-mono">
                   <b class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</b>
                   <span class="mult">
-                    <b>{fmtMultiplier(s.multiplier)}</b> {t('devices.multiplierLabel')}
+                    <b>{fmtMultiplier(s.multiplier, locale)}</b> {t('devices.multiplierLabel')}
                   </span>
                 </p>
                 <p class="col x-mono">{t(`devices.tagline.${s.id}`)}</p>
@@ -147,17 +151,23 @@ const shareArt = contour(77, 12, 640, 400);
     object-fit: cover;
     display: block;
   }
-  /* 序号章贴死图区左上角,与卡框同底色成「切口」 */
+  .media img.contain {
+    object-fit: contain;
+  }
+  /* 序号章贴死图区左上角,与卡框同底色成「切口」。
+     不挂 .x-mono:全局 zh 覆写(12.5/1.6)曾压过本规则,章是 ASCII 编号,不该吃 CJK 豁免 */
   .serial {
     position: absolute;
     top: 0;
     left: 0;
     background: var(--x-light);
     color: var(--x-dark);
+    font-family: var(--x-font-mono);
     font-weight: 400;
     font-size: calc(16 * var(--uc));
-    letter-spacing: calc(-0.36 * var(--uc));
-    min-width: 5ch;
+    line-height: 1.2; /* 等宽零字距是仓规(tokens.css 三处型类都是 0);此前 −0.36 让 16 档有两套字身格,与 .x-mono-lg 同屏 */
+    text-transform: uppercase;
+    min-width: calc(5ch + 20 * var(--uc)); /* 5ch 是文字最小宽;border-box 下要算上两侧内衬 */
     padding: calc(10 * var(--uc));
     text-align: center;
   }
@@ -194,7 +204,9 @@ const shareArt = contour(77, 12, 640, 400);
     display: flex;
     gap: calc(20 * var(--uc));
     width: 100%;
-    align-items: flex-start;
+    /* 站内「小号 mono + 大号 display 同排」一律 baseline(Mission / NexContent / LearnTeaser / LearnArticle);
+       flex-start 让两列盒顶齐而基线差 8px,说明行整体浮高 */
+    align-items: baseline;
   }
   .col {
     flex: 1;
@@ -204,12 +216,14 @@ const shareArt = contour(77, 12, 640, 400);
     text-wrap: pretty;
   }
   .price {
+    line-height: 1.2; /* zh 会继承 .x-mono:lang(zh) 的 CJK 1.6,卡片比 en/vi 高 8px */
     display: block;
     font-family: var(--x-font-display);
     font-size: max(17px, calc(20 * var(--u)));
     font-weight: 500;
     color: var(--x-ink);
     font-variant-numeric: tabular-nums;
+    text-transform: none; /* 展示体价格不吃 .x-mono 的大写传染(「FREE」) */
     margin-bottom: calc(4 * var(--uc));
   }
   .mult b {
@@ -221,15 +235,19 @@ const shareArt = contour(77, 12, 640, 400);
   /* —— decked 桌面编舞(fx.ts 置 .decked):画布几何,卡绝对锚位,fx 写 transform —— */
   .devices:global(.decked) .pin {
     position: sticky;
-    /* R41:屏比钉屏区高时,把钉屏区**垂直居中**,而不是顶在最上面。
-       why:钉屏高只随宽度走(画布制),在 1440 高的屏上 1067 的区高会在屏底留 551px 死区,
-       而这一段占全页 41% 的滚动行程 —— 观感是「放大了但空洞」。
-       居中后空白总量不变、上下对半,且卡片不再紧贴导航条。
-       刻意不改区高本身:pinH 一旦跟屏高走,叠卡节奏就会因屏而异,与「宽度驱动画布」冲突。 */
-    top: max(0px, calc((100svh / var(--x-zoom) - var(--x-sec-h)) / 2)); /* R42:把屏高换算成画布单位,否则被 zoom 二次放大 */
+    /* R45(主人 2026-08-26 拍板):改回**顶部定锚**,与参考站同口径 —— 卡顶恒在 141,
+       屏比钉屏区高时多出来的高度全留在卡下方,而不是上下对半。
+       R41 当初改居中是为了消掉屏底死区,但代价是卡顶随屏高漂(900 高屏 192、1300 高屏 407,差近半张卡);
+       🔴 钉件 top 必须是 **0**:参考站的画布常数 133 是**卡自身**在钉件内的偏移(我方 .card 的 top:133.03 就是它),
+       钉件本身贴屏顶。第一版把「141」当画布常数写在钉件上 —— 那 141 其实是参考站在 ~1520 宽窗口下
+       **卡顶的屏幕像素**读数(133×1.06),既取错常数又加错位置,叠加后卡顶 =141+133=274 比参考站低 141,
+       1366×700 / 1920×900 下品名、价格、倍率行被切在折叠线外且滚不进来。
+       R41「卡片不紧贴导航条」的诉求由参考站自己的数字满足(74 高导航 + 59 空当)。
+       仍然不改区高本身:pinH 一旦跟屏高走,叠卡节奏就会因屏而异,与「宽度驱动画布」冲突。 */
+    top: 0;
     height: var(--x-sec-h);
     padding: 0;
-    /* R39-fix:停放卡的横向裁切交给 main 的 overflow-x:clip(裁在屏缘);
+    /* R39-fix:停放卡的横向裁切交给全宽壳 .x-frame 的 overflow-x:clip(裁在屏缘;Base.astro);
        此处再裁一次会把裁切边拉回画布边 = 卡在屏内硬边处凭空出现 */
     overflow: visible;
     box-sizing: border-box;
@@ -253,7 +271,7 @@ const shareArt = contour(77, 12, 640, 400);
     top: 16.63%;
     width: 45.14%;
     z-index: calc(1 + var(--i));
-    transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 body 裁在屏缘 */
+    transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 .x-frame 裁在屏缘 */
     will-change: transform;
   }
 

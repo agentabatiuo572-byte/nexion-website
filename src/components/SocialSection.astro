@@ -28,7 +28,7 @@ const TESTIMONIALS: Testimonial[] = [];
     </p>
     <div class="disp x-display">
       <h2 data-lr>
-        {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices), countries: STATS_SNAPSHOT.countries })}
+        {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices, 0, locale), countries: STATS_SNAPSHOT.countries })}
       </h2>
     </div>
     <p class="roles x-mono-lg" data-rv>{t('social.rolesLine')}</p>
@@ -85,7 +85,7 @@ const TESTIMONIALS: Testimonial[] = [];
   }
   .disp {
     max-width: 89%;
-    font-size: max(32px, calc(54 * var(--u)));
+    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
     color: var(--x-white);
   }
   .disp h2 {

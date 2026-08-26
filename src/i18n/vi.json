@@ -14,6 +14,7 @@
     "download": "Tải xuống",
     "ariaMain": "Chính",
     "ariaMenu": "Menu",
+    "skip": "Bỏ qua tới nội dung",
     "ariaLanguage": "Ngôn ngữ"
   },
   "hero": {
@@ -188,7 +189,9 @@
       "wallet": "Ví",
       "team": "Đội nhóm",
       "nex": "NEX"
-    }
+    },
+    "related": "Hướng dẫn liên quan",
+    "toc": "Trong hướng dẫn này"
   },
   "faq": {
     "title": "Câu hỏi thường gặp",
@@ -218,5 +221,10 @@
   },
   "legal": {
     "enPrevails": "Bản tiếng Anh của tài liệu này có giá trị pháp lý. Bản dịch chỉ mang tính tham khảo."
+  },
+  "notfound": {
+    "title": "Không tìm thấy trang",
+    "body": "Trang bạn tìm không tồn tại hoặc đã được chuyển đi.",
+    "home": "Về trang chủ"
   }
 }

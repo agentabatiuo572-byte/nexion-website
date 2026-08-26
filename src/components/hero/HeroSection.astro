@@ -26,7 +26,7 @@ const t = useT(locale);
     </div>
 
     <div class="cluster">
-      <h1 class="x-display-mega" data-lr="load" data-lr-delay="500">{t('hero.title')}</h1>
+      <h1 class="x-display-mega" data-lr="load" data-lr-delay="900">{t('hero.title')}</h1>
       <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
       <div class="dl-wrap">
         <DownloadButtons locale={locale} />
@@ -43,8 +43,9 @@ const t = useT(locale);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* 底空 11.5vw:比画布 220 略收,换取 3 行标题簇整体让开右上导航列 */
-    padding: calc(96 * var(--uc)) var(--x-pad) max(60px, calc(165.6 * var(--u)));
+    /* 底空回画布 220(R45 主人拍板 B2):165.6 时下载键在 1366×673 / 1440×700 / 1536×774 笔记本首屏掉到折叠线下;
+       vi 三行簇顶仍离导航 ≥150px */
+    padding: calc(96 * var(--uc)) var(--x-pad) max(60px, calc(220 * var(--u)));
   }
   .spacer {
     flex: 1;
@@ -69,11 +70,11 @@ const t = useT(locale);
     display: inline-flex;
     align-items: center;
     gap: calc(6 * var(--uc));
-    min-height: calc(44 * var(--uc));
-    letter-spacing: -0.03em;
+    min-height: var(--x-touch);
+    letter-spacing: -0.03em; /* 参考站滚动提示同为 −0.03em(它的 12px 字距分两类,这一类保留) */
     font-size: max(12px, calc(12 * var(--u)));
   }
-  :global(html[lang='zh']) .scroll-hint {
+  .scroll-hint:lang(zh) {
     font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 竖线=琥珀顶亮、向下淡出 10%;粗细 2px 起随画布放大(主人 R16 加粗) */
@@ -95,7 +96,7 @@ const t = useT(locale);
     white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
     font-size: max(12px, calc(12 * var(--u)));
   }
-  :global(html[lang='zh']) .note {
+  .note:lang(zh) {
     font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
@@ -108,10 +109,10 @@ const t = useT(locale);
     align-items: flex-end;
     gap: max(24px, calc(48 * var(--u)));
   }
-  :global(html[lang='vi']) .cluster {
+  .cluster:lang(vi) {
     width: calc(950.4 * var(--u));
   }
-  :global(html[lang='zh']) .cluster {
+  .cluster:lang(zh) {
     width: calc(725 * var(--u));
   }
   /* 标题:i18n 文案带 \n 强制「NexGrid」独行(pre-line);
@@ -124,7 +125,7 @@ const t = useT(locale);
     text-align: left;
     white-space: pre-line;
   }
-  :global(html[lang='zh']) h1 {
+  h1:lang(zh) {
     font-size: max(48px, calc(115.2 * var(--u)));
   }
   .sub {
@@ -140,13 +141,11 @@ const t = useT(locale);
     justify-content: flex-end;
   }
 
+  /* 窄屏共有的版式(与视口高无关):列改竖排、簇满宽、副题不定宽、滚动提示收起。
+     🔴 与视口高有关的四个属性(.hero 高/上下内衬、h1 两档字号)**不写在这里** ——
+     它们下面按高分档,两边抢同一个属性时若都靠 max-width 与 max-height 相交决胜,
+     答案就藏在「谁写在后面」里,读单独一块永远看不出来。见下一块。 */
   @media (max-width: 860px) {
-    .hero {
-      height: auto;
-      min-height: 92svh;
-      padding-top: calc(80 * var(--uc));
-      padding-bottom: 10svh;
-    }
     .foot {
       flex-direction: column;
       align-items: flex-start;
@@ -154,12 +153,6 @@ const t = useT(locale);
     .cluster {
       width: 100% !important; /* 覆盖桌面按语言定宽 */
       align-items: flex-start;
-    }
-    h1 {
-      font-size: clamp(40px, 11vw, calc(88 * var(--uc)));
-    }
-    :global(html[lang='zh']) h1 {
-      font-size: clamp(44px, 14vw, calc(92 * var(--uc)));
     }
     .sub {
       width: auto;
@@ -170,6 +163,64 @@ const t = useT(locale);
     }
     .scroll-hint {
       display: none;
+    }
+  }
+  /* 竖屏手机档。与下面的矮视口块**互斥**(521 / 520 是同一条边界的两侧),不靠源序决胜 ——
+     把「谁在这个视口赢」写进条件本身,读一块就知道它管哪片,挪动块的位置也不会改变行为。
+     此前这四个属性和矮视口块正交相交:竖屏赢在高视口、横屏赢在矮视口,靠的是横屏块写在后面,
+     一旦有人为了别的原因调整块序,横屏分支会整片静默失效(R45 前身就是这么坏的,而且没有任何反馈)。
+     🔴 改 520 必须同步改这里的 521。 */
+  @media (max-width: 860px) and (min-height: 521px) {
+    .hero {
+      height: auto;
+      min-height: 92svh;
+      padding-top: calc(80 * var(--uc));
+      padding-bottom: 10svh;
+    }
+    h1 {
+      font-size: clamp(40px, 11vw, calc(88 * var(--uc)));
+    }
+    h1:lang(zh) {
+      font-size: clamp(44px, 14vw, calc(92 * var(--uc)));
+    }
+  }
+  /* 矮视口档(手机横放,也含被压扁的桌面窗口)。三条约束互相牵制,必须一起满足:
+       ① 上内衬**从导航实高派生**,不写死 —— 导航高随宽度分档(画布单位 ≤860 是 54、>860 是 74),
+          写死任何一个数都有一档错:此前写 80/64,1920×360 上标题的墨顶 68.5 对导航底沿 97.9,被压 29.4px。
+          余量 22 是给大标题的墨留的:mega 档行高小于 1,墨会**冒出行盒顶部**,贴着底沿仍会被压。
+          「--x-nav-h」的值由门 render-fit 判据 C 拿实测钉住,漂了会红。
+       ② 腾地方从标题要 —— 844×390 下 h1 高 en 139 / zh 193 / vi 208.5,只按 en 配边距必然让 vi 与 zh 出屏;
+       ③ 不限宽 —— 写 and (max-width:860px) 会漏掉两类:926×428 一类大屏横屏手机,以及被压扁的桌面窗口
+          (桌面档 .hero 是定高 max(640px,900·--u) 且 overflow:hidden,不接管高度就直接把整簇裁掉)。 */
+  @media (max-height: 520px) {
+    .hero {
+      height: auto; /* 接管桌面定高:>860 宽的矮窗口不走上面的竖屏档 */
+      padding-top: calc(var(--x-nav-h) + 22 * var(--uc));
+      padding-bottom: calc(24 * var(--uc)); /* 画布像素:本块不再限宽,svh 会在 ≥1440 被 zoom 二次放大 */
+    }
+    .cluster {
+      gap: calc(12 * var(--uc));
+    }
+    /* 标题是矮视口里唯一还能腾出地方的东西(上内衬被导航底沿钉死、簇内间距已收到 12)。
+       尺子按最吃高的那一面配:844×390 上 vi 是三行,en 两行 —— 只按 en 配,vi 与 zh 的下载键必掉出折叠线。
+       🔴 vi 不单开小灶(主人 R11 拍板 vi 与 en 同字号),所以降的是共用档,en 因此比它自己需要的更小一点。 */
+    h1 {
+      font-size: clamp(26px, 6.6vw, calc(48 * var(--uc)));
+    }
+    h1:lang(zh) {
+      font-size: clamp(26px, 7.2vw, calc(48 * var(--uc)));
+    }
+  }
+  @media (max-height: 380px) {
+    .hero {
+      padding-top: calc(var(--x-nav-h) + 14 * var(--uc)); /* 同上;更矮的档余量收一点 */
+      padding-bottom: calc(16 * var(--uc)); /* 同上 */
+    }
+    h1 {
+      font-size: clamp(22px, 5.6vw, calc(40 * var(--uc)));
+    }
+    h1:lang(zh) {
+      font-size: clamp(22px, 6.2vw, calc(40 * var(--uc)));
     }
   }
 </style>

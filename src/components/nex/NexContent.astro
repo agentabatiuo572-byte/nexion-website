@@ -3,7 +3,8 @@
    无价格行/无实时行情;上市信息只写可验证事实(v1 不列交易所);App 内第 5 用法的
    措辞按官网 PRD §1.4-3 中性化为「长期持有」(App 原措辞属投机语态,官网禁用);
    App 内链一律改「下载 App」CTA。白皮书入口条件渲染(O6 无资产不渲染)。
-   axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。 */
+   axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。
+   R45 B7:子页标题不再继承正文行高 1.6(display 档行高 ≤1.1);FAQ 规格与首页 FAQ 归一(字重/字距/编号色/记号色/行高)。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -97,15 +98,15 @@ const faqs = [1, 2, 3, 4] as const;
 
   <div class="cta-row">
     <a class="xbtn solid" href={`${prefix}/#download`}>
-      <span class="xbtn-ghost">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-ghost" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
       <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
-      <span class="xbtn-b">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
     </a>
     {WHITEPAPER_URL && (
       <a class="xbtn" href={WHITEPAPER_URL} target="_blank" rel="noopener">
-        <span class="xbtn-ghost">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-ghost" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
         <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr">↗</span></span>
-        <span class="xbtn-b">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-b" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
       </a>
     )}
   </div>
@@ -149,6 +150,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-size: clamp(22px, 2.6vw, calc(32 * var(--uc)));
     font-weight: 500;
     letter-spacing: -0.02em;
+    line-height: 1.1; /* display 档不继承正文 1.6 */
     color: var(--x-ink);
     border-top: 1px solid var(--x-line);
     padding-top: calc(16 * var(--uc));
@@ -168,6 +170,16 @@ const faqs = [1, 2, 3, 4] as const;
     padding: calc(12 * var(--uc)) calc(16 * var(--uc)) calc(12 * var(--uc)) 0;
     border-bottom: 1px solid var(--x-line-soft);
     vertical-align: top;
+  }
+  /* 手机:520 的定宽让第三列整列停在屏外,而横滚没有任何提示 → 放开定宽,三列各自折行 */
+  @media (max-width: 640px) {
+    table {
+      min-width: 0;
+    }
+    th,
+    td {
+      padding-right: calc(8 * var(--uc));
+    }
   }
   th {
     color: var(--x-accent-ink);
@@ -196,11 +208,17 @@ const faqs = [1, 2, 3, 4] as const;
     font-weight: 400;
   }
   .list b {
+    text-wrap: balance; /* 中列被 minmax 卡住必然折行,不平衡则第二行只剩一个词 */
     font-family: var(--x-font-display);
     font-size: clamp(16px, 1.6vw, calc(20 * var(--uc)));
     font-weight: 500;
     color: var(--x-ink);
     letter-spacing: -0.01em;
+    line-height: 1.1;
+  }
+  /* display 档不吃 .x-mono 的型类例外,单列一条:1.1 在 vi 下重叠更深(实测行间墨隙 −0.67) */
+  .list b:lang(vi):not(html) {
+    line-height: 1.35;
   }
   .list span:last-child {
     color: var(--x-ink-dim);
@@ -222,42 +240,55 @@ const faqs = [1, 2, 3, 4] as const;
     color: var(--x-ink);
     margin: 0 0 calc(10 * var(--uc));
     letter-spacing: -0.01em;
+    line-height: 1.1;
   }
   .mcard p {
     color: var(--x-ink-dim);
     margin: 0;
     text-wrap: pretty;
   }
+  /* FAQ 手风琴:与首页 FAQ 同规格(问题 400/-0.02em/1.25、编号墨 0.8、记号深柠檬、行高 60、答案 1.45) */
+  /* 行线与收口语法同首页 FAQ:逐条上线 + 末条下线,墨阶用 --x-line-dark
+     (原来只有 0.10 的下线且首条无上线,与同块 .block 的 0.23 上线打架) */
   .faq {
-    border-bottom: 1px solid var(--x-line-soft);
+    border-top: 1px solid var(--x-line-dark);
+  }
+  .faq:last-of-type {
+    border-bottom: 1px solid var(--x-line-dark);
   }
   .faq summary {
     cursor: pointer;
-    min-height: calc(56 * var(--uc));
+    min-height: calc(60 * var(--uc));
     display: flex;
     align-items: center;
-    gap: calc(16 * var(--uc));
+    gap: clamp(14px, 2vw, calc(28 * var(--uc))); /* 列几何与首页 FAQ 同 */
     list-style: none;
-    padding: calc(8 * var(--uc)) 0;
+    padding: calc(12 * var(--uc)) 0;
   }
   .faq summary::-webkit-details-marker {
     display: none;
   }
   .faq .idx {
-    color: var(--x-accent-ink);
+    color: var(--x-dark-cap);
     font-weight: 400;
-    flex: 0 0 calc(28 * var(--uc));
+    flex: 0 0 calc(30 * var(--uc));
   }
   .faq .q {
     font-family: var(--x-font-display);
-    font-size: clamp(16px, 1.7vw, calc(24 * var(--uc)));
-    font-weight: 500;
+    font-size: max(18px, calc(24 * var(--u))); /* 与首页 FAQ 同一条公式(此前 390 上是 16 vs 18) */
+    font-weight: 400;
+    letter-spacing: -0.02em;
     color: var(--x-ink);
     flex: 1;
     line-height: 1.25;
+    text-wrap: balance;
+  }
+  .faq .q:lang(vi):not(html),
+  .faq .q:lang(zh):not(html) {
+    line-height: 1.45; /* 同 FaqSection:同形规则在三个组件里各存一份,补要三处一起补 */
   }
   .faq .mark {
-    color: var(--x-ink-dim);
+    color: var(--x-accent-ink);
     font-weight: 400;
     position: relative;
   }
@@ -272,10 +303,21 @@ const faqs = [1, 2, 3, 4] as const;
     color: var(--x-accent-ink);
   }
   .faq > p {
-    color: var(--x-ink-dim);
-    margin: 0 0 calc(18 * var(--uc)) calc(44 * var(--uc));
-    max-width: calc(680 * var(--uc));
+    max-width: calc(760 * var(--uc)); /* 与首页 FAQ 同(此前 680,是「同规格」漏掉的一项) */
+    color: var(--x-dark-cap);
+    margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     text-wrap: pretty;
+    line-height: 1.45;
+  }
+  .faq > p:lang(zh) {
+    line-height: 1.6;
+  }
+  .faq .q {
+    transition: opacity 0.2s;
+  }
+  .faq summary:hover .q,
+  .faq summary:focus-visible .q {
+    opacity: 0.6;
   }
   .cta-row {
     display: flex;

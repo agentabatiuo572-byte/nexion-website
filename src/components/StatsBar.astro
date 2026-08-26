@@ -1,8 +1,9 @@
 ---
 /* [FEAT-WEB03] 实时平台数字条 — 五数字进视口 count-up;snapshot/sse 双模(lib/stats.ts 契约)。
-   axiom 方向:全出血暗带 + display 大数字 + 等宽大写标签 + 序号。逻辑不变。 */
+   axiom 方向:全出血暗带 + display 大数字 + 等宽大写标签 + 序号。逻辑不变。
+   R45:数字千分位随语言(B8);有动效时注册即归零(此前 SSR 终值先淡入再跳回 0 重数)。 */
 import { useT, type Locale } from '../i18n';
-import { STATS_SNAPSHOT, STATS_SNAPSHOT_AT, statsMode, fmtStat } from '../lib/stats';
+import { STATS_SNAPSHOT, STATS_SNAPSHOT_AT, statsMode, fmtStat, localeTag } from '../lib/stats';
 
 interface Props {
   locale: Locale;
@@ -19,14 +20,20 @@ const items = [
 ];
 ---
 
-<section class="stats" id="stats" data-mode={mode} data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}>
+<section
+  class="stats"
+  id="stats"
+  data-mode={mode}
+  data-locale={localeTag(locale)}
+  data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}
+>
   <div class="grid">
     {
       items.map((it, i) => (
         <div class="cell" data-rv style={`--d:${i * 0.08}s`}>
           <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
           <span class="num" data-key={it.key} data-target={it.value} data-decimals={it.decimals} data-suffix={it.suffix ?? ''}>
-            {fmtStat(it.value, it.decimals)}{it.suffix ?? ''}
+            {fmtStat(it.value, it.decimals, locale)}{it.suffix ?? ''}
           </span>
           <span class="label x-label">{it.label}</span>
         </div>
@@ -86,23 +93,25 @@ const items = [
 </style>
 
 <script>
-  // count-up(进视口一次)+ SSE 热更新(mode=sse 时)。数值格式与服务端 fmtStat 同语义。
+  // count-up(进视口一次)+ SSE 热更新(mode=sse 时)。数值格式与服务端 fmtStat 同语义(含语言千分位)。
   const root = document.getElementById('stats');
   const nums = [...(root?.querySelectorAll<HTMLElement>('.num') ?? [])];
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const tag = root?.dataset.locale || 'en-US';
 
   const fmt = (n: number, d: number) =>
     n >= 999_500
-      ? `${(n / 1_000_000).toFixed(2)}M`
+      ? `${(n / 1_000_000).toLocaleString(tag, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`
       : n >= 99_950
-        ? `${(n / 1_000).toFixed(1)}K`
-        : n.toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+        ? `${(n / 1_000).toLocaleString(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K`
+        : n.toLocaleString(tag, { minimumFractionDigits: d, maximumFractionDigits: d });
 
   const render = (el: HTMLElement, v: number) => {
     el.textContent = fmt(v, Number(el.dataset.decimals || 0)) + (el.dataset.suffix || '');
   };
 
   if (!reduced && nums.length) {
+    for (const el of nums) render(el, 0); // 注册即归零:淡入时不再先露出 SSR 终值
     const io = new IntersectionObserver(
       ([e]) => {
         if (!e.isIntersecting) return;

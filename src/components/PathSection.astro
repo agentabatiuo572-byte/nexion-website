@@ -13,8 +13,8 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const cards = [
-  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.06 },
-  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.11 },
+  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.057 },
+  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.099 },
 ];
 ---
 
@@ -39,9 +39,9 @@ const cards = [
             </svg>
             <p class="desc x-mono">{c.desc}</p>
             <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
-              <span class="xbtn-ghost">{c.cta} <span class="arr">→</span></span>
+              <span class="xbtn-ghost" aria-hidden="true">{c.cta} <span class="arr">→</span></span>
               <span class="xbtn-a">{c.cta} <span class="arr">→</span></span>
-              <span class="xbtn-b">{c.cta} <span class="arr">→</span></span>
+              <span class="xbtn-b" aria-hidden="true">{c.cta} <span class="arr">→</span></span>
             </a>
           </div>
         </article>
@@ -94,7 +94,7 @@ const cards = [
     gap: calc(24 * var(--uc));
   }
   .stack h3 {
-    font-size: max(32px, calc(54 * var(--u)));
+    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
     color: var(--x-ink);
     margin: 0;
   }
@@ -108,6 +108,10 @@ const cards = [
     margin: 0;
     max-width: calc(420 * var(--uc));
     text-wrap: pretty;
+    line-height: 1.2; /* R45 拍板:卡内正文回参考站的 mono 1.2 */
+  }
+  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 5.67) */
+  .desc:lang(vi):not(html) {
     line-height: 1.45;
   }
   .note {

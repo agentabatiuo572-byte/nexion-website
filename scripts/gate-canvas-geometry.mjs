@@ -1,4 +1,4 @@
-/* 第七门 · 画布几何(运行时) — R39 立,R42 随机制换代重写
+/* 第八门 · 画布几何(运行时) — R39 立,R42 随机制换代重写
    ────────────────────────────────────────────────────────────
    R39/R40/R41 版守的是「逐条声明模拟缩放」那套机制的漏点(等比/冻结/盒子/塌缩…)。
    R42 换成整体缩放(画布壳 zoom)后,那些漏点**按构造消失**:画布内任何 px 都是画布像素,
@@ -132,12 +132,18 @@ const readAll = () => {
        · 内层容器先裁(按钮悬停滑层、可滚表格、SVG 视口)→ 合法,是设计
        · 一路到 .x-frame / main / body / html 才被裁 → 真缺陷(内容被静默切掉,用户既看不见也滚不到)
      🔴 不可把 .x-frame 的 clip 也算作合法裁剪 —— 那是全站兜底网,把它当合法会让本判据对一切失明。 */
+  /* 设计上的内层裁切件(hidden/clip 才算合法):按钮悬停滑层 / 行遮罩 / 灯箱盒 / 显式标记。
+     🔴 区块级 hidden/clip 一律不豁免:六个区块都带 hidden,R45 实录「说明段 ≤480 被裁 50–140px」正是被它静默吃掉,
+     门却因「祖先有 hidden = 设计裁切」两次 8/8 全绿(U5 变异测试 ③)。可滚容器(auto/scroll)用户滚得到,仍算合法。 */
+  // 注:行遮罩 .lr-line 已改用 clip-path(不是 overflow),不需要也不会走这条豁免
+  const CLIPPERS = ".xbtn, .cert-zoom, .x-clip, [data-clip]";
   const legit = (el) => {
     if (el.ownerSVGElement || el.tagName === "svg") return true;
     for (let q = el.parentElement; q; q = q.parentElement) {
       if (q.classList.contains("x-frame") || q.tagName === "MAIN" || q.tagName === "BODY" || q.tagName === "HTML") return false;
       const ox = getComputedStyle(q).overflowX;
-      if (ox === "hidden" || ox === "clip" || ox === "auto" || ox === "scroll") return true;
+      if (ox === "auto" || ox === "scroll") return true;
+      if ((ox === "hidden" || ox === "clip") && q.matches(CLIPPERS)) return true;
     }
     return false;
   };
@@ -150,7 +156,7 @@ const readAll = () => {
     const r = el.getBoundingClientRect();
     if (r.width < 1 || r.height < 1) continue;
     if (legit(el)) continue;
-    const over = Math.max(r.right - de.clientWidth, -r.left, 0);
+    const over = Math.max(r.right - de.getBoundingClientRect().width, -r.left, 0);
     if (over > worstOver) { worstOver = over; worstWho = el.tagName + "." + String(el.className).slice(0, 22); }
   }
 
@@ -169,6 +175,8 @@ const readAll = () => {
     canvasL: cb ? Math.round(cb.left * 100) / 100 : null,
     canvasW: cb ? Math.round(cb.width * 100) / 100 : null,
     client: de.clientWidth,
+    /* 可用布局宽 = html 的 rect 宽(不含滚动条/槽);clientWidth 在隐藏滚动条环境下不减槽宽,与布局分家 */
+    avail: Math.round(de.getBoundingClientRect().width * 100) / 100,
     inner: window.innerWidth,
     overflow: Math.round(worstOver * 10) / 10,
     overflowWho: worstWho,
@@ -193,7 +201,9 @@ const conform = (a, b, want) => {
   return { ok, all, rate: all ? ok / all : 0 };
 };
 
-const browser = await chromium.launch();
+/* R45:带**经典滚动条**跑(不传 Playwright 默认的 --hide-scrollbars)——主人的 Windows Chrome 就是这个环境。
+   此前六轮「零溢出 / 居中」全在隐藏滚动条下量的,100vw 与可用宽差的那 15px 从未进过门。 */
+const browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
 const fails = [];
 const pages = {};
 for (const w of [...WIDTHS, ...SEAM]) pages[w] = pages[w] || (await browser.newPage({ viewport: { width: w, height: 1000 } }));
@@ -203,27 +213,28 @@ const load = async (w, route) => {
 };
 
 let minSample = Infinity;
+let classicSb = null; // 本次实测环境是否真有经典滚动条(client < inner);覆盖边界写进成功行
 for (const route of routes) {
   const snap = {};
   for (const w of WIDTHS) snap[w] = await load(w, route);
+  if (classicSb === null) classicSb = snap[1440].client < snap[1440].inner;
 
   for (const w of WIDTHS) {
     const s = snap[w];
     // A 画布
     if (s.canvasW === null) { fails.push(`A 画布 ${route} @${w}:页面无画布壳 .x-canvas`); continue; }
-    /* CSS 里 --x-zoom 用 100vw(**含**经典滚动条),而 clientWidth 不含。
-       真浏览器上两者差一条滚动条 ⇒ 画布比可视区宽 ~15px,右侧留白被啃掉。
-       门必须与实现同源(用 innerWidth)判 zoom,另立一条判据查「画布不得超出可视区」。 */
-    const wantW = Math.min(s.inner, CAP);
+    /* R45:--x-zoom 的输入改为可用布局宽(--x-vw = html rect 宽,不含滚动条/槽;100vw 只作兜底),
+       门与实现同源:画布宽 = min(可用宽, 1920) 且在可用宽内居中;画布不得超出可用宽。 */
+    const wantW = Math.min(s.avail, CAP);
     if (w >= CANVAS && Math.abs(s.canvasW - wantW) > 1.5)
       fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} ≠ min(视口,${CAP})=${wantW}`);
-    if (w >= CANVAS && Math.abs(s.canvasL - (s.client - s.canvasW) / 2) > 1.5)
-      fails.push(`A 画布 ${route} @${w}:画布未居中(左 ${s.canvasL},应 ${((s.client - s.canvasW) / 2).toFixed(1)})`);
+    if (w >= CANVAS && Math.abs(s.canvasL - (s.avail - s.canvasW) / 2) > 1.5)
+      fails.push(`A 画布 ${route} @${w}:画布未居中(左 ${s.canvasL},应 ${((s.avail - s.canvasW) / 2).toFixed(1)})`);
     if (w >= CANVAS && Math.abs(s.zoom - wantW / CANVAS) > 0.003)
       fails.push(`A 画布 ${route} @${w}:zoom ${s.zoom} ≠ 画布宽/${CANVAS}=${(wantW / CANVAS).toFixed(4)}`);
     // B 溢出
-    if (s.canvasW !== null && s.canvasW > s.client + 1.5)
-      fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} 超出可视区 ${s.client}(经典滚动条下 100vw ≠ 布局宽)`);
+    if (s.canvasW !== null && s.canvasW > s.avail + 1.5)
+      fails.push(`A 画布 ${route} @${w}:画布宽 ${s.canvasW} 超出可用宽 ${s.avail}(经典滚动条下 100vw ≠ 布局宽)`);
     if (s.overflow > 1.5) fails.push(`B 溢出 ${route} @${w}:元素越界 ${s.overflow}px(${s.overflowWho})`);
     // E 可读
     if (s.minFont !== null && s.minFont < MIN_FONT)
@@ -298,6 +309,6 @@ if (fails.length) {
 }
 console.log(
   `[geo] ✓ 画布几何:${routes.length} 路由 × {${WIDTHS.join(',')}} + 断点两侧 {${seamW.join(',')}} 七判据全过` +
-    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample};实测服务 ${base})`,
+    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample};滚动条:${classicSb ? '经典(占位)' : '覆盖式/无(本次未覆盖经典滚动条形态)'};实测服务 ${base})`,
 );
 process.exit(0);

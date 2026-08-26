@@ -97,16 +97,22 @@ if (MODE === 'diff') {
   const TOL = (+(process.argv[5] || 2)) / 100;
   const LABEL = ['宽', '高', '左', '字号'];
   const byWidth = new Map();
-  for (const page of Object.keys(A)) {
+  // 遍历两边的并集:只在新快照里的整页(新增路由)此前永远不被访问,既不点名也不计数
+  for (const page of new Set([...Object.keys(A), ...Object.keys(B)])) {
     const [w, route] = page.split('|');
-    const a = A[page];
+    const a = A[page] || {};
     const b = B[page] || {};
-    if (!byWidth.has(w)) byWidth.set(w, { matched: 0, changed: 0, items: [] });
+    if (!byWidth.has(w)) byWidth.set(w, { matched: 0, changed: 0, items: [], missing: [], added: [] });
     const S = byWidth.get(w);
+    // 只在一边的键必须点名:整块被删(U5 变异:删 StatsBar 消失 23 键)曾只表现为序号串位噪声
+    for (const key of Object.keys(b)) if (!(key in a)) S.added.push(`${route} ${key.slice(0, 62)}`);
     for (const key of Object.keys(a)) {
       const x = a[key];
       const y = b[key];
-      if (!y) continue;
+      if (!(key in b)) {
+        S.missing.push(`${route} ${key.slice(0, 62)}`);
+        continue;
+      }
       S.matched++;
       let worst = 0;
       let which = -1;
@@ -130,8 +136,19 @@ if (MODE === 'diff') {
     for (const t of top)
       console.log(`   ${t.pct.toFixed(0).padStart(3)}%  ${t.m} ${t.from}→${t.to}   ${t.route} ${t.key.slice(0, 62)}`);
     if (S.items.length > 8) console.log(`   …另有 ${S.items.length - 8} 个`);
+    if (S.missing.length) {
+      console.log(`   ⚠ 只在旧快照(消失)${S.missing.length} 个:`);
+      for (const k of S.missing.slice(0, 6)) console.log(`      - ${k}`);
+      if (S.missing.length > 6) console.log(`      …另有 ${S.missing.length - 6} 个`);
+    }
+    if (S.added.length) {
+      console.log(`   ⚠ 只在新快照(新增)${S.added.length} 个:`);
+      for (const k of S.added.slice(0, 6)) console.log(`      - ${k}`);
+      if (S.added.length > 6) console.log(`      …另有 ${S.added.length - 6} 个`);
+    }
+    total += S.missing.length + S.added.length;
   }
-  console.log(`\n合计变化 ${total} 个元素`);
+  console.log(`\n合计变化 ${total} 个元素(含消失/新增)`);
   process.exit(total ? 1 : 0);
 }
 

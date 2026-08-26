@@ -2,7 +2,8 @@
 /* [FEAT-WEB09] 使命板块 — R23 v3(三路复审合并 + 体例仲裁:站内体例>单屏还原、内容语义>参考站语义):
    眉标(琥珀刻度+16 档保形)→ 大陈述 48 档(zh 焊两行)→ 说明段 16 档纯白紧行距(高反差回归)→
    答案层=琥珀编号网格(01-06 + 展示体域名,两列;全站编号体例,去 disc 双记号),
-   「[」竖标夹持整网格、缩进精确 80 画布。设备特写姿态延迟起混在 fx(R23)。 */
+   「[」竖标夹持整网格、缩进精确 80 画布。设备特写姿态延迟起混在 fx(R23)。
+   R45:桌面的单行/越列决定(主人 R24)只在桌面成立——手机上说明段曾被裁、标题被画布上限折成三行,≤860 放开。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -80,7 +81,7 @@ const leadParas = t('mission.lead').split('\n');
   }
   /* 大陈述 48 档:能单行则单行(可越出列宽,参考站同构;主人 R24),zh 焊两行成块 */
   .state {
-    font-size: max(32px, calc(54 * var(--u)));
+    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
     color: var(--x-white);
     margin: 0;
     white-space: pre-line;
@@ -100,15 +101,19 @@ const leadParas = t('mission.lead').split('\n');
     flex-direction: column;
     gap: 0.55em; /* 两句收成一组,消左轨碎节奏(R25) */
   }
+  /* vi 句长必折(见下方 .body p:lang(vi)),折了就吃行距;zh 侧已有 1.5,vi 这里补齐 */
+  .body:lang(vi) {
+    line-height: 1.45;
+  }
   .body p {
     margin: 0;
     text-wrap: pretty;
     white-space: nowrap; /* 一行能展示的不换行(主人 R24);超长语言在下方按语言放开 */
   }
-  :global(html[lang='vi']) .body p {
+  .body p:lang(vi) {
     white-space: normal; /* vi 句长必折,保自然折行 */
   }
-  :global(html[lang='zh']) .body {
+  .body:lang(zh) {
     font-size: max(16.5px, calc(16.56 * var(--u)));
     line-height: 1.5; /* 与眉标同尺(R25 统一) */
     word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
@@ -147,6 +152,7 @@ const leadParas = t('mission.lead').split('\n');
     white-space: nowrap;
   }
   .idx {
+    line-height: 1.2; /* A7 把序号章脱离全局 .x-mono 时漏了这一格,掉到 body 的 1.6 */
     font-family: var(--x-font-mono);
     font-size: max(12px, calc(12 * var(--u)));
     letter-spacing: 0;
@@ -169,6 +175,14 @@ const leadParas = t('mission.lead').split('\n');
     }
     .col {
       width: 100%;
+    }
+    /* R45:桌面 nowrap 在 ≤480 把说明段裁掉 50–140px(区块 overflow:hidden);手机自然折行 */
+    .body p {
+      white-space: normal;
+    }
+    /* R45:桌面的 835 画布上限在手机缩到列宽 58%,把能单行的标题折成 2–3 行;手机只受列宽约束 */
+    .state {
+      max-width: 100%;
     }
     .cluster {
       margin-left: clamp(12px, 5vw, calc(60 * var(--uc)));

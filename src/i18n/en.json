@@ -14,6 +14,7 @@
     "download": "Download",
     "ariaMain": "Main",
     "ariaMenu": "Menu",
+    "skip": "Skip to content",
     "ariaLanguage": "Language"
   },
   "hero": {
@@ -188,7 +189,9 @@
       "wallet": "Wallet",
       "team": "Team",
       "nex": "NEX"
-    }
+    },
+    "related": "Related guides",
+    "toc": "In this guide"
   },
   "faq": {
     "title": "Frequently asked questions",
@@ -218,5 +221,10 @@
   },
   "legal": {
     "enPrevails": "The English version of this document prevails. Translations are provided for convenience only."
+  },
+  "notfound": {
+    "title": "Page not found",
+    "body": "The page you're looking for doesn't exist or has moved.",
+    "home": "Back to home"
   }
 }

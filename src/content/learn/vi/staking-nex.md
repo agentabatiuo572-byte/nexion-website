@@ -24,4 +24,4 @@ Màn hình staking cho phép khóa NEX một khoảng thời gian và tích lũy
 
 ## Tìm hiểu thêm
 
-Trang NEX trên site này giải thích nguồn gốc, công dụng và cơ chế cung của token; Trung tâm Tin cậy trong ứng dụng theo dõi dữ liệu mạng lưới trực tiếp phía sau.
+[Trang NEX trên site này](/vi/nex/) giải thích nguồn gốc, công dụng và cơ chế cung của token; Trung tâm Tin cậy trong ứng dụng theo dõi dữ liệu mạng lưới trực tiếp phía sau.

@@ -58,12 +58,12 @@ const btns = [
       );
       return b.url ? (
         <a class:list={['xbtn', { solid: b.solid }, lightCls]} href={b.url} target="_blank" rel="noopener">
-          <span class="xbtn-ghost">{inner}</span>
+          <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
           <span class="xbtn-a">{inner}</span>
-          <span class="xbtn-b">{inner}</span>
+          <span class="xbtn-b" aria-hidden="true">{inner}</span>
         </a>
       ) : (
-        <span class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
+        <span class:list={['xbtn', 'disabled', lightCls]} role="button" aria-disabled="true">
           <span class="static">{inner}</span>
         </span>
       );

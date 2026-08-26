@@ -2,7 +2,10 @@
 /* [FEAT-WEB01] 页脚 — R8(画布 1440 等比构图):
    定高 660→45.83vw 房间;上行=左品牌记号(90→6.25vw)+ 右列 723→50.2vw
    (wordmark 120→8.33vw 行遮罩 + 信息列 585→40.6vw:披露 + legal 链);
-   版权行钉底。key 不变,零死链。 */
+   版权行钉底。key 不变,零死链。
+   R45(主人拍板 B1):页脚回**透底**——R30 改实底的前提「参考站页脚同为实底黑场」实测不成立
+   (参考站页脚透明,粒子从字标后穿过),且 R2 主人规则本就把页脚列在「保留粒子透底」一组;
+   法务链 hover 改「0.62 → 1 提亮」(预暗链接再降透明曾掉到 3.43:1,提亮到白再乘 0.6 又肉眼不可辨);内链尾斜杠。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -17,22 +20,20 @@ const year = new Date().getFullYear();
 
 <footer class="site-footer">
   <div class="top">
-    <svg class="mark" viewBox="0 0 24 24" aria-hidden="true">
-      <g fill="none" stroke="currentColor" stroke-width="1.1">
-        <rect x="3" y="3" width="18" height="18"></rect>
-        <rect x="7.5" y="7.5" width="9" height="9"></rect>
-        <path d="M3 12h4.5M16.5 12H21M12 3v4.5M12 16.5V21"></path>
-        <circle cx="12" cy="12" r="1.6" fill="var(--x-accent)" stroke="none"></circle>
-      </g>
-    </svg>
+    {/* 品牌方形记号(主人 2026-08-26 素材)。页脚是深底,只需深色版;读屏由页脚字标承担,此处 aria-hidden */}
+    {/* 壳必须是非替换元素:「::before」 挂在 <img> 上不渲染(替换元素没有伪元素盒),
+        护字层会变成一条查不出来的空操作 —— 声明在、用值宽高恒 auto、屏上什么都没有。 */}
+    <span class="mark">
+      <img src="/logo-mark-dark.png" width="90" height="89" alt="" aria-hidden="true" />
+    </span>
 
     <div class="colr">
       <div class="wordmark x-display-mega" data-lr>NexGrid</div>
       <div class="info">
         <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
         <nav aria-label={t('footer.ariaLegal')}>
-          <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy`}>{t('footer.privacy')}</a>
-          <a class="x-mono x-dimlink" href={`${prefix}/legal/terms`}>{t('footer.terms')}</a>
+          <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy/`}>{t('footer.privacy')}</a>
+          <a class="x-mono x-dimlink" href={`${prefix}/legal/terms/`}>{t('footer.terms')}</a>
           {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
         </nav>
       </div>
@@ -46,13 +47,13 @@ const year = new Date().getFullYear();
   .site-footer {
     position: relative;
     z-index: 1;
-    background: var(--x-bg); /* R30:实底(法务小字不压粒子线,参考站页脚同为实底黑场) */
+    /* 透底:粒子场穿到页脚(R2 规则 + 参考站同构);上一节的细线由本处 border-top 画,与参考站同位同值 */
     border-top: 1px solid var(--x-line);
     height: max(560px, calc(660 * var(--u)));
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-    padding: max(60px, calc(80 * var(--u))) var(--x-pad) calc(30 * var(--uc)); /* R39:页脚实底全出血,内容随画布居中 */
+    padding: max(60px, calc(80 * var(--u))) var(--x-pad) calc(30 * var(--uc)); /* R39:内容随画布居中 */
     overflow: hidden;
   }
   .top {
@@ -61,11 +62,26 @@ const year = new Date().getFullYear();
     align-items: flex-start;
     gap: calc(40 * var(--uc));
   }
+  /* 方形品牌标是 app-icon 形态(带不透明砖底),而页脚是透底的 —— 直接放上去等于在粒子场上挖一个方洞,
+     丝线在砖缘硬切。素材的形态与配色是已排除项,故不动图,改用页脚已有的那套局部护字层把边界化开。 */
   .mark {
+    position: relative;
+    display: block;
     width: max(48px, calc(90 * var(--u)));
-    height: auto;
-    color: var(--x-white);
     flex: 0 0 auto;
+  }
+  .mark img {
+    display: block;
+    width: 100%;
+    height: auto;
+  }
+  .mark::before {
+    content: '';
+    position: absolute;
+    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc));
+    background: var(--x-scrim);
+    filter: blur(calc(14 * var(--uc)));
+    z-index: -1;
   }
   .colr {
     width: calc(723 * var(--u));
@@ -80,11 +96,22 @@ const year = new Date().getFullYear();
     user-select: none;
   }
   .info {
+    position: relative;
     width: calc(584.64 * var(--u));
     max-width: 100%;
     display: flex;
     flex-direction: column;
     gap: calc(24 * var(--uc));
+  }
+  /* 护字层:透底(B1)不动,只在信息列身后铺一层向外羽化的暗底 —— 流光穿过小字时曾低到 1.3:1 */
+  .info::before {
+    content: '';
+    position: absolute;
+    /* 矩形羽化(椭圆径向渐变四角无保护、活粒子下露弧形边) */
+    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc));
+    background: var(--x-scrim);
+    filter: blur(calc(14 * var(--uc)));
+    z-index: -1;
   }
   .disclaimer {
     color: var(--x-ink-dim);
@@ -100,17 +127,39 @@ const year = new Date().getFullYear();
   nav a {
     color: var(--x-ink-dim);
     text-decoration: none;
-    min-height: calc(44 * var(--uc));
+    min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
     text-transform: uppercase;
     letter-spacing: 0;
   }
+  /* 预暗链接的 hover 走提亮(与语言链同一手势:0.62 → 1);按下 0.75(对 #0c0c0d 12:1) */
+  nav a:hover,
+  nav a:focus-visible {
+    color: var(--x-white);
+    opacity: 1;
+  }
+  nav a:active {
+    color: var(--x-white);
+    opacity: 0.75;
+  }
+  /* 版权行是 .info 的兄弟,不在那层护字层里:R30 页脚还是实底时它本来安全,B1 撤掉实底后漏了它
+     (实测 70/70 帧低于 4.5:1,最差 1.24:1)。width:fit-content 是必需的——否则暗底铺满 1360 成一条可见暗带。 */
+  .copy::before {
+    content: '';
+    position: absolute;
+    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc)); /* 与 .info 同一组羽化参数 */
+    background: var(--x-scrim);
+    filter: blur(calc(14 * var(--uc)));
+    z-index: -1;
+  }
   .copy {
+    position: relative;
+    width: fit-content;
     color: var(--x-ink-dim); /* R35:版权行升 dim 档(AA) */
     margin: 0;
-    letter-spacing: -0.03em;
+    letter-spacing: -0.03em; /* 参考站版权行同为 −0.03em(它的 12px 字距分两类,这一类保留) */
   }
   @media (max-width: 860px) {
     .site-footer {

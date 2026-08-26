@@ -1,8 +1,10 @@
 ---
 import Base from '../../../layouts/Base.astro';
 import LegalTerms from '../../../components/legal/LegalTerms.astro';
+import { useT } from '../../../i18n';
+const t = useT('zh');
 ---
 
-<Base locale="zh" title="Terms of Service — NexGrid" description="NexGrid website terms of service." path="/legal/terms">
+<Base locale="zh" title={`${t('footer.terms')} — NexGrid`} description="NexGrid website terms of service." path="/legal/terms">
   <LegalTerms locale="zh" />
 </Base>
