@@ -12,8 +12,8 @@
     "build": "astro build",
     "preview": "astro preview --port 4321",
     "typecheck": "astro check",
-    "verify": "node scripts/verify.mjs",
-    "verify:prod": "node scripts/verify.mjs --prod"
+    "verify": "node scripts/verify-preamble.mjs && node scripts/verify.mjs",
+    "verify:prod": "node scripts/verify-preamble.mjs && node scripts/verify.mjs --prod"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
