@@ -343,6 +343,24 @@ html {
   background: var(--x-glass-lit);
   border-color: var(--x-glass-lit-border);
 }
+/* R48.1 浅纸玻璃(主人改令①:全深砖太暗)——**阅读型**瓷砖走浅底深墨,
+   氛围型(章头/叠卡/末屏/页脚)留深玻璃,全页形成明度节奏。
+   墨色 token 随砖翻纸面(与 .x-paper 同表);编号热档在浅底翻深柠檬,否则 #d4ff55 隐形。 */
+.x-tile-paper {
+  background: rgb(var(--x-light-rgb) / 0.92);
+  border-color: rgba(12, 12, 13, 0.14);
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.65),
+    0 18px 48px rgb(0 0 0 / 0.3);
+  color: var(--x-dark);
+  --x-ink: var(--x-dark);
+  --x-ink-dim: var(--x-dark-dim);
+  --x-ink-cap: var(--x-dark-cap);
+  --x-line: var(--x-line-dark);
+  --x-line-soft: rgba(12, 12, 13, 0.1);
+  --x-accent-ink: var(--x-accent-ink-paper);
+  --x-accent-hot: var(--x-accent-ink-paper);
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .x-tile {
     background: rgb(var(--x-bg-rgb) / 0.88);

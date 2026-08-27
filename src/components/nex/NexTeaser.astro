@@ -30,20 +30,25 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
         <p class="x-mono desc">{t('nex.teaser.whatDesc')}</p>
       </div>
     </article>
-    <article class="card x-tile rv-fade" data-rv data-plx={0.08}>
-      <p class="idx x-mono" data-tw data-tw-delay={160}>02</p>
-      <div class="stack">
-        <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
-        <p class="x-mono desc">{t('nex.teaser.earnDesc')}</p>
-      </div>
-    </article>
-    <article class="card x-tile rv-fade" data-rv data-plx={0.11}>
-      <p class="idx x-mono" data-tw data-tw-delay={320}>03</p>
-      <div class="stack">
-        <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
-        <p class="x-mono desc">{t('nex.teaser.useDesc')}</p>
-      </div>
-    </article>
+    {/* R48.1 主人改令②:02/03 从跨行栅格改显式右列,**视差挂在整列**上 ——
+        视差位移随元素自身位置变,纵叠两砖各挂系数会互相剪切间距(实测 18 → 0-4px);
+        列级视差让两砖同进退,列内 gap 恒为 18。 */}
+    <div class="side" data-plx={0.08}>
+      <article class="card x-tile x-tile-paper rv-fade" data-rv>
+        <p class="idx x-mono" data-tw data-tw-delay={160}>02</p>
+        <div class="stack">
+          <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
+          <p class="x-mono desc">{t('nex.teaser.earnDesc')}</p>
+        </div>
+      </article>
+      <article class="card x-tile x-tile-paper rv-fade" data-rv>
+        <p class="idx x-mono" data-tw data-tw-delay={320}>03</p>
+        <div class="stack">
+          <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
+          <p class="x-mono desc">{t('nex.teaser.useDesc')}</p>
+        </div>
+      </article>
+    </div>
   </div>
   <div class="more" data-rv>
     <a class="xbtn" href={`${prefix}/nex/`}>
@@ -86,12 +91,20 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
     color: var(--x-ink);
     margin: 0;
   }
-  /* 1 高瓷砖(what,占两行)+ 2 宽瓷砖(earn/use 叠右侧) */
+  /* 1 高瓷砖(what)+ 右列两砖(earn/use 均分高度,列内 gap 与全章同值) */
   .cards {
     display: grid;
     grid-template-columns: 5fr 7fr;
-    grid-auto-rows: minmax(calc(150 * var(--uc)), auto);
     gap: calc(18 * var(--uc));
+    align-items: stretch;
+  }
+  .side {
+    display: flex;
+    flex-direction: column;
+    gap: calc(18 * var(--uc));
+  }
+  .side .card {
+    flex: 1 1 0; /* 基准 0:两砖真均分(auto 基准会让文案长的那块更高) */
   }
   .card {
     padding: calc(26 * var(--uc)) calc(30 * var(--uc)) calc(30 * var(--uc));
@@ -100,9 +113,6 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
     gap: calc(22 * var(--uc));
     will-change: transform;
     z-index: 1;
-  }
-  .card.what {
-    grid-row: span 2;
   }
   .idx {
     color: var(--x-accent-hot);
@@ -140,10 +150,6 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
   @media (max-width: 860px) {
     .cards {
       grid-template-columns: 1fr;
-      grid-auto-rows: auto;
-    }
-    .card.what {
-      grid-row: auto;
     }
   }
 </style>

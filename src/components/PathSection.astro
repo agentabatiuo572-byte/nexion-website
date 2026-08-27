@@ -29,7 +29,7 @@ const cards = [
   <div class="cards">
     {
       cards.map((c, i) => (
-        <article class:list={['card', 'x-tile', 'rv-fade', { 'x-tile-lit': c.lit }]} data-rv data-plx={c.k}>
+        <article class:list={['card', 'x-tile', 'rv-fade', c.lit ? 'x-tile-lit' : 'x-tile-paper']} data-rv data-plx={c.k}>
           <p class="metarow x-mono">
             <span data-tw data-tw-delay={160 * i}>{c.n}</span>
             <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>

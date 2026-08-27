@@ -32,7 +32,7 @@ const order = [
   </div>
 
   <div class="grid">
-    <div class="certs x-tile" data-rv>
+    <div class="certs x-tile x-tile-paper" data-rv>
       <figure>
         <a
           class="cert-open"
@@ -63,7 +63,7 @@ const order = [
 
     {
       order.map(({ card, span }, i) => (
-        <article class:list={['card', 'x-tile', span]} data-rv style={`--d:${i * 0.08}s`}>
+        <article class:list={['card', 'x-tile', 'x-tile-paper', span]} data-rv style={`--d:${i * 0.08}s`}>
           <span class="idx x-mono">0{i + 1}</span>
           <p class="x-mono">{t(`trust.card${card}`)}</p>
         </article>

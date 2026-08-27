@@ -27,7 +27,7 @@ const ld = {
     <span class="x-ghost ghost" aria-hidden="true">06</span>
     <p class="lab x-mono-lg" data-tw>{t('faq.title')}</p>
   </div>
-  <div class="panel x-tile">
+  <div class="panel x-tile x-tile-paper">
     {
       qs.map((n, i) => (
         <details class="item" data-rv style={`--d:${i * 0.05}s`}>
@@ -52,8 +52,9 @@ const ld = {
     position: relative;
     margin-bottom: max(32px, calc(48 * var(--u)));
   }
+  /* R48.1 主人改令③:面板(1100 宽)在左会压住左置编号 → 编号移右侧空区 */
   .ghost {
-    left: calc(-16 * var(--uc));
+    right: calc(-10 * var(--uc));
     top: calc(-30 * var(--uc));
   }
   .lab {
