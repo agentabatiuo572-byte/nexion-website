@@ -54,12 +54,11 @@
 
   /* ── R48 玻璃系(主人 2026-08-27 拍板「磨砂玻璃+圆角」,设计画布定稿)──
      面片 = 半透白 fill + 细亮边 + 顶部内高光 + backdrop 磨砂;lit 变体从品牌主档派生(不写第二字面量)。 */
-  --x-glass: rgb(255 255 255 / 0.05);
-  --x-glass-strong: rgb(255 255 255 / 0.07);
-  --x-glass-border: rgb(255 255 255 / 0.12);
+  --x-glass: rgb(255 255 255 / 0.13); /* R48.5 定稿薄膜(主人拍板「中心别太透」) */
+  --x-glass-border: rgb(255 255 255 / 0.24);
   --x-glass-lit: color-mix(in srgb, var(--x-accent) 9%, transparent);
   --x-glass-lit-border: color-mix(in srgb, var(--x-accent) 30%, transparent);
-  --x-blur: 18px;
+  --x-blur: 14px;
   --x-r: calc(24 * var(--uc)); /* 大面片圆角 */
   --x-r-sm: calc(14 * var(--uc)); /* 内嵌媒体区 / 小件圆角 */
 
@@ -340,11 +339,11 @@ html {
      🔴 SVG 位移场折射(url(#x-liquid))已拆除:它每帧对动态画布整块重算,实测把滚动拖死,
      真机一票否决;折射观感由静态高光镶边近似,不再逐帧付费。
      中心薄膜 0.07 → 0.13(降透),blur 走 GPU 合成路径(R48 v1 实测 60fps 的同族配方)。 */
-  background: rgb(255 255 255 / 0.13);
-  border: 1px solid rgb(255 255 255 / 0.24);
+  background: var(--x-glass);
+  border: 1px solid var(--x-glass-border);
   border-radius: var(--x-r);
-  -webkit-backdrop-filter: blur(14px) saturate(1.5) brightness(1.05);
-  backdrop-filter: blur(14px) saturate(1.5) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--x-blur)) saturate(1.5) brightness(1.05);
+  backdrop-filter: blur(var(--x-blur)) saturate(1.5) brightness(1.05);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.35),
     inset 0 -1px 0 rgb(255 255 255 / 0.1),
@@ -632,37 +631,9 @@ summary:focus-visible,
   outline-offset: calc(2.05 * var(--uc)); /* 与环宽同口径:2 会在 zoom 0.9896 下被取整成 1 设备像素 */
 }
 
-/* 纸面变量组:x-invert=整块反白区(带 z);x-paper=信息面 */
-.x-invert,
-.x-paper {
-  background: var(--x-light);
-  color: var(--x-dark);
-  --x-ink: var(--x-dark);
-  --x-ink-dim: var(--x-dark-dim);
-  --x-ink-cap: var(--x-dark-cap);
-  --x-line: var(--x-line-dark);
-  --x-line-soft: rgba(12, 12, 13, 0.1);
-  --x-accent-ink: var(--x-accent-ink-paper); /* R31:走单源纸面深档 */
-}
-.x-invert {
-  position: relative;
-  z-index: 1;
-}
-:is(.x-invert, .x-paper) .xbtn {
-  border-color: var(--x-line-dark);
-  color: var(--x-dark);
-}
-/* 纸面 solid 同柠檬(R30 起不再翻黑,黑字压柠底任意语境成立);
-   R31 补回边框;R35 补回字色;R36 边框改深柠檬——亮柠檬块压纯白边界发虚,深描边为浅底可读性补偿(同族只动明度) */
-:is(.x-invert, .x-paper) .xbtn.solid {
-  border-color: var(--x-accent-ink);
-  color: var(--x-on-accent);
-}
-:is(.x-invert, .x-paper) .xbtn.disabled {
-  color: var(--x-dark-dim); /* R37:交互文字 dim 档(faint 支路漏升的休眠缺陷) */
-  border-color: var(--x-line-dark);
-  background: var(--x-light); /* R37:实底随语境翻转(黑实底曾致纸面「黑块隐形字」休眠态) */
-}
+/* R48.6:纸面变量组(.x-invert / .x-paper 及其 xbtn 变体)清退 —— 子页换玻璃后全站零消费
+   (死规则纪律;导航翻色 JS 与 on-light CSS 保留:自足无害,若未来再出现浅区块即复用)。
+   纸面墨 token(--x-dark* / --x-accent-ink-paper / --x-light*)仍被灯箱、打印与导航翻色消费,不动。 */
 
 /* R48 透明深带:白幕布(band-light)退役后的中段容器 —— 无底色,地球从 z0 透上来;
    z10 与 decked 时 fx 加 .curtain 上拉一个区高的编舞职责原样继承(盖过叠卡钉屏尾段,

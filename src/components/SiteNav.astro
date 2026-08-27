@@ -140,10 +140,8 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     --x-nav-a: 1;
     transition: background-color 0s;
   }
-  /* 内页无白带、导航不翻色:0.64 的暗磨砂压在白纸面板上成一块羽化灰影 → 内页底板 0.9(仍是磨砂,纸面只隐约透出) */
-  :global(html.x-inner) .site-nav {
-    --x-nav-a: 0.9;
-  }
+  /* R48.6:内页 0.9 特化档撤销 —— 那是给「内页白纸面板」防灰影立的,子页换玻璃暗面后
+     全站统一 0.64 暗磨砂(x-inner 类本身保留在 Base,按需再分档)。 */
   .site-nav a,
   .site-nav button {
     pointer-events: auto;

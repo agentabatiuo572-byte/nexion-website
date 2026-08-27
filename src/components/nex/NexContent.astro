@@ -26,7 +26,7 @@ const faqs = [1, 2, 3, 4] as const;
     <p class="lead x-mono" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
   </header>
 
-  <section class="block x-paper" aria-labelledby="nex-compare">
+  <section class="block x-tile" aria-labelledby="nex-compare">
     <h2 id="nex-compare" class="x-h24">{t('nex.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
@@ -42,7 +42,7 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-sources">
+  <section class="block x-tile" aria-labelledby="nex-sources">
     <h2 id="nex-sources" class="x-h24">{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
@@ -55,7 +55,7 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-uses">
+  <section class="block x-tile" aria-labelledby="nex-uses">
     <h2 id="nex-uses" class="x-h24">{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
@@ -68,7 +68,7 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-mech">
+  <section class="block x-tile" aria-labelledby="nex-mech">
     <h2 id="nex-mech" class="x-h24">{t('nex.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
@@ -82,7 +82,7 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-faq">
+  <section class="block x-tile" aria-labelledby="nex-faq">
     <h2 id="nex-faq" class="x-h24">{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
@@ -238,10 +238,10 @@ const faqs = [1, 2, 3, 4] as const;
   /* 行线与收口语法同首页 FAQ:逐条上线 + 末条下线,墨阶用 --x-line-dark
      (原来只有 0.10 的下线且首条无上线,与同块 .block 的 0.23 上线打架) */
   .faq {
-    border-top: 1px solid var(--x-line-dark);
+    border-top: 1px solid var(--x-line);
   }
   .faq:last-of-type {
-    border-bottom: 1px solid var(--x-line-dark);
+    border-bottom: 1px solid var(--x-line);
   }
   .faq summary {
     cursor: pointer;
@@ -256,7 +256,7 @@ const faqs = [1, 2, 3, 4] as const;
     display: none;
   }
   .faq .idx {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     font-weight: 400;
     flex: 0 0 calc(30 * var(--uc));
   }
@@ -283,7 +283,7 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .faq > p {
     max-width: calc(760 * var(--uc)); /* 与首页 FAQ 同(此前 680,是「同规格」漏掉的一项) */
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     text-wrap: pretty;
     line-height: 1.45;
