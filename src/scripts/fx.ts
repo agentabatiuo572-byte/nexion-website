@@ -62,6 +62,9 @@ function initLorenz() {
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
 
+  /* 底色只有一个真源(tokens.css 的 --x-bg)。此前这里写了两处 `#0c0c0d` 字面量,
+     改品牌底色时改不到 —— 画布会和页面差一个色。开局读一次,读不到才退回字面量。 */
+  const BG = getComputedStyle(document.documentElement).getPropertyValue('--x-bg').trim() || '#0c0c0d';
   const N = coarse ? 8000 : 20000;
   const pts = new Float32Array(N * 3);
   let ax = 0.1,
@@ -328,7 +331,7 @@ function initLorenz() {
     const P = poseHome();
     renderBody(P.cx, P.cy, P.scl, P.yaw, P.pitch);
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#0c0c0d';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
     ctx.drawImage(glow, 0, 0, W, H);
@@ -404,7 +407,7 @@ function initLorenz() {
     }
 
     ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = '#0c0c0d';
+    ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
     ctx.drawImage(glow, 0, 0, W, H); /* R32:辉光垫底(点燃带) */

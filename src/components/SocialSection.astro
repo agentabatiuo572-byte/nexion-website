@@ -94,6 +94,10 @@ const TESTIMONIALS: Testimonial[] = [];
     margin: 0;
     white-space: pre-line; /* zh 焊定断点(「正在」不拆行) */
   }
+  /* ⚠️ 下面这条 line-height **只对英文生效**:本元素挂着 .x-mono-lg,而型类的
+     `:lang(vi)` / `:lang(zh)` 分支特异度更高(0,2,1 > 0,2,0),vi 拿 1.45、zh 拿 1.5。
+     值保留是有意的 —— 这是多行的次要正文,1.5 比型类默认的 1.2 好读;三语实际落点 1.5/1.45/1.5 本就接近。
+     写明是为了下次有人看到「改了没反应」时不必再查一遍层叠。 */
   .roles {
     color: var(--x-ink-dim);
     margin: 0;

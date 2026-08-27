@@ -188,7 +188,10 @@ const shareArt = contour(77, 12, 640, 400);
     font-family: var(--x-font-mono);
     font-weight: 400;
     font-size: calc(16 * var(--uc));
-    line-height: 1.2; /* 等宽零字距是仓规(tokens.css 三处型类都是 0);此前 −0.36 让 16 档有两套字身格,与 .x-mono-lg 同屏 */
+    /* 三处等宽型类的字距都是 0,本处跟型类。
+       ⚠️ 「仓规」这个说法不准:导航时钟 / 首屏滚动提示 / 页脚版权行三处 12px 等宽是 −0.03em,
+       那是照参考站的另一类 12px 字距刻意保留的,不是漏改。 */
+    line-height: 1.2;
     text-transform: uppercase;
     min-width: calc(5ch + 20 * var(--uc)); /* 5ch 是文字最小宽;border-box 下要算上两侧内衬 */
     padding: calc(10 * var(--uc));
