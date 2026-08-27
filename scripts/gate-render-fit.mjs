@@ -1,6 +1,8 @@
-/* 门:墨迹不能相撞 —— 两种撞法一起判。
+/* 门:版面在真渲染下不能自相矛盾 —— 四条判据一起判。
  *   A 行间:相邻两行的墨(含变音符与下点)不能相接;
- *   B 层间:首屏文字的墨不能钻进导航的磨砂蒙版底下。
+ *   B 层间:首屏文字的墨不能钻进导航的磨砂蒙版底下;
+ *   C 声明:`--x-nav-h` 的声明值必须等于导航的实测高;
+ *   D 单调:视口变窄时字号不能变大(分档版式两套梯子在断点处对不齐)。
  *
  * 这门是 `gate-vi-line-fit` 的重做。上一版三天内被独立评审抓出同一种病**三次**:
  *   · 例外逐个组件写(漏 8 处)· 门的路由表手写(漏 9 条路由)· 探针的视口表手写(漏「宽屏 × 矮视口」那一格)。
@@ -242,6 +244,67 @@ const SCAN_NAVH = () => {
     expect: Math.round(expect * 10) / 10, diff: Math.round((measured - expect) * 10) / 10 };
 };
 
+/* ── ③ D 判据:视口变窄时字号不许变大 ──
+   分档版式有两套梯子(桌面按 --u 随视口线性长 / 窄屏按 vw 另起一套),两套在断点处不会自己对齐:
+   首屏大标题在 861px 是 60.3px,在 860px 反而是 88px —— 窄一个像素反而大 46%。
+   两侧**单独看都很正常**,只有把断点两侧摆在一起才看得出来,所以人工走查天然扫不到这一族
+   (实测它在四十多轮走查里活了下来,直到有人把两个截图并排放)。
+   判据是纯物理的:同一个元素,视口更窄不该让它更大。**不列元素清单**,全站文字元素一起判;
+   宽度档沿用②推导出来的那一份(断点两侧各一格),所以新加断点自动被覆盖。
+   键用 DOM 路径,两档宽下都取得到才比;取不到的(分档隐藏 / 拆行遮罩重建)跳过,不制造假红。 */
+const SCAN_SIZES = () => {
+  const key = (el) => {
+    const parts = [];
+    let n = el;
+    while (n && n !== document.body && n.parentElement) {
+      const p = n.parentElement;
+      const same = [...p.children].filter((c) => c.tagName === n.tagName);
+      parts.unshift(n.tagName.toLowerCase() + (same.length > 1 ? ':' + (same.indexOf(n) + 1) : ''));
+      n = p;
+    }
+    return parts.join('>');
+  };
+  const out = {};
+  for (const el of document.querySelectorAll('body *')) {
+    if (/^(SCRIPT|STYLE|CANVAS|IMG|BR|HR|NOSCRIPT|SELECT|OPTION|TITLE)$/.test(el.tagName)) continue;
+    if (el.namespaceURI && el.namespaceURI.indexOf('svg') >= 0) continue;
+    if (el.closest('.size-jump-ok')) continue;
+    /* 拆行遮罩里的临时 span 随宽度重建,键天然不稳定 —— 只判宿主自己。
+       宿主在未播状态下没有直接文本节点,所以对宿主放行文本要求,直接读它的字号(拆出来的行继承它)。 */
+    const isHost = el.matches('[data-lr]');
+    if (!isHost && el.parentElement && el.parentElement.closest('[data-lr]')) continue;
+    let text = '';
+    for (const n of el.childNodes) if (n.nodeType === 3) text += n.textContent;
+    if (!isHost && !text.trim()) continue;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const box = el.getBoundingClientRect();
+    if (box.width <= 2 || box.height <= 2) continue;
+    const cls = typeof el.className === 'string' ? el.className : '';
+    out[key(el)] = {
+      fs: Math.round(parseFloat(cs.fontSize) * 100) / 100,
+      sel: el.tagName.toLowerCase() + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''),
+      text: (text.trim() || el.textContent.trim()).split(/\s+/).join(' ').slice(0, 24),
+    };
+  }
+  return out;
+};
+/* 1% 是 vw 制字号的亚像素噪声带(同一条 clamp 在相邻两档宽下本来就差零点几个百分点),
+   不是给「小台阶」留的口子:这一族的成因是两套梯子各算各的,差距一向是两位数百分比。 */
+const SIZE_TOL = 0.01;
+/* 比较写成函数,自检跑的就是**这一份**判据本身,不是它的一份手抄件(手抄件会各自漂) */
+const sizeViolations = (narrowSizes, wideSizes) => {
+  const out = [];
+  for (const [key, wide] of Object.entries(wideSizes)) {
+    const narrow = narrowSizes[key];
+    if (!narrow || !(wide.fs > 0)) continue;
+    if (narrow.fs <= wide.fs * (1 + SIZE_TOL)) continue;
+    out.push({ key, sel: narrow.sel, text: narrow.text, narrowFs: narrow.fs, wideFs: wide.fs,
+      pct: Math.round(((narrow.fs - wide.fs) / wide.fs) * 1000) / 10 });
+  }
+  return out;
+};
+
 /* ── 自检 ── */
 const FIXTURE = `<!doctype html><html lang="vi"><head><meta charset="utf-8"><style>
   /* 0.7 与 2.4 是刻意选在「任何字体都过不了 / 任何字体都过得了」的两侧 ——
@@ -264,12 +327,27 @@ chia sẻ năng lực tính toán</p>
   <p class="nowrap">Nhà cung cấp dịch vụ chia sẻ năng lực tính toán cho mạng lưới AI phân tán</p>
 </body></html>`;
 
+/* D 的夹具:同一份文档在两档宽下量。h1 窄档反而大(该红)、h2 窄档更小(不该红)、
+   h3 两档一样(不该红)。数值挑成 3 倍差,任何字体 / 亚像素都翻不了案。 */
+const FIXTURE_D = `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>
+  body { margin: 0; font-family: monospace; }
+  h1, h2, h3 { font-size: 20px; }
+  @media (max-width: 500px) { h1 { font-size: 60px; } h2 { font-size: 7px; } }
+</style></head><body><h1>reverse</h1><h2>forward</h2><h3>flat</h3></body></html>`;
+
 if (process.argv.includes('--self-test')) {
   const b = await chromium.launch();
   const c = await b.newContext({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 1 });
   const p = await c.newPage();
   await p.setContent(FIXTURE, { waitUntil: 'load' });
   const names = (await p.evaluate(SCAN_LINES)).map((f) => f.sel).join(' ');
+  // D:同一份文档,窄档 400 与宽档 600 各量一次,走的是主循环用的同一个 sizeViolations
+  await p.setContent(FIXTURE_D, { waitUntil: 'load' });
+  await p.setViewportSize({ width: 400, height: 700 });
+  const dNarrow = await p.evaluate(SCAN_SIZES);
+  await p.setViewportSize({ width: 600, height: 700 });
+  const dWide = await p.evaluate(SCAN_SIZES);
+  const dHit = sizeViolations(dNarrow, dWide).map((v) => v.sel).join(' ');
   await b.close();
   const expect = [
     ['① 行距不足的多行文本 → 抓到', names.indexOf('bad') >= 0],
@@ -280,11 +358,14 @@ if (process.argv.includes('--self-test')) {
     ['④ 逃生阀 line-fit-ok 生效', names.indexOf('esc') < 0],
     ['⑤ 短文本不判(折不了行)', names.indexOf('short') < 0],
     ['⑥ nowrap 不判(不会折行)', names.indexOf('nowrap') < 0],
+    ['⑦ D 窄档反而更大 → 抓到', dHit.indexOf('h1') >= 0],
+    ['⑧ D 窄档更小 → 不抓', dHit.indexOf('h2') < 0],
+    ['⑨ D 两档同尺 → 不抓', dHit.indexOf('h3') < 0],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
   console.log(`gate-render-fit 自检: ${expect.length - bad} pass / ${bad} fail`);
-  if (bad) console.log('  实际抓到:', names || '(空)');
+  if (bad) console.log('  A 实际抓到:', names || '(空)', '| D 实际抓到:', dHit || '(空)');
   process.exit(bad ? 1 : 0);
 }
 
@@ -331,11 +412,14 @@ const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, d
 const page = await ctx.newPage();
 const hitsA = new Map();
 const hitsB = new Map();
+const hitsD = new Map();
 
 for (const r of ROUTES) {
   const res = await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   if (!res || !res.ok()) { hitsA.set('route:' + r, `${r}  路由取不到`); continue; }
   await page.evaluate(() => document.fonts.ready);
+  let prevW = null;
+  let prevSizes = null;
   for (const w of widths) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.waitForTimeout(40);
@@ -344,6 +428,17 @@ for (const r of ROUTES) {
       const prev = hitsA.get(k);
       if (!prev || h.over > prev.over) hitsA.set(k, { ...h, where: `${r} @${w}` });
     }
+    // widths 升序,所以 prevW 一定是更窄的那一侧:它的字号更大就是反向跳变
+    const sizes = await page.evaluate(SCAN_SIZES);
+    if (prevSizes) {
+      for (const v of sizeViolations(prevSizes, sizes)) {
+        const k = `${r}|${v.key}`;
+        const prev = hitsD.get(k);
+        if (!prev || v.pct > prev.pct) hitsD.set(k, { ...v, route: r, narrowW: prevW, wideW: w });
+      }
+    }
+    prevW = w;
+    prevSizes = sizes;
   }
 }
 const hitsC = [];
@@ -378,8 +473,9 @@ const B = [...hitsB.values()].sort((a, b) => b.under - a.under);
 console.log(`[render-fit] 路由 ${ROUTES.length} 条(从产物枚举)· 宽 ${widths.length} 档 / 矮档高 ${SHORT_H.length} 档(从产物 CSS 断点推导)`);
 console.log(`             宽: ${widths.join(' ')}`);
 console.log(`             高: ${SHORT_H.join(' ')}`);
-if (!A.length && !B.length && !hitsC.length) {
-  console.log('[render-fit] ✓ 行间与层间墨迹均无相撞,导航高声明值与实测值一致');
+const D = [...hitsD.values()].sort((a, b) => b.pct - a.pct);
+if (!A.length && !B.length && !hitsC.length && !D.length) {
+  console.log('[render-fit] ✓ 行间与层间墨迹均无相撞,导航高声明值与实测值一致,字号随视口单调');
   process.exit(0);
 }
 if (hitsC.length) {
@@ -394,6 +490,13 @@ if (B.length) {
   console.log(`[render-fit] ✘ B 层间:${B.length} 处首屏文字钻到导航蒙版底下`);
   for (const b of B) console.log(`  - ${b.where}  ${b.sel}  墨顶 ${b.inkTop} < 导航底沿 ${b.navBottom}(压 ${b.under}px)  「${b.text}」`);
 }
-console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数');
-console.log('  确系有意:给元素加 class line-fit-ok。');
+if (D.length) {
+  console.log(`[render-fit] ✘ D 反向跳变:${D.length} 处「视口更窄反而字更大」`);
+  for (const d of D) {
+    console.log(`  - ${d.route} ${d.sel}  ${d.narrowW}px=${d.narrowFs} → ${d.wideW}px=${d.wideFs}(窄侧大 ${d.pct}%)  「${d.text}」`);
+  }
+}
+console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数;');
+console.log('        D 把窄档的上限接到断点另一侧的实算值(取整下调留方向余量),不要另挑一个好看的数。');
+console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok。');
 process.exit(1);

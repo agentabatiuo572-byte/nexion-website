@@ -26,7 +26,7 @@ const t = useT(locale);
     </div>
 
     <div class="cluster">
-      <h1 class="x-display-mega" data-lr="load" data-lr-delay="900">{t('hero.title')}</h1>
+      <h1 class="x-display-mega" data-lr="load" data-lr-delay="200">{t('hero.title')}</h1>
       <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
       <div class="dl-wrap">
         <DownloadButtons locale={locale} />
@@ -177,11 +177,18 @@ const t = useT(locale);
       padding-top: calc(80 * var(--uc));
       padding-bottom: 10svh;
     }
+    /* 上限 = 断点另一侧的实算值取整下调,不是另挑一个好看的数:
+       861 宽走桌面档 max(44px, 100.8·--u),--u = 0.0694444vw → 60.27px(zh 走 115.2·--u → 68.88px)。
+       此前封顶 88 / 92,于是「窄一个像素反而大 46%」——尺寸随视口变窄而变大,是全站唯一的反向跳变。
+       两档窄面本来就整体高于桌面梯子(11vw 恒大于 ≈7vw),所以边界必然有台阶,能做的是把台阶
+       压到一像素内**并保证方向朝前**(窄的那侧更小);取整下调就是留这点方向余量。
+       上限只在 ≥545px 宽处咬合(11vw = 60),手机档 390 仍是 42.9px,不受影响。
+       改桌面档 h1 的系数会让这两个上限失配 —— 由门 render-fit 判据 D 逐档实测钉住,漂了会红。 */
     h1 {
-      font-size: clamp(40px, 11vw, calc(88 * var(--uc)));
+      font-size: clamp(40px, 11vw, calc(60 * var(--uc)));
     }
     h1:lang(zh) {
-      font-size: clamp(44px, 14vw, calc(92 * var(--uc)));
+      font-size: clamp(44px, 14vw, calc(68 * var(--uc)));
     }
   }
   /* 矮视口档(手机横放,也含被压扁的桌面窗口)。三条约束互相牵制,必须一起满足:

@@ -467,12 +467,12 @@ html.x-boot #x-bg {
 html.x-boot .site-nav,
 html.x-boot .hero .scroll-hint,
 html.x-boot .hero .note {
-  animation: x-fade 0.6s ease 0.4s backwards;
+  animation: x-fade 0.5s ease 0.1s backwards;
 }
 html.x-boot .hero .sub,
 html.x-boot .hero .dl-wrap,
 html.x-boot #stats {
-  animation: x-fade 0.5s ease 1.4s both; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
+  animation: x-fade 0.5s ease 0.55s both; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
 }
 
 /* 焦点可见性 */

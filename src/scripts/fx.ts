@@ -664,10 +664,13 @@ function initLineReveal() {
 
   /* 每个标题只等自己那档字重**和自己那串字**(Mega 500:首屏标题与页脚字标;其余 400),不等 fonts.ready:
      等两档曾让 vi 慢网首屏标题跟着 400 子集晚到 1.4s;不带文本则只等含空格的那个子集(vi 叠音符子集不在内)。
-     兜底 1.2s——副题拍在 1.4s,标题必须先到;兜底后到的字体由上面的 rebuild 接手 */
-  /* 兜底同样锚在 BEAT_T0(与副题的 CSS 拍同钟),不是「从现在起 1.2s」——
-     后者在慢网下会跟着 fx 的到达一起顺延,而副题拍不会,于是 vi 的标题排到副题后面(实测晚 0.67s)。 */
-  const cap = new Promise<void>((r) => setTimeout(r, Math.max(0, BEAT_T0 + 600 - performance.now())));
+     兜底必须早于副题拍,标题才一定先到;兜底后到的字体由上面的 rebuild 接手 */
+  /* 兜底同样锚在 BEAT_T0(与副题的 CSS 拍同钟),不是「从现在起 N 毫秒」——
+     后者在慢网下会跟着 fx 的到达一起顺延,而副题拍不会,于是 vi 的标题排到副题后面(实测晚 0.67s)。
+     🔴 400 是从副题拍倒推的,不是随手取的:tokens.css 里 .hero .sub 的 animation-delay 是 0.55s,
+        兜底必须小于它。改那一拍必须同步改这里 —— R46 把副题拍从 1.4s 提到 0.55s 时,
+        原来的 600 就已经晚于副题拍了(慢字体下标题会反过来排在副题后面)。 */
+  const cap = new Promise<void>((r) => setTimeout(r, Math.max(0, BEAT_T0 + 400 - performance.now())));
   for (const el of els) {
     const cs = getComputedStyle(el);
     const key = `${cs.fontWeight} 16px ${cs.fontFamily}`;

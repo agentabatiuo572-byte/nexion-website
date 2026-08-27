@@ -174,8 +174,12 @@ const year = new Date().getFullYear();
     .colr {
       width: 100%;
     }
+    /* 上限接断点另一侧的实算值取整下调:861 宽走上面的 max(56px, 120·--u) = 71.75px。
+       此前封顶 96,于是 860 是 96、861 是 71.75 —— 窄一个像素反而大 34%,全站每条路由都有。
+       与首屏标题同一族(见 HeroSection 同处注释),由门 render-fit 判据 D 逐档实测钉住。
+       上限只在 ≥546px 宽处咬合(13vw = 71),手机档 390 仍是 50.7px,不受影响。 */
     .wordmark {
-      font-size: clamp(48px, 13vw, calc(96 * var(--uc)));
+      font-size: clamp(48px, 13vw, calc(71 * var(--uc)));
     }
     .info {
       width: 100%;

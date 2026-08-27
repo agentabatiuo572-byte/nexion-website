@@ -21,7 +21,7 @@ const ks = [0.057, 0.099, 0.138];
 ---
 
 <section class="how" id="how">
-  <div class="headrow">
+  <div class="head">
     <p class="lab x-mono-lg" data-tw>{t('how.title')}</p>
     <div class="statements x-display">
       <h2 data-lr>{t('how.head1')}</h2>
@@ -67,7 +67,7 @@ const ks = [0.057, 0.099, 0.138];
     padding: 0 var(--x-pad);
   }
   /* 块头行:左标签占满、右陈述列定宽(画布 gap-60/列 725/陈述 40 档) */
-  .headrow {
+  .head {
     display: flex;
     gap: max(24px, calc(60 * var(--u)));
     align-items: baseline;
@@ -174,7 +174,7 @@ const ks = [0.057, 0.099, 0.138];
     opacity: 0.58; /* 仓规按压档(纸面 4.65:1 过 AA);此前 0.45 只有 3.04:1 */
   }
   @media (max-width: 860px) {
-    .headrow {
+    .head {
       flex-direction: column;
       gap: calc(24 * var(--uc));
       /* 不覆写 margin-bottom:另五块在窄屏也没有覆写,继承同一条 max(48px, 120·--u);

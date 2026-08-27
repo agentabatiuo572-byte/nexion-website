@@ -213,7 +213,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-size: clamp(16px, 1.6vw, calc(20 * var(--uc)));
     font-weight: 500;
     color: var(--x-ink);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em; /* 同 .mcard h3 / .block h2:display 档一条字距梯子,不按组件各写各的 */
     line-height: 1.1;
   }
   /* display 档不吃 .x-mono 的型类例外,单列一条:1.1 在 vi 下重叠更深(实测行间墨隙 −0.67) */
@@ -239,7 +239,7 @@ const faqs = [1, 2, 3, 4] as const;
     font-weight: 500;
     color: var(--x-ink);
     margin: 0 0 calc(10 * var(--uc));
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em; /* 24 档统一 -0.02em(与首页 FAQ 问句同档) */
     line-height: 1.1;
   }
   .mcard p {

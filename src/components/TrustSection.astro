@@ -53,8 +53,9 @@ const cards = [1, 2, 3, 4, 5] as const;
     <form method="dialog" class="cert-zoom-close">
       <button class="xbtn" aria-label={t('trust.certClose')}>{t('trust.certClose')}</button>
     </form>
-    {/* 1x 屏复用页面里已下好的 660 缩略件(桌面灯箱只渲染约 528px);HiDPI 与手机(渲染宽 1160)才取 @2x。
-        实测慢网首开 2521ms → 179ms,渲染宽度不变 */}
+    {/* 1x 屏复用页面里已下好的 660 缩略件(桌面灯箱只渲染约 528px);HiDPI 与手机取 @2x。
+        手机档故意写死 1160(远大于适宽后的渲染宽):双指放大不会回源重取,取小图放大就是糊的。
+        实测慢网首开 2521ms → 179ms */}
     <img alt="" width="1160" height="1548" sizes="(max-width: 860px) 1160px, (min-width: 1441px) 747px, 560px" />
   </dialog>
 
@@ -162,7 +163,7 @@ const cards = [1, 2, 3, 4, 5] as const;
   .cert-zoom-close {
     position: sticky;
     top: 0;
-    left: 0; /* 手机端灯箱横向平移(1160 宽原件)时关闭行不被推出视口 */
+    left: 0; /* 双指放大后视觉视口平移,关闭行不被推出屏外 */
     z-index: 1;
     display: flex;
     justify-content: flex-end;
@@ -297,9 +298,13 @@ const cards = [1, 2, 3, 4, 5] as const;
       max-height: 100dvh;
       padding: 0 calc(8 * var(--uc)) calc(8 * var(--uc));
     }
+      /* 手机端默认整张适宽:此前按原件 1160 出图,390 屏一眼只看得到左边三分之一,
+         要横向平移才读得完,而灯箱里没有任何提示说它可以平移。适宽后整张一屏可见,
+         看清骑缝小字交给系统自带的双指放大(viewport 没锁 user-scalable)。
+         🔴 下面 <img sizes> 手机档仍取 1160 原件:放大不会回源重取,取小图放大就是糊的。 */
     .cert-zoom img {
-      width: 1160px;
-      max-width: none;
+      width: 100%;
+      max-width: 100%;
     }
     .cert-zoom-close {
       padding: calc(8 * var(--uc)) 0;
