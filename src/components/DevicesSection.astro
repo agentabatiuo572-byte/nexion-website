@@ -139,7 +139,8 @@ const shareArt = contour(77, 12, 640, 400);
     gap: clamp(48px, 8vw, calc(80 * var(--uc)));
   }
   /* 铺满轨道,但不超过卡自己的设计宽 520 —— 单列档轨道比卡宽时,多出来的宽度不该由卡吃掉。
-     桌面编舞档另有更高特异度的宽度规则,写在下面、不受影响。 */
+     ⚠️ max-width 不参与特异度竞争:编舞档的 width:45.14% 覆写不掉这里的封顶,
+     必须在 .decked 作用域显式 max-width:none(R47.6 教训,9e24b27 曾靠这句注释误判「不受影响」)。 */
   .stage > .card {
     width: 100%;
     max-width: calc(520 * var(--uc));
@@ -287,12 +288,17 @@ const shareArt = contour(77, 12, 640, 400);
     position: absolute;
     inset: 0;
     display: block;
+    /* 🔴 R47.6:兜底栅格档的 1120 轨道封顶必须在编舞档显式解除 —— max-width 不参与特异度竞争,
+       上面那条会把卡片的包含块从全画布缩到 1120,27.43%/45.14% 全按小轨道算
+       (9e24b27 引入,实测卡 650→505、锚 395→307,压进左栏文字 67px,主人抓到)。 */
+    max-width: none;
   }
   .devices:global(.decked) .card {
     position: absolute;
     left: 27.43%;
     top: 16.63%;
     width: 45.14%;
+    max-width: none; /* 同上:兜底档的 520 卡封顶只属于兜底档,编舞档 45.14% 必须原样落地 */
     z-index: calc(1 + var(--i));
     transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 .x-frame 裁在屏缘 */
     will-change: transform;

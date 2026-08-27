@@ -243,6 +243,23 @@ results.push(canvasUnitGate(SRC, rel));
   }
 }
 
+/* ── 第十一门:叠卡编舞几何(运行时) ──
+   9e24b27 的兜底栅格 max-width 漏进编舞档:包含块 1440→1120,卡锚 27.43%→21.3%、
+   卡宽 45.14%→35.1%、侵入左栏文字 29-89px —— 当时十门全绿,主人肉眼抓到。
+   本门守两层:任一滚动相位零侵入 + 卡宽/卡锚相对钉屏区必须是规格百分比(直接钉包含块缩水这个根)。
+   复用 canvas-geometry 已构建的 dist;红测:对 R46 坏产物 60 条全响(2026-08-27 实录)。 */
+{
+  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-deck-clearance.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const detail = out.filter((l) => !/^\[deck\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
+  if (r.status === 3) {
+    const allow = process.argv.includes('--allow-not-run');
+    results.push({ gate: 'deck-clearance(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+  } else {
+    results.push({ gate: 'deck-clearance(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+  }
+}
+
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {
