@@ -156,6 +156,9 @@ const shareArt = contour(77, 12, 640, 400);
     flex-direction: column;
     gap: calc(20 * var(--uc));
     box-sizing: border-box;
+    /* 叠卡是全站唯一「玻璃叠玻璃」处:通用 5% 白玻璃会把**下层卡的白色图区**采样成一条亮带,
+       价格字压上去对比骤降 —— 换半透暗底(与页脚面板同族),点阵仍透、任意下层内容上文字可读 */
+    background: rgb(var(--x-bg-rgb) / 0.5);
   }
   .media {
     border-radius: var(--x-r-sm); /* 圆角随卡(overflow:hidden 已裁) */

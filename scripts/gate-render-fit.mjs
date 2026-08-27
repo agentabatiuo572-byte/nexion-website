@@ -516,6 +516,23 @@ const settle = async () => {
   await page
     .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 6000 })
     .catch(() => {});
+  /* R48 补拍「点名唤醒」:个别宿主会在冲刺滚动里错过 IO(玻璃瓷砖版式让触发时点更挤,
+     /vi/ @320 实录一处 h3 未还原)。把还带结构的逐个滚进视口正中再给一轮还原窗;
+     仍未还原的才落 blind —— 判据一点不放宽,只是观测面不自己制造盲点。 */
+  const stuck = await page.evaluate(() => [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0).length);
+  if (stuck > 0) {
+    await page.evaluate(async () => {
+      const left = [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0);
+      for (const e of left) {
+        e.scrollIntoView({ block: 'center' });
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      window.scrollTo(0, 0);
+    });
+    await page
+      .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 3000 })
+      .catch(() => {});
+  }
   await page.waitForTimeout(60);
 };
 
