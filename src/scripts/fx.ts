@@ -60,7 +60,8 @@ const setVw = () =>
 /* ---------- ① 点阵地球算力网络(Dotted Globe;R47.1) ----------
    取代洛伦兹吸引子(R2/08-20)——规格 docs/changes/2026-08-27-dotted-globe.md + 主人 08-27 三条改令:
    ① 26 枢纽 / 32 弧 / 8 条流光同飞(算力繁忙感);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
-   时间累积,暂停/切页归来不跳帧),滚动只驱动缩放与位移(五姿态链管 cx/cy/r/pitch,不再管经度)——
+   时间累积,暂停/切页归来不跳帧)+ **滚动耦合旋转**(R47.2 改令④:转速随滑动速度/方向,单帧封顶),
+   五姿态链管 cx/cy/r/pitch(缩放与位移),经度 = 常转 + 滚动耦合——
    R2「静止零重渲」契约由此退役,常转即常渲(辉光 180ms 节流保留);③ 原版鼠标推斥回归
    (半径 160/力 90,陆点/枢纽/弧同场变形,coarse 无)。R33 纪律沿用:黑底离屏 + 预乘不透明色 +
    screen 合成 → 重叠零增亮;reduced-motion 静帧(不转)。 */
@@ -272,8 +273,14 @@ function initGlobe() {
      只在运行帧累积(dt 封顶 100ms)——暂停/切页归来不跳帧;reduced-motion 恒为 HOME_YAW 静帧。 */
   const HOME_YAW = -105 * D2R;
   const SPIN = (2 * Math.PI) / 80000; /* rad/ms,80s 一圈 */
+  /* 改令④(R47.2):滚动耦合旋转——转速随滑动速度、方向随滑动方向,叠在常转上;
+     0.0003 rad/px(整页 ~1.4 万 px ≈ 240°);单帧封顶 ±0.09 rad——锚点/End 键的
+     瞬时长跳只吃一帧份额,不整圈猛拧。 */
+  const SCROLL_K = 0.0003;
+  const KICK_CAP = 0.09;
   let spinYaw = HOME_YAW;
   let lastT = -1;
+  let lastSy = -1;
   /* R21 绑定沿用:statement→A(左下小) about→B(右中景) 叠卡→C(特写) 收尾黑区→D(最大);白带段被盖住 */
   const ANCHOR_IDS = ['social', 'mission', 'devices', 'final-cta'];
   let anchors: (HTMLElement | null)[] = [];
@@ -618,7 +625,10 @@ function initGlobe() {
     /* 常转:dt 封顶 100ms——切页/长任务归来球不瞬移 */
     const dt = lastT < 0 ? 16 : Math.min(100, now - lastT);
     lastT = now;
-    spinYaw += SPIN * dt;
+    const sy = window.scrollY;
+    const dsy = lastSy < 0 ? 0 : sy - lastSy;
+    lastSy = sy;
+    spinYaw += SPIN * dt + Math.max(-KICK_CAP, Math.min(KICK_CAP, dsy * SCROLL_K));
     let P = poseHome();
     const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2], 0.35), prog(anchors[3])];
     P = mix(P, poseA(), ps[0]);
@@ -705,6 +715,7 @@ function initGlobe() {
     if (running || reduced || userPaused) return;
     running = true;
     lastT = -1; /* 停摆期不计入自转 */
+    lastSy = -1; /* 停摆期的滚动位移不折算成旋转 */
     if (!flights.length) {
       const t = performance.now();
       for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 450));
