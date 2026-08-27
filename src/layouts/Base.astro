@@ -126,6 +126,9 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
     top: 0;
     left: 0;
     z-index: 60; /* 导航是 40,这条要盖在它上面 */
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px; /* 它在画布外,写裸 px 就是屏幕像素;此前 39px 低于触达线 */
     padding: 10px 16px;
     background: var(--x-accent);
     color: var(--x-on-accent);

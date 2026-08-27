@@ -148,8 +148,10 @@ html {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* 锚点余量从导航实高派生,不是第二个常数:导航高 >860 是 74、≤860 是 54,
+   写死 84 会让两档的净余量变成 10px 与 30px。上面 --x-nav-h 那段自己写着「它是唯一来源」。 */
 [id] {
-  scroll-margin-top: calc(84 * var(--uc));
+  scroll-margin-top: calc(var(--x-nav-h) + 10 * var(--uc));
 }
 /* 站内锚点补间后目标获焦(键盘焦点起点随之移动),程序化焦点不画框 */
 [tabindex='-1']:focus {
@@ -257,6 +259,17 @@ html {
    门 render-fit 判据 A 逐行量墨,换了更极端的文案会红。字标(.wordmark)是拉丁字,不吃这一档。 */
 .x-display-mega:lang(vi):not(html):not(.wordmark) {
   line-height: 1.12;
+}
+/* 🔴 窄档:Mega 的 0.79 只在「标题不折行」时成立。窄屏上首屏标题会折出
+   「带降部的行压着带上伸的行」这一对 —— 实测 / @320 英文 “Let compute⏎flow” 墨相接 4.4px,
+   而门当时报绿(判据 A 的取样时刻落在揭示动效未还原的窗口里,已同轮修好)。
+   0.95 由实测倒推(需 ≥0.90)并留余量;字标是单行,不会有相邻行,排除在外——
+   它吃过一次行高上调把页脚右列撑高 31px 的亏。vi / zh 自己的档更高,特异度也更高,不受这条影响。
+   由门 render-fit 判据 A 钉住:文案换成更极端的串会红。 */
+@media (max-width: 860px) {
+  .x-display-mega:not(.wordmark) {
+    line-height: 0.95;
+  }
 }
 
 /* R35:.x-kv 满饱和柠檬 chip 规则清退(零消费死规则,且违「满饱和只给可点转化件」分层纪律) */
@@ -367,16 +380,35 @@ html.js [data-rv].rv-done {
   transition-duration: 0.2s;
   transition-delay: 0s;
 }
+/* 🔴 引擎没到货时的兜底(独立评审实测:bundle 被阻断后首页 35 个内容块永不显示,
+   /nex/ 连 H1 也是 data-rv、整页近乎空白)。隐藏由 html.js 开启——那是内联脚本挂的,
+   bundle 挂掉也照挂;解除隐藏却要靠 fx 的 IntersectionObserver,于是一失败就永久隐形。
+   [data-lr] 与 [data-tw] 早就有 x-unhide 兜底,这一支漏了(兜底按类型枚举,枚举漏一项)。
+   条件是「引擎没到货」而不是「超时」:data-rv 是滚动进场,纯超时会让整页提前全显。
+   fx 在模块最顶上挂 html.fx,所以正常情况下这条动画在 3s 之前就被熄掉了;
+   引擎到得比 3s 还晚时,fx 的 initReveal 直接落终态,不会先闪再消失。 */
+html.js:not(.fx) [data-rv]:not(.in) {
+  animation: x-rv-unhide 0s linear 3s forwards;
+}
+@keyframes x-rv-unhide {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* 行遮罩逐行上滑(display 标题引擎,fx initLineReveal 注入结构) */
 html.js [data-lr].lr-ready {
   display: flow-root; /* 行盒的负外边距不再穿透宿主(否则整块在动画期上移、还原时跳回) */
 }
 /* 首屏标题(load 模式)在遮罩建好前不可见——否则先以回退字体画出、建遮罩时消失、再滑入。
-   兜底:脚本失败 3s 后自行现身。 */
+   🔴 兜底 1.2s,不是 3s:这是 LCP 元素,3s 意味着「脚本慢」时首屏大标题空白整整三秒
+   (独立评审在 JS 延迟 9s 下逐点实测:500/1000/2000/2800ms 全是 hidden,3200ms 才现身)。
+   1.2s 是从引擎到达时刻倒推的:0.75Mbps 实测 fx 到货约 1.08s,正常情况下遮罩已建好、这条不会触发;
+   真到不了时,拿回退字体先把标题画出来,也好过让首屏空着。 */
 html.js [data-lr='load']:not(.lr-ready) {
   visibility: hidden;
-  animation: x-unhide 0s linear 3s forwards;
+  animation: x-unhide 0s linear 1.2s forwards;
 }
 @keyframes x-unhide {
   to {
@@ -423,10 +455,11 @@ html.js [data-lr='load']:not(.lr-ready) {
   transform: none;
 }
 
-/* 打字机(fx initType 注入结构):影子层定版面、打字层同格叠打;注册前原文不可见(脚本失败 3s 后现身) */
+/* 打字机(fx initType 注入结构):影子层定版面、打字层同格叠打;注册前原文不可见。
+   兜底与首屏标题同档 1.2s —— 两处都是「脚本没到货」的同一种失效,分两个数会各自漂。 */
 html.js [data-tw]:not(.tw):not(.tw-done) {
   visibility: hidden;
-  animation: x-unhide 0s linear 3s forwards;
+  animation: x-unhide 0s linear 1.2s forwards;
 }
 html.js .tw-block {
   display: grid;

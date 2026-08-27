@@ -143,7 +143,7 @@ const cards = [1, 2, 3, 4, 5] as const;
     overscroll-behavior: contain; /* 灯箱滚到端点不串联滚后面的页面 */
   }
   .cert-zoom::backdrop {
-    background: rgb(12 12 13 / 0.82);
+    background: rgb(var(--x-bg-rgb) / 0.82); /* 底色单源;裸分量就是为消掉第二处字面量才立的 */
   }
   .cert-zoom img {
     display: block;
@@ -292,7 +292,13 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   /* 手机端灯箱:只比缩略图大 10% 读不了证书 —— 全出血 + 1160 宽原件可平移;触屏无 hover,提示常显 */
   @media (max-width: 860px) {
+    /* 🔴 高度也要参与,和桌面档一样 —— R46 只把横轴改成适宽,纵轴留了口子:
+       独立回归在 844×390 量到图高 1104.9 对视口高 390,我按推导视口全扫,**106 个组合装不下**。
+       修法不写「减去关闭行 68px」这种魔数:整个弹层排成竖向 flex,图作为可收缩项(min-height:0),
+       关闭行占多高由它自己说了算,图拿剩下的。object-fit:contain 保证收缩时不变形。 */
     .cert-zoom {
+      display: flex;
+      flex-direction: column;
       width: 100vw;
       max-width: 100vw;
       max-height: 100dvh;
@@ -305,6 +311,8 @@ const cards = [1, 2, 3, 4, 5] as const;
     .cert-zoom img {
       width: 100%;
       max-width: 100%;
+      min-height: 0; /* flex 项默认不肯缩到内容高以下,不解开这条 max-height 不起作用 */
+      object-fit: contain;
     }
     .cert-zoom-close {
       padding: calc(8 * var(--uc)) 0;

@@ -1,8 +1,17 @@
-/* 门:版面在真渲染下不能自相矛盾 —— 四条判据一起判。
+/* 门:版面在真渲染下不能自相矛盾 —— 五条判据一起判。
  *   A 行间:相邻两行的墨(含变音符与下点)不能相接;
  *   B 层间:首屏文字的墨不能钻进导航的磨砂蒙版底下;
  *   C 声明:`--x-nav-h` 的声明值必须等于导航的实测高;
- *   D 单调:视口变窄时字号不能变大(分档版式两套梯子在断点处对不齐)。
+ *   D 单调:视口变窄时字号不能变大(分档版式两套梯子在断点处对不齐);
+ *   E 弹层:打开的 <dialog> 在每一档视口里都要装得下。
+ *
+ * 🔴 还有一条不叫判据、但比判据更要紧的东西:**观测面缺口一律判红(exit 3)**。
+ *    判据写得再对,取样时刻 / 采样面 / 统计量不对,就是假绿。三次实证:
+ *      · A 在 resize 后只等 40ms,而揭示动效那时还没还原 —— 60 次扫描 33 次看不到首屏标题,
+ *        那里真有 4.4px 墨相接,门却报绿;
+ *      · A/D 只在 height=900 跑,而站内有 4 个高度断点会换字号梯子;
+ *      · 灯箱只在 390×844 一个尺寸验过,按推导视口全扫有 106 个组合装不下。
+ *    所以现在:扫描前先把页面滚一遍让动效落终态,量不到的元素由门自己报出来,弹层开不起来也判红。
  *
  * 这门是 `gate-vi-line-fit` 的重做。上一版三天内被独立评审抓出同一种病**三次**:
  *   · 例外逐个组件写(漏 8 处)· 门的路由表手写(漏 9 条路由)· 探针的视口表手写(漏「宽屏 × 矮视口」那一格)。
@@ -108,13 +117,27 @@ const breakpoints = () => {
 const SCAN_LINES = () => {
   const c = document.createElement('canvas').getContext('2d');
   const out = [];
+  /* 🔴 观测面缺口计数:一个元素**本该被量却量不到**时,不许静默跳过 —— 记下来,由调用方判红。
+     出处:判据 A 曾对**所有** `[data-lr]` 宿主结构性失明。揭示动效会把宿主的文本拆进
+     `.lr-line` 子元素里,于是宿主没有直接文本节点(跳过),每个 `.lr-line` 只有一行(跳过)。
+     门在 resize 后只等 40ms、又按宽度升序扫,前 11 档全落在「还没还原」的窗口内 ——
+     实测 60 次扫描里 33 次看不到首屏标题,而 `/ @320` 英文标题真有 4.4px 的墨相接,门却报绿。
+     判据写得再对,取样时刻不对就是假绿;所以现在由门自己报告「我漏看了几个」。 */
+  const blind = [];
   for (const el of document.querySelectorAll('body *')) {
     if (el.closest('.line-fit-ok')) continue;
     if (/^(SCRIPT|STYLE|CANVAS|IMG|BR|HR|NOSCRIPT|SELECT|OPTION|TITLE)$/.test(el.tagName)) continue;
     if (el.namespaceURI && el.namespaceURI.indexOf('svg') >= 0) continue;
     const nodes = [];
     for (const n of el.childNodes) if (n.nodeType === 3 && n.textContent.trim()) nodes.push(n);
-    if (!nodes.length) continue;
+    if (!nodes.length) {
+      // 揭示动效的宿主:文本被搬进子元素了,此刻量不到 —— 这是观测面缺口,不是「没有文本」
+      if (el.matches('[data-lr], [data-tw]') && el.textContent.trim()) {
+        const cls = typeof el.className === 'string' ? el.className : '';
+        blind.push(el.tagName.toLowerCase() + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''));
+      }
+      continue;
+    }
     const cs = getComputedStyle(el);
     if (cs.display === 'none' || cs.visibility === 'hidden') continue;
     const fs = parseFloat(cs.fontSize);
@@ -171,7 +194,7 @@ const SCAN_LINES = () => {
       text: `${worst.up}⏎${worst.dn}`,
     });
   }
-  return out;
+  return { hits: out, blind };
 };
 
 /* ── ③ B 判据:首屏文字的墨 vs 导航蒙版底沿 ── */
@@ -289,6 +312,44 @@ const SCAN_SIZES = () => {
   }
   return out;
 };
+/* ── ③ E 判据:打开的弹层必须在视口里装得下 ──
+   出处:把手机端证书灯箱从「按原件 1160 出图、横向平移」改成适宽时,只修了横轴。
+   我的探针只测了 390×844 一个尺寸,于是横屏与平板整面没被看到 —— 按推导视口全扫,**106 个组合装不下**。
+   同一族第 3 次(判据靠手挑的一张清单),所以这次不写探针,写门。
+   弹层从 DOM 枚举(不列清单),开启件按本仓的 [data-src] 标记找,找不到就退回 showModal();
+   开不起来的弹层记成观测面缺口判红 —— 「打不开所以没测到」不许当成「没问题」。 */
+const OPEN_ONE = (idx) => {
+  const dialogs = [...document.querySelectorAll('dialog')];
+  for (const d of dialogs) if (d.open) d.close();
+  const d = dialogs[idx];
+  if (!d) return { ok: false, why: 'index out of range' };
+  // 优先走真实开启件:图片 src 是开启时由脚本按 data-src 写进去的,直接 showModal 会量到一张空图
+  for (const el of document.querySelectorAll('[data-src]')) {
+    el.click();
+    if (d.open) break;
+    for (const x of dialogs) if (x.open && x !== d) x.close();
+  }
+  if (!d.open) { try { d.showModal(); } catch { /* 已有模态在开 */ } }
+  if (!d.open) return { ok: false, why: '开不起来' };
+  return { ok: true, viaOpener: true };
+};
+const MEASURE_OPEN = () => {
+  const out = [];
+  for (const d of document.querySelectorAll('dialog')) {
+    if (!d.open) continue;
+    const r = d.getBoundingClientRect();
+    const cls = typeof d.className === 'string' ? d.className : '';
+    out.push({
+      sel: 'dialog' + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''),
+      overY: Math.round((d.scrollHeight - d.clientHeight) * 10) / 10,
+      overX: Math.round((d.scrollWidth - d.clientWidth) * 10) / 10,
+      offBottom: Math.round(Math.max(0, r.bottom - innerHeight) * 10) / 10,
+      offRight: Math.round(Math.max(0, r.right - innerWidth) * 10) / 10,
+    });
+  }
+  return out;
+};
+
 /* 1% 是 vw 制字号的亚像素噪声带(同一条 clamp 在相邻两档宽下本来就差零点几个百分点),
    不是给「小台阶」留的口子:这一族的成因是两套梯子各算各的,差距一向是两位数百分比。 */
 const SIZE_TOL = 0.01;
@@ -340,7 +401,16 @@ if (process.argv.includes('--self-test')) {
   const c = await b.newContext({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 1 });
   const p = await c.newPage();
   await p.setContent(FIXTURE, { waitUntil: 'load' });
-  const names = (await p.evaluate(SCAN_LINES)).map((f) => f.sel).join(' ');
+  const scanned = await p.evaluate(SCAN_LINES);
+  const names = scanned.hits.map((f) => f.sel).join(' ');
+  // 观测面缺口自检:文本被搬进子元素的揭示宿主必须被记成 blind,而不是静默跳过
+  await p.setContent(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body>' +
+      '<h1 data-lr><span class="lr-line">one</span><span class="lr-line">two</span></h1>' +
+      '<h2><span>plain wrapper</span></h2></body></html>',
+    { waitUntil: 'load' },
+  );
+  const blindCase = await p.evaluate(SCAN_LINES);
   // D:同一份文档,窄档 400 与宽档 600 各量一次,走的是主循环用的同一个 sizeViolations
   await p.setContent(FIXTURE_D, { waitUntil: 'load' });
   await p.setViewportSize({ width: 400, height: 700 });
@@ -361,6 +431,8 @@ if (process.argv.includes('--self-test')) {
     ['⑦ D 窄档反而更大 → 抓到', dHit.indexOf('h1') >= 0],
     ['⑧ D 窄档更小 → 不抓', dHit.indexOf('h2') < 0],
     ['⑨ D 两档同尺 → 不抓', dHit.indexOf('h3') < 0],
+    ['⑩ 拆行态的揭示宿主记成观测面缺口(不静默跳过)', blindCase.blind.some((b) => b.startsWith('h1'))],
+    ['⑪ 普通的 span 包裹不算缺口', !blindCase.blind.some((b) => b.startsWith('h2'))],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
@@ -413,34 +485,131 @@ const page = await ctx.newPage();
 const hitsA = new Map();
 const hitsB = new Map();
 const hitsD = new Map();
+const blindSpots = new Map(); // 观测面缺口:本该量却量不到的元素
+let scansA = 0;
+let heightSensitive = 0;
+
+/* 稳态:先把全页滚一遍,让所有靠进入视口触发的揭示动效放完,再等宿主还原成纯文本。
+   放完之后 resize 不会重新拆行(fx 只重拆未播的),所以每条路由做一次就够。
+   等不到也不硬等 —— 真正的判决交给 blind 计数,静默跳过才是假绿的来源。 */
+const settle = async () => {
+  await page.evaluate(async () => {
+    const l = window.__lenis || window.lenis;
+    const go = (y) => (l && l.scrollTo ? l.scrollTo(y, { immediate: true }) : window.scrollTo(0, y));
+    const step = Math.max(200, innerHeight * 0.8);
+    for (let y = 0; y < document.documentElement.scrollHeight; y += step) {
+      go(y);
+      await new Promise((res) => setTimeout(res, 45));
+    }
+    go(0);
+  });
+  await page
+    .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 6000 })
+    .catch(() => {});
+  await page.waitForTimeout(60);
+};
+
+const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.fs}`).join('|');
+const scanA = async (r, w, h) => {
+  const { hits, blind } = await page.evaluate(SCAN_LINES);
+  scansA++;
+  for (const x of hits) {
+    const k = `${r}|${x.sel}`;
+    const prev = hitsA.get(k);
+    if (!prev || x.over > prev.over) hitsA.set(k, { ...x, where: `${r} @${w}×${h}` });
+  }
+  for (const b of blind) if (!blindSpots.has(`${r}|${b}`)) blindSpots.set(`${r}|${b}`, `${r} @${w}×${h}  ${b}`);
+};
 
 for (const r of ROUTES) {
   const res = await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   if (!res || !res.ok()) { hitsA.set('route:' + r, `${r}  路由取不到`); continue; }
   await page.evaluate(() => document.fonts.ready);
+  await settle();
+
+  /* 这条路由对**视口高**敏不敏感?在最窄与最宽两档各试一遍全部高度档,版式指纹变了就是敏感。
+     不敏感的路由只在 900 扫(与从前一致);敏感的路由按高度分档扫 —— 高度断点会换字号梯子,
+     只在 900 扫等于漏掉矮视口整面(判据 A 与 D 从前都只跑 900)。 */
+  let sensitive = false;
+  for (const refW of [widths[0], widths[widths.length - 1]]) {
+    const seen = new Set();
+    for (const hh of heights) {
+      await page.setViewportSize({ width: refW, height: hh });
+      await page.waitForTimeout(35);
+      seen.add(fingerprint(await page.evaluate(SCAN_SIZES)));
+      if (seen.size > 1) { sensitive = true; break; }
+    }
+    if (sensitive) break;
+  }
+  if (sensitive) heightSensitive++;
+
   let prevW = null;
   let prevSizes = null;
   for (const w of widths) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.waitForTimeout(40);
-    for (const h of await page.evaluate(SCAN_LINES)) {
-      const k = `${r}|${h.sel}`;
-      const prev = hitsA.get(k);
-      if (!prev || h.over > prev.over) hitsA.set(k, { ...h, where: `${r} @${w}` });
+    const sizes900 = await page.evaluate(SCAN_SIZES);
+    await scanA(r, w, 900);
+
+    if (sensitive) {
+      // 同一宽度下,版式完全等价的高度档只量一次(指纹去重),不同的都要量
+      const seen = new Set([fingerprint(sizes900)]);
+      for (const hh of heights) {
+        if (hh === 900) continue;
+        await page.setViewportSize({ width: w, height: hh });
+        await page.waitForTimeout(35);
+        const fp = fingerprint(await page.evaluate(SCAN_SIZES));
+        if (seen.has(fp)) continue;
+        seen.add(fp);
+        await scanA(r, w, hh);
+      }
+      await page.setViewportSize({ width: w, height: 900 });
+      await page.waitForTimeout(30);
     }
-    // widths 升序,所以 prevW 一定是更窄的那一侧:它的字号更大就是反向跳变
-    const sizes = await page.evaluate(SCAN_SIZES);
+
+    // D:widths 升序,prevW 一定是更窄的那一侧;它的字号更大就是反向跳变
     if (prevSizes) {
-      for (const v of sizeViolations(prevSizes, sizes)) {
+      for (const v of sizeViolations(prevSizes, sizes900)) {
         const k = `${r}|${v.key}`;
         const prev = hitsD.get(k);
         if (!prev || v.pct > prev.pct) hitsD.set(k, { ...v, route: r, narrowW: prevW, wideW: w });
       }
     }
     prevW = w;
-    prevSizes = sizes;
+    prevSizes = sizes900;
   }
 }
+/* ── E:弹层装不装得下 ── */
+const hitsE = new Map();
+let dialogRoutes = 0;
+for (const r of ROUTES) {
+  await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
+  const n = await page.evaluate(() => document.querySelectorAll('dialog').length);
+  if (!n) continue;
+  dialogRoutes++;
+  for (let idx = 0; idx < n; idx++) {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.waitForTimeout(60);
+    const opened = await page.evaluate(OPEN_ONE, idx);
+    if (!opened.ok) { blindSpots.set(`${r}|dialog#${idx}`, `${r}  第 ${idx + 1} 个弹层${opened.why}`); continue; }
+    // 开着不关,直接换视口量 —— 每档重开一次既慢又会丢滚动位
+    for (const w of widths) {
+      for (const hh of heights) {
+        await page.setViewportSize({ width: w, height: hh });
+        await page.waitForTimeout(35);
+        for (const m of await page.evaluate(MEASURE_OPEN)) {
+          const worst = Math.max(m.overY, m.overX, m.offBottom, m.offRight);
+          if (worst <= 1) continue;
+          const k = `${r}|${m.sel}`;
+          const prev = hitsE.get(k);
+          if (!prev || worst > prev.worst) hitsE.set(k, { ...m, worst, where: `${r} @${w}×${hh}` });
+        }
+      }
+    }
+    await page.evaluate(() => { for (const d of document.querySelectorAll('dialog')) if (d.open) d.close(); });
+  }
+}
+
 const hitsC = [];
 for (const r of HOME) {
   await page.goto(BASE + r, { waitUntil: 'networkidle' });
@@ -474,8 +643,22 @@ console.log(`[render-fit] 路由 ${ROUTES.length} 条(从产物枚举)· 宽 ${w
 console.log(`             宽: ${widths.join(' ')}`);
 console.log(`             高: ${SHORT_H.join(' ')}`);
 const D = [...hitsD.values()].sort((a, b) => b.pct - a.pct);
-if (!A.length && !B.length && !hitsC.length && !D.length) {
-  console.log('[render-fit] ✓ 行间与层间墨迹均无相撞,导航高声明值与实测值一致,字号随视口单调');
+const E = [...hitsE.values()].sort((a, b) => b.worst - a.worst);
+console.log(`             判据 A 实扫 ${scansA} 次(${heightSensitive}/${ROUTES.length} 条路由对视口高敏感,按高度分档加扫)`);
+console.log(`             判据 E 覆盖 ${dialogRoutes} 条带弹层的路由 × ${widths.length * heights.length} 档视口`);
+
+/* 🔴 观测面缺口 = NOT-RUN,不是「没问题」。
+   判据再对,取样时刻不对就是假绿:曾有 60 次扫描里 33 次看不到首屏标题,而那里真有 4.4px 墨相接。 */
+if (blindSpots.size) {
+  console.log(`[render-fit] NOT-RUN:${blindSpots.size} 处元素本该量却量不到(揭示动效未还原,文本还在子元素里)`);
+  for (const v of [...blindSpots.values()].slice(0, 12)) console.log('  - ' + v);
+  if (blindSpots.size > 12) console.log(`  …另有 ${blindSpots.size - 12} 处`);
+  console.log('  这不是「没有缺陷」,是**没量到**。修法:延长 settle 等待,或让揭示动效在门里直接落终态。');
+  process.exit(3);
+}
+
+if (!A.length && !B.length && !hitsC.length && !D.length && !E.length) {
+  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档视口装得下 · 无观测面缺口');
   process.exit(0);
 }
 if (hitsC.length) {
@@ -484,7 +667,7 @@ if (hitsC.length) {
 }
 if (A.length) {
   console.log(`[render-fit] ✘ A 行间:${A.length} 处相邻行的墨会相接`);
-  for (const h of A) console.log(`  - ${h.where || h}  ${h.sel}  行步 ${h.step} < 实墨 ${h.ink}(超 ${h.over}px,字号 ${h.fs})  「${h.text}」`);
+  for (const h of A) console.log(`  - ${h.where || h}  ${h.sel}  行步 ${h.step} · 墨隙 ${h.gap}(相接 ${h.over}px,字号 ${h.fs},共 ${h.lines} 行)  「${h.text}」`);
 }
 if (B.length) {
   console.log(`[render-fit] ✘ B 层间:${B.length} 处首屏文字钻到导航蒙版底下`);
@@ -496,7 +679,14 @@ if (D.length) {
     console.log(`  - ${d.route} ${d.sel}  ${d.narrowW}px=${d.narrowFs} → ${d.wideW}px=${d.wideFs}(窄侧大 ${d.pct}%)  「${d.text}」`);
   }
 }
+if (E.length) {
+  console.log(`[render-fit] ✘ E 弹层装不下:${E.length} 处在某档视口里溢出或出界`);
+  for (const x of E) {
+    console.log(`  - ${x.where}  ${x.sel}  盒内需滚 纵 ${x.overY} 横 ${x.overX};出界 下 ${x.offBottom} 右 ${x.offRight}`);
+  }
+}
 console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数;');
-console.log('        D 把窄档的上限接到断点另一侧的实算值(取整下调留方向余量),不要另挑一个好看的数。');
+console.log('        D 把窄档的上限接到断点另一侧的实算值(取整下调留方向余量),不要另挑一个好看的数;');
+console.log('        E 让弹层内容按剩余空间收缩(竖向 flex + min-height:0 + object-fit:contain),别写死关闭行高度。');
 console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok。');
 process.exit(1);

@@ -64,6 +64,8 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
               <a
                 href={langHref(l)}
                 data-scr
+                lang={l}
+                hreflang={l}
                 class:list={['x-dimlink', { active: !neutralLang && l === locale }]}
                 aria-current={!neutralLang && l === locale ? 'true' : undefined}
               >
@@ -406,7 +408,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       font-weight: 500;
       letter-spacing: -0.02em;
       text-transform: none;
-      min-height: calc(52 * var(--uc));
+      min-height: max(var(--x-touch), calc(52 * var(--uc))); /* 触达底线走 token(同文件其余处都走它);52 是本处版式想要的更高值 */
       padding-inline: 0;
       margin-inline: 0;
     }

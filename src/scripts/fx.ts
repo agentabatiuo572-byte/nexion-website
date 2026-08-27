@@ -12,6 +12,15 @@
    reduced-motion:全部降级直显。 */
 import Lenis from 'lenis';
 
+/* 🔴 「引擎到货了」的信号,必须在模块**最顶上**挂,不能等 boot():
+   [data-rv] 的隐藏初始态由 html.js 开启(内联脚本首帧前就挂,bundle 挂掉也照挂),
+   而解除隐藏靠的是本模块的 IntersectionObserver 加 .in。bundle 一失败,首页 35 个内容块
+   永远停在 opacity:0,/nex/ 连 H1 都是 data-rv、整页近乎空白。
+   兜底的条件只能是「引擎没到货」(html.js:not(.fx)),不能是「超时」——
+   data-rv 是滚动进场,单纯超时会让整页提前全显。挂在顶上是为了尽早熄掉那条兜底动画:
+   延迟到 DOMContentLoaded 才挂,慢网上会先闪一下再被隐藏。 */
+document.documentElement.classList.add('fx');
+
 const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const coarse = matchMedia('(pointer: coarse)').matches;
 /* 开场钟:四拍的 CSS 时间线锚在 html.x-boot 落地(首帧前),JS 拍(标题)以本模块执行时刻近似锚点 */
@@ -620,7 +629,10 @@ function initLineReveal() {
       /* 过渡被取消(播放中切「减少动态」/ 打印 / 祖先被隐藏)时 transitionend 永不到达,
          标题会永久停在拆行态;取消事件 + 总时长兜底各补一道 */
       last.addEventListener('transitioncancel', restore, { once: true });
-      s.timer = window.setTimeout(restore, 90 * (inners.length - 1) + 900 + 200);
+      /* 步进要按本档的真值取:滚动档 90ms、开场档 176ms。写死 90 时,四行及以上的开场标题
+         兜底会早于实际收尾(n=4 实测兜底 1370ms vs 收尾 1428ms),把最后一行提前拍回纯文本。 */
+      const stepMs = el.dataset.lr === 'load' ? 176 : 90;
+      s.timer = window.setTimeout(restore, stepMs * (inners.length - 1) + 900 + 200);
     };
     const mode = el.dataset.lr;
     /* 开场钟的延迟只属于首页开场(html.x-boot);刷新 / 后退 / 带锚点进来时不排队、建好即播——
@@ -747,6 +759,12 @@ function initType() {
 function initReveal() {
   const els = document.querySelectorAll<HTMLElement>('[data-rv]');
   if (!els.length || reduced) return;
+  /* 引擎到得比 CSS 兜底还晚:兜底已经把这些块显出来了,再走一遍进场等于先闪一下再消失。
+     直接落终态,不重放。阈值与 tokens.css 里 x-rv-unhide 的延迟同源,改一处必须改另一处。 */
+  if (performance.now() - BEAT_T0 > 3000) {
+    for (const el of els) el.classList.add('in', 'rv-done');
+    return;
+  }
   const io = new IntersectionObserver(
     (entries) => {
       for (const en of entries) {

@@ -115,10 +115,15 @@ const shareArt = contour(77, 12, 640, 400);
     margin-top: calc(10 * var(--uc));
   }
   /* R30:CTA 恒柠檬 solid,on-dark 白底覆写撤销 */
+  /* 🔴 静态兜底档改栅格,不再是一根竖列:竖列在 1440 上是 515 宽居中、左右各空 455px 全黑,
+     7 张卡把这一段撑到 3848px(全页 29%)。这一档服务的是「减少动态 / coarse / 无 JS」,
+     不是只服务手机 —— 桌面上开了「减少动态」的人看到的就是这个塌掉的版本。
+     auto-fit + minmax 让列数由可用宽自己算:窄屏仍是一列,不需要另写断点。 */
   .stage {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(calc(360 * var(--uc)), calc(520 * var(--uc))));
+    justify-content: center;
+    align-items: start;
     gap: clamp(48px, 8vw, calc(80 * var(--uc)));
   }
 
