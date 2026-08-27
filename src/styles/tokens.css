@@ -345,25 +345,40 @@ html {
 }
 /* R48.1 浅纸玻璃(主人改令①:全深砖太暗)——**阅读型**瓷砖走浅底深墨,
    氛围型(章头/叠卡/末屏/页脚)留深玻璃,全页形成明度节奏。
+   R48.2(主人改令):alpha 0.92 → 0.78 —— 真毛玻璃,地球点阵与光晕从纸下透出。
+   底变暗损失的对比在砖内补齐:dim 档 0.62→0.7、柠檬编号档再压深 20%
+   (worst case 纯黑衬底时纸面实际亮度 ≈189/255:正文深墨 ≥8:1,编号 ≈4.5:1)。
    墨色 token 随砖翻纸面(与 .x-paper 同表);编号热档在浅底翻深柠檬,否则 #d4ff55 隐形。 */
 .x-tile-paper {
-  background: rgb(var(--x-light-rgb) / 0.92);
+  background: rgb(var(--x-light-rgb) / 0.42);
   border-color: rgba(12, 12, 13, 0.14);
+  /* R48.2 反相毛玻璃(主人改令:改算法不是调数值)——
+     α 混合显不出「暗底上的暗纹理」:纸亮 × 地黑,任何 α 都只是把纸调灰,点阵占比小到无感。
+     正确算法:backdrop 先 invert(暗地 #0c0c0d → ≈纸白 #f2f2f3,亮点 → 深色霜点),
+     hue-rotate(180°) 把反相后的品牌绿拉回绿系——空处是真纸白(不发灰),
+     地球点阵成为纸下清晰的深色纹理。blur 只给 2.5px:再大就把「点」洗成水彩斑;
+     白皮压到 0.42,只作统一提亮与压纹,让霜点保持可辨。 */
+  -webkit-backdrop-filter: blur(2.5px) invert(1) hue-rotate(180deg) saturate(1.2);
+  backdrop-filter: blur(2.5px) invert(1) hue-rotate(180deg) saturate(1.2);
   box-shadow:
     inset 0 1px 0 rgb(255 255 255 / 0.65),
     0 18px 48px rgb(0 0 0 / 0.3);
   color: var(--x-dark);
   --x-ink: var(--x-dark);
-  --x-ink-dim: var(--x-dark-dim);
+  --x-ink-dim: rgba(12, 12, 13, 0.7);
   --x-ink-cap: var(--x-dark-cap);
   --x-line: var(--x-line-dark);
   --x-line-soft: rgba(12, 12, 13, 0.1);
-  --x-accent-ink: var(--x-accent-ink-paper);
-  --x-accent-hot: var(--x-accent-ink-paper);
+  --x-accent-ink: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
+  --x-accent-hot: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .x-tile {
     background: rgb(var(--x-bg-rgb) / 0.88);
+  }
+  /* 反相算法失效时纸砖必须回不透明纸:0.55 白皮压暗地 = 灰纸配深墨,不可读 */
+  .x-tile-paper {
+    background: var(--x-light);
   }
 }
 
