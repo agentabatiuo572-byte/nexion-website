@@ -1227,12 +1227,13 @@ function initReveal() {
 /* ---------- ⑥ 设备 deck:画布几何连续推进(R8) ----------
    机制:滚动总程 = N×区高,拍 k 占 [k/N,(k+1)/N];
    卡 i 位移 = STEP·(i − Σ_{k<i}beats)(STEP=1.0923 卡宽),缩放 = 1−0.15·beats[i];
-   末态全叠于锚位(高序号在上);白幕布带(.band-light)在 decked 时上拉一个区高盖过钉屏尾段。 */
+   末态全叠于锚位(高序号在上);透明深带(.band-deep,R48 前身是白幕布 .band-light)在 decked 时
+   上拉一个区高盖过钉屏尾段——带子透明后「遮挡」由叠卡在重叠段自淡出承担(见 apply 末段)。 */
 function initPile() {
   const sec = document.querySelector<HTMLElement>('[data-deck]');
   const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]') ?? null;
   const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
-  const band = document.querySelector<HTMLElement>('.band-light');
+  const band = document.querySelector<HTMLElement>('.band-deep');
   if (!sec || !pin || !cards.length) return;
   const engaged = () => !reduced && !coarse && !matchMedia('(max-width: 860px)').matches;
   let active = false;
@@ -1257,6 +1258,7 @@ function initPile() {
     sec.classList.remove('decked');
     band?.classList.remove('curtain');
     sec.style.height = '';
+    pin.style.opacity = '';
     for (const c of cards) c.style.transform = '';
   };
   const smooth = (t: number) => t * t * (3 - 2 * t); // smoothstep(P2-22)
@@ -1269,7 +1271,13 @@ function initPile() {
     // 「钉住但什么都不发生」的死区,末段编舞又发生在钉屏区已开始上移、幕布已盖上之后
     // (实测 1440 高屏:336px 死区 + 末卡只收到 0.90 而非 0.85)。
     const T = (parseFloat(getComputedStyle(pin).top) || 0) * ZOOM; // CSS 值是画布单位,换算到屏幕单位
-    const e = clamp01((T - sec.getBoundingClientRect().top) / DIST);
+    const secTop = sec.getBoundingClientRect().top;
+    const e = clamp01((T - secTop) / DIST);
+    /* R48:深带透明后,curtain 重叠段的「遮挡」改由叠卡自淡出承担(白幕布时代靠不透明底)。
+       重叠进度 = 编舞总程之外多滚的那段 ÷ 区高;0.72 让卡在带子盖到七成前就隐没,不与新区内容叠影。 */
+    const secH = pin.offsetHeight * ZOOM || 1;
+    const o = smooth(clamp01((T - secTop - DIST) / (secH * 0.72)));
+    pin.style.opacity = o > 0 ? (1 - o).toFixed(3) : '';
     const beats: number[] = [];
     for (let k = 0; k < N; k++) beats.push(smooth(clamp01((e - k / N) * N)));
     for (let i = 0; i < N; i++) {

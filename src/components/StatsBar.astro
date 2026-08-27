@@ -27,7 +27,7 @@ const items = [
   data-locale={localeTag(locale)}
   data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}
 >
-  <div class="grid">
+  <div class="grid x-tile">
     {
       items.map((it, i) => (
         <div class="cell" data-rv style={`--d:${i * 0.08}s`}>
@@ -49,17 +49,22 @@ const items = [
     z-index: 1;
     padding: calc(54 * var(--uc)) var(--x-pad);
   }
+  /* R48 换皮:开放五列装进一条玻璃横带(结构与数字逻辑不动,只换表面) */
   .grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: calc(24 * var(--uc));
+    padding: calc(30 * var(--uc)) calc(14 * var(--uc));
   }
   .cell {
     display: grid;
     gap: calc(8 * var(--uc));
     justify-items: start;
     border-left: 1px solid var(--x-line-soft);
-    padding-left: calc(18 * var(--uc));
+    padding-left: calc(24 * var(--uc));
+  }
+  .cell:first-child {
+    border-left: 0; /* 带内首格不再画左线(带边框已是边界) */
   }
   .idx {
     color: var(--x-accent-hot); /* 黑底编号走亮柠檬热档(R38 换系后正名,原注「亮金」为琥珀时代残留) */

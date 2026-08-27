@@ -46,7 +46,7 @@ const shareArt = contour(77, 12, 640, 400);
     <div class="stage">
       {
         SKUS.map((s, i) => (
-          <article class="card x-paper" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
+          <article class="card x-tile" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
             <div class="media">
               {PHOTO[s.id] ? (
                 <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" class:list={[{ contain: CONTAIN.has(s.id) }]} />
@@ -146,7 +146,8 @@ const shareArt = contour(77, 12, 640, 400);
     max-width: calc(520 * var(--uc));
   }
 
-  /* —— 卡:浅框内衬(10/10/20)+ 白底图区 + 图下文块 —— */
+  /* —— 卡:玻璃框内衬(10/10/20)+ 白底图区 + 图下文块 ——
+     R48 换皮:x-paper 白卡 → x-tile 玻璃卡(墨色 token 回暗系,几何/编舞判据一个不动) */
   .card {
     width: min(calc(520 * var(--uc)), 100%);
     aspect-ratio: 650 / 534;
@@ -155,6 +156,9 @@ const shareArt = contour(77, 12, 640, 400);
     flex-direction: column;
     gap: calc(20 * var(--uc));
     box-sizing: border-box;
+  }
+  .media {
+    border-radius: var(--x-r-sm); /* 圆角随卡(overflow:hidden 已裁) */
   }
   .card.coming .body {
     opacity: 0.66;
@@ -184,8 +188,10 @@ const shareArt = contour(77, 12, 640, 400);
     position: absolute;
     top: 0;
     left: 0;
-    background: var(--x-light);
-    color: var(--x-dark);
+    /* R48:浅面切口 → 暗玻璃章(玻璃卡上浅切口会读成破洞;photo 上暗章 + 白字任意图底可读) */
+    background: rgb(var(--x-bg-rgb) / 0.62);
+    color: var(--x-white);
+    border-radius: 0 0 calc(12 * var(--uc)) 0;
     font-family: var(--x-font-mono);
     font-weight: 400;
     font-size: calc(16 * var(--uc));
@@ -203,11 +209,12 @@ const shareArt = contour(77, 12, 640, 400);
     top: calc(10 * var(--uc));
     right: calc(10 * var(--uc));
     font-weight: 400;
-    /* R35:章底改不透明浅面(soft 半透明底在深色产品照上会隐没)——
-       非满饱和柠檬不稀释转化件,与序号章同族浅面体例 */
-    background: var(--x-light);
-    color: var(--x-accent-ink);
-    padding: calc(3 * var(--uc)) calc(9 * var(--uc));
+    /* R48:与序号章同族暗玻璃胶囊(R35 的浅面体例随白卡一起退役);
+       柠檬字压 0.62 暗底,产品照上任意图底可读 */
+    background: rgb(var(--x-bg-rgb) / 0.62);
+    color: var(--x-accent);
+    border-radius: calc(999 * var(--uc));
+    padding: calc(3 * var(--uc)) calc(10 * var(--uc));
   }
   .body {
     flex: 0 0 auto;
