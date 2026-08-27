@@ -24,7 +24,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
         <a class="row x-dimlink" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${i * 0.08}s`}>
           <span class="idx x-mono">0{i + 1}</span>
           <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
-          <span class="name">{entry.data.title}</span>
+          <span class="name x-display">{entry.data.title}</span>
           <span class="arr x-mono" aria-hidden="true">→</span>
         </a>
       ))
@@ -73,14 +73,12 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     color: var(--x-dark-dim);
     flex: 0 0 clamp(90px, 12vw, calc(150 * var(--uc)));
   }
+  /* 只留本处特有的尺寸与布局,字族/字重/字距/行高交回 .x-display 型类 ——
+     手抄一份就等于绕开了型类层的 vi / zh 行高补偿:实测 /vi/ @320 这一处
+     行间余量恰好 0.0000px(门判「小于 0 才报」,差一丝就红)。挂上型类后自动拿到 vi 的 1.25。 */
   .name {
-    font-family: var(--x-font-display);
     font-size: max(20px, calc(32 * var(--u)));
-    font-weight: 400;
-    letter-spacing: -0.03em;
-    line-height: 1.1;
     flex: 1;
-    text-wrap: balance;
   }
   .arr {
     color: var(--x-dark-dim);

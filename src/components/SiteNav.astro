@@ -67,7 +67,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
                 lang={l}
                 hreflang={l}
                 class:list={['x-dimlink', { active: !neutralLang && l === locale }]}
-                aria-current={!neutralLang && l === locale ? 'true' : undefined}
+                aria-current={!neutralLang && l === locale ? 'page' : undefined}
               >
                 {LANG_LABEL[l]}
               </a>

@@ -13,7 +13,7 @@ const { locale } = Astro.props;
 const t = useT(locale);
 ---
 
-<section class="hero" id="download">
+<section class="hero">
   <div class="spacer" aria-hidden="true"></div>
 
   <div class="foot">
@@ -28,7 +28,7 @@ const t = useT(locale);
     <div class="cluster">
       <h1 class="x-display-mega" data-lr="load" data-lr-delay="200">{t('hero.title')}</h1>
       <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
-      <div class="dl-wrap">
+      <div class="dl-wrap" id="download">
         <DownloadButtons locale={locale} />
       </div>
     </div>

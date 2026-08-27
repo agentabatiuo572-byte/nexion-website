@@ -306,6 +306,7 @@ const SCAN_SIZES = () => {
     const cls = typeof el.className === 'string' ? el.className : '';
     out[key(el)] = {
       fs: Math.round(parseFloat(cs.fontSize) * 100) / 100,
+      lh: Math.round((parseFloat(cs.lineHeight) || 0) * 100) / 100,
       sel: el.tagName.toLowerCase() + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''),
       text: (text.trim() || el.textContent.trim()).split(/\s+/).join(' ').slice(0, 24),
     };
@@ -322,16 +323,21 @@ const OPEN_ONE = (idx) => {
   const dialogs = [...document.querySelectorAll('dialog')];
   for (const d of dialogs) if (d.open) d.close();
   const d = dialogs[idx];
-  if (!d) return { ok: false, why: 'index out of range' };
-  // 优先走真实开启件:图片 src 是开启时由脚本按 data-src 写进去的,直接 showModal 会量到一张空图
-  for (const el of document.querySelectorAll('[data-src]')) {
-    el.click();
-    if (d.open) break;
-    for (const x of dialogs) if (x.open && x !== d) x.close();
+  if (!d) return { ok: false, why: '取不到这个弹层' };
+  /* 🔴 必须走**真实开启件**,不许退回 showModal():弹层里的图 src 是开启时由脚本写进去的,
+     直接 showModal 会量到一张空图,而空图必然装得下 —— 那是假绿,不是通过。
+     (上一版就是这么写的,独立评审当场指出:失败模式是假绿而不是判红。)
+     候选面也不写死成某一个属性:凡「可能打开东西」的件都试,试到某个弹层真开为止;
+     一个都开不起来 → 返回失败,由调用方记成观测面缺口判红。 */
+  const cand = [...document.querySelectorAll(
+    '[data-src], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
+  )];
+  for (const el of cand) {
+    try { el.click(); } catch { /* 个别件点了会抛,继续试下一个 */ }
+    if (d.open) return { ok: true, via: 'opener' };
+    for (const x of dialogs) if (x.open) x.close();
   }
-  if (!d.open) { try { d.showModal(); } catch { /* 已有模态在开 */ } }
-  if (!d.open) return { ok: false, why: '开不起来' };
-  return { ok: true, viaOpener: true };
+  return { ok: false, why: `找不到能打开它的件(试了 ${cand.length} 个候选);拒绝用 showModal() 冒充 —— 那样量到的是一张空图` };
 };
 const MEASURE_OPEN = () => {
   const out = [];
@@ -339,12 +345,16 @@ const MEASURE_OPEN = () => {
     if (!d.open) continue;
     const r = d.getBoundingClientRect();
     const cls = typeof d.className === 'string' ? d.className : '';
+    const px = (v) => Math.round(Math.max(0, v) * 10) / 10;
     out.push({
       sel: 'dialog' + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''),
       overY: Math.round((d.scrollHeight - d.clientHeight) * 10) / 10,
       overX: Math.round((d.scrollWidth - d.clientWidth) * 10) / 10,
-      offBottom: Math.round(Math.max(0, r.bottom - innerHeight) * 10) / 10,
-      offRight: Math.round(Math.max(0, r.right - innerWidth) * 10) / 10,
+      // 四条边都量:只量右下会让「顶出视口上缘 / 左缘」的弹层拿 0 分(独立评审指出)
+      offBottom: px(r.bottom - innerHeight),
+      offRight: px(r.right - innerWidth),
+      offTop: px(-r.top),
+      offLeft: px(-r.left),
     });
   }
   return out;
@@ -509,7 +519,9 @@ const settle = async () => {
   await page.waitForTimeout(60);
 };
 
-const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.fs}`).join('|');
+/* 指纹必须带行高:只改 `line-height` 的高度断点会产生完全相同的字号指纹 → 整条路由被判「不敏感」
+   → 那些高度档判据 A 一次都不扫,而 A 判的恰恰是行间。今天仓里没有这种规则,写进来是封住它。 */
+const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.fs}/${v.lh}`).join('|');
 const scanA = async (r, w, h) => {
   const { hits, blind } = await page.evaluate(SCAN_LINES);
   scansA++;
@@ -598,7 +610,7 @@ for (const r of ROUTES) {
         await page.setViewportSize({ width: w, height: hh });
         await page.waitForTimeout(35);
         for (const m of await page.evaluate(MEASURE_OPEN)) {
-          const worst = Math.max(m.overY, m.overX, m.offBottom, m.offRight);
+          const worst = Math.max(m.overY, m.overX, m.offBottom, m.offRight, m.offTop, m.offLeft);
           if (worst <= 1) continue;
           const k = `${r}|${m.sel}`;
           const prev = hitsE.get(k);
@@ -682,7 +694,7 @@ if (D.length) {
 if (E.length) {
   console.log(`[render-fit] ✘ E 弹层装不下:${E.length} 处在某档视口里溢出或出界`);
   for (const x of E) {
-    console.log(`  - ${x.where}  ${x.sel}  盒内需滚 纵 ${x.overY} 横 ${x.overX};出界 下 ${x.offBottom} 右 ${x.offRight}`);
+    console.log(`  - ${x.where}  ${x.sel}  盒内需滚 纵 ${x.overY} 横 ${x.overX};出界 上 ${x.offTop} 下 ${x.offBottom} 左 ${x.offLeft} 右 ${x.offRight}`);
   }
 }
 console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数;');

@@ -96,6 +96,9 @@
   --x-touch: max(calc(44px / var(--x-zoom)), calc(44 * var(--uc)));
   /* AA 目标尺寸下限 24×24(WCAG 2.2)。给那些做不到 44 宽的窄标签用,如两个字母的语言键。 */
   --x-touch-aa: max(calc(24px / var(--x-zoom)), calc(24 * var(--uc)));
+  /* 引擎没到货时 [data-rv] 的兜底延迟。fx.ts 读同一个值判「我是不是来晚了」——
+     来晚了就直接落终态,不先闪再消失。两处必须同值,所以只此一处定义。 */
+  --x-rv-fallback: 3000ms;
 }
 
 /* R42:断点以下退回自适应(= 画布制之前的行为,窄屏逐像素不变);
@@ -388,7 +391,7 @@ html.js [data-rv].rv-done {
    fx 在模块最顶上挂 html.fx,所以正常情况下这条动画在 3s 之前就被熄掉了;
    引擎到得比 3s 还晚时,fx 的 initReveal 直接落终态,不会先闪再消失。 */
 html.js:not(.fx) [data-rv]:not(.in) {
-  animation: x-rv-unhide 0s linear 3s forwards;
+  animation: x-rv-unhide 0s linear var(--x-rv-fallback) forwards;
 }
 @keyframes x-rv-unhide {
   to {
@@ -509,9 +512,14 @@ html.x-boot #stats {
 }
 
 /* 焦点可见性 */
+/* 🔴 别写成标签清单:`<span role="button" tabindex="0">` 这类件不命中,会掉回浏览器默认焦点环
+   (独立评审像素级实测:禁用态下载键画的是白色 1px 贴边环,而同页启用件是 lime 2px + 2px offset)。
+   把「可聚焦」这件事本身作为条件,后来者自动进来。 */
 a:focus-visible,
 button:focus-visible,
-summary:focus-visible {
+summary:focus-visible,
+[role='button']:focus-visible,
+[tabindex]:focus-visible {
   /* 2.05 不是 2:画布 zoom 在 1440–1454 视口为 0.9896,Chrome 把 zoom 后的 outline 宽按设备像素**下取整**,
      2px 会变成 1 设备像素(焦点环细一半);2.05 过完 zoom 仍 ≥2 */
   outline: calc(2.05 * var(--uc)) solid var(--x-accent-ink); /* R30:走带纸面变体的档(白带上自动深柠檬,非文本 ≥3:1) */

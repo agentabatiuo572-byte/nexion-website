@@ -759,9 +759,11 @@ function initType() {
 function initReveal() {
   const els = document.querySelectorAll<HTMLElement>('[data-rv]');
   if (!els.length || reduced) return;
-  /* 引擎到得比 CSS 兜底还晚:兜底已经把这些块显出来了,再走一遍进场等于先闪一下再消失。
-     直接落终态,不重放。阈值与 tokens.css 里 x-rv-unhide 的延迟同源,改一处必须改另一处。 */
-  if (performance.now() - BEAT_T0 > 3000) {
+  /* 引擎到得比 CSS 兜底还晚:兜底已经把这些块显出来了,再走一遍进场等于先闪一下再消失,直接落终态。
+     阈值**从 CSS 读**(--x-rv-fallback),不再在这里另写一个 3000 —— 原来两处各写一个、
+     靠注释「改一处必须改另一处」约束,而那正是应该焊成单一真源的写法。 */
+  const fb = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--x-rv-fallback')) || 3000;
+  if (performance.now() - BEAT_T0 > fb) {
     for (const el of els) el.classList.add('in', 'rv-done');
     return;
   }

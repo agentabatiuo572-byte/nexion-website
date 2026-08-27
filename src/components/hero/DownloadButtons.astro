@@ -66,9 +66,12 @@ const btns = [
           <span class="xbtn-b" aria-hidden="true">{inner}</span>
         </a>
       ) : (
-        <span class:list={['xbtn', 'disabled', lightCls]} role="button" aria-disabled="true" tabindex="0">
+        // 原生 button 而不是 span[role=button]:后者按空格会滚页(独立评审实测 scrollY 0 → 738),
+        // 空格正是这类件的标准激活键,按下去既无反馈又把人甩下大半屏。原生按钮不滚页。
+        // 仍用 aria-disabled 而非原生 disabled —— 原生 disabled 会连焦点一起拿掉。
+        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
           <span class="static">{inner}</span>
-        </span>
+        </button>
       );
     })
   }
