@@ -62,7 +62,7 @@ const shareArt = contour(77, 12, 640, 400);
               {s.status === 'coming' && <span class="chip x-mono">{t('devices.comingBadge')}</span>}
             </div>
             <div class="body">
-              <h3>{s.name}</h3>
+              <h3 class="x-display">{s.name}</h3>
               <div class="cols">
                 <p class="col x-mono">
                   <b class="price">{s.free ? t('devices.free') : fmtPrice(s.priceUSD)}</b>
@@ -213,15 +213,12 @@ const shareArt = contour(77, 12, 640, 400);
     align-items: flex-start;
     gap: max(16px, calc(36 * var(--u)));
   }
+  /* 这一处逐字就是 .x-display 的值,却手抄了一份 —— 手抄等于绕开型类层的 vi/zh 行高补偿,
+     结果设备卡标题在越南语/中文下一直是 1.0。挂上型类后自动拿到 vi 1.25 / zh 1.15。 */
   h3 {
-    font-family: var(--x-font-display);
     font-size: max(24px, calc(40 * var(--u)));
-    font-weight: 400;
-    letter-spacing: -0.03em;
-    line-height: 1;
     color: var(--x-ink);
     margin: 0;
-    text-wrap: balance;
   }
   .cols {
     display: flex;

@@ -417,8 +417,13 @@ function initLorenz() {
     if (running) raf = requestAnimationFrame(frame);
   };
 
+  /* 用户按了暂停就不再自启(标签切回来触发的 visibilitychange 也不能把它带起来)。
+     存储读写都包 try:隐私模式 / 禁用站点数据时 localStorage 会直接抛。 */
+  const PAUSE_KEY = 'x-bg-paused';
+  let userPaused = false;
+  try { userPaused = localStorage.getItem(PAUSE_KEY) === '1'; } catch { /* 存储不可用:按未暂停处理 */ }
   const start = () => {
-    if (running || reduced) return;
+    if (running || reduced || userPaused) return;
     running = true;
     raf = requestAnimationFrame(frame);
   };
@@ -447,9 +452,18 @@ function initLorenz() {
     });
   }
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
+  document.addEventListener('x:bg-pause', (e) => {
+    userPaused = (e as CustomEvent<boolean>).detail === true;
+    try { localStorage.setItem(PAUSE_KEY, userPaused ? '1' : '0'); } catch { /* 同上 */ }
+    if (userPaused) { stop(); drawStatic(); } else start();
+  });
 
   if (reduced) {
     drawStatic();
+    return;
+  }
+  if (userPaused) {
+    drawStatic(); // 上次就是暂停态:画一帧静帧,不起循环
     return;
   }
   start();
@@ -756,6 +770,24 @@ function initType() {
 }
 
 /* ---------- ⑤ 次要块 reveal(P1-03:阈值 .05/底-20px) ---------- */
+/* 背景暂停键(WCAG 2.2.2 A 级)。键在页脚,状态存 localStorage,跨页保持。 */
+function initBgToggle() {
+  const btn = document.querySelector<HTMLButtonElement>('[data-bg-toggle]');
+  if (!btn) return;
+  let paused = false;
+  try { paused = localStorage.getItem('x-bg-paused') === '1'; } catch { /* 存储不可用 */ }
+  const render = () => {
+    btn.textContent = paused ? btn.dataset.labelPlay ?? '' : btn.dataset.labelPause ?? '';
+    btn.setAttribute('aria-pressed', String(paused));
+  };
+  render();
+  btn.addEventListener('click', () => {
+    paused = !paused;
+    render();
+    document.dispatchEvent(new CustomEvent('x:bg-pause', { detail: paused }));
+  });
+}
+
 function initReveal() {
   const els = document.querySelectorAll<HTMLElement>('[data-rv]');
   if (!els.length || reduced) return;
@@ -1047,6 +1079,7 @@ const boot = () => {
   initCertZoom();
   initType();
   initReveal();
+  initBgToggle();
   initClock();
   initPile();
   initParallax();

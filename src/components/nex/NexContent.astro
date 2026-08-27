@@ -27,7 +27,7 @@ const faqs = [1, 2, 3, 4] as const;
   </header>
 
   <section class="block x-paper" aria-labelledby="nex-compare">
-    <h2 id="nex-compare">{t('nex.compareTitle')}</h2>
+    <h2 id="nex-compare" class="x-h24">{t('nex.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
         <thead>
@@ -43,12 +43,12 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-sources">
-    <h2 id="nex-sources">{t('nex.sourcesTitle')}</h2>
+    <h2 id="nex-sources" class="x-h24">{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b>{t(`nex.src${n}Title`)}</b>
+          <b class="x-h24">{t(`nex.src${n}Title`)}</b>
           <span class="x-mono">{t(`nex.src${n}Desc`)}</span>
         </li>
       ))}
@@ -56,12 +56,12 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-uses">
-    <h2 id="nex-uses">{t('nex.usesTitle')}</h2>
+    <h2 id="nex-uses" class="x-h24">{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b>{t(`nex.use${n}Title`)}</b>
+          <b class="x-h24">{t(`nex.use${n}Title`)}</b>
           <span class="x-mono">{t(`nex.use${n}Desc`)}</span>
         </li>
       ))}
@@ -69,26 +69,26 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-mech">
-    <h2 id="nex-mech">{t('nex.mechTitle')}</h2>
+    <h2 id="nex-mech" class="x-h24">{t('nex.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
-        <h3>{t('nex.mech1Title')}</h3>
+        <h3 class="x-h24">{t('nex.mech1Title')}</h3>
         <p class="x-mono">{t('nex.mech1Desc')}</p>
       </article>
       <article class="mcard" data-rv style="--d:.1s">
-        <h3>{t('nex.mech2Title')}</h3>
+        <h3 class="x-h24">{t('nex.mech2Title')}</h3>
         <p class="x-mono">{t('nex.mech2Desc')}</p>
       </article>
     </div>
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-faq">
-    <h2 id="nex-faq">{t('nex.faqTitle')}</h2>
+    <h2 id="nex-faq" class="x-h24">{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
         <summary>
           <span class="idx x-mono">Q{n}</span>
-          <span class="q">{t(`nex.faq${n}Q`)}</span>
+          <span class="q x-q">{t(`nex.faq${n}Q`)}</span>
           <span class="mark x-mono" aria-hidden="true">+</span>
         </summary>
         <p class="x-mono">{t(`nex.faq${n}A`)}</p>
@@ -145,12 +145,10 @@ const faqs = [1, 2, 3, 4] as const;
     margin-bottom: calc(40 * var(--uc));
     padding: clamp(18px, 2.2vw, calc(30 * var(--uc)));
   }
+  /* 型类给字族/字重/字距/行高与语言分支;这里只留本处特有的字号与边框。
+     原来没有 vi/zh 分支,行高补偿静默失效。 */
   .block h2 {
-    font-family: var(--x-font-display);
     font-size: clamp(22px, 2.6vw, calc(32 * var(--uc)));
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1; /* display 档不继承正文 1.6 */
     color: var(--x-ink);
     border-top: 1px solid var(--x-line);
     padding-top: calc(16 * var(--uc));
@@ -209,16 +207,8 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .list b {
     text-wrap: balance; /* 中列被 minmax 卡住必然折行,不平衡则第二行只剩一个词 */
-    font-family: var(--x-font-display);
     font-size: clamp(16px, 1.6vw, calc(20 * var(--uc)));
-    font-weight: 500;
     color: var(--x-ink);
-    letter-spacing: -0.02em; /* 同 .mcard h3 / .block h2:display 档一条字距梯子,不按组件各写各的 */
-    line-height: 1.1;
-  }
-  /* display 档不吃 .x-mono 的型类例外,单列一条:1.1 在 vi 下重叠更深(实测行间墨隙 −0.67) */
-  .list b:lang(vi):not(html) {
-    line-height: 1.35;
   }
   .list span:last-child {
     color: var(--x-ink-dim);
@@ -233,14 +223,11 @@ const faqs = [1, 2, 3, 4] as const;
     border: 1px solid var(--x-line-soft);
     padding: calc(22 * var(--uc));
   }
+  /* 原来没有 vi/zh 分支 —— 挂型类后语言行高补偿才生效 */
   .mcard h3 {
-    font-family: var(--x-font-display);
     font-size: clamp(17px, 1.7vw, calc(24 * var(--uc)));
-    font-weight: 500;
     color: var(--x-ink);
     margin: 0 0 calc(10 * var(--uc));
-    letter-spacing: -0.02em; /* 24 档统一 -0.02em(与首页 FAQ 问句同档) */
-    line-height: 1.1;
   }
   .mcard p {
     color: var(--x-ink-dim);
@@ -273,20 +260,12 @@ const faqs = [1, 2, 3, 4] as const;
     font-weight: 400;
     flex: 0 0 calc(30 * var(--uc));
   }
+  /* 同 FaqSection:型类给字族/字重/字距/行高与语言分支,这里只留本处特有的 */
   .faq .q {
-    font-family: var(--x-font-display);
-    font-size: max(18px, calc(24 * var(--u))); /* 与首页 FAQ 同一条公式(此前 390 上是 16 vs 18) */
-    font-weight: 400;
-    letter-spacing: -0.02em;
     color: var(--x-ink);
     flex: 1;
-    line-height: 1.25;
-    text-wrap: balance;
   }
-  .faq .q:lang(vi):not(html),
-  .faq .q:lang(zh):not(html) {
-    line-height: 1.45; /* 同 FaqSection:同形规则在三个组件里各存一份,补要三处一起补 */
-  }
+
   .faq .mark {
     color: var(--x-accent-ink);
     font-weight: 400;

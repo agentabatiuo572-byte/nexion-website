@@ -27,7 +27,7 @@ const items = await learnList(locale);
             <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
           </span>
-          <h2>{entry.data.title}</h2>
+          <h2 class="x-h24">{entry.data.title}</h2>
           <p class="x-mono">{entry.data.description}</p>
           {fallback && <span class="fb x-mono">{t('learn.enOnly')}</span>}
         </a>
@@ -97,11 +97,7 @@ const items = await learnList(locale);
     font-weight: 400;
   }
   h2 {
-    font-family: var(--x-font-display);
     font-size: clamp(19px, 1.8vw, calc(24 * var(--uc)));
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
     color: var(--x-ink);
     margin: 0;
     display: -webkit-box;
@@ -110,10 +106,7 @@ const items = await learnList(locale);
     overflow: hidden;
     text-wrap: balance;
   }
-  h2:lang(vi):not(html),
-  h2:lang(zh):not(html) {
-    line-height: 1.35; /* display 档:1.1 在 vi/zh 折行时相邻行相接;1.35 够开且不破紧凑观感 */
-  }
+
   .card > p {
     color: var(--x-ink-dim);
     margin: 0;

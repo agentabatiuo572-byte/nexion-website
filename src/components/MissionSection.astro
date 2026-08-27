@@ -37,7 +37,7 @@ const leadParas = t('mission.lead').split('\n');
               <span class="idx" data-tw data-tw-delay={80 * i}>
                 0{n}
               </span>
-              <span class="name">{t(`mission.f${n}`)}</span>
+              <span class="name x-h24">{t(`mission.f${n}`)}</span>
             </li>
           ))
         }
@@ -158,12 +158,10 @@ const leadParas = t('mission.lead').split('\n');
     letter-spacing: 0;
     color: var(--x-accent-hot); /* 黑底编号走亮柠檬热档(R38 换系后正名) */
   }
+  /* 字族/字重/字距/行高与 vi·zh 分支交给 .x-h24;这里只留本处特有的字号地板与颜色。
+     原来行高写 1.15 且**没有** vi/zh 分支 —— 挂型类后行高归 1.1、语言补偿这才生效。 */
   .name {
-    font-family: var(--x-font-display);
-    font-size: max(21px, calc(24 * var(--u))); /* 24 档:答案层权重对齐语义(R24;cap 精确 R26) */
-    font-weight: 500;
-    letter-spacing: -0.02em; /* 24 档统一 -0.02em(此前散在 -0.01,同档两套字身) */
-    line-height: 1.15;
+    font-size: max(21px, calc(24 * var(--u)));
     color: var(--x-white);
   }
   @media (max-width: 860px) {

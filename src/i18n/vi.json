@@ -217,10 +217,12 @@
     "terms": "Điều khoản dịch vụ",
     "contact": "Liên hệ",
     "rights": "Bảo lưu mọi quyền.",
-    "ariaLegal": "Pháp lý"
+    "ariaLegal": "Pháp lý",
+    "pauseBg": "Tạm dừng nền động",
+    "playBg": "Phát nền động"
   },
   "legal": {
-    "enPrevails": "Bản tiếng Anh của tài liệu này có giá trị pháp lý. Bản dịch chỉ mang tính tham khảo."
+    "enPrevails": "Trang này chỉ có bản tiếng Anh. Bản tiếng Anh là văn bản có giá trị pháp lý."
   },
   "notfound": {
     "title": "Không tìm thấy trang",

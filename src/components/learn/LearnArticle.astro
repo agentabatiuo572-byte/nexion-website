@@ -62,7 +62,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
           {related.map((r) => (
             <a class="row x-dimlink" href={`${prefix}/learn/${r.slug}/`}>
               <span class="topic x-mono">{t(`learn.topics.${r.entry.data.topic}`)}</span>
-              <span class="name">{r.entry.data.title}</span>
+              <span class="name x-h24">{r.entry.data.title}</span>
               <span class="arr x-mono" aria-hidden="true">→</span>
             </a>
           ))}
@@ -234,19 +234,9 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
     color: var(--x-ink-dim);
     flex: 0 0 clamp(90px, 12vw, calc(150 * var(--uc)));
   }
+  /* 与 /learn/ 卡片标题同一个对象、同一档,所以挂同一个型类 */
   .name {
-    font-family: var(--x-font-display);
-    /* 同一个对象(指南标题作为链接,24 档)在 /learn/ 卡片上是 500 / 1.1,这里跟它,不另起一套 */
-    font-size: max(18px, calc(24 * var(--u)));
-    font-weight: 500;
-    letter-spacing: -0.02em;
-    line-height: 1.1;
     flex: 1;
-    text-wrap: balance;
-  }
-  .name:lang(vi):not(html),
-  .name:lang(zh):not(html) {
-    line-height: 1.35; /* 同 LearnList h2 */
   }
   /* 只给相关行的箭头(组件里 .xbtn 的三层滑层各自也有 .arr,不收窄会把 18 个页面的转化键箭头
      染成 0.62 白 = 压在柠檬底上 1.36:1) */

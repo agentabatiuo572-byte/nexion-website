@@ -24,7 +24,7 @@ const year = new Date().getFullYear();
     {/* 壳必须是非替换元素:「::before」 挂在 <img> 上不渲染(替换元素没有伪元素盒),
         护字层会变成一条查不出来的空操作 —— 声明在、用值宽高恒 auto、屏上什么都没有。 */}
     <span class="mark">
-      <img src="/logo-mark-dark.png" width="90" height="89" alt="" aria-hidden="true" />
+      <img src="/logo-mark-dark.webp" width="90" height="89" alt="" aria-hidden="true" />
     </span>
 
     <div class="colr">
@@ -36,6 +36,11 @@ const year = new Date().getFullYear();
           <a class="x-mono x-dimlink" href={`${prefix}/legal/terms/`}>{t('footer.terms')}</a>
           {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
         </nav>
+        {/* WCAG 2.2.2(A 级):自动播放且超过 5 秒的动态内容要有暂停出口。
+            放页脚不放导航:导航已有 logo/时钟/五链接/三语言/下载键,再塞一个会挤坏版式。
+            只在真有动画时出现 —— 没有引擎(html 无 .fx)或开了「减少动态」时背景本就是静帧。 */}
+        <button class="bgtoggle x-mono x-dimlink" type="button" data-bg-toggle aria-pressed="false"
+          data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')}>{t('footer.pauseBg')}</button>
       </div>
     </div>
   </div>
@@ -44,6 +49,27 @@ const year = new Date().getFullYear();
 </footer>
 
 <style>
+  /* 没有引擎 / 开了减少动态时,背景是静帧,没有可暂停的东西 —— 那时这个键不该存在 */
+  .bgtoggle {
+    display: none;
+    background: none;
+    border: 0;
+    padding: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+    min-height: var(--x-touch);
+    text-align: left;
+  }
+  :global(html.fx) .bgtoggle {
+    display: inline-flex;
+    align-items: center;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    :global(html.fx) .bgtoggle {
+      display: none;
+    }
+  }
   .site-footer {
     position: relative;
     z-index: 1;

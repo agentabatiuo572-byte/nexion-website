@@ -72,7 +72,7 @@ const cards = [1, 2, 3, 4, 5] as const;
 
   <details class="poc">
     <summary>
-      <span class="q">{t('trust.pocTitle')}</span>
+      <span class="q x-q">{t('trust.pocTitle')}</span>
       <span class="mark x-mono" aria-hidden="true">+</span>
     </summary>
     <p class="x-mono">{t('trust.pocBody1')}</p>
@@ -241,20 +241,12 @@ const cards = [1, 2, 3, 4, 5] as const;
   .poc summary::-webkit-details-marker {
     display: none;
   }
+  /* 同 FaqSection:型类给字族/字重/字距/行高与语言分支,这里只留本处特有的 */
   .poc .q {
-    font-family: var(--x-font-display);
-    font-size: max(18px, calc(24 * var(--u)));
-    font-weight: 400;
-    letter-spacing: -0.02em;
-    line-height: 1.25;
     color: var(--x-dark);
     flex: 1;
-    text-wrap: balance;
   }
-  .poc .q:lang(vi):not(html),
-  .poc .q:lang(zh):not(html) {
-    line-height: 1.45; /* 同 FaqSection */
-  }
+
   /* 不给定宽:12 的盒子里装 7.36 的字形会默认左对齐,记号右缘比行右缘短 4.6px(FAQ 是齐的) */
   .poc .mark {
     color: var(--x-accent-ink);

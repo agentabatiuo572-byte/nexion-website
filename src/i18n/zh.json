@@ -217,10 +217,12 @@
     "terms": "使用条款",
     "contact": "联系我们",
     "rights": "保留所有权利。",
-    "ariaLegal": "法务"
+    "ariaLegal": "法务",
+    "pauseBg": "暂停背景动画",
+    "playBg": "播放背景动画"
   },
   "legal": {
-    "enPrevails": "本文件以英文版为准，译文仅供参考。"
+    "enPrevails": "本页仅提供英文版，并以英文版为准。"
   },
   "notfound": {
     "title": "页面不存在",

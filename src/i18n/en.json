@@ -217,10 +217,12 @@
     "terms": "Terms of Service",
     "contact": "Contact",
     "rights": "All rights reserved.",
-    "ariaLegal": "Legal"
+    "ariaLegal": "Legal",
+    "pauseBg": "Pause background",
+    "playBg": "Play background"
   },
   "legal": {
-    "enPrevails": "The English version of this document prevails. Translations are provided for convenience only."
+    "enPrevails": "This page is available in English only. The English version is the legally binding text."
   },
   "notfound": {
     "title": "Page not found",
