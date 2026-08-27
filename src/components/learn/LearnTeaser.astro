@@ -21,7 +21,7 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     <p class="lab x-mono-lg" data-tw>{t('nav.learn')}</p>
     <h2 class="x-display" data-lr>{t('learn.homeTitle')}</h2>
   </div>
-  <div class="rows x-tile x-tile-paper">
+  <div class="rows x-tile">
     {
       picks.map(({ entry, slug }, i) => (
         <a class="row x-dimlink" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${i * 0.08}s`}>

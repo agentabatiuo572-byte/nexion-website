@@ -325,96 +325,39 @@ html {
 
 /* R35:.x-kv 满饱和柠檬 chip 规则清退(零消费死规则,且违「满饱和只给可点转化件」分层纪律) */
 
-/* ── R48 玻璃面片(全站工具类):地球透底上的内容容器 ──
-   ⚠️ backdrop-filter 采样的是身后合成结果(动态地球画布),面片数量与模糊半径都是滚动成本 ——
-   新增大面片先想想这一屏会同时出现几块;不支持 backdrop-filter 的引擎回退近实底(可读优先)。 */
+/* ── R48.4 Liquid Glass 面片(全站工具类,主人改令「所有背景改 Liquid Glass」)──
+   真·液态玻璃 = 透明镜片,不是奶白纸(R48.1-48.3 的浅纸系全部退役):
+   · 中心近乎透明(薄膜 7% 白 + 极轻霜化),地球点阵/弧线直接透过来;
+   · 边缘折射:backdrop 走 Base.astro 的 #x-liquid SVG 位移场,背景在 9% 边带被向内弯折 ——
+     这是玻璃镜片的光学签名,普通 blur 做不出来(url 型 backdrop 仅 Chromium 应用,
+     其它引擎自动落回前一条普通磨砂声明);
+   · 曲面高光:顶缘亮线 + 内周微光 + 亮描边。
+   ⚠️ backdrop-filter 采样身后合成结果(动态地球画布),面片数量是滚动成本;
+   不支持 backdrop-filter 的引擎回退近实底(可读优先)。 */
 .x-tile {
   position: relative;
-  background: var(--x-glass);
-  border: 1px solid var(--x-glass-border);
+  /* R48.5(主人改令:位移场版整页卡死 + 中心太透)——
+     🔴 SVG 位移场折射(url(#x-liquid))已拆除:它每帧对动态画布整块重算,实测把滚动拖死,
+     真机一票否决;折射观感由静态高光镶边近似,不再逐帧付费。
+     中心薄膜 0.07 → 0.13(降透),blur 走 GPU 合成路径(R48 v1 实测 60fps 的同族配方)。 */
+  background: rgb(255 255 255 / 0.13);
+  border: 1px solid rgb(255 255 255 / 0.24);
   border-radius: var(--x-r);
-  -webkit-backdrop-filter: blur(var(--x-blur)) saturate(1.4);
-  backdrop-filter: blur(var(--x-blur)) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.5) brightness(1.05);
+  backdrop-filter: blur(14px) saturate(1.5) brightness(1.05);
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.07),
-    0 18px 48px rgb(0 0 0 / 0.35);
+    inset 0 1px 0 rgb(255 255 255 / 0.35),
+    inset 0 -1px 0 rgb(255 255 255 / 0.1),
+    inset 0 0 24px rgb(255 255 255 / 0.06),
+    0 24px 56px rgb(0 0 0 / 0.45);
 }
 .x-tile-lit {
   background: var(--x-glass-lit);
   border-color: var(--x-glass-lit-border);
 }
-/* R48.1 浅纸玻璃(主人改令①:全深砖太暗)——**阅读型**瓷砖走浅底深墨,
-   氛围型(章头/叠卡/末屏/页脚)留深玻璃,全页形成明度节奏。
-   R48.2(主人改令):alpha 0.92 → 0.78 —— 真毛玻璃,地球点阵与光晕从纸下透出。
-   底变暗损失的对比在砖内补齐:dim 档 0.62→0.7、柠檬编号档再压深 20%
-   (worst case 纯黑衬底时纸面实际亮度 ≈189/255:正文深墨 ≥8:1,编号 ≈4.5:1)。
-   墨色 token 随砖翻纸面(与 .x-paper 同表);编号热档在浅底翻深柠檬,否则 #d4ff55 隐形。 */
-/* R48.3 液态玻璃(主人改令:毛玻璃 → Liquid Glass,且 R48.2 版「太透」)——
-   材质拆成两层伪元素,元素自身不铺底:
-   · ::before 中心体 = 反相霜面(R48.2 算法保留:invert 让暗地上的点阵可见)+ 135° 奶白丝光渐变皮
-     (0.82→0.60,比上一版整体厚,治「太透」;渐变本身就是液态玻璃的受光面)。
-   · ::after 折射环 = 对**已经成纸的画面**再做一次重模糊+提亮+增饱和采样,蒙版只留 10px 边带 ——
-     模拟厚玻璃边缘的光线弯折(不再带 invert:环采样的是 ::before 的成品,双反相会把边环翻回黑)。
-   · 高光镶边 = 亮白细描边 + 顶部内高光,液态玻璃的镜面反射签名。
-   isolation 保证两层伪元素垫在文字下、又不掉到页面背景后。 */
-.x-tile-paper {
-  background: none;
-  /* 🔴 必须关掉基类 .x-tile 的元素级磨砂:元素自己带 backdrop-filter 就成了 backdrop root,
-     两层伪元素的采样面被切空(霜面失效),元素又用不带反相的 blur 采黑地 → 面板整块发灰(实录)。 */
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-  border: 1px solid rgb(255 255 255 / 0.6);
-  /* ⚠️ 不能用 isolation:isolate 托底两层伪元素:isolation 会把瓷砖变成独立 backdrop root,
-     伪元素的采样面变成「砖内空无一物」,反相霜面整层失效(实录:面板灰掉)。
-     负 z 伪元素靠各砖自身的层叠上下文(z-index/will-change)或就近上下文垫在文字下即可 ——
-     章内瓷砖互不重叠,即使落到组级负层视觉也等价。 */
-  box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.85),
-    inset 0 -1px 0 rgb(255 255 255 / 0.3),
-    0 24px 56px rgb(0 0 0 / 0.35);
-  color: var(--x-dark);
-  --x-ink: var(--x-dark);
-  --x-ink-dim: rgba(12, 12, 13, 0.7);
-  --x-ink-cap: var(--x-dark-cap);
-  --x-line: var(--x-line-dark);
-  --x-line-soft: rgba(12, 12, 13, 0.1);
-  --x-accent-ink: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
-  --x-accent-hot: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
-}
-.x-tile-paper::before,
-.x-tile-paper::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-  z-index: -1;
-}
-.x-tile-paper::before {
-  background: linear-gradient(135deg, rgb(var(--x-light-rgb) / 0.82), rgb(var(--x-light-rgb) / 0.6));
-  -webkit-backdrop-filter: blur(4px) invert(1) hue-rotate(180deg) saturate(1.2) brightness(1.04);
-  backdrop-filter: blur(4px) invert(1) hue-rotate(180deg) saturate(1.2) brightness(1.04);
-}
-.x-tile-paper::after {
-  padding: calc(10 * var(--uc));
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  mask-composite: exclude;
-  -webkit-backdrop-filter: blur(12px) brightness(1.22) saturate(1.15);
-  backdrop-filter: blur(12px) brightness(1.22) saturate(1.15);
-}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .x-tile {
     background: rgb(var(--x-bg-rgb) / 0.88);
-  }
-  /* 反相算法失效时纸砖必须回不透明纸:0.55 白皮压暗地 = 灰纸配深墨,不可读 */
-  .x-tile-paper {
-    background: var(--x-light);
   }
 }
 

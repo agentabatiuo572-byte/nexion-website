@@ -32,7 +32,7 @@ const ks = [0.057, 0.099, 0.138];
   <div class="steps">
     {
       steps.map((n) => (
-        <article class="step x-tile x-tile-paper rv-fade" data-rv data-plx={ks[n - 1]}>
+        <article class="step x-tile rv-fade" data-rv data-plx={ks[n - 1]}>
           <p class="metarow x-mono">
             <span data-tw data-tw-delay={160 * (n - 1)}>0{n}</span>
             <span data-tw data-tw-delay={160 * (n - 1) + 120}>{t(`how.cat${n}`)}</span>

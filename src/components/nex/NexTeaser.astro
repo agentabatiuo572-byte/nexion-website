@@ -34,14 +34,14 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
         视差位移随元素自身位置变,纵叠两砖各挂系数会互相剪切间距(实测 18 → 0-4px);
         列级视差让两砖同进退,列内 gap 恒为 18。 */}
     <div class="side" data-plx={0.08}>
-      <article class="card x-tile x-tile-paper rv-fade" data-rv>
+      <article class="card x-tile rv-fade" data-rv>
         <p class="idx x-mono" data-tw data-tw-delay={160}>02</p>
         <div class="stack">
           <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
           <p class="x-mono desc">{t('nex.teaser.earnDesc')}</p>
         </div>
       </article>
-      <article class="card x-tile x-tile-paper rv-fade" data-rv>
+      <article class="card x-tile rv-fade" data-rv>
         <p class="idx x-mono" data-tw data-tw-delay={320}>03</p>
         <div class="stack">
           <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
