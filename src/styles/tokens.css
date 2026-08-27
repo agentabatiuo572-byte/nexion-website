@@ -349,20 +349,29 @@ html {
    底变暗损失的对比在砖内补齐:dim 档 0.62→0.7、柠檬编号档再压深 20%
    (worst case 纯黑衬底时纸面实际亮度 ≈189/255:正文深墨 ≥8:1,编号 ≈4.5:1)。
    墨色 token 随砖翻纸面(与 .x-paper 同表);编号热档在浅底翻深柠檬,否则 #d4ff55 隐形。 */
+/* R48.3 液态玻璃(主人改令:毛玻璃 → Liquid Glass,且 R48.2 版「太透」)——
+   材质拆成两层伪元素,元素自身不铺底:
+   · ::before 中心体 = 反相霜面(R48.2 算法保留:invert 让暗地上的点阵可见)+ 135° 奶白丝光渐变皮
+     (0.82→0.60,比上一版整体厚,治「太透」;渐变本身就是液态玻璃的受光面)。
+   · ::after 折射环 = 对**已经成纸的画面**再做一次重模糊+提亮+增饱和采样,蒙版只留 10px 边带 ——
+     模拟厚玻璃边缘的光线弯折(不再带 invert:环采样的是 ::before 的成品,双反相会把边环翻回黑)。
+   · 高光镶边 = 亮白细描边 + 顶部内高光,液态玻璃的镜面反射签名。
+   isolation 保证两层伪元素垫在文字下、又不掉到页面背景后。 */
 .x-tile-paper {
-  background: rgb(var(--x-light-rgb) / 0.42);
-  border-color: rgba(12, 12, 13, 0.14);
-  /* R48.2 反相毛玻璃(主人改令:改算法不是调数值)——
-     α 混合显不出「暗底上的暗纹理」:纸亮 × 地黑,任何 α 都只是把纸调灰,点阵占比小到无感。
-     正确算法:backdrop 先 invert(暗地 #0c0c0d → ≈纸白 #f2f2f3,亮点 → 深色霜点),
-     hue-rotate(180°) 把反相后的品牌绿拉回绿系——空处是真纸白(不发灰),
-     地球点阵成为纸下清晰的深色纹理。blur 只给 2.5px:再大就把「点」洗成水彩斑;
-     白皮压到 0.42,只作统一提亮与压纹,让霜点保持可辨。 */
-  -webkit-backdrop-filter: blur(2.5px) invert(1) hue-rotate(180deg) saturate(1.2);
-  backdrop-filter: blur(2.5px) invert(1) hue-rotate(180deg) saturate(1.2);
+  background: none;
+  /* 🔴 必须关掉基类 .x-tile 的元素级磨砂:元素自己带 backdrop-filter 就成了 backdrop root,
+     两层伪元素的采样面被切空(霜面失效),元素又用不带反相的 blur 采黑地 → 面板整块发灰(实录)。 */
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  /* ⚠️ 不能用 isolation:isolate 托底两层伪元素:isolation 会把瓷砖变成独立 backdrop root,
+     伪元素的采样面变成「砖内空无一物」,反相霜面整层失效(实录:面板灰掉)。
+     负 z 伪元素靠各砖自身的层叠上下文(z-index/will-change)或就近上下文垫在文字下即可 ——
+     章内瓷砖互不重叠,即使落到组级负层视觉也等价。 */
   box-shadow:
-    inset 0 1px 0 rgb(255 255 255 / 0.65),
-    0 18px 48px rgb(0 0 0 / 0.3);
+    inset 0 1px 0 rgb(255 255 255 / 0.85),
+    inset 0 -1px 0 rgb(255 255 255 / 0.3),
+    0 24px 56px rgb(0 0 0 / 0.35);
   color: var(--x-dark);
   --x-ink: var(--x-dark);
   --x-ink-dim: rgba(12, 12, 13, 0.7);
@@ -371,6 +380,33 @@ html {
   --x-line-soft: rgba(12, 12, 13, 0.1);
   --x-accent-ink: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
   --x-accent-hot: color-mix(in srgb, var(--x-accent-ink-paper) 80%, #000);
+}
+.x-tile-paper::before,
+.x-tile-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+}
+.x-tile-paper::before {
+  background: linear-gradient(135deg, rgb(var(--x-light-rgb) / 0.82), rgb(var(--x-light-rgb) / 0.6));
+  -webkit-backdrop-filter: blur(4px) invert(1) hue-rotate(180deg) saturate(1.2) brightness(1.04);
+  backdrop-filter: blur(4px) invert(1) hue-rotate(180deg) saturate(1.2) brightness(1.04);
+}
+.x-tile-paper::after {
+  padding: calc(10 * var(--uc));
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  -webkit-backdrop-filter: blur(12px) brightness(1.22) saturate(1.15);
+  backdrop-filter: blur(12px) brightness(1.22) saturate(1.15);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .x-tile {
