@@ -57,12 +57,13 @@ const scrollLock = (on: boolean) => {
 const setVw = () =>
   document.documentElement.style.setProperty('--x-vw', `${document.documentElement.getBoundingClientRect().width}px`);
 
-/* ---------- ① 点阵地球算力网络(Dotted Globe;R47) ----------
-   取代洛伦兹吸引子(R2/08-20)——主人 2026-08-27 拍板,规格见 docs/changes/2026-08-27-dotted-globe.md。
-   动效契约不变:静止时主体零重渲(body/glow 离屏缓存 + dirty 门),每帧只画网络层
-   (枢纽呼吸 / 扩散环 / 弧上流光);滚动经五姿态链驱动旋转(yaw 单调 -105°→+105°,
-   背面半球在旅程中被完整展示)。R33 纪律沿用:黑底离屏 + 预乘不透明色 + screen 合成 →
-   重叠零增亮;鼠标推斥按拍板移除(球是刚体,局部形变破坏星球质感),倾斜 + 视差漂移保留。 */
+/* ---------- ① 点阵地球算力网络(Dotted Globe;R47.1) ----------
+   取代洛伦兹吸引子(R2/08-20)——规格 docs/changes/2026-08-27-dotted-globe.md + 主人 08-27 三条改令:
+   ① 26 枢纽 / 32 弧 / 8 条流光同飞(算力繁忙感);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
+   时间累积,暂停/切页归来不跳帧),滚动只驱动缩放与位移(五姿态链管 cx/cy/r/pitch,不再管经度)——
+   R2「静止零重渲」契约由此退役,常转即常渲(辉光 180ms 节流保留);③ 原版鼠标推斥回归
+   (半径 160/力 90,陆点/枢纽/弧同场变形,coarse 无)。R33 纪律沿用:黑底离屏 + 预乘不透明色 +
+   screen 合成 → 重叠零增亮;reduced-motion 静帧(不转)。 */
 function initGlobe() {
   const canvas = document.getElementById('x-bg') as HTMLCanvasElement | null;
   if (!canvas) return;
@@ -95,20 +96,34 @@ function initGlobe() {
     }
   }
 
-  /* ── 算力枢纽 ×12(纯图形无标签——不构成设施声明;越南在列不突出) */
+  /* ── 算力枢纽 ×26(R47.1 改令① 加密;纯图形无标签——不构成设施声明;越南在列不突出) */
   const HUBS: ReadonlyArray<readonly [number, number]> = [
-    [39.0, -77.5] /* 阿什本 */,
-    [37.3, -121.9] /* 圣何塞 */,
-    [-23.55, -46.63] /* 圣保罗 */,
-    [51.51, -0.13] /* 伦敦 */,
-    [50.11, 8.68] /* 法兰克福 */,
-    [25.2, 55.27] /* 迪拜 */,
-    [19.08, 72.88] /* 孟买 */,
-    [1.35, 103.82] /* 新加坡 */,
-    [10.82, 106.63] /* 胡志明市 */,
-    [35.68, 139.69] /* 东京 */,
-    [37.57, 126.98] /* 首尔 */,
-    [-33.87, 151.21] /* 悉尼 */,
+    [39.0, -77.5] /* 0 阿什本 */,
+    [37.3, -121.9] /* 1 圣何塞 */,
+    [47.6, -122.33] /* 2 西雅图 */,
+    [41.88, -87.63] /* 3 芝加哥 */,
+    [19.43, -99.13] /* 4 墨西哥城 */,
+    [-23.55, -46.63] /* 5 圣保罗 */,
+    [-34.6, -58.38] /* 6 布宜诺斯艾利斯 */,
+    [51.51, -0.13] /* 7 伦敦 */,
+    [52.37, 4.9] /* 8 阿姆斯特丹 */,
+    [48.86, 2.35] /* 9 巴黎 */,
+    [50.11, 8.68] /* 10 法兰克福 */,
+    [59.33, 18.07] /* 11 斯德哥尔摩 */,
+    [52.23, 21.01] /* 12 华沙 */,
+    [25.2, 55.27] /* 13 迪拜 */,
+    [-26.2, 28.05] /* 14 约翰内斯堡 */,
+    [6.45, 3.4] /* 15 拉各斯 */,
+    [19.08, 72.88] /* 16 孟买 */,
+    [12.97, 77.59] /* 17 班加罗尔 */,
+    [1.35, 103.82] /* 18 新加坡 */,
+    [10.82, 106.63] /* 19 胡志明市 */,
+    [13.76, 100.5] /* 20 曼谷 */,
+    [-6.2, 106.85] /* 21 雅加达 */,
+    [35.68, 139.69] /* 22 东京 */,
+    [37.57, 126.98] /* 23 首尔 */,
+    [-33.87, 151.21] /* 24 悉尼 */,
+    [-36.85, 174.76] /* 25 奥克兰 */,
   ];
   const NH = HUBS.length;
   const hx3 = new Float32Array(NH),
@@ -123,20 +138,40 @@ function initGlobe() {
     hz3[h] = cl * Math.cos(lo);
   }
 
-  /* ── 12 条大圆弧(每枢纽 ≥1;新加坡/阿什本/东京连接度高),slerp 采样,弧中点抬离球面 6% */
+  /* ── 32 条大圆弧(R47.1 改令①;每枢纽 ≥1,区域网 + 跨洋干线),slerp 采样,弧中点抬离球面 6% */
   const ARCS: ReadonlyArray<readonly [number, number]> = [
-    [8, 7] /* 胡志明市–新加坡 */,
-    [7, 9] /* 新加坡–东京 */,
-    [7, 6] /* 新加坡–孟买 */,
-    [7, 11] /* 新加坡–悉尼 */,
-    [9, 10] /* 东京–首尔 */,
-    [9, 1] /* 东京–圣何塞 */,
+    [0, 3] /* 阿什本–芝加哥 */,
+    [3, 2] /* 芝加哥–西雅图 */,
+    [2, 1] /* 西雅图–圣何塞 */,
     [1, 0] /* 圣何塞–阿什本 */,
-    [0, 3] /* 阿什本–伦敦 */,
-    [3, 4] /* 伦敦–法兰克福 */,
-    [4, 5] /* 法兰克福–迪拜 */,
-    [5, 6] /* 迪拜–孟买 */,
-    [2, 0] /* 圣保罗–阿什本 */,
+    [4, 1] /* 墨西哥城–圣何塞 */,
+    [4, 5] /* 墨西哥城–圣保罗 */,
+    [5, 6] /* 圣保罗–布宜诺斯艾利斯 */,
+    [5, 0] /* 圣保罗–阿什本 */,
+    [0, 7] /* 阿什本–伦敦(跨大西洋) */,
+    [5, 15] /* 圣保罗–拉各斯(南大西洋) */,
+    [7, 8] /* 伦敦–阿姆斯特丹 */,
+    [8, 10] /* 阿姆斯特丹–法兰克福 */,
+    [9, 7] /* 巴黎–伦敦 */,
+    [9, 10] /* 巴黎–法兰克福 */,
+    [10, 12] /* 法兰克福–华沙 */,
+    [11, 8] /* 斯德哥尔摩–阿姆斯特丹 */,
+    [15, 14] /* 拉各斯–约翰内斯堡 */,
+    [14, 13] /* 约翰内斯堡–迪拜 */,
+    [13, 10] /* 迪拜–法兰克福 */,
+    [13, 16] /* 迪拜–孟买 */,
+    [16, 17] /* 孟买–班加罗尔 */,
+    [17, 18] /* 班加罗尔–新加坡 */,
+    [18, 19] /* 新加坡–胡志明市 */,
+    [18, 20] /* 新加坡–曼谷 */,
+    [18, 21] /* 新加坡–雅加达 */,
+    [19, 20] /* 胡志明市–曼谷 */,
+    [19, 22] /* 胡志明市–东京 */,
+    [22, 23] /* 东京–首尔 */,
+    [22, 1] /* 东京–圣何塞(跨太平洋) */,
+    [23, 2] /* 首尔–西雅图(跨太平洋) */,
+    [24, 18] /* 悉尼–新加坡 */,
+    [24, 25] /* 悉尼–奥克兰 */,
   ];
   const NA = ARCS.length,
     ASEG = 48;
@@ -219,22 +254,26 @@ function initGlobe() {
     cx: number;
     cy: number;
     r: number;
-    yaw: number;
     pitch: number;
   }
-  /* 姿态语义:r=球半径 px;面向经度 = -yaw。yaw 单调 -105°→+105°:
-     东南亚(默认,越南居中偏下)→ 印度洋 → 欧非 → 大西洋特写 → 美洲地平线,全程 210°;
-     pitch 收敛 ±0.35 rad——极区无大陆,不给它正脸。数值为首轮构图值,评审轮微调。 */
+  /* 姿态语义(R47.1):滚动只管构图——位置 / r=球半径 px / pitch(±0.35,极区无大陆不给正脸);
+     经度旋转不归姿态管,由下方 spinYaw 常转累积(改令②)。数值为首轮构图值,评审轮微调。 */
   const R0 = () => 0.46 * Math.min(W, H);
-  const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.6 * H, r: R0(), yaw: -105 * D2R, pitch: 0.31 });
-  const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, r: 0.55 * R0(), yaw: -65 * D2R, pitch: 0.1 });
-  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, r: 0.7 * R0(), yaw: -5 * D2R, pitch: 0.35 });
-  const poseC = (): Pose => ({ cx: 0.5 * W, cy: 0.55 * H, r: 1.6 * R0(), yaw: 55 * D2R, pitch: 0.2 });
+  const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.6 * H, r: R0(), pitch: 0.31 });
+  const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, r: 0.55 * R0(), pitch: 0.1 });
+  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, r: 0.7 * R0(), pitch: 0.35 });
+  const poseC = (): Pose => ({ cx: 0.5 * W, cy: 0.55 * H, r: 1.6 * R0(), pitch: 0.2 });
   const poseD = (): Pose => {
     /* 页脚:球心压到视口下缘外,球缘呈地平线弧 */
     const r = 1.9 * R0();
-    return { cx: 0.5 * W, cy: H + 0.62 * r, r, yaw: 105 * D2R, pitch: 0.3 };
+    return { cx: 0.5 * W, cy: H + 0.62 * r, r, pitch: 0.3 };
   };
+  /* 常态自转(改令②):面向经度 = -yaw,开局东南亚(越南居中偏下),向西 80s/圈;
+     只在运行帧累积(dt 封顶 100ms)——暂停/切页归来不跳帧;reduced-motion 恒为 HOME_YAW 静帧。 */
+  const HOME_YAW = -105 * D2R;
+  const SPIN = (2 * Math.PI) / 80000; /* rad/ms,80s 一圈 */
+  let spinYaw = HOME_YAW;
+  let lastT = -1;
   /* R21 绑定沿用:statement→A(左下小) about→B(右中景) 叠卡→C(特写) 收尾黑区→D(最大);白带段被盖住 */
   const ANCHOR_IDS = ['social', 'mission', 'devices', 'final-cta'];
   let anchors: (HTMLElement | null)[] = [];
@@ -250,7 +289,6 @@ function initGlobe() {
     cx: a.cx + p * (b.cx - a.cx),
     cy: a.cy + p * (b.cy - a.cy),
     r: a.r + p * (b.r - a.r),
-    yaw: a.yaw + p * (b.yaw - a.yaw),
     pitch: a.pitch + p * (b.pitch - a.pitch),
   });
 
@@ -270,7 +308,7 @@ function initGlobe() {
   /* 辉光烘焙节流(R47):上次烘焙时刻 + 「主体新于辉光」标记,停稳补烘 */
   let glowAt = -1e9;
   let glowStale = false;
-  const dbg = { renders: 0, yaw: 0, pitch: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
+  const dbg = { renders: 0, yaw: 0, pitch: 0, r: 0, fl: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
   (window as unknown as Record<string, unknown>).__xbg = dbg;
 
   /* R36:高分屏适配——渲染精度乘 DPR(上限 1.5),离屏缓存机制不变 */
@@ -320,19 +358,6 @@ function initGlobe() {
       dep[i] = z2;
     }
 
-    /* 正交投影圆点盖章:亮度=深度光照(正面亮、背面 22% 渐隐保体积),12 档 sprite */
-    bctx.globalCompositeOperation = 'source-over';
-    bctx.fillStyle = '#000000';
-    bctx.fillRect(0, 0, W, H);
-    for (let i = 0; i < N; i++) {
-      const m = dep[i];
-      const s = m >= 0 ? 0.26 + 0.74 * m : 0.22 * (1 + m);
-      if (s < 0.045) continue;
-      const b = Math.min(SHB - 1, (s * SHB) | 0);
-      const r = q * (1.15 + 0.65 * (m > 0 ? m : 0));
-      bctx.drawImage(dotSprites[b], px[i] - r, py[i] - r, r + r, r + r);
-    }
-
     for (let h = 0; h < NH; h++) {
       const x1 = hx3[h] * cyw + hz3[h] * syw;
       const z1 = hz3[h] * cyw - hx3[h] * syw;
@@ -357,6 +382,42 @@ function initGlobe() {
         dy = sy - cy;
       /* 背面且落在球盘内 = 被球体遮挡;抬升段越过球缘则可见 */
       avis[k] = z2 > 0 || dx * dx + dy * dy > RR ? 1 : 0;
+    }
+
+    /* 原版鼠标推斥回归(改令③,参数与洛伦兹版一致:半径 160 / 力 90 平方衰减)。
+       陆点/枢纽/弧样点同场位移保持连贯;放在 avis 判定之后——遮挡按未变形几何判,免得弧线在凹陷边缘闪断。 */
+    if (!coarse && mouse.x > -9000) {
+      const mx = mouse.x,
+        my = mouse.y;
+      const shove = (xs: Float32Array, ys: Float32Array, n: number) => {
+        for (let i = 0; i < n; i++) {
+          const ddx = xs[i] - mx;
+          const ddy = ys[i] - my;
+          const d2 = ddx * ddx + ddy * ddy;
+          if (d2 >= 1 && d2 < 25600) {
+            const d = Math.sqrt(d2);
+            const f = 90 * (1 - d / 160) ** 2;
+            xs[i] += (ddx / d) * f;
+            ys[i] += (ddy / d) * f;
+          }
+        }
+      };
+      shove(px, py, N);
+      shove(hpx, hpy, NH);
+      shove(apx, apy, NA * (ASEG + 1));
+    }
+
+    /* 正交投影圆点盖章:亮度=深度光照(正面亮、背面 22% 渐隐保体积),12 档 sprite */
+    bctx.globalCompositeOperation = 'source-over';
+    bctx.fillStyle = '#000000';
+    bctx.fillRect(0, 0, W, H);
+    for (let i = 0; i < N; i++) {
+      const m = dep[i];
+      const s = m >= 0 ? 0.26 + 0.74 * m : 0.22 * (1 + m);
+      if (s < 0.045) continue;
+      const b = Math.min(SHB - 1, (s * SHB) | 0);
+      const r = q * (1.15 + 0.65 * (m > 0 ? m : 0));
+      bctx.drawImage(dotSprites[b], px[i] - r, py[i] - r, r + r, r + r);
     }
 
     /* R32→R47:辉光烘焙去抖。全画布 blur(7px) 是重渲帧的最大单项,滚动逐帧烘会把帧率
@@ -398,7 +459,7 @@ function initGlobe() {
     h: number;
     t0: number;
   }
-  const FL = coarse ? 2 : 3; /* 同时活跃流光条数 */
+  const FL = coarse ? 4 : 8; /* 同时活跃流光条数(改令①:算力繁忙感) */
   const flights: Flight[] = [];
   const rings: Ring[] = [];
   const nextPing = new Float64Array(NH);
@@ -445,7 +506,7 @@ function initGlobe() {
           const target = F.rev ? ARCS[F.a][0] : ARCS[F.a][1];
           if (hdep[target] > 0) rings.push({ h: target, t0: t });
         }
-        if (e >= 1 + TAILU) flights[i] = launch(t, 260 + Math.random() * 520);
+        if (e >= 1 + TAILU) flights[i] = launch(t, 140 + Math.random() * 360);
       }
     }
 
@@ -540,7 +601,7 @@ function initGlobe() {
   /* 静帧合成(reduced-motion 初绘 / 暂停态 / resize 重画共用) */
   const drawStatic = () => {
     const P = poseHome();
-    renderBody(P.cx, P.cy, P.r, P.yaw, P.pitch);
+    renderBody(P.cx, P.cy, P.r, HOME_YAW, P.pitch);
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
@@ -554,6 +615,10 @@ function initGlobe() {
   let running = false;
   const frame = () => {
     const now = performance.now();
+    /* 常转:dt 封顶 100ms——切页/长任务归来球不瞬移 */
+    const dt = lastT < 0 ? 16 : Math.min(100, now - lastT);
+    lastT = now;
+    spinYaw += SPIN * dt;
     let P = poseHome();
     const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2], 0.35), prog(anchors[3])];
     P = mix(P, poseA(), ps[0]);
@@ -585,11 +650,13 @@ function initGlobe() {
 
     const cx = P.cx + driftX;
     const cy = P.cy + driftY;
-    const yaw = P.yaw + tiltX;
+    const yaw = spinYaw + tiltX;
     const pitch = P.pitch + tiltY;
 
     dbg.yaw = yaw;
     dbg.pitch = pitch;
+    dbg.r = P.r;
+    dbg.fl = FL;
     dbg.tiltX = tiltX;
     dbg.tiltY = tiltY;
     dbg.driftX = driftX;
@@ -637,9 +704,10 @@ function initGlobe() {
   const start = () => {
     if (running || reduced || userPaused) return;
     running = true;
+    lastT = -1; /* 停摆期不计入自转 */
     if (!flights.length) {
       const t = performance.now();
-      for (let i = 0; i < FL; i++) flights.push(launch(t, 400 + i * 900));
+      for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 450));
       for (let h = 0; h < NH; h++) nextPing[h] = t + 1500 + h * 420;
     }
     raf = requestAnimationFrame(frame);
