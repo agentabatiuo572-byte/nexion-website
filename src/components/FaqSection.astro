@@ -1,7 +1,8 @@
 ---
-/* [FEAT-WEB12] Home FAQ — 6 问手风琴(原生 details)+ FAQPage JSON-LD。
+/* [FEAT-WEB12] Home FAQ — R48 玻璃重构(章 06):6 问手风琴(原生 details)+ FAQPage JSON-LD 原样,
+   行阵装进一块玻璃瓷砖(细线行式 + 序号 + 柠檬 +/− 记号保留;墨色翻回暗系)。
    涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。
-   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。本规格同时是 /nex FAQ 与信任区 PoC 手风琴的样板(R45 B7 归一)。 */
+   本规格仍是 /nex FAQ 与信任区 PoC 手风琴的样板(R45 B7 归一)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -23,20 +24,23 @@ const ld = {
 
 <section class="faq-sec" id="faq">
   <div class="head">
+    <span class="x-ghost ghost" aria-hidden="true">06</span>
     <p class="lab x-mono-lg" data-tw>{t('faq.title')}</p>
   </div>
-  {
-    qs.map((n, i) => (
-      <details class="item" data-rv style={`--d:${i * 0.05}s`}>
-        <summary>
-          <span class="idx x-mono">Q{n}</span>
-          <span class="q x-q">{t(`faq.q${n}`)}</span>
-          <span class="mark x-mono" aria-hidden="true">+</span>
-        </summary>
-        <p class="x-mono">{t(`faq.a${n}`)}</p>
-      </details>
-    ))
-  }
+  <div class="panel x-tile">
+    {
+      qs.map((n, i) => (
+        <details class="item" data-rv style={`--d:${i * 0.05}s`}>
+          <summary>
+            <span class="idx x-mono">Q{n}</span>
+            <span class="q x-q">{t(`faq.q${n}`)}</span>
+            <span class="mark x-mono" aria-hidden="true">+</span>
+          </summary>
+          <p class="x-mono">{t(`faq.a${n}`)}</p>
+        </details>
+      ))
+    }
+  </div>
   <script type="application/ld+json" set:html={JSON.stringify(ld)} />
 </section>
 
@@ -44,22 +48,31 @@ const ld = {
   .faq-sec {
     padding: 0 var(--x-pad);
   }
-  .faq-sec > * {
-    max-width: calc(1100 * var(--uc));
-  }
   .head {
-    margin-bottom: max(48px, calc(120 * var(--u)));
+    position: relative;
+    margin-bottom: max(32px, calc(48 * var(--u)));
+  }
+  .ghost {
+    left: calc(-16 * var(--uc));
+    top: calc(-30 * var(--uc));
   }
   .lab {
+    position: relative;
+    z-index: 1;
     color: var(--x-ink);
     margin: 0;
     min-height: 1.2em;
   }
-  .item {
-    border-top: 1px solid var(--x-line-dark);
+  .panel {
+    max-width: calc(1100 * var(--uc));
+    padding: calc(8 * var(--uc)) calc(30 * var(--uc));
+    z-index: 1;
   }
-  .item:last-of-type {
-    border-bottom: 1px solid var(--x-line-dark);
+  .item {
+    border-top: 1px solid var(--x-line-soft);
+  }
+  .item:first-of-type {
+    border-top: 0; /* 瓷砖边界已是首行上缘 */
   }
   .item summary {
     cursor: pointer;
@@ -74,7 +87,7 @@ const ld = {
     display: none;
   }
   .idx {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     font-weight: 400;
     flex: 0 0 calc(30 * var(--uc));
   }
@@ -83,9 +96,8 @@ const ld = {
     color: var(--x-ink);
     flex: 1;
   }
-
   .mark {
-    color: var(--x-accent-ink); /* R30:与信任区手风琴记号统一档 */
+    color: var(--x-accent-hot);
     font-weight: 400;
     position: relative;
   }
@@ -97,17 +109,17 @@ const ld = {
     visibility: visible;
     position: absolute;
     left: 0;
-    color: var(--x-accent-ink);
+    color: var(--x-accent-hot);
   }
   .item p {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     max-width: calc(760 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
   }
   .item p:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量(曾被本规则特异度压回 1.45) */
+    line-height: 1.6; /* 全站 CJK 行高不变量 */
   }
   .q {
     transition: opacity 0.2s;

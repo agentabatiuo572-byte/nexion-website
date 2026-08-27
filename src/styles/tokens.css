@@ -349,6 +349,27 @@ html {
   }
 }
 
+/* R48 幽灵编号(重构段章头,B+C 杂交里 C 的记忆点):描边空心大字,纯装饰。
+   各章头自己定位(左右交替);≤640 收掉——窄屏没有给 220px 空心字的留白。 */
+.x-ghost {
+  position: absolute;
+  z-index: 0;
+  font-family: var(--x-font-display);
+  font-weight: 500;
+  font-size: max(120px, calc(220 * var(--u)));
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: transparent;
+  -webkit-text-stroke: calc(1.5 * var(--uc)) rgba(255, 255, 255, 0.12);
+  pointer-events: none;
+  user-select: none;
+}
+@media (max-width: 640px) {
+  .x-ghost {
+    display: none;
+  }
+}
+
 /* slide-swap 按钮(R48:全站胶囊圆角 —— 主人拍板「按钮修改为圆角」;overflow:hidden 顺带把滑层裁进胶囊) */
 .xbtn {
   position: relative;

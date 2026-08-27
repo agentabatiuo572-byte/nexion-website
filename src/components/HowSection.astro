@@ -1,10 +1,10 @@
 ---
-/* [FEAT-WEB05] How it works — R8(白带首块,画布 1440 等比):
-   头行=左 16 mono 打字机标签 + 右 725 列双段 40 档陈述(head1/head2,新 key);
-   三列各带「编号↔类目词」两端行(12 mono 0.8 墨,打字机),
-   标题升 48 档行遮罩、等高线图入流、三列视差 k=[0.06,0.11,0.16]。
+/* [FEAT-WEB05] How it works — R48 玻璃重构(章 01,B+C 杂交):
+   章头 = 幽灵编号 01(右)+ 16 mono 打字机 kicker + 44 档双段陈述(head1 亮 / head2 dim);
+   三步改玻璃瓷砖(x-tile),瓷砖内保留「编号↔类目」两端行、48→24 档标题、等高线图、正文;
+   打字机 / 行遮罩 / 进场 / 三列视差钩子(data-tw/lr/rv/plx)全部沿用,k 值不变。
    机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。
-   R45:行内链命中高补到 44(零重排)、按压档回仓规 0.58;zh 卡文行高走全站 CJK 值。 */
+   R45 的行内链 44 命中补高在玻璃版里改为常规行内链(瓷砖内行高 1.45,命中盒自然 ≥44 由 padding 保证)。 */
 import { useT, type Locale } from '../i18n';
 import { contour } from '../lib/contour';
 
@@ -15,13 +15,13 @@ const { locale } = Astro.props;
 const t = useT(locale);
 const steps = [1, 2, 3] as const;
 const arts = [contour(101, 12, 393, 237), contour(202, 12, 393, 237), contour(303, 12, 393, 237)];
-/* 抄参考站实测(两路还原度评审各自回归三段滚动区间,逐段同值):0.0566 / 0.0991 / 0.1379。
-   原值 0.06 / 0.11 / 0.16 比参考站大 5.5% / 10.9% / 16.1%,一屏累计第 3 列多走约 20px。 */
+/* 抄参考站实测的三段视差系数,R48 沿用(瓷砖化不改滚动手感) */
 const ks = [0.057, 0.099, 0.138];
 ---
 
 <section class="how" id="how">
   <div class="head">
+    <span class="x-ghost ghost" aria-hidden="true">01</span>
     <p class="lab x-mono-lg" data-tw>{t('how.title')}</p>
     <div class="statements x-display">
       <h2 data-lr>{t('how.head1')}</h2>
@@ -32,7 +32,7 @@ const ks = [0.057, 0.099, 0.138];
   <div class="steps">
     {
       steps.map((n) => (
-        <article class="step rv-fade" data-rv data-plx={ks[n - 1]}>
+        <article class="step x-tile rv-fade" data-rv data-plx={ks[n - 1]}>
           <p class="metarow x-mono">
             <span data-tw data-tw-delay={160 * (n - 1)}>0{n}</span>
             <span data-tw data-tw-delay={160 * (n - 1) + 120}>{t(`how.cat${n}`)}</span>
@@ -41,7 +41,7 @@ const ks = [0.057, 0.099, 0.138];
             <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
             <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
               {arts[n - 1].paths.map((d) => (
-                <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
+                <path d={d} fill="none" stroke="var(--x-ink)" stroke-width="1" opacity="0.3" />
               ))}
             </svg>
             <p class="x-mono body">
@@ -66,25 +66,27 @@ const ks = [0.057, 0.099, 0.138];
   .how {
     padding: 0 var(--x-pad);
   }
-  /* 块头行:左标签占满、右陈述列定宽(画布 gap-60/列 725/陈述 40 档) */
+  /* 章头:幽灵编号右侧压底,kicker + 双段陈述左对齐(章头间距与各章统一 48) */
   .head {
-    display: flex;
-    gap: max(24px, calc(60 * var(--u)));
-    align-items: baseline;
-    margin-bottom: max(48px, calc(120 * var(--u))); /* 与 #path / #trust / #nex / #learn-entry / #faq 同值;180 与块间距同值会让陈述段读起来不属于本块 */
+    position: relative;
+    margin-bottom: max(32px, calc(48 * var(--u)));
+  }
+  .ghost {
+    right: calc(-10 * var(--uc));
+    top: calc(-30 * var(--uc));
   }
   .lab {
-    flex: 1;
-    min-width: 0;
     color: var(--x-ink);
-    margin: 0;
+    margin: 0 0 calc(16 * var(--uc));
     min-height: 1.2em;
     white-space: nowrap;
   }
   .statements {
-    width: calc(725 * var(--u));
-    flex: 0 0 auto;
-    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板 ④ 的第三例:与 #mission .state / #social .disp 同值同公式(此前 40,比自己统辖的卡标题 48 还小) */
+    position: relative;
+    z-index: 1;
+    width: calc(900 * var(--u));
+    max-width: 100%;
+    font-size: max(30px, calc(44 * var(--u)));
     color: var(--x-ink);
   }
   .statements h2,
@@ -93,41 +95,41 @@ const ks = [0.057, 0.099, 0.138];
     font-weight: inherit;
     margin: 0;
   }
-  .statements h2 {
-    margin-bottom: calc(20 * var(--uc));
+  .statements p {
+    color: var(--x-ink-dim);
   }
   .steps {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
-    gap: max(24px, calc(60 * var(--u)));
+    gap: calc(18 * var(--uc));
   }
-  /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
+  /* 玻璃瓷砖列(R48;原「无盒开放列」退役):tile 自带边界,竖线随白带一起退场 */
   .step {
-    border-left: 1px solid var(--x-line-dark);
-    padding-left: calc(20 * var(--uc));
+    padding: calc(30 * var(--uc)) calc(30 * var(--uc)) calc(34 * var(--uc));
     display: flex;
     flex-direction: column;
-    gap: max(40px, calc(82 * var(--u)));
+    gap: max(32px, calc(56 * var(--u)));
     will-change: transform;
+    z-index: 1;
   }
   .metarow {
     display: flex;
     justify-content: space-between;
     margin: 0;
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     white-space: nowrap;
   }
   .metarow span:first-child {
-    color: var(--x-accent-ink); /* R30:纸面编号深柠檬回血 */
+    color: var(--x-accent-hot); /* 黑区编号亮柠檬热档(与数据条序号同体例) */
   }
   .stack {
     display: flex;
     flex-direction: column;
-    gap: calc(24 * var(--uc));
+    gap: calc(20 * var(--uc));
     align-items: stretch;
   }
   .stack h3 {
-    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
+    font-size: max(22px, calc(30 * var(--u))); /* 瓷砖内标题降一档(瓷砖比开放列窄,48 档会两行起步) */
     color: var(--x-ink);
     margin: 0;
   }
@@ -135,61 +137,38 @@ const ks = [0.057, 0.099, 0.138];
     width: 100%;
     aspect-ratio: 393 / 237;
     display: block;
+    border-radius: var(--x-r-sm);
   }
   .stack .body {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     margin: 0;
     text-wrap: pretty;
-    line-height: 1.2; /* R45 拍板:卡内正文回参考站的 mono 1.2(FAQ / PoC 等长句位保持 1.45) */
-  }
-  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 5.67) */
-  .stack .body:lang(vi):not(html) {
-    line-height: 1.45;
+    line-height: 1.45; /* 瓷砖内正文回 1.45(玻璃版不追参考站 1.2 密排;vi/zh 型类分支照常覆写) */
   }
   .stack .body:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量(曾被本规则特异度压回 1.45) */
+    line-height: 1.6; /* 全站 CJK 行高不变量 */
   }
   .vlink {
     color: var(--x-ink);
     text-decoration: underline;
     text-underline-offset: calc(3 * var(--uc));
-    /* 触达:44 命中盒不能盖住上一行文字 → 链接独立成行(shrink-to-fit),上面只借 6.6px(上一行的降部区),下面借空白 */
     display: block;
     width: fit-content;
-    position: relative; /* 借到上一行的 6.6px 里 hit-test 要命中自己(否则有效命中只剩 37px) */
-    /* 卡正文行高由 1.45 收到 1.2 后行盒从 17.4 变 14.4,内衬要跟着补,否则命中高掉到 41.4(破 44 纪律);
-       负外边距同步加深,保持占位高 = 行盒(版面零变化) */
-    /* 上借只能吃上一行**降部下方的空白**:行高收到 1.2 后行盒(14.4)比内联盒(17)还矮,半行距 −1.3,
-       6.6 的上借实际吃掉上一行内联盒底部 7.2px(逐行 elementFromPoint 扫出来的)。收到 2.5,其余由下借补足。 */
-    /* 内衬 14.81:命中高 = 行盒 14.384 + 29.62 = 44.004(14.8 时是 43.9844,差 0.0156 不达标)。
-       上借 1.6:接管上一行内联盒 ≈3.4(2.5 时实测 3.667–4.333);下借同步加深,占位高仍 = 行盒。 */
-    padding: calc(14.81 * var(--uc)) 0;
-    margin: calc(-1.6 * var(--uc)) 0 calc(-28.02 * var(--uc));
+    position: relative;
+    /* 44 命中盒:行高 1.45 行盒 17.4,内衬 (44−17.4)/2=13.3;负外边距抵消占位(版面零变化) */
+    padding: calc(13.3 * var(--uc)) 0;
+    margin: calc(-6 * var(--uc)) 0 calc(-20.6 * var(--uc));
     transition: opacity 0.2s;
   }
   .vlink:hover {
     opacity: 0.6;
   }
   .vlink:active {
-    opacity: 0.58; /* 仓规按压档(纸面 4.65:1 过 AA);此前 0.45 只有 3.04:1 */
+    opacity: 0.58;
   }
   @media (max-width: 860px) {
-    .head {
-      flex-direction: column;
-      gap: calc(24 * var(--uc));
-      /* 不覆写 margin-bottom:另五块在窄屏也没有覆写,继承同一条 max(48px, 120·--u);
-         此前这里写死 60·--uc,861 以下 #how 又与另五块脱队(上一轮只治了桌面段) */
-    }
     .statements {
       width: 100%;
-    }
-  }
-  @media (max-width: 768px) {
-    .step {
-      border-left: 0;
-      border-top: 1px solid var(--x-line-dark);
-      padding: calc(20 * var(--uc)) 0 0;
-      gap: calc(40 * var(--uc));
     }
   }
 </style>

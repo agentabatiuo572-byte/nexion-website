@@ -1274,9 +1274,11 @@ function initPile() {
     const secTop = sec.getBoundingClientRect().top;
     const e = clamp01((T - secTop) / DIST);
     /* R48:深带透明后,curtain 重叠段的「遮挡」改由叠卡自淡出承担(白幕布时代靠不透明底)。
-       重叠进度 = 编舞总程之外多滚的那段 ÷ 区高;0.72 让卡在带子盖到七成前就隐没,不与新区内容叠影。 */
+       带顶从 DIST−secH 处开始压进钉屏区、到 DIST 处盖满 —— 重叠窗与**最后一拍同期**
+       (白幕布时代最后一拍本来就在幕布底下播完,不可见;淡出让这段等价)。
+       0.8 让卡在盖满前略提前隐没,不与压上来的新区内容叠影。 */
     const secH = pin.offsetHeight * ZOOM || 1;
-    const o = smooth(clamp01((T - secTop - DIST) / (secH * 0.72)));
+    const o = smooth(clamp01((T - secTop - (DIST - secH)) / (secH * 0.8)));
     pin.style.opacity = o > 0 ? (1 - o).toFixed(3) : '';
     const beats: number[] = [];
     for (let k = 0; k < N; k++) beats.push(smooth(clamp01((e - k / N) * N)));
