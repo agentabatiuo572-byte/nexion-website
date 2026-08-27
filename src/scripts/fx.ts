@@ -1,6 +1,7 @@
-/* 全站交互引擎 R45(axiom 方向,自研实现;参数规格见 PRD/specs/WEBSITE-axiom-teardown.md)。
-   ① 洛伦兹背景:五姿态链式插值(界内恒定/跨界变形);首绘 1s zoom-fade 由 CSS 承担(tokens.css `html.js #x-bg`,
-      首帧即起,不再依赖空闲回调时机);reduced-motion 静帧在 resize 后重画。
+/* 全站交互引擎 R47(axiom 方向,自研实现;参数规格见 PRD/specs/WEBSITE-axiom-teardown.md)。
+   ① 点阵地球背景(R47 取代洛伦兹,规格 docs/changes/2026-08-27-dotted-globe.md):陆地点阵球 + 12 算力枢纽
+      呼吸/扩散环 + 大圆弧流光;五姿态链式插值沿用(滚动驱动旋转,yaw 单调 -105°→+105°);
+      首绘 1s zoom-fade 由 CSS 承担(tokens.css `html.js #x-bg`);reduced-motion 静帧在 resize 后重画。
    ② Lenis:duration 1.2 + easeOutExpo(恒定收尾时长的「奢滑」);站内锚点补间 + 目标获焦;修饰键点击放行原生。
    ③ 行遮罩逐行上滑(display 标题唯一进场方式;可访问文本走 .x-sr,不给无角色宿主挂 aria-label)
    ④ 打字机:R45 改「影子层定版面、打字层叠打」——不再按 ch 数猜宽度(CJK 一字 1em、chip 内衬、右对齐都曾因此折行/跳动),
@@ -11,6 +12,7 @@
    首载四拍编排由 html.x-boot + CSS 时间线承担(仅首页 navigate 型导航,Base.astro 头部内联脚本在首帧前判定)。
    reduced-motion:全部降级直显。 */
 import Lenis from 'lenis';
+import { GLOBE_DOTS_B64, GLOBE_DOTS_N } from './globe-dots';
 
 /* 🔴 「引擎到货了」的信号,必须在模块**最顶上**挂,不能等 boot():
    [data-rv] 的隐藏初始态由 html.js 开启(内联脚本首帧前就挂,bundle 挂掉也照挂),
@@ -55,86 +57,160 @@ const scrollLock = (on: boolean) => {
 const setVw = () =>
   document.documentElement.style.setProperty('--x-vw', `${document.documentElement.getBoundingClientRect().width}px`);
 
-/* ---------- ① 洛伦兹吸引子背景 ---------- */
-function initLorenz() {
+/* ---------- ① 点阵地球算力网络(Dotted Globe;R47) ----------
+   取代洛伦兹吸引子(R2/08-20)——主人 2026-08-27 拍板,规格见 docs/changes/2026-08-27-dotted-globe.md。
+   动效契约不变:静止时主体零重渲(body/glow 离屏缓存 + dirty 门),每帧只画网络层
+   (枢纽呼吸 / 扩散环 / 弧上流光);滚动经五姿态链驱动旋转(yaw 单调 -105°→+105°,
+   背面半球在旅程中被完整展示)。R33 纪律沿用:黑底离屏 + 预乘不透明色 + screen 合成 →
+   重叠零增亮;鼠标推斥按拍板移除(球是刚体,局部形变破坏星球质感),倾斜 + 视差漂移保留。 */
+function initGlobe() {
   const canvas = document.getElementById('x-bg') as HTMLCanvasElement | null;
   if (!canvas) return;
   const ctx = canvas.getContext('2d', { alpha: false });
   if (!ctx) return;
 
-  /* 底色只有一个真源(tokens.css 的 --x-bg)。此前这里写了两处 `#0c0c0d` 字面量,
-     改品牌底色时改不到 —— 画布会和页面差一个色。开局读一次,读不到才退回字面量。 */
+  /* 底色单一真源(tokens.css 的 --x-bg),读不到才退字面量(R2 教训沿袭) */
   const BG = getComputedStyle(document.documentElement).getPropertyValue('--x-bg').trim() || '#0c0c0d';
-  const N = coarse ? 8000 : 20000;
-  const pts = new Float32Array(N * 3);
-  let ax = 0.1,
-    ay = 0,
-    az = 0;
-  const step = () => {
-    const dx = 10 * (ay - ax);
-    const dy = ax * (28 - az) - ay;
-    const dz = ax * ay - (8 / 3) * az;
-    ax += 0.005 * dx;
-    ay += 0.005 * dy;
-    az += 0.005 * dz;
-  };
-  for (let i = 0; i < 6000; i++) step();
-  for (let i = 0; i < N; i++) {
-    step();
-    pts[i * 3] = ax;
-    pts[i * 3 + 1] = ay;
-    pts[i * 3 + 2] = az;
-  }
-  let cu = 0,
-    cv = 0,
-    cw = 0;
-  for (let i = 0; i < N; i++) {
-    cu += pts[i * 3];
-    cv += pts[i * 3 + 1];
-    cw += pts[i * 3 + 2];
-  }
-  cu /= N;
-  cv /= N;
-  cw /= N;
+  const D2R = Math.PI / 180;
 
-  const px = new Float32Array(N);
-  const py = new Float32Array(N);
-  const dep = new Float32Array(N);
-
-  const stride = coarse ? 3 : 1;
-  const TB = 20;
-  const DB = 3;
-  const tBucket = new Uint8Array(N);
-  for (let i = 0; i < N; i++) {
-    const t = Math.max(0, Math.min(1, (pts[i * 3 + 2] - 2) / 46));
-    tBucket[i] = Math.min(TB - 1, Math.floor(t * TB));
-  }
-  const groups: number[][] = Array.from({ length: TB * DB }, () => []);
-  const groupStyle: string[] = [];
-  for (let b = 0; b < TB; b++) {
-    const t = (b + 0.5) / TB;
-    /* R30 同相位:暗端→亮端全程与品牌 #9EDC1D 同 hue(~79°)。
-       R38:色相由 verify 门 particle-hue 守——下面两行标注是门的读取点,改字面量必同步改标注。
-       HUE-GUARD:dark-end (40, 55, 7)
-       HUE-GUARD:bright-end (190, 245, 52) */
-    const r = Math.round(40 + 150 * t);
-    const g = Math.round(55 + 190 * t);
-    const bl = Math.round(7 + 45 * t);
-    for (let d = 0; d < DB; d++) {
-      const mMid = -1 + ((d + 0.5) * 2) / DB;
-      const alpha = Math.max(0, Math.min(1, (0.12 + 0.48 * t) * (1 + 0.4 * mMid)));
-      /* R33:透明度预乘为亮度、线条层全不透明(黑底+screen 合成下等效)——
-         段接头/交叉重画只是同色覆盖,物理上无法增亮 → 串珠亮点根治 */
-      groupStyle.push(`rgb(${Math.round(r * alpha)},${Math.round(g * alpha)},${Math.round(bl * alpha)})`);
+  /* ── 陆地点阵:生成物 globe-dots.ts(小端 Int16 centi-degree 交错 [lat,lon])→ 单位向量。
+     坐标系:ux=cosφ·sinλ,uy=sinφ(北为上),uz=cosφ·cosλ;绕 Y 转 yaw 后面向观者的经度 = -yaw。
+     coarse 隔一取一:行内密度减半,行错位节奏保留。 */
+  const N = coarse ? GLOBE_DOTS_N >> 1 : GLOBE_DOTS_N;
+  const ux = new Float32Array(N),
+    uy = new Float32Array(N),
+    uz = new Float32Array(N);
+  {
+    const bin = atob(GLOBE_DOTS_B64);
+    const dv = new DataView(new ArrayBuffer(bin.length));
+    for (let i = 0; i < bin.length; i++) dv.setUint8(i, bin.charCodeAt(i));
+    for (let i = 0; i < N; i++) {
+      const s = (coarse ? i * 2 : i) * 4;
+      const la = (dv.getInt16(s, true) / 100) * D2R;
+      const lo = (dv.getInt16(s + 2, true) / 100) * D2R;
+      const cl = Math.cos(la);
+      ux[i] = cl * Math.sin(lo);
+      uy[i] = Math.sin(la);
+      uz[i] = cl * Math.cos(lo);
     }
+  }
+
+  /* ── 算力枢纽 ×12(纯图形无标签——不构成设施声明;越南在列不突出) */
+  const HUBS: ReadonlyArray<readonly [number, number]> = [
+    [39.0, -77.5] /* 阿什本 */,
+    [37.3, -121.9] /* 圣何塞 */,
+    [-23.55, -46.63] /* 圣保罗 */,
+    [51.51, -0.13] /* 伦敦 */,
+    [50.11, 8.68] /* 法兰克福 */,
+    [25.2, 55.27] /* 迪拜 */,
+    [19.08, 72.88] /* 孟买 */,
+    [1.35, 103.82] /* 新加坡 */,
+    [10.82, 106.63] /* 胡志明市 */,
+    [35.68, 139.69] /* 东京 */,
+    [37.57, 126.98] /* 首尔 */,
+    [-33.87, 151.21] /* 悉尼 */,
+  ];
+  const NH = HUBS.length;
+  const hx3 = new Float32Array(NH),
+    hy3 = new Float32Array(NH),
+    hz3 = new Float32Array(NH);
+  for (let h = 0; h < NH; h++) {
+    const la = HUBS[h][0] * D2R,
+      lo = HUBS[h][1] * D2R,
+      cl = Math.cos(la);
+    hx3[h] = cl * Math.sin(lo);
+    hy3[h] = Math.sin(la);
+    hz3[h] = cl * Math.cos(lo);
+  }
+
+  /* ── 12 条大圆弧(每枢纽 ≥1;新加坡/阿什本/东京连接度高),slerp 采样,弧中点抬离球面 6% */
+  const ARCS: ReadonlyArray<readonly [number, number]> = [
+    [8, 7] /* 胡志明市–新加坡 */,
+    [7, 9] /* 新加坡–东京 */,
+    [7, 6] /* 新加坡–孟买 */,
+    [7, 11] /* 新加坡–悉尼 */,
+    [9, 10] /* 东京–首尔 */,
+    [9, 1] /* 东京–圣何塞 */,
+    [1, 0] /* 圣何塞–阿什本 */,
+    [0, 3] /* 阿什本–伦敦 */,
+    [3, 4] /* 伦敦–法兰克福 */,
+    [4, 5] /* 法兰克福–迪拜 */,
+    [5, 6] /* 迪拜–孟买 */,
+    [2, 0] /* 圣保罗–阿什本 */,
+  ];
+  const NA = ARCS.length,
+    ASEG = 48;
+  const arc3 = new Float32Array(NA * (ASEG + 1) * 3);
+  const arcAng = new Float32Array(NA);
+  for (let a = 0; a < NA; a++) {
+    const [h0, h1] = ARCS[a];
+    const dot = Math.max(-1, Math.min(1, hx3[h0] * hx3[h1] + hy3[h0] * hy3[h1] + hz3[h0] * hz3[h1]));
+    const om = Math.acos(dot),
+      so = Math.sin(om) || 1e-6;
+    arcAng[a] = om;
+    for (let k = 0; k <= ASEG; k++) {
+      const t = k / ASEG;
+      const w0 = Math.sin((1 - t) * om) / so,
+        w1 = Math.sin(t * om) / so;
+      const lift = 1 + 0.06 * Math.sin(Math.PI * t);
+      const o = (a * (ASEG + 1) + k) * 3;
+      arc3[o] = (hx3[h0] * w0 + hx3[h1] * w1) * lift;
+      arc3[o + 1] = (hy3[h0] * w0 + hy3[h1] * w1) * lift;
+      arc3[o + 2] = (hz3[h0] * w0 + hz3[h1] * w1) * lift;
+    }
+  }
+
+  /* R30 同相位:全部落在品牌 #9EDC1D 色相带(particle-hue 门读以下标注;改色值必同步改标注)。
+     亮度阶:陆点 < 弧基线 < 枢纽 < 流光。
+     HUE-GUARD:dot-dim (40, 55, 7)
+     HUE-GUARD:dot-lit (150, 205, 38)
+     HUE-GUARD:hub (190, 245, 52)
+     HUE-GUARD:arc-base (52, 68, 13) */
+  const SHB = 12;
+  const dotSprites: HTMLCanvasElement[] = [];
+  for (let b = 0; b < SHB; b++) {
+    const t = (b + 0.5) / SHB;
+    const c = document.createElement('canvas');
+    c.width = 16;
+    c.height = 16;
+    const g = c.getContext('2d')!;
+    g.fillStyle = `rgb(${Math.round(40 + 110 * t)},${Math.round(55 + 150 * t)},${Math.round(7 + 31 * t)})`;
+    g.beginPath();
+    g.arc(8, 8, 6, 0, Math.PI * 2);
+    g.fill();
+    dotSprites.push(c);
+  }
+  const hubCore = document.createElement('canvas');
+  {
+    hubCore.width = 16;
+    hubCore.height = 16;
+    const g = hubCore.getContext('2d')!;
+    g.fillStyle = 'rgb(190,245,52)';
+    g.beginPath();
+    g.arc(8, 8, 6, 0, Math.PI * 2);
+    g.fill();
+  }
+  const hubHalo = document.createElement('canvas');
+  {
+    hubHalo.width = 48;
+    hubHalo.height = 48;
+    const g = hubHalo.getContext('2d')!;
+    const rg = g.createRadialGradient(24, 24, 0, 24, 24, 24);
+    rg.addColorStop(0, 'rgba(190,245,52,0.85)');
+    rg.addColorStop(0.45, 'rgba(150,205,38,0.28)');
+    rg.addColorStop(1, 'rgba(150,205,38,0)');
+    g.fillStyle = rg;
+    g.fillRect(0, 0, 48, 48);
   }
 
   const body = document.createElement('canvas');
   const bctx = body.getContext('2d')!;
-  /* R32:辉光离屏——线条图的模糊副本承载「点燃带」,与线条层同帧贴合成;
-     只在主体重渲时烘焙一次,帧循环零滤镜成本 */
+  /* R32:辉光离屏——主体的模糊副本,只在主体重渲时烘焙,帧循环零滤镜成本 */
   const glow = document.createElement('canvas');
   const gctx = glow.getContext('2d')!;
+  /* 网络层:枢纽/弧/流光,每帧重画(唯一常驻动帧成本;黑底 + screen 同 R34 流光层) */
+  const net = document.createElement('canvas');
+  const nctx = net.getContext('2d')!;
 
   let W = 0,
     H = 0;
@@ -142,25 +218,28 @@ function initLorenz() {
   interface Pose {
     cx: number;
     cy: number;
-    scl: number;
+    r: number;
     yaw: number;
     pitch: number;
   }
-  const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.54 * H, scl: Math.min(W, H) / 44, yaw: 0, pitch: 0 });
-  const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, scl: Math.min(W, H) / 65, yaw: 1.25, pitch: 0.5 });
-  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, scl: Math.min(W, H) / 62, yaw: -1.55, pitch: 1.15 }); /* R26:回参考真值 0.5——v4/v5 两轮抬高实测引发顶裁+底空,三路评审同向证伪 */
-  const poseC = (): Pose => {
-    const u = (Math.min(W, H) / 32) * 1.85;
-    return { cx: 0.5 * W - 6 * u, cy: 0.5 * H + 14.25 * u, scl: Math.min(W, H) / 32, yaw: 0.4, pitch: 1.1 };
+  /* 姿态语义:r=球半径 px;面向经度 = -yaw。yaw 单调 -105°→+105°:
+     东南亚(默认,越南居中偏下)→ 印度洋 → 欧非 → 大西洋特写 → 美洲地平线,全程 210°;
+     pitch 收敛 ±0.35 rad——极区无大陆,不给它正脸。数值为首轮构图值,评审轮微调。 */
+  const R0 = () => 0.46 * Math.min(W, H);
+  const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.6 * H, r: R0(), yaw: -105 * D2R, pitch: 0.31 });
+  const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, r: 0.55 * R0(), yaw: -65 * D2R, pitch: 0.1 });
+  const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, r: 0.7 * R0(), yaw: -5 * D2R, pitch: 0.35 });
+  const poseC = (): Pose => ({ cx: 0.5 * W, cy: 0.55 * H, r: 1.6 * R0(), yaw: 55 * D2R, pitch: 0.2 });
+  const poseD = (): Pose => {
+    /* 页脚:球心压到视口下缘外,球缘呈地平线弧 */
+    const r = 1.9 * R0();
+    return { cx: 0.5 * W, cy: H + 0.62 * r, r, yaw: 105 * D2R, pitch: 0.3 };
   };
-  const poseD = (): Pose => ({ cx: 0.56 * W, cy: 0.52 * H, scl: Math.min(W, H) / 28, yaw: 0.2, pitch: 1.05 });
-  /* R21 重绑(R8 区序重排后旧绑定错位:页尾最大姿态 D 曾锚在页中 mission → 粒子过大):
-     statement→A(左下小) about→B(右中景) 叠卡→C(特写) 收尾黑区→D(最大);白带段被盖住 */
+  /* R21 绑定沿用:statement→A(左下小) about→B(右中景) 叠卡→C(特写) 收尾黑区→D(最大);白带段被盖住 */
   const ANCHOR_IDS = ['social', 'mission', 'devices', 'final-cta'];
   let anchors: (HTMLElement | null)[] = [];
   const smooth = (e: number) => e * e * (3 - 2 * e);
-  /* dly:延迟起混(0-1,占进区行程比例)——特写档 C 若从区顶入视口即起混,
-     会提前撑大上一屏(mission)的背景;延后 35% 行程,mission 停位时 C≈0(R23) */
+  /* dly:延迟起混(占进区行程比例)——特写档 C 从区顶即起混会提前撑大上一屏背景(R23) */
   const prog = (el: HTMLElement | null, dly = 0) => {
     if (!el) return 0;
     const raw = Math.max(0, Math.min(1, (innerHeight - el.getBoundingClientRect().top) / innerHeight));
@@ -170,7 +249,7 @@ function initLorenz() {
   const mix = (a: Pose, b: Pose, p: number): Pose => ({
     cx: a.cx + p * (b.cx - a.cx),
     cy: a.cy + p * (b.cy - a.cy),
-    scl: a.scl + p * (b.scl - a.scl),
+    r: a.r + p * (b.r - a.r),
     yaw: a.yaw + p * (b.yaw - a.yaw),
     pitch: a.pitch + p * (b.pitch - a.pitch),
   });
@@ -181,179 +260,306 @@ function initLorenz() {
     driftX = 0,
     driftY = 0;
   let dirty = true;
-  let mouseStamp = 0,
-    renderedStamp = -1;
-  let rG = -1,
+  let rR = -1,
     rCx = 0,
     rCy = 0,
     rYaw = 99,
     rPitch = 99;
-  const dbg = { renders: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
+  /* 尺寸标尺 = sqrt(r/R0):特写档点径/线宽按 0.5 次幂长,防糊块 */
+  let q = 1;
+  /* 辉光烘焙节流(R47):上次烘焙时刻 + 「主体新于辉光」标记,停稳补烘 */
+  let glowAt = -1e9;
+  let glowStale = false;
+  const dbg = { renders: 0, yaw: 0, pitch: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
   (window as unknown as Record<string, unknown>).__xbg = dbg;
 
-  /* R36:高分屏适配——渲染精度乘 DPR(性能上限 1.5:主体重渲像素 ≤2.25×,离屏缓存机制不变) */
+  /* R36:高分屏适配——渲染精度乘 DPR(上限 1.5),离屏缓存机制不变 */
   let DPR = 1;
   const resize = () => {
     W = canvas.clientWidth;
     H = canvas.clientHeight;
     DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-    for (const c of [canvas, body, glow, cometLayer]) {
+    for (const c of [canvas, body, glow, net]) {
       c.width = Math.round(W * DPR);
       c.height = Math.round(H * DPR);
     }
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     gctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    nctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     dirty = true;
     /* R45:reduced-motion 没有帧循环,位图被 resize 清空后必须当场重画,否则背景从此全黑 */
     if (reduced && W > 0 && H > 0) drawStatic();
   };
 
-  const renderBody = (cx: number, cy: number, G: number, yaw: number, pitch: number) => {
+  const px = new Float32Array(N),
+    py = new Float32Array(N),
+    dep = new Float32Array(N);
+  const hpx = new Float32Array(NH),
+    hpy = new Float32Array(NH),
+    hdep = new Float32Array(NH);
+  const apx = new Float32Array(NA * (ASEG + 1)),
+    apy = new Float32Array(NA * (ASEG + 1));
+  const avis = new Uint8Array(NA * (ASEG + 1));
+
+  const renderBody = (cx: number, cy: number, R: number, yaw: number, pitch: number) => {
     dbg.renders++;
-    const ca = Math.cos(yaw),
-      sa = Math.sin(yaw),
-      cb = Math.cos(pitch),
-      sbn = Math.sin(pitch);
-    const rc1 = cu * sa + cv * ca;
-    const rc2 = cu * ca - cv * sa;
-    const cen1 = rc1 * cb - cw * sbn;
-    const cen2 = rc1 * sbn + cw * cb;
-    const mx = mouse.x,
-      my = mouse.y;
-    const repelOn = !coarse && mx > -9000;
+    q = Math.sqrt(Math.max(0.2, R / R0()));
+    const cyw = Math.cos(yaw),
+      syw = Math.sin(yaw);
+    const cp = Math.cos(pitch),
+      sp = Math.sin(pitch);
 
     for (let i = 0; i < N; i++) {
-      const X = pts[i * 3],
-        Y = pts[i * 3 + 1],
-        Z = pts[i * 3 + 2];
-      const n = X * ca - Y * sa;
-      const c2 = X * sa + Y * ca;
-      const m = Math.max(-1, Math.min(1, (c2 * cb - Z * sbn - cen1) / 22));
-      const p = 1 + 0.22 * m;
-      let x = cx + (n - rc2) * G * p;
-      let y = cy - (c2 * sbn + Z * cb - cen2) * G * p;
-      if (repelOn) {
-        const ddx = x - mx;
-        const ddy = y - my;
-        const d2 = ddx * ddx + ddy * ddy;
-        if (d2 >= 1 && d2 < 25600) {
-          const d = Math.sqrt(d2);
-          const f = 90 * (1 - d / 160) ** 2;
-          x += (ddx / d) * f;
-          y += (ddy / d) * f;
-        }
-      }
-      px[i] = x;
-      py[i] = y;
-      dep[i] = m;
+      const x1 = ux[i] * cyw + uz[i] * syw;
+      const z1 = uz[i] * cyw - ux[i] * syw;
+      const y2 = uy[i] * cp - z1 * sp;
+      const z2 = uy[i] * sp + z1 * cp;
+      px[i] = cx + x1 * R;
+      py[i] = cy - y2 * R;
+      dep[i] = z2;
     }
 
-    for (const g of groups) g.length = 0;
-    for (let i = stride; i < N - stride; i += stride) {
-      const d = Math.min(DB - 1, Math.max(0, Math.floor(((dep[i] + 1) / 2) * DB)));
-      groups[tBucket[i] * DB + d].push(i);
-    }
-
-    /* R33:不透明黑底(screen 合成下黑=无效果),配合预乘亮度色实现零增亮覆盖 */
+    /* 正交投影圆点盖章:亮度=深度光照(正面亮、背面 22% 渐隐保体积),12 档 sprite */
     bctx.globalCompositeOperation = 'source-over';
     bctx.fillStyle = '#000000';
     bctx.fillRect(0, 0, W, H);
-    bctx.lineWidth = 1.2;
-    for (let gi = 0; gi < groups.length; gi++) {
-      const idx = groups[gi];
-      if (!idx.length) continue;
-      bctx.beginPath();
-      for (let k = 0; k < idx.length; k++) {
-        const i = idx[k];
-        bctx.moveTo((px[i - stride] + px[i]) / 2, (py[i - stride] + py[i]) / 2);
-        bctx.quadraticCurveTo(px[i], py[i], (px[i + stride] + px[i]) / 2, (py[i + stride] + py[i]) / 2);
-      }
-      bctx.strokeStyle = groupStyle[gi];
-      bctx.stroke();
+    for (let i = 0; i < N; i++) {
+      const m = dep[i];
+      const s = m >= 0 ? 0.26 + 0.74 * m : 0.22 * (1 + m);
+      if (s < 0.045) continue;
+      const b = Math.min(SHB - 1, (s * SHB) | 0);
+      const r = q * (1.15 + 0.65 * (m > 0 ? m : 0));
+      bctx.drawImage(dotSprites[b], px[i] - r, py[i] - r, r + r, r + r);
     }
-    /* R32:烘焙辉光副本(仅重渲帧执行);drawImage 显式逻辑尺寸(DPR 变换下源为物理像素) */
+
+    for (let h = 0; h < NH; h++) {
+      const x1 = hx3[h] * cyw + hz3[h] * syw;
+      const z1 = hz3[h] * cyw - hx3[h] * syw;
+      const y2 = hy3[h] * cp - z1 * sp;
+      hdep[h] = hy3[h] * sp + z1 * cp;
+      hpx[h] = cx + x1 * R;
+      hpy[h] = cy - y2 * R;
+    }
+
+    const RR = R * R;
+    for (let k = 0; k < NA * (ASEG + 1); k++) {
+      const o = k * 3;
+      const x1 = arc3[o] * cyw + arc3[o + 2] * syw;
+      const z1 = arc3[o + 2] * cyw - arc3[o] * syw;
+      const y2 = arc3[o + 1] * cp - z1 * sp;
+      const z2 = arc3[o + 1] * sp + z1 * cp;
+      const sx = cx + x1 * R,
+        sy = cy - y2 * R;
+      apx[k] = sx;
+      apy[k] = sy;
+      const dx = sx - cx,
+        dy = sy - cy;
+      /* 背面且落在球盘内 = 被球体遮挡;抬升段越过球缘则可见 */
+      avis[k] = z2 > 0 || dx * dx + dy * dy > RR ? 1 : 0;
+    }
+
+    /* R32→R47:辉光烘焙去抖。全画布 blur(7px) 是重渲帧的最大单项,滚动逐帧烘会把帧率
+       拖到 43fps(无头实测);改 180ms 节流——滚动中辉光最多滞后 180ms(14% 透明度的模糊层,
+       运动中不可感),停稳由 frame() 补烘一次保证终态一致(glowStale 位)。 */
+    const tNow = performance.now();
+    if (tNow - glowAt > 180) bakeGlow(tNow);
+    else glowStale = true;
+  };
+  const bakeGlow = (tNow: number) => {
+    /* 点阵比线网稀,叠加透明度略抬(0.10→0.14),R33 克制原则不变 */
     gctx.clearRect(0, 0, W, H);
     gctx.filter = 'blur(7px)';
-    /* 0.85 会把相邻丝之间填平(首屏位姿丝距约 4px),谷/峰比 0.412 —— 屏上是「一层发光织物」;
-       参考站是 0.142–0.264 的「金属丝网」。A/B 实测:线宽与模糊半径都不是杠杆,叠加透明度才是,
-       0.10 落在 0.263(完全关掉辉光的下界是 0.244)。半径保持 7,辉光仍在,只是克制。 */
-    gctx.globalAlpha = 0.1;
+    gctx.globalAlpha = 0.14;
     gctx.drawImage(body, 0, 0, W, H);
     gctx.filter = 'none';
     gctx.globalAlpha = 1;
+    glowAt = tNow;
+    glowStale = false;
   };
 
-  let comet = 0;
-  const TAIL = 180;
-  const CB = 12; /* R34:衰减档 6→12,亮度台阶平滑 */
-  /* R34:预乘不透明色(黑底离屏 + screen 合成)——接头/重画零增亮 */
-  /* HUE-GUARD:comet (225, 255, 150) */
+  /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮) HUE-GUARD:comet (225, 255, 150) */
+  const CB = 12,
+    TAILU = 0.3;
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
     const a = fade * fade * 0.88;
     return `rgb(${Math.round(225 * a)},${Math.round(255 * a)},${Math.round(150 * a)})`;
   });
-  /* R34:流光独立离屏。旧实现逐点位画 1 点距短段——涡内圈点距 <1px,
-     每段退化成 1.55px 圆点,慢速区整条流光渲染成串珠(主人两次抓到的「小点」主源)。
-     改连续折线:零长段物理消失;桶间共享端点在不透明覆盖下零增亮。 */
-  const cometLayer = document.createElement('canvas');
-  const cctx = cometLayer.getContext('2d')!;
-  const drawComets = () => {
-    cctx.globalCompositeOperation = 'source-over';
-    cctx.fillStyle = '#000000';
-    cctx.fillRect(0, 0, W, H);
-    cctx.lineWidth = 1.55;
-    cctx.lineJoin = 'round';
-    cctx.lineCap = 'round';
-    for (let c = 0; c < 4; c++) {
-      const head = Math.floor((comet + (N / 4) * c) % N);
-      for (let cb2 = 0; cb2 < CB; cb2++) {
-        const k0 = Math.floor((TAIL / CB) * cb2);
-        const k1 = Math.floor((TAIL / CB) * (cb2 + 1));
-        cctx.beginPath();
-        const i0 = (head - k0 + N) % N;
-        cctx.moveTo(px[i0], py[i0]);
-        for (let k = k0 + 1; k <= k1; k++) {
-          const i = (head - k + N) % N;
-          cctx.lineTo(px[i], py[i]);
-        }
-        cctx.strokeStyle = cometStyles[cb2];
-        cctx.stroke();
-      }
-    }
-    ctx.drawImage(cometLayer, 0, 0, W, H); /* ctx 处于 screen 模式,黑底无效果 */
+
+  interface Flight {
+    a: number;
+    t0: number;
+    dur: number;
+    rev: boolean;
+    pinged: boolean;
+  }
+  interface Ring {
+    h: number;
+    t0: number;
+  }
+  const FL = coarse ? 2 : 3; /* 同时活跃流光条数 */
+  const flights: Flight[] = [];
+  const rings: Ring[] = [];
+  const nextPing = new Float64Array(NH);
+  let deck: number[] = [];
+  /* 弧轮换:洗牌队列顺序消费,跑完一轮重洗——避免固定顺序的机械感 */
+  const drawDeck = (): number => {
+    if (!deck.length) deck = Array.from({ length: NA }, (_, i) => i).sort(() => Math.random() - 0.5);
+    return deck.pop()!;
+  };
+  const launch = (t: number, delay: number): Flight => {
+    const a = drawDeck();
+    /* 时长随弧角长:短跳 ~1.6s,跨洋 ~3.5s(速度观感一致) */
+    return { a, t0: t + delay, dur: 1600 + 1400 * (arcAng[a] / 1.6), rev: Math.random() < 0.5, pinged: false };
   };
 
-  /* 静帧合成(reduced-motion 初绘与 resize 重画共用) */
+  const P0 = { x: 0, y: 0, vis: false },
+    PM = { x: 0, y: 0, vis: false },
+    P1 = { x: 0, y: 0, vis: false };
+  const arcAt = (a: number, u: number, out: { x: number; y: number; vis: boolean }) => {
+    const s = Math.max(0, Math.min(1, u)) * ASEG;
+    const i = Math.min(ASEG - 1, s | 0),
+      f = s - i;
+    const k = a * (ASEG + 1) + i;
+    out.x = apx[k] + (apx[k + 1] - apx[k]) * f;
+    out.y = apy[k] + (apy[k + 1] - apy[k]) * f;
+    out.vis = !!(avis[k] && avis[k + 1]);
+  };
+
+  /* 网络层(每帧;still=静帧模式:reduced-motion / 暂停——枢纽常亮不呼吸、弧画静态基线、无流光无 ping) */
+  const drawNet = (t: number, still: boolean) => {
+    nctx.globalCompositeOperation = 'source-over';
+    nctx.fillStyle = '#000000';
+    nctx.fillRect(0, 0, W, H);
+    nctx.lineCap = 'round';
+    nctx.lineJoin = 'round';
+
+    if (!still) {
+      /* 到达即触发终点扩散环(「算力到达」),尾巴流尽后换下一条弧 */
+      for (let i = 0; i < flights.length; i++) {
+        const F = flights[i];
+        const e = (t - F.t0) / F.dur;
+        if (!F.pinged && e >= 1) {
+          F.pinged = true;
+          const target = F.rev ? ARCS[F.a][0] : ARCS[F.a][1];
+          if (hdep[target] > 0) rings.push({ h: target, t0: t });
+        }
+        if (e >= 1 + TAILU) flights[i] = launch(t, 260 + Math.random() * 520);
+      }
+    }
+
+    /* 活跃弧基线(静帧取队列前 FL 条);被球体遮挡段断笔 */
+    nctx.lineWidth = Math.max(0.8, 0.9 * q);
+    nctx.strokeStyle = 'rgb(52,68,13)';
+    const baseArcs = still ? Array.from({ length: Math.min(FL, NA) }, (_, i) => i) : flights.map((F) => F.a);
+    for (const a of baseArcs) {
+      nctx.beginPath();
+      let pen = false;
+      for (let k = 0; k <= ASEG; k++) {
+        const o = a * (ASEG + 1) + k;
+        if (!avis[o]) {
+          pen = false;
+          continue;
+        }
+        if (!pen) {
+          nctx.moveTo(apx[o], apy[o]);
+          pen = true;
+        } else nctx.lineTo(apx[o], apy[o]);
+      }
+      nctx.stroke();
+    }
+
+    if (!still) {
+      nctx.lineWidth = Math.max(1.1, 1.3 * q);
+      for (const F of flights) {
+        const e = (t - F.t0) / F.dur;
+        if (e <= 0) continue;
+        for (let k = 0; k < CB; k++) {
+          let u1 = e - (TAILU * k) / CB;
+          let u0 = e - (TAILU * (k + 1)) / CB;
+          if (u1 <= 0 || u0 >= 1) continue;
+          u0 = Math.max(0, u0);
+          u1 = Math.min(1, u1);
+          const a0 = F.rev ? 1 - u0 : u0,
+            a1 = F.rev ? 1 - u1 : u1;
+          arcAt(F.a, a0, P0);
+          arcAt(F.a, (a0 + a1) / 2, PM);
+          arcAt(F.a, a1, P1);
+          if (!P0.vis || !P1.vis) continue;
+          nctx.strokeStyle = cometStyles[k];
+          nctx.beginPath();
+          nctx.moveTo(P0.x, P0.y);
+          nctx.lineTo(PM.x, PM.y);
+          nctx.lineTo(P1.x, P1.y);
+          nctx.stroke();
+        }
+      }
+    }
+
+    /* 枢纽:呼吸辉光 + 核心;周期 2.8–3.6s、相位按序错开(确定性,不同步呼吸) */
+    for (let h = 0; h < NH; h++) {
+      if (hdep[h] < -0.02) continue;
+      const af = Math.max(0, Math.min(1, (hdep[h] + 0.02) * 8)); /* 贴球缘淡入淡出 */
+      const pul = still ? 0.5 : 0.5 + 0.5 * Math.sin((t / (2800 + ((h * 37) % 9) * 100)) * 2 * Math.PI + h * 2.4);
+      const hr = q * (9 + 3.5 * pul);
+      nctx.globalAlpha = af * (0.3 + 0.34 * pul);
+      nctx.drawImage(hubHalo, hpx[h] - hr, hpy[h] - hr, hr + hr, hr + hr);
+      const cr = q * 2.6;
+      nctx.globalAlpha = af * (0.85 + 0.15 * pul);
+      nctx.drawImage(hubCore, hpx[h] - cr, hpy[h] - cr, cr + cr, cr + cr);
+      nctx.globalAlpha = 1;
+      if (!still && t >= nextPing[h]) {
+        if (hdep[h] > 0) rings.push({ h, t0: t });
+        nextPing[h] = t + 5000 + Math.random() * 3000;
+      }
+    }
+
+    /* 扩散环:3→14px 淡出 0.9s;跟随枢纽实时位置(滚动中不脱锚) */
+    if (!still && rings.length) {
+      nctx.lineWidth = Math.max(1, 1.1 * q);
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const g = rings[i];
+        const e = (t - g.t0) / 900;
+        if (e >= 1 || hdep[g.h] <= 0) {
+          rings.splice(i, 1);
+          continue;
+        }
+        const rr = q * (3 + 11 * e);
+        const a = (1 - e) * (1 - e) * 0.55;
+        nctx.strokeStyle = `rgb(${Math.round(190 * a)},${Math.round(245 * a)},${Math.round(52 * a)})`;
+        nctx.beginPath();
+        nctx.arc(hpx[g.h], hpy[g.h], rr, 0, Math.PI * 2);
+        nctx.stroke();
+      }
+    }
+
+    ctx.drawImage(net, 0, 0, W, H); /* ctx 处于 screen 模式,黑底无效果 */
+  };
+
+  /* 静帧合成(reduced-motion 初绘 / 暂停态 / resize 重画共用) */
   const drawStatic = () => {
     const P = poseHome();
-    renderBody(P.cx, P.cy, P.scl, P.yaw, P.pitch);
+    renderBody(P.cx, P.cy, P.r, P.yaw, P.pitch);
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
     ctx.drawImage(glow, 0, 0, W, H);
     ctx.drawImage(body, 0, 0, W, H);
+    drawNet(0, true);
   };
 
   let raf = 0;
   let running = false;
   const frame = () => {
+    const now = performance.now();
     let P = poseHome();
     const ps = [prog(anchors[0]), prog(anchors[1]), prog(anchors[2], 0.35), prog(anchors[3])];
     P = mix(P, poseA(), ps[0]);
     P = mix(P, poseB(), ps[1]);
     P = mix(P, poseC(), ps[2]);
     P = mix(P, poseD(), ps[3]);
-    const G =
-      P.scl *
-      (1 - 2.2 * ps[0] * (1 - ps[0])) *
-      (1 - 2 * ps[1] * (1 - ps[1])) *
-      (1 - 2 * ps[2] * (1 - ps[2])) *
-      (1 - 2 * ps[3] * (1 - ps[3])) *
-      (1 + 0.45 * ps[0] + 0.2 * ps[1] + 0.2 * ps[2] + 0.2 * ps[3]);
 
     if (!coarse && mouse.x > -9000) {
       const ex = (mouse.x - 0.5 * W) / (0.5 * W);
@@ -377,11 +583,13 @@ function initLorenz() {
       if (Math.abs(tiltY) < 1e-3) tiltY = 0;
     }
 
-    const cx = (coarse ? 0.5 * W : P.cx) + driftX;
-    const cy = (coarse ? 0.5 * H : P.cy) + driftY;
+    const cx = P.cx + driftX;
+    const cy = P.cy + driftY;
     const yaw = P.yaw + tiltX;
     const pitch = P.pitch + tiltY;
 
+    dbg.yaw = yaw;
+    dbg.pitch = pitch;
     dbg.tiltX = tiltX;
     dbg.tiltY = tiltY;
     dbg.driftX = driftX;
@@ -389,33 +597,30 @@ function initLorenz() {
 
     if (
       dirty ||
-      mouseStamp !== renderedStamp ||
-      Math.abs(G - rG) > 1e-3 ||
+      Math.abs(P.r - rR) > 1e-3 ||
       Math.abs(cx - rCx) > 0.3 ||
       Math.abs(cy - rCy) > 0.3 ||
       Math.abs(yaw - rYaw) > 1e-4 ||
       Math.abs(pitch - rPitch) > 1e-4
     ) {
-      renderBody(cx, cy, G, yaw, pitch);
+      renderBody(cx, cy, P.r, yaw, pitch);
       dirty = false;
-      renderedStamp = mouseStamp;
-      rG = G;
+      rR = P.r;
       rCx = cx;
       rCy = cy;
       rYaw = yaw;
       rPitch = pitch;
+    } else if (glowStale) {
+      bakeGlow(now); /* 滚动停稳:主体没再动,把节流欠下的辉光补齐到终态 */
     }
 
     ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = BG;
     ctx.fillRect(0, 0, W, H);
     ctx.globalCompositeOperation = 'screen';
-    ctx.drawImage(glow, 0, 0, W, H); /* R32:辉光垫底(点燃带) */
+    ctx.drawImage(glow, 0, 0, W, H);
     ctx.drawImage(body, 0, 0, W, H);
-    if (!coarse) {
-      comet = (comet + 0.5) % N;
-      drawComets();
-    }
+    drawNet(now, false);
 
     if (running) raf = requestAnimationFrame(frame);
   };
@@ -424,10 +629,19 @@ function initLorenz() {
      存储读写都包 try:隐私模式 / 禁用站点数据时 localStorage 会直接抛。 */
   const PAUSE_KEY = 'x-bg-paused';
   let userPaused = false;
-  try { userPaused = localStorage.getItem(PAUSE_KEY) === '1'; } catch { /* 存储不可用:按未暂停处理 */ }
+  try {
+    userPaused = localStorage.getItem(PAUSE_KEY) === '1';
+  } catch {
+    /* 存储不可用:按未暂停处理 */
+  }
   const start = () => {
     if (running || reduced || userPaused) return;
     running = true;
+    if (!flights.length) {
+      const t = performance.now();
+      for (let i = 0; i < FL; i++) flights.push(launch(t, 400 + i * 900));
+      for (let h = 0; h < NH; h++) nextPing[h] = t + 1500 + h * 420;
+    }
     raf = requestAnimationFrame(frame);
   };
   const stop = () => {
@@ -444,21 +658,26 @@ function initLorenz() {
       (e) => {
         mouse.x = e.clientX;
         mouse.y = e.clientY;
-        mouseStamp++;
       },
       { passive: true },
     );
     document.documentElement.addEventListener('mouseleave', () => {
       mouse.x = -9999;
       mouse.y = -9999;
-      mouseStamp++;
     });
   }
   document.addEventListener('visibilitychange', () => (document.hidden ? stop() : start()));
   document.addEventListener('x:bg-pause', (e) => {
     userPaused = (e as CustomEvent<boolean>).detail === true;
-    try { localStorage.setItem(PAUSE_KEY, userPaused ? '1' : '0'); } catch { /* 同上 */ }
-    if (userPaused) { stop(); drawStatic(); } else start();
+    try {
+      localStorage.setItem(PAUSE_KEY, userPaused ? '1' : '0');
+    } catch {
+      /* 同上 */
+    }
+    if (userPaused) {
+      stop();
+      drawStatic();
+    } else start();
   });
 
   if (reduced) {
@@ -1073,9 +1292,9 @@ const boot = () => {
   document.addEventListener('x:scroll-unlock', () => scrollLock(false));
 
   if ('requestIdleCallback' in window) {
-    requestIdleCallback(() => initLorenz(), { timeout: 800 });
+    requestIdleCallback(() => initGlobe(), { timeout: 800 });
   } else {
-    setTimeout(initLorenz, 200);
+    setTimeout(initGlobe, 200);
   }
   initLenis();
   initLineReveal();
