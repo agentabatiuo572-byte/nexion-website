@@ -1,9 +1,11 @@
 ---
 /* [FEAT-WEB11] 文章页正文 — 渲染 md;缺译顶部提示条(WEB01 异常2);
-   尾部 Get the app CTA + App 版本标注。axiom 方向:display 标题 + 等宽正文。 */
+   尾部 Get the app CTA + App 版本标注。axiom 方向:display 标题 + 等宽正文。
+   R45:补齐 PRD 点击流矩阵里的「文内锚点目录」与「相关文章 2 条」(同语列表按顺序取后两篇,不含本篇),
+   两块都住纸面板(R2 规则:小字密集块不直压粒子线);返回链 hover「0.62 → 1 提亮」;正文小标题不继承正文行高 1.6;内链尾斜杠。 */
 import { render } from 'astro:content';
 import { useT, type Locale } from '../../i18n';
-import type { LearnEntry } from '../../lib/learn';
+import { learnList, slugOf, type LearnEntry } from '../../lib/learn';
 
 interface Props {
   locale: Locale;
@@ -13,26 +15,66 @@ interface Props {
 const { locale, entry, fallback } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
-const { Content } = await render(entry);
+const { Content, headings } = await render(entry);
+/* 正文小标题自带「1. 」序号而目录已有 01 编号,剥掉避免「01 1. …」双编号 */
+const toc = headings.filter((h) => h.depth === 2).map((h) => ({ ...h, text: h.text.replace(/^\s*\d+[.．、)]\s*/, '') }));
+const all = await learnList(locale);
+const slug = slugOf(entry);
+const i = all.findIndex((x) => x.slug === slug);
+const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.length]].filter((x) => x.slug !== slug);
 ---
 
 <main class="article">
   {fallback && <p class="notice x-mono">{t('learn.untranslated')}</p>}
-  <a class="back x-mono x-dimlink" href={`${prefix}/learn`}>← {t('learn.backToList')}</a>
+  <a class="back x-mono x-dimlink" href={`${prefix}/learn/`}>← {t('learn.backToList')}</a>
   <article>
     <h1 class="x-display">{entry.data.title}</h1>
     <p class="meta x-mono">
-      {t(`learn.topics.${entry.data.topic}`)} · {t('learn.appVersionLabel')} {entry.data.appVersion} · {entry.data.updatedAt}
+      {t(`learn.topics.${entry.data.topic}`)} · <span class="nw">{t('learn.appVersionLabel')} {entry.data.appVersion}</span> ·{' '}
+      <span class="nw">{entry.data.updatedAt}</span>
     </p>
-    <div class="prose x-paper">
+    {
+      toc.length > 1 && (
+        <nav class="toc x-paper" aria-label={t('learn.toc')}>
+          <span class="x-label">{t('learn.toc')}</span>
+          <ol role="list">
+            {toc.map((h, n) => (
+              <li>
+                <a class="x-mono x-dimlink" href={`#${h.slug}`}>
+                  <span class="n">{String(n + 1).padStart(2, '0')}</span>
+                  {h.text}
+                </a>
+              </li>
+            ))}
+          </ol>
+        </nav>
+      )
+    }
+    <div class="prose x-paper" lang={fallback ? 'en' : undefined}>
       <Content />
     </div>
   </article>
+  {
+    related.length > 0 && (
+      <aside class="related x-paper">
+        <span class="x-label">{t('learn.related')}</span>
+        <div class="rows">
+          {related.map((r) => (
+            <a class="row x-dimlink" href={`${prefix}/learn/${r.slug}/`}>
+              <span class="topic x-mono">{t(`learn.topics.${r.entry.data.topic}`)}</span>
+              <span class="name x-h24">{r.entry.data.title}</span>
+              <span class="arr x-mono" aria-hidden="true">→</span>
+            </a>
+          ))}
+        </div>
+      </aside>
+    )
+  }
   <div class="cta">
     <a class="xbtn solid" href={`${prefix}/#download`}>
-      <span class="xbtn-ghost">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-ghost" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
       <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
-      <span class="xbtn-b">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
     </a>
   </div>
 </main>
@@ -57,19 +99,64 @@ const { Content } = await render(entry);
   .back {
     color: var(--x-ink-dim);
     text-decoration: none;
-    min-height: calc(44 * var(--uc));
+    min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
     font-weight: 400;
   }
+  /* 预暗链接 hover 提亮到全亮(0.62 × 0.6 只剩 3.43:1;提亮再乘 0.6 又肉眼不可辨) */
+  .back:hover,
+  .back:focus-visible {
+    color: var(--x-ink);
+    opacity: 1;
+  }
+  .back:active {
+    color: var(--x-ink);
+    opacity: 0.75;
+  }
   h1 {
     font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
     color: var(--x-ink);
-    margin: calc(10 * var(--uc)) 0 calc(12 * var(--uc));
+    margin: calc(10 * var(--uc)) 0 calc(14 * var(--uc)); /* h1 → meta 行 14,与法务 / nex 同 */
+  }
+  /* 日期里的连字符是断行点:390(主流手机宽)上 EN 首篇指南曾把 2026-08-20 拆成两行 */
+  .nw {
+    white-space: nowrap;
   }
   .meta {
     color: var(--x-ink-dim);
     margin: 0 0 calc(30 * var(--uc));
+  }
+  /* 文内目录:纸面板 + 编号等宽行式(行线全宽挂在 li 上,列表底线收口) */
+  .toc {
+    display: grid;
+    gap: calc(10 * var(--uc));
+    margin: 0 0 calc(24 * var(--uc));
+    padding: clamp(16px, 2vw, calc(24 * var(--uc))) clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    color: var(--x-ink-dim);
+  }
+  .toc ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    border-bottom: 1px solid var(--x-line);
+  }
+  .toc li {
+    border-top: 1px solid var(--x-line);
+  }
+  .toc a {
+    color: var(--x-ink);
+    text-decoration: none;
+    min-height: var(--x-touch); /* 触达 44 */
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--uc));
+    text-transform: none;
+  }
+  .toc .n {
+    color: var(--x-accent-ink);
+    flex: 0 0 calc(30 * var(--uc));
   }
   .prose {
     padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
@@ -82,9 +169,14 @@ const { Content } = await render(entry);
     font-family: var(--x-font-display);
     font-size: clamp(19px, 2vw, calc(24 * var(--uc)));
     font-weight: 500;
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em; /* 24 档统一 -0.02em */
+    line-height: 1.1;
     color: var(--x-ink);
     margin: calc(34 * var(--uc)) 0 calc(12 * var(--uc));
+  }
+  .prose :global(h2:lang(vi)),
+  .prose :global(h2:lang(zh)) {
+    line-height: 1.35; /* 同 LearnList h2 */
   }
   .prose :global(p),
   .prose :global(li) {
@@ -106,12 +198,57 @@ const { Content } = await render(entry);
     color: var(--x-ink-dim);
     margin: 0;
   }
+  .prose :global(a) {
+    color: var(--x-ink);
+    text-underline-offset: calc(3 * var(--uc));
+  }
   .prose :global(b),
   .prose :global(strong) {
     color: var(--x-ink);
     font-weight: 700;
   }
+  /* 相关文章:纸面板 + 细线行式(同首页学习中心入口) */
+  .related {
+    margin-top: calc(24 * var(--uc));
+    /* 竖内衬 24 与正文面板的 34 是有意的分层(正文更透气),不是不一致 */
+    padding: clamp(16px, 2vw, calc(24 * var(--uc))) clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    display: grid;
+    gap: calc(10 * var(--uc)); /* 与 .toc 同(标签到首线) */
+    color: var(--x-ink-dim);
+  }
+  .rows {
+    display: grid;
+    border-bottom: 1px solid var(--x-line);
+  }
+  .row {
+    display: flex;
+    align-items: baseline;
+    gap: calc(20 * var(--uc));
+    padding: calc(16 * var(--uc)) 0;
+    border-top: 1px solid var(--x-line);
+    text-decoration: none;
+    color: var(--x-ink);
+    min-height: var(--x-touch);
+  }
+  .topic {
+    color: var(--x-ink-dim);
+    flex: 0 0 clamp(90px, 12vw, calc(150 * var(--uc)));
+  }
+  /* 与 /learn/ 卡片标题同一个对象、同一档,所以挂同一个型类 */
+  .name {
+    flex: 1;
+  }
+  /* 只给相关行的箭头(组件里 .xbtn 的三层滑层各自也有 .arr,不收窄会把 18 个页面的转化键箭头
+     染成 0.62 白 = 压在柠檬底上 1.36:1) */
+  .row .arr {
+    color: var(--x-ink-dim);
+  }
   .cta {
     margin-top: calc(40 * var(--uc));
+  }
+  @media (max-width: 640px) {
+    .topic {
+      display: none;
+    }
   }
 </style>

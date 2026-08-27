@@ -1,7 +1,7 @@
 ---
 /* [FEAT-WEB10] Home NEX 锚点板块 — R8(白带块):
    头行 16 mono 打字机;三卡改无盒左线开放列(编号 0.8 墨 + 48 档标题行遮罩 + 12 mono 说明),
-   三列视差 k=[0.06,0.11,0.16] + Learn more → /nex。 */
+   三列视差 k=[0.06,0.11,0.16] + Learn more → /nex/。R45:内链尾斜杠;按钮滑层 aria-hidden。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -34,10 +34,10 @@ const ks = [0.06, 0.11, 0.16];
     }
   </div>
   <div class="more" data-rv>
-    <a class="xbtn" href={`${prefix}/nex`}>
-      <span class="xbtn-ghost">{t('nex.teaserCta')} <span class="arr">→</span></span>
+    <a class="xbtn" href={`${prefix}/nex/`}>
+      <span class="xbtn-ghost" aria-hidden="true">{t('nex.teaserCta')} <span class="arr">→</span></span>
       <span class="xbtn-a">{t('nex.teaserCta')} <span class="arr">→</span></span>
-      <span class="xbtn-b">{t('nex.teaserCta')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('nex.teaserCta')} <span class="arr">→</span></span>
     </a>
   </div>
 </section>
@@ -77,7 +77,8 @@ const ks = [0.06, 0.11, 0.16];
     gap: calc(24 * var(--uc));
   }
   .stack h3 {
-    font-size: max(28px, calc(40 * var(--u)));
+    /* 与 #how / #path 同形栏卡对齐(R45 拍板 ④:栏卡标题 48 档;参考站全部栏卡也统一 48) */
+    font-size: max(32px, calc(48 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
@@ -85,6 +86,10 @@ const ks = [0.06, 0.11, 0.16];
     color: var(--x-dark-cap);
     margin: 0;
     text-wrap: pretty;
+    line-height: 1.2; /* R45 拍板 ③:卡内正文回 mono 1.2(与 #how / #path 同形栏卡一致) */
+  }
+  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 6.67) */
+  .desc:lang(vi):not(html) {
     line-height: 1.45;
   }
   .more {

@@ -3,7 +3,8 @@
    NexGrid LTD · Colorado Corporation · Entity ID 20221592644 · MSB 31000329265856。
    合规软化 2 处(汇报已交底):MSB 用「注册/登记」表述。
    axiom 方向:反白区块,双证书并排(比例沿用主人已批的 330px 档),
-   五信息卡改为序号等宽文块栅格,PoC 手风琴保留。 */
+   五信息卡改为序号等宽文块栅格,PoC 手风琴保留。
+   R45:证书灯箱锁滚 + 关闭键常驻 + 1160 宽原件;PoC 手风琴改与 FAQ 同一细线行式(B7);zh 卡文行高走全站 CJK 值。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -21,24 +22,41 @@ const cards = [1, 2, 3, 4, 5] as const;
 
   <div class="certs" data-rv>
     <figure>
-      <button class="cert-open" type="button" data-src="/cert-msb.png" data-alt={t('trust.certMsbAlt')} aria-label={t('trust.certZoom')}>
-        <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} width="660" height="880" />
+      <a
+        class="cert-open"
+        href="/cert-msb@2x.png"
+        data-src="/cert-msb@2x.png"
+        data-srcset="/cert-msb.png 660w, /cert-msb@2x.png 1160w"
+        data-alt={t('trust.certMsbAlt')}
+        aria-label={t('trust.certZoom')}
+      >
+        <img src="/cert-msb.png" alt={t('trust.certMsbAlt')} width="660" height="881" loading="lazy" />
         <span class="cert-hint x-mono">{t('trust.certZoom')}</span>
-      </button>
+      </a>
     </figure>
     <figure>
-      <button class="cert-open" type="button" data-src="/cert-colorado.png" data-alt={t('trust.certCoAlt')} aria-label={t('trust.certZoom')}>
-        <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} width="660" height="880" />
+      <a
+        class="cert-open"
+        href="/cert-colorado@2x.png"
+        data-src="/cert-colorado@2x.png"
+        data-srcset="/cert-colorado.png 660w, /cert-colorado@2x.png 1160w"
+        data-alt={t('trust.certCoAlt')}
+        aria-label={t('trust.certZoom')}
+      >
+        <img src="/cert-colorado.png" alt={t('trust.certCoAlt')} width="660" height="881" loading="lazy" />
         <span class="cert-hint x-mono">{t('trust.certZoom')}</span>
-      </button>
+      </a>
     </figure>
   </div>
 
-  <dialog class="cert-zoom" aria-label={t('trust.certZoom')}>
+  <dialog class="cert-zoom" aria-label={t('trust.certZoom')} data-lenis-prevent>
     <form method="dialog" class="cert-zoom-close">
       <button class="xbtn" aria-label={t('trust.certClose')}>{t('trust.certClose')}</button>
     </form>
-    <img alt="" />
+    {/* 1x 屏复用页面里已下好的 660 缩略件(桌面灯箱只渲染约 528px);HiDPI 与手机取 @2x。
+        手机档故意写死 1160(远大于适宽后的渲染宽):双指放大不会回源重取,取小图放大就是糊的。
+        实测慢网首开 2521ms → 179ms */}
+    <img alt="" width="1160" height="1548" sizes="(max-width: 860px) 1160px, (min-width: 1441px) 747px, 560px" />
   </dialog>
 
   <div class="cards">
@@ -54,8 +72,8 @@ const cards = [1, 2, 3, 4, 5] as const;
 
   <details class="poc">
     <summary>
+      <span class="q x-q">{t('trust.pocTitle')}</span>
       <span class="mark x-mono" aria-hidden="true">+</span>
-      {t('trust.pocTitle')}
     </summary>
     <p class="x-mono">{t('trust.pocBody1')}</p>
     <p class="x-mono">{t('trust.pocBody2')}</p>
@@ -82,7 +100,8 @@ const cards = [1, 2, 3, 4, 5] as const;
     margin-bottom: clamp(36px, 5vw, calc(64 * var(--uc)));
   }
   /* R44:证书此前屏上字高约 3px 且无放大出口 —— 而信任区唯一的作用就是让人核验。
-     图片包进按钮(键盘可达),点开用原生 <dialog>:Esc 关闭、焦点管理、背景遮罩全部自带,零框架。 */
+     开启件是 <a href=大图>(键盘可达;无 JS 直接打开图片),有 JS 时 fx 拦截为原生 <dialog>:
+     Esc 关闭、焦点管理、背景遮罩全部自带,零框架。 */
   .cert-open {
     display: block;
     width: 100%;
@@ -91,6 +110,8 @@ const cards = [1, 2, 3, 4, 5] as const;
     background: none;
     cursor: zoom-in;
     position: relative;
+    text-decoration: none;
+    color: inherit;
   }
   .cert-hint {
     position: absolute;
@@ -107,23 +128,48 @@ const cards = [1, 2, 3, 4, 5] as const;
   }
   .cert-zoom {
     border: 0;
-    padding: calc(16 * var(--uc));
+    padding: 0 calc(16 * var(--uc)) calc(16 * var(--uc));
     background: var(--x-light);
+    /* 定宽(按内容收缩会让慢网首开先弹只有关闭键宽的小框),且**高度参与**:
+       证书原件 1160×1548(比例 0.7494),只按宽度定会让整张高出视口、核验还要在盒内滚。
+       第三项 =(可用高 − 关闭行与内衬 ≈100)× 比例,保证整张一眼看全。 */
+    width: min(
+      calc(96vw / var(--x-zoom)),
+      calc(760 * var(--uc)),
+      calc((94vh / var(--x-zoom) - 100 * var(--uc)) * 0.7494)
+    );
     max-width: min(calc(96vw / var(--x-zoom)), calc(760 * var(--uc))); /* 画布内须换算,否则被二次放大 */
     max-height: calc(94vh / var(--x-zoom));
+    overscroll-behavior: contain; /* 灯箱滚到端点不串联滚后面的页面 */
   }
   .cert-zoom::backdrop {
-    background: rgb(12 12 13 / 0.82);
+    background: rgb(var(--x-bg-rgb) / 0.82); /* 底色单源;裸分量就是为消掉第二处字面量才立的 */
   }
   .cert-zoom img {
     display: block;
     width: 100%;
     height: auto;
+    background: var(--x-line-soft); /* 大图在慢网要几秒:盒子先显浅底,不是一片空白 */
   }
+  .cert-zoom.is-loading img {
+    animation: x-pulse 1.4s ease-in-out infinite;
+  }
+  @keyframes x-pulse {
+    50% {
+      opacity: 0.55;
+    }
+  }
+  /* R45:灯箱内容高于视口时关闭键随内滚滚走 → 关闭行贴顶常驻 */
   .cert-zoom-close {
+    position: sticky;
+    top: 0;
+    left: 0; /* 双指放大后视觉视口平移,关闭行不被推出屏外 */
+    z-index: 1;
     display: flex;
     justify-content: flex-end;
-    margin-bottom: calc(12 * var(--uc));
+    padding: calc(16 * var(--uc)) 0 calc(12 * var(--uc));
+    margin-bottom: 0;
+    background: var(--x-light);
   }
   .certs figure {
     margin: 0;
@@ -139,25 +185,36 @@ const cards = [1, 2, 3, 4, 5] as const;
   .cards {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(calc(280 * var(--uc)), 1fr));
-    gap: clamp(24px, 4.2vw, calc(60 * var(--uc)));
+    gap: max(24px, calc(60 * var(--u))); /* 与 #how / #path / #nex 同一条公式;原式的 4.2vw 是画布内的裸视口单位(被上限救着的休眠隐患) */
   }
   /* 无盒开放列(P2-20):左竖线 + pl20;编号墨 0.8/400(P1-25 部分) */
   .card {
     border-left: 1px solid var(--x-line-dark);
     padding-left: calc(20 * var(--uc));
     display: grid;
-    gap: calc(16 * var(--uc));
+    gap: max(40px, calc(82 * var(--u))); /* 序号行 → 内容:与同族三组同值(此前 16,窄屏差距反而更大) */
     align-content: start;
   }
+  /* R30「纸面编号深柠檬回血」当时落了 #how / #path / #nex 三处、漏了这处 —— 同一屏里 #trust 的 01–05 是灰的、
+     正下方 #nex 的 01–03 是柠檬的 */
   .idx {
-    color: var(--x-dark-cap);
+    color: var(--x-accent-ink);
     font-weight: 400;
   }
+  /* 与 #how / #path / #nex 同形栏卡对齐(R45 拍板 ③:卡内正文回 mono 1.2);zh 的 CJK 1.6 由下面另行覆写 */
   .card p {
     margin: 0;
     color: var(--x-dark-cap);
     text-wrap: pretty;
+    line-height: 1.2;
+  }
+  /* zh:全站 CJK 行高不变量(1.6)在此曾被作用域特异度压回 1.45,与 Path/NEX 卡文不一致 */
+  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 2.0–3.33) */
+  .card p:lang(vi):not(html) {
     line-height: 1.45;
+  }
+  .card p:lang(zh) {
+    line-height: 1.6;
   }
   @media (max-width: 768px) {
     .card {
@@ -166,46 +223,96 @@ const cards = [1, 2, 3, 4, 5] as const;
       padding: calc(20 * var(--uc)) 0 0;
     }
   }
+  /* PoC 手风琴 = 与首页 FAQ 同一细线行式(B7:同一带内两种手风琴规格归一) */
   .poc {
     margin-top: clamp(28px, 4vw, calc(44 * var(--uc)));
-    border: 1px solid var(--x-line-dark);
-    padding: calc(4 * var(--uc)) calc(20 * var(--uc));
+    border-top: 1px solid var(--x-line-dark);
+    border-bottom: 1px solid var(--x-line-dark);
   }
   .poc summary {
     cursor: pointer;
-    min-height: calc(52 * var(--uc));
+    min-height: calc(60 * var(--uc));
     display: flex;
     align-items: center;
-    gap: calc(12 * var(--uc));
-    font-family: var(--x-font-display);
-    font-size: clamp(17px, 1.7vw, calc(24 * var(--uc))); /* R44 并档后上限降到 24,视口项需相应抬到能被夹住 */
-    font-weight: 500;
-    color: var(--x-dark);
+    gap: clamp(14px, 2vw, calc(28 * var(--uc))); /* 与 FAQ 同一列几何 */
+    padding: calc(12 * var(--uc)) 0;
     list-style: none;
   }
   .poc summary::-webkit-details-marker {
     display: none;
   }
+  /* 同 FaqSection:型类给字族/字重/字距/行高与语言分支,这里只留本处特有的 */
+  .poc .q {
+    color: var(--x-dark);
+    flex: 1;
+  }
+
+  /* 不给定宽:12 的盒子里装 7.36 的字形会默认左对齐,记号右缘比行右缘短 4.6px(FAQ 是齐的) */
   .poc .mark {
     color: var(--x-accent-ink);
     font-weight: 400;
-    font-size: calc(16 * var(--uc));
+    position: relative;
   }
   .poc[open] .mark {
     /* + → − */
     visibility: hidden;
-    position: relative;
   }
   .poc[open] .mark::after {
     content: '−';
     visibility: visible;
     position: absolute;
     left: 0;
+    color: var(--x-accent-ink);
   }
   .poc p {
-    color: var(--x-dark-dim);
-    margin: 0 0 calc(16 * var(--uc));
+    color: var(--x-dark-cap);
+    /* 记号在右(与 FAQ 同语法),答案左缘 = 问题左缘 */
+    margin: 0 0 calc(20 * var(--uc));
     max-width: calc(760 * var(--uc));
     text-wrap: pretty;
+    line-height: 1.45;
+  }
+  .poc p:lang(zh) {
+    line-height: 1.6;
+  }
+  .poc .q {
+    transition: opacity 0.2s;
+  }
+  .poc summary:hover .q,
+  .poc summary:focus-visible .q {
+    opacity: 0.6;
+  }
+  /* 手机端灯箱:只比缩略图大 10% 读不了证书 —— 全出血 + 1160 宽原件可平移;触屏无 hover,提示常显 */
+  @media (max-width: 860px) {
+    /* 🔴 高度也要参与,和桌面档一样 —— R46 只把横轴改成适宽,纵轴留了口子:
+       独立回归在 844×390 量到图高 1104.9 对视口高 390,我按推导视口全扫,**106 个组合装不下**。
+       修法不写「减去关闭行 68px」这种魔数:整个弹层排成竖向 flex,图作为可收缩项(min-height:0),
+       关闭行占多高由它自己说了算,图拿剩下的。object-fit:contain 保证收缩时不变形。 */
+    .cert-zoom {
+      display: flex;
+      flex-direction: column;
+      width: 100vw;
+      max-width: 100vw;
+      max-height: 100dvh;
+      padding: 0 calc(8 * var(--uc)) calc(8 * var(--uc));
+    }
+      /* 手机端默认整张适宽:此前按原件 1160 出图,390 屏一眼只看得到左边三分之一,
+         要横向平移才读得完,而灯箱里没有任何提示说它可以平移。适宽后整张一屏可见,
+         看清骑缝小字交给系统自带的双指放大(viewport 没锁 user-scalable)。
+         🔴 下面 <img sizes> 手机档仍取 1160 原件:放大不会回源重取,取小图放大就是糊的。 */
+    .cert-zoom img {
+      width: 100%;
+      max-width: 100%;
+      min-height: 0; /* flex 项默认不肯缩到内容高以下,不解开这条 max-height 不起作用 */
+      object-fit: contain;
+    }
+    .cert-zoom-close {
+      padding: calc(8 * var(--uc)) 0;
+    }
+  }
+  @media (hover: none) {
+    .cert-hint {
+      opacity: 1;
+    }
   }
 </style>

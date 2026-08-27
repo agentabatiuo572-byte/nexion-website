@@ -6,7 +6,10 @@
      activeDevices ← Nexion-uniapp/src/lib/platform-stats.ts FLEET_DEVICES(28_432)
      activeJobs    ← Nexion-uniapp/src/store/app.ts L221 ACTIVE_JOBS_SEED(4_812)
      nodes/countries/uptime ← 同文件 L226-228(156 / 47 / 99.7)
-   快照口径日 2026-08-20;App 锚变更时同步此处(值不同步=同品牌两套口径,回归级)。 */
+   快照口径日 2026-08-20;App 锚变更时同步此处(值不同步=同品牌两套口径,回归级)。
+   R45(主人拍板 B8):千分位/小数点随语言(vi 页曾与主人 vi 文案里的 100.000.000 两套写法并存);
+   价格(USD)保持国际 $ 写法,见 skus.ts。 */
+import type { Locale } from '../i18n';
 
 export interface PlatformStats {
   activeDevices: number;
@@ -33,10 +36,16 @@ export function statsMode(): StatsMode {
   return import.meta.env.PUBLIC_STATS_MODE === 'sse' && import.meta.env.PUBLIC_STATS_URL ? 'sse' : 'snapshot';
 }
 
+/** 数字格式的 BCP-47 标签:vi 千分位 `.` 小数 `,`;zh/en 同 en-US 分组 */
+export function localeTag(locale: Locale): string {
+  return locale === 'vi' ? 'vi-VN' : locale === 'zh' ? 'zh-CN' : 'en-US';
+}
+
 /** 数字展示:<100K 千分位;≥99,950 起 K/M 化(阈值语义同 App compactNumber,防 999.9K 假进位) */
-export function fmtStat(n: number, decimals = 0): string {
+export function fmtStat(n: number, decimals = 0, locale: Locale = 'en'): string {
   if (!Number.isFinite(n)) return '';
-  if (n >= 999_500) return `${(n / 1_000_000).toFixed(2)}M`;
-  if (n >= 99_950) return `${(n / 1_000).toFixed(1)}K`;
-  return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const tag = localeTag(locale);
+  if (n >= 999_500) return `${(n / 1_000_000).toLocaleString(tag, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}M`;
+  if (n >= 99_950) return `${(n / 1_000).toLocaleString(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}K`;
+  return n.toLocaleString(tag, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }

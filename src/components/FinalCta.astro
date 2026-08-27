@@ -33,6 +33,6 @@ const t = useT(locale);
     font-size: max(28px, calc(40 * var(--u)));
     color: var(--x-white);
     margin: 0;
-    max-width: 24ch;
+    /* R45(B3b):去 24ch 上限——参考站宣言行跑满画布;vi 曾因此被折成两行 */
   }
 </style>

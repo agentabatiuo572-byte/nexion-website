@@ -1,20 +1,29 @@
 ---
 /* [FEAT-WEB01] 全局导航 — R9(主人 2026-08-21 第一屏逐项令):
    ①删 meta 数字列(与第二屏数字条重复);②UTC 时钟贴 LOGO 右侧;
-   ③链接横向单行(链接组+语言+下载键一行);翻色/汉堡/锚点/语言逻辑不变。 */
+   ③链接横向单行(链接组+语言+下载键一行);翻色/汉堡/锚点/语言逻辑不变。
+   R45(主人 2026-08-26 拍板):底板由实底幕布改为**半透明磨砂**(backdrop blur + 半透明色);
+   翻色:底板 0.25s 淡变、文字在亮度交叉点瞬切(B5 的目的=消灭同色窗);手机菜单点穿 / 汉堡过白带隐形 / Esc /
+   横屏滚动 / 焦点陷阱 / Lenis 锁滚全修;内链统一尾斜杠;无 JS 手机端导航随流展开。 */
 import { useT, locales, type Locale } from '../i18n';
 
 interface Props {
   locale: Locale;
   path?: string;
+  /** 页内锚点是否成立(默认按 path 判;404 这类没有首页区块的页面要显式关掉) */
+  inPageAnchors?: boolean;
+  /** 不宣称「当前语言」:404 由三语共用一张页,标 EN 为当前语言会与「链接通向来路语言站」自相矛盾 */
+  neutralLang?: boolean;
 }
-const { locale, path = '/' } = Astro.props;
+const { locale, path = '/', inPageAnchors, neutralLang = false } = Astro.props;
 const t = useT(locale);
-const isHome = path === '/';
+const isHome = inPageAnchors ?? path === '/';
 const prefix = locale === 'en' ? '' : `/${locale}`;
+const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
 const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
-const page = (p: string) => `${prefix}${p}`;
-const langHref = (l: Locale) => (l === 'en' ? path : `/${l}${path === '/' ? '/' : path}`);
+/* 内链统一尾斜杠(与 canonical / sitemap 同形;否则上线到规范化尾斜杠的托管每次内链多一跳 301) */
+const page = (p: string) => (p === '/' ? `${prefix}/` : `${prefix}${p}/`);
+const langHref = (l: Locale) => withSlash(l === 'en' ? path : `/${l}${path === '/' ? '/' : path}`);
 
 const H5_URL = import.meta.env.PUBLIC_H5_URL ?? '';
 const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
@@ -23,16 +32,15 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
 <header class="site-nav" id="site-nav">
   <nav aria-label={t('nav.ariaMain')}>
     <div class="logo-cell">
-      <a class="logo x-dimlink" href={page('/') || '/'}>
-        <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true">
-          <g fill="none" stroke="currentColor" stroke-width="1.1">
-            <rect x="3" y="3" width="18" height="18" />
-            <rect x="7.5" y="7.5" width="9" height="9" />
-            <path d="M3 12h4.5M16.5 12H21M12 3v4.5M12 16.5V21" />
-            <circle cx="12" cy="12" r="1.6" fill="var(--x-accent)" stroke="none" />
-          </g>
-        </svg>
-        <span>nexgrid</span>
+      <a class="logo x-dimlink" href={page('/')}>
+        {/* 品牌横版组合标(主人 2026-08-26 提供的素材,规格见 UI/NexGrid-Horizontal-Specs-2026-08-25)。
+            深浅两版叠放、翻色时同帧互换——素材要求等比缩放,不拆开、不改色,所以不能像旧的线框图标那样吃 currentColor。
+            读屏只读深色那张(浅色那张 aria-hidden),避免品牌名被念两遍。 */}
+        {/* 单张 3 倍图(354×120)当唯一 src:画布对导航自套 zoom(≥1440 最高 1.3333),
+            位图不会因 zoom 重新栅格化只会被上采样,而 srcset 的 x 描述符只按 DPR 选图、看不见 zoom。
+            worst case = 118 × 1.3333 × DPR2 = 314.67 设备 px,354 覆盖所有 zoom×DPR 组合。 */}
+        <img class="lockup lockup-dark" src="/logo-lockup-dark.webp" width="118" height="40" alt="NexGrid" />
+        <img class="lockup lockup-light" src="/logo-lockup-light.webp" width="118" height="40" alt="" aria-hidden="true" />
       </a>
       <span class="clock" id="x-clock" aria-hidden="true"></span>
     </div>
@@ -53,7 +61,14 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
         <div class="row2">
           <div class="lang" role="group" aria-label={t('nav.ariaLanguage')}>
             {locales.map((l) => (
-              <a href={langHref(l)} data-scr class:list={['x-dimlink', { active: l === locale }]} aria-current={l === locale ? 'true' : undefined}>
+              <a
+                href={langHref(l)}
+                data-scr
+                lang={l}
+                hreflang={l}
+                class:list={['x-dimlink', { active: !neutralLang && l === locale }]}
+                aria-current={!neutralLang && l === locale ? 'page' : undefined}
+              >
                 {LANG_LABEL[l]}
               </a>
             ))}
@@ -64,9 +79,9 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
             </a>
           )}
           <a class="xbtn solid dl-btn" href={anchor('download')}>
-            <span class="xbtn-ghost">{t('nav.download')} <span class="arr">→</span></span>
+            <span class="xbtn-ghost" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>
             <span class="xbtn-a">{t('nav.download')} <span class="arr">→</span></span>
-            <span class="xbtn-b">{t('nav.download')} <span class="arr">→</span></span>
+            <span class="xbtn-b" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>
           </a>
         </div>
       </div>
@@ -82,48 +97,47 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     left: 0;
     right: 0;
     z-index: 40;
-    --x-nav-feather: calc(16px * var(--x-zoom)); /* R43:幕布在画布壳外、不吃 zoom,须显式乘;此前用画布单位被冻结在 1440 值 */
+    /* R45 磨砂底板:半透明色 + 背景模糊。暗态 0.64、亮态 0.72——模糊后的粒子/白带内容透出但不干扰小字 */
+    --x-nav-tint: var(--x-bg-rgb);
+    --x-nav-a: 0.64;
     color: var(--x-white);
-    /* R38:文字换色滞后于幕布(幕布 0.12s 先就位,文字 0.16s 后起步)——
-       同步交叉时两灰会在中点擦身(实测瞬时 4.31:1),错峰后文字始终踩在已就位的幕布上 */
-    transition: color 0.18s ease 0.16s;
+    /* B5 翻色(目的 = 消灭同色窗):底板与文字在**同一帧**切到目标态,不走中间灰。
+       为什么不是「同步渐变」也不是「渐变 + 单次瞬切」:白字与深字 #0c0c0d 的等对比点落在底板相对亮度 0.189,
+       那一点两边都只有 4.39:1(实测瞬切那刻 3.89:1)——渐变路线的理论上限本身就低于 AA 的 4.5,补不上去。
+       瞬切后:切前白字压暗板 ≈19:1、切后深字压亮板 ≈15:1。窗过后底板再从实底淡回半透明磨砂(0.2s)。 */
+    transition: none;
     pointer-events: none;
-  }
-  /* R35:双幕布伪元素交叉淡切——渐变背景不可过渡,双层 opacity 才能与翻色同步;
-     平台段 56px 全不透明(与底色同色)根治「小字压亮丝线」与「翻墨窗黑字压灰」两路实扣 */
-  .site-nav::before,
-  .site-nav::after {
-    content: '';
-    position: absolute;
-    inset: 0 0 auto 0;
-    /* R41 根治:幕布高度与不透明段**由导航条自身高度驱动**,不再写死数值。
-       why:R40 把条高从 14 抬到 30,幕布仍停在写死的 72/56,导航文字下半截失去底板,
-       亮区滚动时正文从字缝透出(实测透出率 0%→69%)。改成 100% 派生后,
-       「条长高了幕布没跟上」这一族结构上不可能再发生。 */
-    height: calc(100% + var(--x-nav-feather));
-    pointer-events: none;
-    z-index: -1;
-    transition: opacity 0.12s ease; /* R38:幕布先行 */
   }
   .site-nav::before {
-    /* R36:平台段全不透明(与底色同色=视觉无缝)——90%/94% 半透曾留 15-25% 大字残影 */
-    background: linear-gradient(to bottom, var(--x-bg) 0 calc(100% - var(--x-nav-feather)), transparent);
-    opacity: 1;
-  }
-  .site-nav::after {
-    background: linear-gradient(to bottom, var(--x-light) 0 calc(100% - var(--x-nav-feather)), transparent);
-    opacity: 0;
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: -1;
+    /* 🔴 alpha 必须写在**颜色里**,不能用 opacity:两者同元素时,浏览器先按 alpha 把「模糊后的结果」
+       压回「未模糊的背景」上,磨砂只剩约 64%(隔离对照页实测:正确写法残留细节 0.04,opacity 写法 1.07,无磨砂 2.90)。 */
+    background-color: rgb(var(--x-nav-tint) / var(--x-nav-a));
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    backdrop-filter: blur(14px) saturate(1.15);
+    transition: background-color 0.2s ease;
   }
   .site-nav.on-light {
     color: var(--x-bg);
+    --x-nav-tint: var(--x-light-rgb);
+    --x-nav-a: 0.72;
+    /* 文字瞬切,与底板同帧(见上) */
     /* R31:全局浮层不在白带 DOM 内,纸面强调变体需自随翻墨态切换(下划线/焦点环过白带不隐形) */
     --x-accent-ink: var(--x-accent-ink-paper);
   }
-  .site-nav.on-light::before {
-    opacity: 0;
+  /* 翻色窗(≈270ms):底板瞬间切到目标实底——文字同帧切,两边都是「纯色底 + 对的墨色」,对比不进中间灰。
+     窗结束后 alpha 从 1 回到 0.64/0.72(底色已是目标色),看起来是「实底化开成磨砂」。 */
+  .site-nav.flipping::before {
+    --x-nav-a: 1;
+    transition: background-color 0s;
   }
-  .site-nav.on-light::after {
-    opacity: 1;
+  /* 内页无白带、导航不翻色:0.64 的暗磨砂压在白纸面板上成一块羽化灰影 → 内页底板 0.9(仍是磨砂,纸面只隐约透出) */
+  :global(html.x-inner) .site-nav {
+    --x-nav-a: 0.9;
   }
   .site-nav a,
   .site-nav button {
@@ -134,7 +148,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     align-items: center;
     justify-content: space-between;
     gap: max(20px, calc(43.2 * var(--u)));
-    /* R42:导航条在画布壳外(fixed 全宽,幕布要全出血),故内层自套一份画布——
+    /* R42:导航条在画布壳外(fixed 全宽,底板要全出血),故内层自套一份画布——
        条内排印随画布缩放,底板仍铺满屏宽。断点与全站画布一致(1440)。 */
     width: 1440px;
     margin-inline: auto;
@@ -151,29 +165,42 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   }
   /* 画布制排印(参考站 LOGO 块 271×41 @1440):图标+字标同步随视口 */
   .logo {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    gap: calc(12 * var(--uc));
     color: currentColor;
     text-decoration: none;
-    font-family: var(--x-font-display);
-    font-size: max(20px, calc(28 * var(--u)));
-    font-weight: 500;
-    letter-spacing: -0.01em;
-    min-height: calc(44 * var(--uc)); /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */ /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */
+    min-height: var(--x-touch); /* R42:触达高度不随窄屏缩(44pt 纪律),故用只涨不缩的单位 */
   }
-  .logo svg {
-    width: max(30px, calc(41 * var(--u)));
-    height: auto;
+  .lockup {
+    display: block;
+    height: calc(40 * var(--uc));
+    width: auto;
+  }
+  /* 浅色版叠在深色版上,翻色时同帧互换(与文字瞬切同口径——做渐变会有一瞬两版重影) */
+  .lockup-light {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+  }
+  .site-nav.on-light .lockup-dark {
+    opacity: 0;
+  }
+  .site-nav.on-light .lockup-light {
+    opacity: 1;
   }
   .clock {
     font-family: var(--x-font-mono);
     font-size: max(12px, calc(12 * var(--u)));
     font-weight: 400;
+    /* 参考站的 12px 字距不是一刀切:时钟文本与冒号、滚动提示、版权行这四类保留 −0.03em,其余 normal。
+       曾按「等宽应统一字身格」删掉,被还原度逐元素成对扫描推翻 —— 基准优先于通用原则。 */
     letter-spacing: -0.03em;
     line-height: 1.2;
     color: currentColor;
-    min-height: calc(44 * var(--uc));
+    min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
@@ -205,10 +232,15 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     text-transform: uppercase;
     color: currentColor;
     text-decoration: none;
-    min-height: calc(44 * var(--uc));
+    min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
+  }
+  /* 触达:文字链命中区横向各加 6(负外边距抵消,文字与间距不动;组内 gap ≥26 不重叠) */
+  .links a {
+    padding-inline: calc(6 * var(--uc));
+    margin-inline: calc(-6 * var(--uc));
   }
   .row2 {
     display: flex;
@@ -219,29 +251,52 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     display: flex;
     gap: calc(10 * var(--uc));
   }
+  /* dim 档由 0.62 升到 0.78 —— 换半透明磨砂后 **两态都不够**,是同一个数值的两面:
+       · 暗态:首屏 Mega 白标题从半透明底板下透上来,把该处底色抬到 ≈95 → 0.62 档只剩 3.98–4.47:1
+              (≥1440 才犯,画布 zoom 从 1 开始放大、白块变大;vi 的 Mega 更厚最差)
+       · 亮态:迟滞是「立即开、延迟关 + 24px 外扩」,于是有个**稳定**窗口 —— 已锁存 on-light 而白带还没
+              移到导航身后,底板 = 0.72 亮色压暗页 ≈ 177 中灰 → 0.62 档 3.68:1(即便完全沉降到纯白带也只有 4.88,
+              是全站最紧的余量)。那个窗口正是抗抖动迟滞的来源,不能拆,只能把字做实。
+     实底幕布期这两种情况在物理上都不会发生。0.78 后:暗态 ≈4.7、中灰窗 ≈6.0、纯白带 ≈9.2。 */
   .lang a {
-    opacity: 0.62; /* R35:可交互小字升 dim 档(0.4 档 3.79:1 不过 AA) */
+    /* 两个字母的标签命中宽只有 14.5px,低于 WCAG 2.2 AA 的 24 下限(高度已由 --x-touch 保到 44) */
+    min-width: var(--x-touch-aa);
+    justify-content: center;
+    opacity: 0.82; /* 0.78 在暗态首屏大标题处只有 4.36(DPR2 的最亮 10% 芯像素踩线);
+                      那一处的天花板是结构性的——0.64 暗磨砂压纯白字,底板最亮只到 ≈100,
+                      白字 @0.78 的算术上限就是 4.38,调滚动位置也过不去。0.82 实测 4.61,与 0.78 肉眼无差。 */
   }
+  /* 作用域规则曾压过全局 .x-dimlink:hover,语言链从无 hover 反馈 → 悬停提到全亮 */
+  .lang a:hover,
+  .lang a:focus-visible {
+    opacity: 1;
+  }
+  /* 线画在**字**上不是命中盒上:盒是 44 高(触达纪律),border-bottom 会落在盒底,离字 14.7px = 1.22em,
+     读起来是导航条下缘一条孤立短划。手机菜单里同一条线本来就是这个写法,两处口径就此统一。
+     颜色仍走带纸面变体的 --x-accent-ink(过白带不隐形)。 */
   .lang a.active {
     opacity: 1;
-    border-bottom: 1px solid var(--x-accent-ink); /* R30:带纸面变体的档(过白带不隐形) */
+    text-decoration: underline;
+    text-decoration-color: var(--x-accent-ink);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 0.35em;
   }
   .dl-btn {
-    min-height: calc(44 * var(--uc)); /* R42:本仓触达 44pt 纪律;此前 41.76 未达标(基线即如此,新门揪出) */
+    min-height: var(--x-touch); /* R42:本仓触达 44pt 纪律;此前 41.76 未达标(基线即如此,新门揪出) */
     padding: 0 max(14px, calc(18 * var(--u)));
-    font-size: max(11px, calc(12 * var(--u)));
+    font-size: max(12px, calc(12 * var(--u))); /* 与主人定的导航小字 12px 下限一致(此前 11 是唯一破例) */
     border-color: var(--x-accent-ink); /* R37:随翻墨态自动深描边(黑区=主柠檬同现状,白带=深柠檬边界补偿) */
     transition:
       background 0.25s ease,
       color 0.25s ease,
       border-color 0.25s ease;
   }
-  /* R30:下载键恒柠檬 solid(黑白语境皆成立),on-light 覆写撤销 */
   .menu-toggle {
     display: none;
     background: none;
     border: 0;
     cursor: pointer;
+    color: inherit; /* 汉堡两杠随导航墨色翻转(此前是 UA 默认白,白带上 1.12:1 隐形) */
     width: calc(44 * var(--uc));
     height: calc(44 * var(--uc));
     flex-direction: column;
@@ -258,6 +313,20 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     transition:
       transform 0.2s,
       opacity 0.2s;
+  }
+  /* 开态:两杠合成 ×(杠 2px + 间距 6 → 各位移 4 到中线) */
+  /* 开合菜单的墨色切换不吃翻色延迟(白带上开菜单曾 75ms 黑汉堡压黑菜单) */
+  .site-nav.menu-open,
+  .site-nav.menu-open.on-light,
+  .site-nav.menu-switch,
+  .site-nav.menu-switch.on-light {
+    transition: color 0s linear 0s;
+  }
+  .site-nav.menu-open .menu-toggle span:first-child {
+    transform: translateY(4px) rotate(45deg);
+  }
+  .site-nav.menu-open .menu-toggle span:last-child {
+    transform: translateY(-4px) rotate(-45deg);
   }
 
   @media (max-width: 1080px) {
@@ -297,8 +366,37 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       z-index: 100;
       color: var(--x-white);
     }
+    /* 开态菜单自己吃掉命中(此前继承导航的 pointer-events:none,空白处点穿到页面);横屏可滚
+       (data-lenis-prevent 让停住的 Lenis 放过菜单内的滚动事件) */
     .menu.open {
       display: flex;
+      pointer-events: auto;
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    /* 装不下时底缘淡出 = 「下面还有」的信号:横屏 390 高下下载键与语言链全在视口外,
+       而最后一件可见项恰好干净收尾、下方还留白 —— 看起来就是一份完整的五项菜单,没人会去滚。
+       🔴 必须用叠加层,不能用 mask-image:遮罩作用于**整个元素的合成结果**,而菜单的不透明底就在这个元素上,
+       于是连挡住页面的那块实底一起被淡掉,横屏下首屏正文透过来与语言链互相穿插(实测底部 6 行亮度 48/19/20/21/24
+       对照无遮罩时平直的 12.1)。菜单是 inset:0 的定位层,fixed 即贴住其下缘。 */
+    /* 只在内容真的溢出时才挂(JS 在开菜单/旋转时量 scrollHeight 决定):装得下还铺一层渐隐,
+       等于凭空把主转化键的下三分之一吃掉(实测键下缘 alpha 0.50,正文从键身透出来) */
+    .menu.open.can-scroll {
+      padding-bottom: calc(48 * var(--uc)); /* 末件要能完全滚出渐隐带(带高 32) */
+    }
+    .menu.open.can-scroll::after {
+      content: '';
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: calc(32 * var(--uc));
+      background: linear-gradient(to top, var(--x-bg), transparent);
+      pointer-events: none;
+    }
+    /* 菜单开着时 LOGO 被盖住但仍可点/可聚焦 → 一并隐去 */
+    .site-nav.menu-open .logo-cell {
+      visibility: hidden;
     }
     .links {
       flex-direction: column;
@@ -310,7 +408,9 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       font-weight: 500;
       letter-spacing: -0.02em;
       text-transform: none;
-      min-height: calc(52 * var(--uc));
+      min-height: max(var(--x-touch), calc(52 * var(--uc))); /* 触达底线走 token(同文件其余处都走它);52 是本处版式想要的更高值 */
+      padding-inline: 0;
+      margin-inline: 0;
     }
     .row2 {
       flex-direction: column;
@@ -318,59 +418,239 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       gap: calc(18 * var(--uc));
       margin-top: calc(6 * var(--uc));
     }
+    .lang {
+      gap: calc(24 * var(--uc));
+    }
     .lang a {
-      min-height: calc(44 * var(--uc));
+      min-height: var(--x-touch);
+      padding-inline: calc(10 * var(--uc));
+      margin-inline: calc(-10 * var(--uc));
+    }
+    .lang a.active {
+      border-bottom: 0;
+      text-decoration: underline;
+      text-decoration-color: var(--x-accent-ink);
+      text-underline-offset: 0.35em;
     }
     .dl-btn {
       min-height: calc(48 * var(--uc));
       padding: 0 calc(22 * var(--uc));
       font-size: calc(12 * var(--uc));
     }
+    /* 矮屏(横屏手机)压一压,让五项 + 语言 + 下载键正好装得下,不必依赖滚动。
+       🔴 位置必须在上面那些基础规则**之后**:嵌套 media 不增加特异度,同一上下文里靠源序决胜,
+       写在前面时 .links / .links a / .row2 三条会被后写的基础值原样压掉(六条只落地三条,而且没有任何反馈)。
+       390 高实测:5×44 + 4×4(链)+ 14(menu gap)+ 104(语言 44 + gap 12 + 下载 48)+ 36(内衬 20/16)= 390 整。 */
+    @media (max-height: 520px) {
+      .menu {
+        padding-top: calc(20 * var(--uc));
+        padding-bottom: calc(16 * var(--uc));
+        gap: calc(14 * var(--uc));
+      }
+      .links {
+        gap: calc(4 * var(--uc));
+      }
+      .links a {
+        font-size: calc(28 * var(--uc));
+        min-height: var(--x-touch); /* 触达下限不动 */
+      }
+      .row2 {
+        gap: calc(12 * var(--uc));
+      }
+    }
+    /* 更矮的横屏(iPhone SE 一类 360 / 375 高):520 档收完仍差十几到几十 px,再收一档;
+       触达 44 不动,只压字号与间距。仍装不下时由菜单底缘的淡出层表达「下面还有」。 */
+    /* 横屏且很矮:链接改两列。竖排五项 ×44 高在 360 高里装不下(末件溢出 4px 且被淡出层盖住 32/44),
+       而这类视口宽度富余;两列后总高从 ~236 降到 ~140,触达 44 一点不动。
+       与下面的 420 档同为高向更窄,且多一个宽度条件,层叠上不冲突。 */
+    @media (max-height: 400px) and (min-width: 480px) {
+      .links {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: calc(28 * var(--uc));
+      }
+    }
+    @media (max-height: 420px) {
+      .menu {
+        padding-top: calc(14 * var(--uc));
+        padding-bottom: calc(12 * var(--uc));
+        gap: calc(10 * var(--uc));
+      }
+      .links a {
+        font-size: calc(24 * var(--uc));
+      }
+      .row2 {
+        gap: calc(10 * var(--uc));
+      }
+      .dl-btn {
+        min-height: var(--x-touch);
+      }
+    }
+    /* 无 JS:汉堡是按钮 → 9/10 链接不可达;退化为**随流**、换行的等宽链接行。
+       必须 relative 而非 fixed:固定定位的常开菜单曾成为 426px 遮挡带压住正文(证书都点不到)。 */
+    :global(html:not(.js)) .site-nav {
+      position: relative;
+    }
+    :global(html:not(.js)) .menu-toggle {
+      display: none;
+    }
+    :global(html:not(.js)) nav {
+      flex-wrap: wrap;
+    }
+    :global(html:not(.js)) .right {
+      width: 100%;
+    }
+    :global(html:not(.js)) .menu {
+      display: flex;
+      position: static;
+      flex-direction: row;
+      flex-wrap: wrap;
+      padding: calc(4 * var(--uc)) 0 calc(10 * var(--uc));
+      gap: calc(6 * var(--uc)) calc(18 * var(--uc));
+      background: none;
+      color: inherit;
+    }
+    :global(html:not(.js)) .links {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: calc(6 * var(--uc)) calc(18 * var(--uc));
+    }
+    :global(html:not(.js)) .links a {
+      font-family: var(--x-font-mono);
+      font-size: max(12px, calc(12 * var(--u)));
+      font-weight: 400;
+      letter-spacing: 0;
+      text-transform: uppercase;
+      min-height: var(--x-touch);
+    }
+    :global(html:not(.js)) .row2 {
+      flex-direction: row;
+      align-items: center;
+      margin-top: 0;
+    }
   }
 </style>
 
 <script>
-  // 汉堡开合 + 过浅区翻色(rAF 节流测 .x-invert 与导航带重叠)
+  // 汉堡开合(含 Esc / 焦点陷阱 / 锁滚)+ 过浅区翻色(rAF 节流测 .x-invert 与导航带重叠)
   const nav = document.getElementById('site-nav');
   const toggle = nav?.querySelector<HTMLButtonElement>('.menu-toggle');
   const menu = document.getElementById('nav-menu');
-  toggle?.addEventListener('click', () => {
-    const open = menu?.classList.toggle('open') ?? false;
+  const frame = document.querySelector<HTMLElement>('.x-frame');
+  const isOpen = () => menu?.classList.contains('open') ?? false;
+  let switchT = 0;
+  /* 渐隐只在真能滚时挂;开菜单与旋转后各量一次(横屏 390 高装不下、竖屏 844 高装得下) */
+  const syncScrollable = () => {
+    if (!menu) return;
+    menu.classList.toggle('can-scroll', menu.scrollHeight > menu.clientHeight + 1);
+  };
+  const setOpen = (open: boolean) => {
+    menu?.classList.toggle('open', open);
+    menu?.toggleAttribute('data-lenis-prevent', open); // 只在开着时放行菜单内滚动:常挂会让桌面导航上方的滚轮退化成原生瞬跳
+    if (open) requestAnimationFrame(syncScrollable);
+    else menu?.classList.remove('can-scroll');
     nav?.classList.toggle('menu-open', open);
-    toggle.setAttribute('aria-expanded', String(open));
-    document.documentElement.style.overflow = open ? 'hidden' : '';
+    nav?.classList.add('menu-switch'); // 开关那一瞬的墨色切换不吃翻色延迟(关菜单曾白汉堡压亮板 167ms)
+    clearTimeout(switchT);
+    switchT = window.setTimeout(() => nav?.classList.remove('menu-switch'), 60);
+    toggle?.setAttribute('aria-expanded', String(open));
+    frame?.toggleAttribute('inert', open); // 焦点陷阱:菜单开着时页面本体不可达
+    // 文档滚动锁与 Lenis 都交给 fx 的计数式 scrollLock(灯箱共用同一把锁,各自清空会互相解锁)
+    document.dispatchEvent(new Event(open ? 'x:scroll-lock' : 'x:scroll-unlock'));
+  };
+  toggle?.addEventListener('click', () => setOpen(!isOpen()));
+  // 菜单开着时视口跨过 860(平板旋转 / 拉宽窗口):汉堡消失但锁页态残留 → 整页冻结;跨断点即收口
+  const mq = matchMedia('(max-width: 860px)');
+  mq.addEventListener('change', () => {
+    if (!mq.matches && isOpen()) setOpen(false);
+  });
+  addEventListener('resize', () => {
+    if (isOpen()) syncScrollable(); // 旋转后可视高变了,能不能滚也跟着变
+  });
+  // 焦点陷阱另一半:汉堡上 Shift+Tab 回菜单末项(此前只管菜单内首尾,反向会逃到浏览器 chrome)
+  toggle?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !e.shiftKey || !isOpen() || !menu) return;
+    const items = [...menu.querySelectorAll<HTMLElement>('a, button')].filter((el) => el.offsetParent !== null);
+    if (!items.length) return;
+    e.preventDefault();
+    items[items.length - 1].focus();
   });
   menu?.addEventListener('click', (e) => {
-    if ((e.target as HTMLElement).closest('a')) {
-      menu.classList.remove('open');
-      nav?.classList.remove('menu-open');
-      toggle?.setAttribute('aria-expanded', 'false');
-      document.documentElement.style.overflow = '';
+    if ((e.target as HTMLElement).closest('a')) setOpen(false);
+  });
+  addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && isOpen()) {
+      setOpen(false);
+      toggle?.focus();
+    }
+  });
+  // Tab 在菜单内循环(末项 → 汉堡,首项 Shift+Tab → 汉堡)
+  menu?.addEventListener('keydown', (e) => {
+    if (e.key !== 'Tab' || !isOpen()) return;
+    const items = [...menu.querySelectorAll<HTMLElement>('a, button')].filter((el) => el.offsetParent !== null);
+    if (!items.length) return;
+    const first = items[0];
+    const last = items[items.length - 1];
+    if ((e.shiftKey && document.activeElement === first) || (!e.shiftKey && document.activeElement === last)) {
+      e.preventDefault();
+      toggle?.focus();
     }
   });
 
   const lightSections = [...document.querySelectorAll<HTMLElement>('.x-invert')];
-  const NAV_BAND = (document.querySelector('.site-nav')?.getBoundingClientRect().height ?? 74) + 10; // R43:同上,实测代替写死
   let raf = 0;
+  let flipT = 0;
+  let leaveT = 0;
+  const commit = (v: boolean) => {
+    if (!nav) return;
+    nav.classList.toggle('on-light', v);
+    nav.classList.add('flipping'); // 翻色窗:底板实底 ≈270ms
+    clearTimeout(flipT);
+    flipT = window.setTimeout(() => nav.classList.remove('flipping'), 200); // 底色是瞬切的,窗只是让实底停一下再化开(200+200 ≤450)
+  };
   const recolor = () => {
     raf = 0;
+    /* R45:阈值每帧实测(此前只在脚本解析时量一次,resize / 跨断点后早翻 20px 或晚翻 25px) */
+    /* 阈值 = 条高本身(不再 +10):早 10px 翻色会让浅色导航条与还没到的白带之间露出一条纯暗细线;
+       文字基线在 y≈52,白带顶到条高才触发仍比「白带压到文字」早 22px,消同色窗的目的不受影响 */
+    const band = nav?.getBoundingClientRect().height ?? 74;
+    /* 迟滞(空间那一半)收到 8px:防抖的主力是下面「出白带延 400ms」的时间闸(与抖动幅度无关),
+       空间那一半开大只会把副作用放大 —— 状态粘住期间底板颜色与身后实际背景不匹配,
+       屏上就是「中灰底板 → 纯暗条 → 白页」的夹缝,24px 时最宽 23px 且常驻,8px 后 ≤7px。 */
+    const hys = nav?.classList.contains('on-light') ? 8 : 0;
     let onLight = false;
     for (const s of lightSections) {
       const r = s.getBoundingClientRect();
-      if (r.top < NAV_BAND && r.bottom > NAV_BAND) {
+      if (r.top < band + hys && r.bottom > band - hys) {
         /* R37:bottom 也须过导航带——白带滚出后导航区已是黑区,旧判定迟翻留「白帽压黑」 */
         onLight = true;
         break;
       }
     }
-    nav?.classList.toggle('on-light', onLight);
+    if (!nav) return;
+    if (nav.classList.contains('on-light') === onLight) {
+      clearTimeout(leaveT); // 抖回原态:撤销挂起的离场
+      leaveT = 0;
+      return;
+    }
+    /* 进白带必须瞬时(晚一帧就是白底压白字);出白带迟 250ms —— 抖动的往复周期远短于它,
+       顺向离开时只是白底板多留 250ms(深字压白板 ≈15:1,不影响可读) */
+    if (onLight) {
+      clearTimeout(leaveT);
+      leaveT = 0;
+      commit(true);
+    } else if (!leaveT) {
+      leaveT = window.setTimeout(() => {
+        leaveT = 0;
+        commit(false);
+      }, 400); /* 250 挡不住「拖滚动条 ±4 轨道像素、半周期 260ms」那档往复(每次恰好熬过);400 后该带翻色减半。
+                  代价:顺向离开白带后白底板多留 150ms,该态实测 ≈15:1,可读性不受影响 */
+    }
   };
   recolor();
-  addEventListener(
-    'scroll',
-    () => {
-      if (!raf) raf = requestAnimationFrame(recolor);
-    },
-    { passive: true },
-  );
+  const schedule = () => {
+    if (!raf) raf = requestAnimationFrame(recolor);
+  };
+  addEventListener('scroll', schedule, { passive: true });
+  addEventListener('resize', schedule);
 </script>

@@ -56,16 +56,22 @@ const btns = [
           {b.label} <span class="arr">{b.arr}</span>
         </>
       );
+      /* 未配 URL 的档走 aria-disabled 而不是原生 disabled —— 按 APG,禁用态的键**仍要可聚焦**:
+         不给 tabindex,键盘与朗读器的焦点模式就永远碰不到它,也就听不到「不可用」这件事。
+         独立可用性评审实测:390 档 Tab 序从汉堡键直接跳到页尾 CTA,三颗主键整段被跳过。 */
       return b.url ? (
         <a class:list={['xbtn', { solid: b.solid }, lightCls]} href={b.url} target="_blank" rel="noopener">
-          <span class="xbtn-ghost">{inner}</span>
+          <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
           <span class="xbtn-a">{inner}</span>
-          <span class="xbtn-b">{inner}</span>
+          <span class="xbtn-b" aria-hidden="true">{inner}</span>
         </a>
       ) : (
-        <span class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
+        // 原生 button 而不是 span[role=button]:后者按空格会滚页(独立评审实测 scrollY 0 → 738),
+        // 空格正是这类件的标准激活键,按下去既无反馈又把人甩下大半屏。原生按钮不滚页。
+        // 仍用 aria-disabled 而非原生 disabled —— 原生 disabled 会连焦点一起拿掉。
+        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
           <span class="static">{inner}</span>
-        </span>
+        </button>
       );
     })
   }

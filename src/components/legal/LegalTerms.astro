@@ -1,6 +1,7 @@
 ---
 /* [FEAT-WEB12] Terms of Service — en 权威文本(初稿供主人审;上线前建议法务过目)。
-   管辖条款已按 O2 资料包填充(Colorado, USA)。 */
+   管辖条款已按 O2 资料包填充(Colorado, USA)。
+   R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题)、meta 行挂 .x-mono、小标题行高 1.1;英文正文标 lang=en。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -10,10 +11,10 @@ const { locale } = Astro.props;
 const t = useT(locale);
 ---
 
-<main class="legal">
-  {locale !== 'en' && <p class="prevails">{t('legal.enPrevails')}</p>}
-  <h1>Terms of Service</h1>
-  <p class="updated">Last updated: 2026-08-20</p>
+<main class="legal" lang="en">
+  {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
+  <h1 class="x-display">Terms of Service</h1>
+  <p class="updated x-mono">Last updated: 2026-08-20</p>
 
   <div class="sheet x-paper">
   <h2>1. What this Site is</h2>
@@ -70,34 +71,30 @@ const t = useT(locale);
     padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
   }
   .prevails {
-    font-family: var(--x-font-mono);
     border: 1px solid var(--x-line);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
+    line-height: 1.2;
     padding: calc(10 * var(--uc)) calc(16 * var(--uc));
     margin: 0 0 calc(20 * var(--uc));
   }
   h1 {
-    font-family: var(--x-font-display);
-    font-size: clamp(30px, 4.6vw, calc(54 * var(--uc)));
-    font-weight: 500;
+    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
     color: var(--x-ink);
-    margin: 0 0 calc(8 * var(--uc));
-    letter-spacing: -0.02em;
+    margin: 0 0 calc(14 * var(--uc)); /* 88 档标题降部与 meta 小字的呼吸(此前 8) */
   }
   .updated {
-    font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
+    line-height: 1.2;
     margin: 0 0 calc(30 * var(--uc));
   }
   h2 {
     font-family: var(--x-font-display);
     font-size: clamp(18px, 1.9vw, calc(24 * var(--uc)));
     font-weight: 500;
+    line-height: 1.1;
     color: var(--x-ink);
     margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
-    letter-spacing: -0.015em;
+    letter-spacing: -0.02em; /* 24 档统一 -0.02em(与 FAQ 问题同) */
   }
   p {
     font-family: var(--x-font-mono);

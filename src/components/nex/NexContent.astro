@@ -3,7 +3,8 @@
    无价格行/无实时行情;上市信息只写可验证事实(v1 不列交易所);App 内第 5 用法的
    措辞按官网 PRD §1.4-3 中性化为「长期持有」(App 原措辞属投机语态,官网禁用);
    App 内链一律改「下载 App」CTA。白皮书入口条件渲染(O6 无资产不渲染)。
-   axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。 */
+   axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。
+   R45 B7:子页标题不再继承正文行高 1.6(display 档行高 ≤1.1);FAQ 规格与首页 FAQ 归一(字重/字距/编号色/记号色/行高)。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -26,7 +27,7 @@ const faqs = [1, 2, 3, 4] as const;
   </header>
 
   <section class="block x-paper" aria-labelledby="nex-compare">
-    <h2 id="nex-compare">{t('nex.compareTitle')}</h2>
+    <h2 id="nex-compare" class="x-h24">{t('nex.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
         <thead>
@@ -42,12 +43,12 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-sources">
-    <h2 id="nex-sources">{t('nex.sourcesTitle')}</h2>
+    <h2 id="nex-sources" class="x-h24">{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b>{t(`nex.src${n}Title`)}</b>
+          <b class="x-h24">{t(`nex.src${n}Title`)}</b>
           <span class="x-mono">{t(`nex.src${n}Desc`)}</span>
         </li>
       ))}
@@ -55,12 +56,12 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-uses">
-    <h2 id="nex-uses">{t('nex.usesTitle')}</h2>
+    <h2 id="nex-uses" class="x-h24">{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b>{t(`nex.use${n}Title`)}</b>
+          <b class="x-h24">{t(`nex.use${n}Title`)}</b>
           <span class="x-mono">{t(`nex.use${n}Desc`)}</span>
         </li>
       ))}
@@ -68,26 +69,26 @@ const faqs = [1, 2, 3, 4] as const;
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-mech">
-    <h2 id="nex-mech">{t('nex.mechTitle')}</h2>
+    <h2 id="nex-mech" class="x-h24">{t('nex.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
-        <h3>{t('nex.mech1Title')}</h3>
+        <h3 class="x-h24">{t('nex.mech1Title')}</h3>
         <p class="x-mono">{t('nex.mech1Desc')}</p>
       </article>
       <article class="mcard" data-rv style="--d:.1s">
-        <h3>{t('nex.mech2Title')}</h3>
+        <h3 class="x-h24">{t('nex.mech2Title')}</h3>
         <p class="x-mono">{t('nex.mech2Desc')}</p>
       </article>
     </div>
   </section>
 
   <section class="block x-paper" aria-labelledby="nex-faq">
-    <h2 id="nex-faq">{t('nex.faqTitle')}</h2>
+    <h2 id="nex-faq" class="x-h24">{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
         <summary>
           <span class="idx x-mono">Q{n}</span>
-          <span class="q">{t(`nex.faq${n}Q`)}</span>
+          <span class="q x-q">{t(`nex.faq${n}Q`)}</span>
           <span class="mark x-mono" aria-hidden="true">+</span>
         </summary>
         <p class="x-mono">{t(`nex.faq${n}A`)}</p>
@@ -97,15 +98,15 @@ const faqs = [1, 2, 3, 4] as const;
 
   <div class="cta-row">
     <a class="xbtn solid" href={`${prefix}/#download`}>
-      <span class="xbtn-ghost">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-ghost" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
       <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
-      <span class="xbtn-b">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
     </a>
     {WHITEPAPER_URL && (
       <a class="xbtn" href={WHITEPAPER_URL} target="_blank" rel="noopener">
-        <span class="xbtn-ghost">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-ghost" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
         <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr">↗</span></span>
-        <span class="xbtn-b">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-b" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
       </a>
     )}
   </div>
@@ -144,11 +145,10 @@ const faqs = [1, 2, 3, 4] as const;
     margin-bottom: calc(40 * var(--uc));
     padding: clamp(18px, 2.2vw, calc(30 * var(--uc)));
   }
+  /* 型类给字族/字重/字距/行高与语言分支;这里只留本处特有的字号与边框。
+     原来没有 vi/zh 分支,行高补偿静默失效。 */
   .block h2 {
-    font-family: var(--x-font-display);
     font-size: clamp(22px, 2.6vw, calc(32 * var(--uc)));
-    font-weight: 500;
-    letter-spacing: -0.02em;
     color: var(--x-ink);
     border-top: 1px solid var(--x-line);
     padding-top: calc(16 * var(--uc));
@@ -168,6 +168,16 @@ const faqs = [1, 2, 3, 4] as const;
     padding: calc(12 * var(--uc)) calc(16 * var(--uc)) calc(12 * var(--uc)) 0;
     border-bottom: 1px solid var(--x-line-soft);
     vertical-align: top;
+  }
+  /* 手机:520 的定宽让第三列整列停在屏外,而横滚没有任何提示 → 放开定宽,三列各自折行 */
+  @media (max-width: 640px) {
+    table {
+      min-width: 0;
+    }
+    th,
+    td {
+      padding-right: calc(8 * var(--uc));
+    }
   }
   th {
     color: var(--x-accent-ink);
@@ -196,11 +206,9 @@ const faqs = [1, 2, 3, 4] as const;
     font-weight: 400;
   }
   .list b {
-    font-family: var(--x-font-display);
+    text-wrap: balance; /* 中列被 minmax 卡住必然折行,不平衡则第二行只剩一个词 */
     font-size: clamp(16px, 1.6vw, calc(20 * var(--uc)));
-    font-weight: 500;
     color: var(--x-ink);
-    letter-spacing: -0.01em;
   }
   .list span:last-child {
     color: var(--x-ink-dim);
@@ -215,49 +223,51 @@ const faqs = [1, 2, 3, 4] as const;
     border: 1px solid var(--x-line-soft);
     padding: calc(22 * var(--uc));
   }
+  /* 原来没有 vi/zh 分支 —— 挂型类后语言行高补偿才生效 */
   .mcard h3 {
-    font-family: var(--x-font-display);
     font-size: clamp(17px, 1.7vw, calc(24 * var(--uc)));
-    font-weight: 500;
     color: var(--x-ink);
     margin: 0 0 calc(10 * var(--uc));
-    letter-spacing: -0.01em;
   }
   .mcard p {
     color: var(--x-ink-dim);
     margin: 0;
     text-wrap: pretty;
   }
+  /* FAQ 手风琴:与首页 FAQ 同规格(问题 400/-0.02em/1.25、编号墨 0.8、记号深柠檬、行高 60、答案 1.45) */
+  /* 行线与收口语法同首页 FAQ:逐条上线 + 末条下线,墨阶用 --x-line-dark
+     (原来只有 0.10 的下线且首条无上线,与同块 .block 的 0.23 上线打架) */
   .faq {
-    border-bottom: 1px solid var(--x-line-soft);
+    border-top: 1px solid var(--x-line-dark);
+  }
+  .faq:last-of-type {
+    border-bottom: 1px solid var(--x-line-dark);
   }
   .faq summary {
     cursor: pointer;
-    min-height: calc(56 * var(--uc));
+    min-height: calc(60 * var(--uc));
     display: flex;
     align-items: center;
-    gap: calc(16 * var(--uc));
+    gap: clamp(14px, 2vw, calc(28 * var(--uc))); /* 列几何与首页 FAQ 同 */
     list-style: none;
-    padding: calc(8 * var(--uc)) 0;
+    padding: calc(12 * var(--uc)) 0;
   }
   .faq summary::-webkit-details-marker {
     display: none;
   }
   .faq .idx {
-    color: var(--x-accent-ink);
+    color: var(--x-dark-cap);
     font-weight: 400;
-    flex: 0 0 calc(28 * var(--uc));
+    flex: 0 0 calc(30 * var(--uc));
   }
+  /* 同 FaqSection:型类给字族/字重/字距/行高与语言分支,这里只留本处特有的 */
   .faq .q {
-    font-family: var(--x-font-display);
-    font-size: clamp(16px, 1.7vw, calc(24 * var(--uc)));
-    font-weight: 500;
     color: var(--x-ink);
     flex: 1;
-    line-height: 1.25;
   }
+
   .faq .mark {
-    color: var(--x-ink-dim);
+    color: var(--x-accent-ink);
     font-weight: 400;
     position: relative;
   }
@@ -272,10 +282,21 @@ const faqs = [1, 2, 3, 4] as const;
     color: var(--x-accent-ink);
   }
   .faq > p {
-    color: var(--x-ink-dim);
-    margin: 0 0 calc(18 * var(--uc)) calc(44 * var(--uc));
-    max-width: calc(680 * var(--uc));
+    max-width: calc(760 * var(--uc)); /* 与首页 FAQ 同(此前 680,是「同规格」漏掉的一项) */
+    color: var(--x-dark-cap);
+    margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     text-wrap: pretty;
+    line-height: 1.45;
+  }
+  .faq > p:lang(zh) {
+    line-height: 1.6;
+  }
+  .faq .q {
+    transition: opacity 0.2s;
+  }
+  .faq summary:hover .q,
+  .faq summary:focus-visible .q {
+    opacity: 0.6;
   }
   .cta-row {
     display: flex;

@@ -24,4 +24,4 @@ The staking screen lets you lock NEX for a period and accrue NEX-denominated int
 
 ## Where to learn more
 
-The NEX page on this site explains the token's sources, uses, and supply mechanics; the app's Trust Center tracks the live network data behind it.
+[The NEX page on this site](/nex/) explains the token's sources, uses, and supply mechanics; the app's Trust Center tracks the live network data behind it.

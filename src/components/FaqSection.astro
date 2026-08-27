@@ -1,7 +1,7 @@
 ---
 /* [FEAT-WEB12] Home FAQ — 6 问手风琴(原生 details)+ FAQPage JSON-LD。
    涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。
-   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。 */
+   axiom 方向:黑底细线行式手风琴 + 序号 + 琥珀 +/− 记号。本规格同时是 /nex FAQ 与信任区 PoC 手风琴的样板(R45 B7 归一)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -30,7 +30,7 @@ const ld = {
       <details class="item" data-rv style={`--d:${i * 0.05}s`}>
         <summary>
           <span class="idx x-mono">Q{n}</span>
-          <span class="q">{t(`faq.q${n}`)}</span>
+          <span class="q x-q">{t(`faq.q${n}`)}</span>
           <span class="mark x-mono" aria-hidden="true">+</span>
         </summary>
         <p class="x-mono">{t(`faq.a${n}`)}</p>
@@ -78,16 +78,12 @@ const ld = {
     font-weight: 400;
     flex: 0 0 calc(30 * var(--uc));
   }
+  /* 字族/字重/字距/行高与 vi·zh 分支全部交给 .x-q 型类;这里只留本处特有的 */
   .q {
-    font-family: var(--x-font-display);
-    font-size: max(18px, calc(24 * var(--u)));
-    font-weight: 400;
-    letter-spacing: -0.02em;
     color: var(--x-ink);
     flex: 1;
-    line-height: 1.25;
-    text-wrap: balance;
   }
+
   .mark {
     color: var(--x-accent-ink); /* R30:与信任区手风琴记号统一档 */
     font-weight: 400;
@@ -109,5 +105,15 @@ const ld = {
     max-width: calc(760 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
+  }
+  .item p:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量(曾被本规则特异度压回 1.45) */
+  }
+  .q {
+    transition: opacity 0.2s;
+  }
+  .item summary:hover .q,
+  .item summary:focus-visible .q {
+    opacity: 0.6;
   }
 </style>
