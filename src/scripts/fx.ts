@@ -241,6 +241,23 @@ function initGlobe() {
     [49, 18] /* 珀斯–新加坡 */,
     [49, 24] /* 珀斯–悉尼 */,
   ];
+  /* R47.5 评审修复:近邻拥挤度阻尼——地理聚集区(欧洲群 4-7 枢纽叠压)辉光糊成亮斑;
+     0.13 rad(约 830km)内邻居数 n,辉光透明度 ×1/√n、辉光半径 ×n^-0.25,孤立枢纽不受影响;
+     核心亮点不衰减(保持「多个独立枢纽」的辨识) */
+  const haloA = new Float32Array(NH),
+    haloR = new Float32Array(NH);
+  {
+    const COS_NEAR = Math.cos(0.13);
+    for (let a = 0; a < NH; a++) {
+      let n = 1;
+      for (let b = 0; b < NH; b++) {
+        if (b !== a && hx3[a] * hx3[b] + hy3[a] * hy3[b] + hz3[a] * hz3[b] > COS_NEAR) n++;
+      }
+      haloA[a] = 1 / Math.sqrt(n);
+      haloR[a] = n ** -0.25;
+    }
+  }
+
   const NA = ARCS.length,
     ASEG = 48;
   const arc3 = new Float32Array(NA * (ASEG + 1) * 3);
@@ -255,7 +272,9 @@ function initGlobe() {
       const t = k / ASEG;
       const w0 = Math.sin((1 - t) * om) / so,
         w1 = Math.sin(t * om) / so;
-      const lift = 1 + 0.06 * Math.sin(Math.PI * t);
+      /* R47.5 评审修复:抬升随弧跨度缩放(封顶 0.9 rad)——恒定 0.06R 曾让欧洲群短弧
+         (弦 ~100px 拱 ~30px)立起成「发卡/套索」,三宽度多姿态复现;长弧姿态不变 */
+      const lift = 1 + 0.06 * Math.min(1, om / 0.9) * Math.sin(Math.PI * t);
       const o = (a * (ASEG + 1) + k) * 3;
       arc3[o] = (hx3[h0] * w0 + hx3[h1] * w1) * lift;
       arc3[o + 1] = (hy3[h0] * w0 + hy3[h1] * w1) * lift;
@@ -392,6 +411,9 @@ function initGlobe() {
     W = canvas.clientWidth;
     H = canvas.clientHeight;
     DPR = Math.min(window.devicePixelRatio || 1, 1.5);
+    /* R47.5:物理像素预算 ≤5.5M(评审在无显卡软光栅下量到 2560 掉帧;有头 GPU 实测 60fps,
+       此为高 DPR × 超宽组合的保险,常规机型不触发)——超预算等比降内部分辨率 */
+    if (W * H * DPR * DPR > 5.5e6) DPR = Math.max(0.75, Math.sqrt(5.5e6 / (W * H)));
     for (const c of [canvas, body, glow, net]) {
       c.width = Math.round(W * DPR);
       c.height = Math.round(H * DPR);
@@ -638,8 +660,8 @@ function initGlobe() {
       if (hdep[h] < -0.02) continue;
       const af = Math.max(0, Math.min(1, (hdep[h] + 0.02) * 8)); /* 贴球缘淡入淡出 */
       const pul = still ? 0.5 : 0.5 + 0.5 * Math.sin((t / (2800 + ((h * 37) % 9) * 100)) * 2 * Math.PI + h * 2.4);
-      const hr = q * (9 + 3.5 * pul);
-      nctx.globalAlpha = af * (0.3 + 0.34 * pul);
+      const hr = q * (9 + 3.5 * pul) * haloR[h];
+      nctx.globalAlpha = af * (0.3 + 0.34 * pul) * haloA[h];
       nctx.drawImage(hubHalo, hpx[h] - hr, hpy[h] - hr, hr + hr, hr + hr);
       const cr = q * 2.6;
       nctx.globalAlpha = af * (0.85 + 0.15 * pul);
