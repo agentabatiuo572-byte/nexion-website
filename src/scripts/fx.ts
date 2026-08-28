@@ -1485,6 +1485,14 @@ const boot = () => {
   initPile();
   initParallax();
   initScramble();
+
+  /* R48.7:开场编排收官后整只摘掉 x-boot —— fill 态动画会让挂它的祖先永久成为 backdrop root,
+     子孙的 backdrop-filter 采样面被切空(第一案 .site-nav 磨砂、第二案 #stats 玻璃带,均实测)。
+     规则层已全改 backwards,这里把类摘掉让「x-boot 只存在于开场窗口」成为结构事实,同族永绝。
+     2.6s = 最晚 CSS 拍(0.55s 延迟 + 0.5s 时长,锚点首帧)+ 余量;JS 拍只在注册时读该类,不受影响。 */
+  if (html.classList.contains('x-boot')) {
+    setTimeout(() => html.classList.remove('x-boot'), Math.max(0, BEAT_T0 + 2600 - performance.now()));
+  }
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });

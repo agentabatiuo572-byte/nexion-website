@@ -27,7 +27,7 @@ const items = [
   data-locale={localeTag(locale)}
   data-sse-url={mode === 'sse' ? import.meta.env.PUBLIC_STATS_URL : undefined}
 >
-  <div class="grid x-tile">
+  <div class="grid x-tile x-tile-clear">
     {
       items.map((it, i) => (
         <div class="cell" data-rv style={`--d:${i * 0.08}s`}>
@@ -49,7 +49,8 @@ const items = [
     z-index: 1;
     padding: calc(54 * var(--uc)) var(--x-pad);
   }
-  /* R48 换皮:开放五列装进一条玻璃横带(结构与数字逻辑不动,只换表面) */
+  /* R48 换皮:开放五列装进一条玻璃横带(结构与数字逻辑不动,只换表面)。
+     R48.7:x-tile-clear 清透膜(主人拍板把「返回首页」那种不磨砂的透亮观感转正为默认)。 */
   .grid {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));

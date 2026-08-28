@@ -8,19 +8,21 @@
    (卡文一句不删,展示序号按版面顺序重排:01=card1 / 02=card3 / 03=card2 / 04=card5 / 05=card4);
    PoC 手风琴保留细线行式(与 FAQ 同规格,B7 归一)。 */
 import { useT, type Locale } from '../i18n';
+import Icon from './Icon.astro';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-/* 版面顺序:事实(公司/MSB)→ 核验步骤(Colorado/FinCEN)→ 制度解释;卡 key 不变,只重排 */
+/* 版面顺序:事实(公司/MSB)→ 核验步骤(Colorado/FinCEN)→ 制度解释;卡 key 不变,只重排。
+   R48.7 令②:每卡配语义线性图标(按卡内容不按版面序):注册实体/盾勾/查册/清单查询/天平 */
 const order = [
-  { card: 1, span: 's7' },
-  { card: 3, span: 's7' },
-  { card: 2, span: 's6' },
-  { card: 5, span: 's6' },
-  { card: 4, span: 's12' },
+  { card: 1, span: 's7', icon: 'registry' },
+  { card: 3, span: 's7', icon: 'shield' },
+  { card: 2, span: 's6', icon: 'verify-search' },
+  { card: 5, span: 's6', icon: 'lookup' },
+  { card: 4, span: 's12', icon: 'scale' },
 ] as const;
 ---
 
@@ -62,9 +64,12 @@ const order = [
     </div>
 
     {
-      order.map(({ card, span }, i) => (
+      order.map(({ card, span, icon }, i) => (
         <article class:list={['card', 'x-tile', span]} data-rv style={`--d:${i * 0.08}s`}>
-          <span class="idx x-mono">0{i + 1}</span>
+          <span class="crow">
+            <span class="idx x-mono">0{i + 1}</span>
+            <Icon name={icon} class="cic" />
+          </span>
           <p class="x-mono">{t(`trust.card${card}`)}</p>
         </article>
       ))
@@ -145,9 +150,21 @@ const order = [
   .s12 {
     grid-column: span 12;
   }
+  /* 两端行:编号 ←→ 语义图标(与瓷砖章 metarow 同构;图标退 dim 档,不与编号争柠檬) */
+  .crow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
   .idx {
     color: var(--x-accent-hot);
     font-weight: 400;
+  }
+  .crow :global(.cic) {
+    width: max(18px, calc(24 * var(--u)));
+    height: max(18px, calc(24 * var(--u)));
+    color: var(--x-ink-dim);
+    flex: 0 0 auto;
   }
   .card p {
     margin: 0;

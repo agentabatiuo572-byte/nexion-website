@@ -15,6 +15,9 @@ const t = useT(locale);
 <section class="final" id="final-cta">
   <h2 class="x-display" data-lr>{t('final.title')}</h2>
   <div class="plate x-tile" data-rv style="--d:.3s">
+    {/* R48.7 令②:氛围配图(gpt-image-2 生成,GPU 电路柠檬光路;纯装饰 alt 空,不进 i18n)。
+        底对齐编辑排版:图左、三键右,都沉到面板底线;面板顶 96u 内衬仍是标题压叠区,不与图相撞。 */}
+    <img class="pmedia" src="/art-circuit.webp" alt="" width="1280" height="853" loading="lazy" decoding="async" />
     <DownloadButtons locale={locale} />
   </div>
 </section>
@@ -37,8 +40,19 @@ const t = useT(locale);
     margin-left: max(0px, calc(260 * var(--u))); /* 面板右让:标题行首落在裸地球上,行尾压玻璃 */
     padding: max(64px, calc(96 * var(--u))) calc(44 * var(--uc)) calc(40 * var(--uc));
     display: flex;
-    justify-content: flex-end;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(32 * var(--uc));
     z-index: 1;
+  }
+  .pmedia {
+    display: block;
+    width: min(50%, calc(500 * var(--u)));
+    height: auto; /* 压掉 img height 属性的表现层提示——两轴被钉死时 aspect-ratio 会整条失效 */
+    aspect-ratio: 21 / 8;
+    object-fit: cover;
+    border-radius: var(--x-r-sm);
+    flex: 0 0 auto;
   }
   @media (max-width: 860px) {
     h2 {
@@ -47,7 +61,13 @@ const t = useT(locale);
     .plate {
       margin-left: 0;
       padding: calc(56 * var(--uc)) calc(24 * var(--uc)) calc(24 * var(--uc));
+      flex-direction: column;
+      align-items: stretch;
       justify-content: flex-start;
+    }
+    .pmedia {
+      width: 100%;
+      aspect-ratio: 16 / 7;
     }
   }
 </style>

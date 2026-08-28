@@ -354,8 +354,15 @@ html {
   background: var(--x-glass-lit);
   border-color: var(--x-glass-lit-border);
 }
+/* R48.7 清透膜(主人 2026-08-28 拍板):薄膜+细边+高光镶边但**不磨砂**,粒子原样透过。
+   这观感原是 x-boot 填充动画切空采样面的意外产物(见上「同族第二案」),主人看中后转正为显式变体;
+   数据条用它。不磨砂,故不参与下方 no-backdrop 回退换底。 */
+.x-tile-clear {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .x-tile {
+  .x-tile:not(.x-tile-clear) {
     background: rgb(var(--x-bg-rgb) / 0.88);
   }
 }
@@ -586,7 +593,7 @@ html.js .tw-inline {
 /* 首载编排:背景 canvas 第一拍(1s zoom-fade,参考曲线 (0.22,1,.36,1))由 CSS 承担,首帧即起、不等空闲回调;
    与四拍(导航 / 标题 / 副题)同样只挂 html.x-boot(首页 navigate 型导航);内页 / 刷新 / 后退即显,不重放 */
 html.x-boot #x-bg {
-  animation: x-zoom-fade 1s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: x-zoom-fade 1s cubic-bezier(0.22, 1, 0.36, 1) backwards;
 }
 @keyframes x-zoom-fade {
   from {
@@ -604,7 +611,10 @@ html.x-boot #x-bg {
    主人拍板的磨砂在首页三语一层都没上(内容原样清晰透过来压着导航自己的字,实测残留细节量与「关掉模糊」无差别)。
    keyframes 只有 from{opacity:0},to 就是元素自身的 1,所以 backwards 与 both **视觉等价**。
    ⚠️ 这坑之所以躲过前几轮:reduced-motion 下这条动画被清成 none,磨砂就正常——
-   而探针默认开 reducedMotion:'reduce' 跑,看到的是好的,普通访客看到的是坏的。 */
+   而探针默认开 reducedMotion:'reduce' 跑,看到的是好的,普通访客看到的是坏的。
+   🔴 同族第二案(R48.7,主人抓包):#stats 那条当时漏改仍是 both → navigate 进首页玻璃带
+   采样面被切空(清透),刷新/后退无 x-boot 则磨砂生效(奶白),两态不一致。
+   自此立规:x-boot 下的动画 fill 一律 backwards;fx.ts 开场收官后再整只摘掉 x-boot 类兜底。 */
 html.x-boot .site-nav,
 html.x-boot .hero .scroll-hint,
 html.x-boot .hero .note {
@@ -613,7 +623,7 @@ html.x-boot .hero .note {
 html.x-boot .hero .sub,
 html.x-boot .hero .dl-wrap,
 html.x-boot #stats {
-  animation: x-fade 0.5s ease 0.55s both; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
+  animation: x-fade 0.5s ease 0.55s backwards; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
 }
 
 /* 焦点可见性 */

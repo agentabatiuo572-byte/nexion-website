@@ -56,3 +56,10 @@ Branch: `restyle/glass`(基 `eb3b326`)
 - [ ] T13 i18n `path.headline` ×3 + parity 门
 - [ ] T14 三语实景 + fps 实测 + 修伤
 - [ ] T15 full verify 11 门 + 审计轮
+
+## R48.7 追加(主人 2026-08-28 三令,同分支同包)
+
+1. **数据条透明度回归 bug 修根**:x-boot 开场类的 `fill:both` 动画使 `#stats` 永久成为 backdrop root、玻璃采样面被切空——navigate 进首页清透、刷新/后退奶白,两态不一致(同族第一案 = R45 导航磨砂)。修法:x-boot 动画 fill 一律 `backwards` + fx 开场收官(BEAT_T0+2.6s)整只摘掉 x-boot 类(结构性根治);数据条按主人拍板把清透观感转正为 `.x-tile-clear` 显式变体(薄膜+镶边不磨砂,no-backdrop 回退排除)。
+2. **全站图形元素充实**(令②):新建 `Icon.astro` 线性图标单源(32 网格/描边 1.6/currentColor,16 枚);信任五卡语义图标(注册处/盾勾/查册/清单查询/天平,dim 档)、NEX 侧卡两枚(coin-bolt/swap)、/nex/ 五块头图标(柠檬点睛);氛围配图两张(**gpt-image-2 生成**,主人供 key):`art-circuit.webp`(收尾 CTA 面板,34KB)+ `art-aisle.webp`(/nex/ 头部 21/8 裁切带,42KB),纯装饰 alt 空不进 i18n。体例:一行至多一个柠檬元素(编号与图标不同档)。
+3. **算力去向(mission)重构**(令③):竖标编号列表 → **2×3 玻璃图标格**(小圆角 x-tile,图标柠檬热档 + 领域名 + 右端 dim 编号两端行);眉标/48 档陈述/说明段三件保留,地球 poseB 右停不受压;窄屏 ≤860 图格放开吃满列宽,≤560 单列。
+- 已知坑记档:img 的 width/height 属性是表现层提示,两轴钉死时 CSS `aspect-ratio` 整条失效——配图一律补 `height:auto`。

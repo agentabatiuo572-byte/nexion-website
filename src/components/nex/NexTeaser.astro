@@ -4,6 +4,7 @@
    三卡改「1 高柠檬瓷砖 + 2 宽素瓷砖」:what 档带 NEX 字符水印为品牌记忆点,earn/use 横排;
    Learn more 按钮 → /nex/ 原样;视差保留(what 档 k 略小,高瓷砖大位移会撞相邻行)。 */
 import { useT, type Locale } from '../../i18n';
+import Icon from '../Icon.astro';
 
 interface Props {
   locale: Locale;
@@ -35,14 +36,20 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
         列级视差让两砖同进退,列内 gap 恒为 18。 */}
     <div class="side" data-plx={0.08}>
       <article class="card x-tile rv-fade" data-rv>
-        <p class="idx x-mono" data-tw data-tw-delay={160}>02</p>
+        <p class="idx x-mono">
+          <span data-tw data-tw-delay={160}>02</span>
+          <Icon name="coin-bolt" class="tic" />
+        </p>
         <div class="stack">
           <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
           <p class="x-mono desc">{t('nex.teaser.earnDesc')}</p>
         </div>
       </article>
       <article class="card x-tile rv-fade" data-rv>
-        <p class="idx x-mono" data-tw data-tw-delay={320}>03</p>
+        <p class="idx x-mono">
+          <span data-tw data-tw-delay={320}>03</span>
+          <Icon name="swap" class="tic" />
+        </p>
         <div class="stack">
           <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
           <p class="x-mono desc">{t('nex.teaser.useDesc')}</p>
@@ -114,9 +121,19 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
     will-change: transform;
     z-index: 1;
   }
+  /* R48.7 令②:侧卡编号行改两端行(编号 ←→ 语义图标),与瓷砖章 metarow 同构 */
   .idx {
     color: var(--x-accent-hot);
     margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .idx :global(.tic) {
+    width: max(18px, calc(24 * var(--u)));
+    height: max(18px, calc(24 * var(--u)));
+    color: var(--x-ink-dim);
+    flex: 0 0 auto;
   }
   .stack {
     display: flex;
