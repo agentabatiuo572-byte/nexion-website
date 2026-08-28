@@ -12,9 +12,11 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 /* R48.9 主人令:等高线占位图换实景生成图(黑底柠檬光同族)——免费档=手机竖立轮廓光,扩容档=机架小盒阵列 */
+/* side=免费卡左文右图(方窗,整机常驻);扩容卡顶部横带(矮盒横排天然适配)——
+   R48.10b 主人两次打回「图只见半台机」后的定案:窗口比例跟着主体形状走,预裁不赌浏览器裁切 */
 const cards = [
-  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: '/art-path-free.webp', k: 0.057, lit: true },
-  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: '/art-path-scale.webp', k: 0.099, lit: false },
+  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: '/art-path-free.webp', k: 0.057, lit: true, side: true },
+  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: '/art-path-scale.webp', k: 0.099, lit: false, side: false },
 ];
 ---
 
@@ -29,14 +31,15 @@ const cards = [
   <div class="cards">
     {
       cards.map((c, i) => (
-        <article class:list={['card', 'x-tile', 'rv-fade', { 'x-tile-lit': c.lit }]} data-rv data-plx={c.k}>
-          <p class="metarow x-mono">
-            <span data-tw data-tw-delay={160 * i}>{c.n}</span>
-            <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
-          </p>
-          <div class="stack">
+        <article class:list={['card', 'x-tile', 'rv-fade', { 'x-tile-lit': c.lit, 'side-media': c.side }]} data-rv data-plx={c.k}>
+          {/* R48.10 主人改令(卡太大/图漂在玻璃里四面留白):配图顶部通栏出血,文字区收紧,按钮沉底 */}
+          <img class="art" src={c.art} alt="" width="1280" height="853" loading="lazy" decoding="async" />
+          <div class="body">
+            <p class="metarow x-mono">
+              <span data-tw data-tw-delay={160 * i}>{c.n}</span>
+              <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
+            </p>
             <h3 class="x-display" data-lr data-lr-delay={100 * i}>{c.title}</h3>
-            <img class="art" src={c.art} alt="" width="1280" height="853" loading="lazy" decoding="async" />
             <p class="desc x-mono">{c.desc}</p>
             <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
               <span class="xbtn-ghost" aria-hidden="true">{c.cta} <span class="arr">→</span></span>
@@ -89,15 +92,18 @@ const cards = [
     grid-template-columns: 7fr 5fr; /* 非对称:免费档主位(转化优先),扩容档次位 */
     gap: calc(18 * var(--uc));
   }
+  /* R48.10:通栏媒体卡解剖 —— 图吃满卡顶(出血到玻璃边),正文区窄内衬,按钮 margin-top:auto 沉底
+     把两卡内容差吞在弹性缝里(此前右卡矮内容被拉伸出底部空场) */
   .card {
-    padding: calc(30 * var(--uc)) calc(34 * var(--uc)) calc(34 * var(--uc));
+    padding: 0;
+    overflow: hidden; /* 出血图角随玻璃圆角裁切 */
     display: flex;
     flex-direction: column;
-    gap: max(28px, calc(48 * var(--u)));
     will-change: transform;
     z-index: 1;
   }
   .metarow {
+    align-self: stretch; /* body 是 flex-start 列:不拉伸的话两端行被压成贴身单团 */
     display: flex;
     justify-content: space-between;
     margin: 0;
@@ -107,24 +113,47 @@ const cards = [
   .metarow span:first-child {
     color: var(--x-accent-hot);
   }
-  .stack {
+  .art {
+    object-fit: cover;
+    display: block;
+  }
+  /* 顶部横带档(扩容卡):定高,图区不随卡宽疯长 */
+  .card:not(.side-media) .art {
+    width: 100%;
+    height: max(140px, calc(180 * var(--u)));
+  }
+  /* 左文右图档(免费卡):竖窗贴右**绝对定位**——图永不参与撑高(竖构图源 height:auto 曾把卡顶到 540),
+     卡高由文字列定;竖机在竖窗里任何拉伸比都只裁背景不裁机 */
+  .side-media {
+    position: relative;
+  }
+  .side-media .art {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(46%, calc(360 * var(--u)));
+    height: 100%;
+  }
+  .side-media .body {
+    margin-right: min(46%, calc(360 * var(--u)));
+    min-width: 0;
+    justify-content: space-between; /* 等高行的弹性均匀吃在四件间,不聚成单个空场 */
+    min-height: max(240px, calc(300 * var(--u))); /* 竖窗的最低体面高度(文字列极短时兜底) */
+  }
+  .body {
+    flex: 1;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: calc(20 * var(--uc));
+    gap: calc(14 * var(--uc));
+    padding: calc(20 * var(--uc)) calc(26 * var(--uc)) calc(24 * var(--uc));
   }
-  .stack h3 {
-    font-size: max(24px, calc(34 * var(--u)));
+  .body h3 {
+    font-size: max(22px, calc(30 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
-  .art {
-    width: 100%;
-    height: auto; /* 压掉 img 宽高属性的表现层提示,aspect-ratio 才生效(R48.7 已踩) */
-    aspect-ratio: 393 / 160; /* 双宽卡里压扁一点,免得图区喧宾夺主 */
-    object-fit: cover;
-    display: block;
-    border-radius: var(--x-r-sm);
+  .body .xbtn {
+    margin-top: auto; /* 沉底:两卡内容差吞进这里,不再留底部空场 */
   }
   .desc {
     color: var(--x-ink-cap);
@@ -144,6 +173,19 @@ const cards = [
   @media (max-width: 860px) {
     .cards {
       grid-template-columns: 1fr; /* 窄屏竖排,免费档仍在前 */
+    }
+    /* 窄屏免费卡回「图上文下」;图窗用近方比例(6/5)——竖机源在 ≤1.19 的窗里才整机可见,
+       横带定高会拦腰(实测 220px 带裁掉机头机尾) */
+    .side-media .art {
+      position: static;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 6 / 5;
+    }
+    .side-media .body {
+      margin-right: 0;
+      min-height: 0;
+      justify-content: flex-start;
     }
   }
 </style>
