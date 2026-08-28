@@ -18,8 +18,10 @@ const { locale } = Astro.props;
 const t = useT(locale);
 
 // App product-card.vue PRODUCT_PHOTO 映射的官网镜像(pro 复用 pro-v2 图、p2 复用 p1 图,同 App)
+// R48.9:cloud-share 无实体产品,补白底产品风生成图(gpt-image-2)——等高线兜底只留给未来新 SKU
 const PHOTO: Record<string, string | undefined> = {
   phone: '/devices/phone.png',
+  'cloud-share': '/devices/cloud-share.webp',
   's1': '/devices/s1.jpg',
   'pro': '/devices/pro.jpg',
   'pro-v2': '/devices/pro.jpg',

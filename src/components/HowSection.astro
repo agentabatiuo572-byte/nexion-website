@@ -6,7 +6,6 @@
    机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。
    R45 的行内链 44 命中补高在玻璃版里改为常规行内链(瓷砖内行高 1.45,命中盒自然 ≥44 由 padding 保证)。 */
 import { useT, type Locale } from '../i18n';
-import { contour } from '../lib/contour';
 
 interface Props {
   locale: Locale;
@@ -14,7 +13,9 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const steps = [1, 2, 3] as const;
-const arts = [contour(101, 12, 393, 237), contour(202, 12, 393, 237), contour(303, 12, 393, 237)];
+/* R48.9 主人令:等高线占位图换实景生成图(gpt-image-2,黑底柠檬光同族)——
+   按步内容配景:接入=手机+光缆 / 计算=GPU 散热鳍 / 结算=光纤光点;纯装饰 alt 空 */
+const arts = ['/art-how-connect.webp', '/art-how-compute.webp', '/art-how-settle.webp'];
 /* 抄参考站实测的三段视差系数,R48 沿用(瓷砖化不改滚动手感) */
 const ks = [0.057, 0.099, 0.138];
 ---
@@ -39,11 +40,7 @@ const ks = [0.057, 0.099, 0.138];
           </p>
           <div class="stack">
             <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
-            <svg class="art" viewBox={arts[n - 1].viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-              {arts[n - 1].paths.map((d) => (
-                <path d={d} fill="none" stroke="var(--x-ink)" stroke-width="1" opacity="0.3" />
-              ))}
-            </svg>
+            <img class="art" src={arts[n - 1]} alt="" width="1280" height="853" loading="lazy" decoding="async" />
             <p class="x-mono body">
               {t(`how.step${n}Desc`)}
               {n === 3 && (
@@ -135,7 +132,9 @@ const ks = [0.057, 0.099, 0.138];
   }
   .art {
     width: 100%;
+    height: auto; /* 压掉 img 宽高属性的表现层提示,aspect-ratio 才生效(R48.7 已踩) */
     aspect-ratio: 393 / 237;
+    object-fit: cover;
     display: block;
     border-radius: var(--x-r-sm);
   }
