@@ -39,13 +39,14 @@ const leadParas = t('mission.lead').split('\n');
     </div>
   </div>
 
-  <ol class="fgrid" role="list">
+  {/* R48.8 主人改令:六宫格 —— 单块玻璃底,细线分区(与数据条内分线同族),不再一格一底 */}
+  <ol class="fgrid x-tile" role="list" data-rv>
     {
-      fields.map(({ n, icon }, i) => (
-        <li class="chip x-tile" data-rv style={`--d:${0.06 * i}s`}>
+      fields.map(({ n, icon }) => (
+        <li class="cell">
           <Icon name={icon} class="fic" />
           <span class="name x-h24">{t(`mission.f${n}`)}</span>
-          <span class="idx x-mono" data-tw data-tw-delay={80 * i}>
+          <span class="idx x-mono" data-tw data-tw-delay={80 * (n - 1)}>
             0{n}
           </span>
         </li>
@@ -128,7 +129,8 @@ const leadParas = t('mission.lead').split('\n');
     word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
     max-width: 26em;
   }
-  /* 答案层 R48.7:2×3 玻璃图标格。小格用小圆角(--x-r-sm),两端行 = 图标+名 ←→ 编号 */
+  /* 答案层 R48.8:六宫格 —— 一块玻璃底 + 细线分区(简洁大气;线用 --x-line-soft 与数据条内分线同族)。
+     分线走单元自身边:偶数格吃左线成两条纵线段位,第二行起吃顶线成横线;无 gap,线即区界。 */
   .fgrid {
     list-style: none;
     margin: 0;
@@ -137,16 +139,21 @@ const leadParas = t('mission.lead').split('\n');
     max-width: 100%;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: calc(12 * var(--uc));
   }
-  .chip {
-    border-radius: var(--x-r-sm);
-    padding: calc(16 * var(--uc)) calc(18 * var(--uc));
+  .cell {
+    padding: calc(24 * var(--uc)) calc(26 * var(--uc));
     display: flex;
     align-items: center;
     gap: calc(14 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
   }
-  .chip :global(.fic) {
+  .cell:nth-child(-n + 2) {
+    border-top: 0; /* 首行上缘 = 玻璃边界 */
+  }
+  .cell:nth-child(even) {
+    border-left: 1px solid var(--x-line-soft);
+  }
+  .cell :global(.fic) {
     width: max(20px, calc(26 * var(--u)));
     height: max(20px, calc(26 * var(--u)));
     flex: 0 0 auto;
@@ -192,6 +199,13 @@ const leadParas = t('mission.lead').split('\n');
   @media (max-width: 560px) {
     .fgrid {
       grid-template-columns: 1fr;
+    }
+    /* 单列后区界只剩横线:第 2 格起全部吃顶线,纵线退场 */
+    .cell:nth-child(2) {
+      border-top: 1px solid var(--x-line-soft);
+    }
+    .cell:nth-child(even) {
+      border-left: 0;
     }
   }
 </style>
