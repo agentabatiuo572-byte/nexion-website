@@ -59,7 +59,7 @@ const setVw = () =>
 
 /* ---------- ① 点阵地球算力网络(Dotted Globe;R47.1) ----------
    取代洛伦兹吸引子(R2/08-20)——规格 docs/changes/2026-08-27-dotted-globe.md + 主人 08-27 改令:
-   ① 100 枢纽(50 城市 + 50 随机陆点,R48.13 翻倍)/ 全弧常亮基线(~142 条,所有节点同时连线)/ 14 条流光同飞;② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
+   ① 50 城市枢纽 / 38 条静线(隔条取一,浅灰)+ 36 条近白细长流光同飞(宽 1.1/尾 0.65,R48.13-18 主人多轮收敛);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
    时间累积,暂停/切页归来不跳帧)+ **滚动耦合旋转**(R47.2 改令④:转速随滑动速度/方向,单帧封顶),
    五姿态链管 cx/cy/r/pitch(缩放与位移),经度 = 常转 + 滚动耦合——
    R2「静止零重渲」契约由此退役,常转即常渲(辉光 180ms 节流保留);③ 原版鼠标推斥回归
@@ -74,6 +74,10 @@ function initGlobe() {
   /* 底色单一真源(tokens.css 的 --x-bg),读不到才退字面量(R2 教训沿袭) */
   const BG = getComputedStyle(document.documentElement).getPropertyValue('--x-bg').trim() || '#0c0c0d';
   const D2R = Math.PI / 180;
+  /* R48.18 主人令:连线族转**中性浅灰/白**(柠檬→青碧→科技紫→中性,四轮收敛终点)——
+     静线=浅灰暗档,流光=近白;中性无色相,不进 ±6° 品牌带门;亮度对齐此前各版(基线 lum≈56 / 流光头≈193)。 */
+  const ARC_BASE_STYLE = 'rgb(56,56,60)';
+  const COMET_RGB = [235, 238, 242] as const;
 
   /* ── 陆地点阵:生成物 globe-dots.ts(小端 Int16 centi-degree 交错 [lat,lon])→ 单位向量。
      坐标系:ux=cosφ·sinλ,uy=sinφ(北为上),uz=cosφ·cosλ;绕 Y 转 yaw 后面向观者的经度 = -yaw。
@@ -97,7 +101,7 @@ function initGlobe() {
     }
   }
 
-  /* ── 算力枢纽:50 具名城市锚点(R47.1/R47.4)+ R48.13 随机陆点 50(见下方翻倍块);
+  /* ── 算力枢纽 ×50(R47.1/R47.4 策展;R48.13 曾翻倍到 100、R48.16 主人裁回);
      纯图形无标签——不构成设施声明;越南两点在列不突出 */
   const HUBS: ReadonlyArray<readonly [number, number]> = [
     [39.0, -77.5] /* 0 阿什本 */,
@@ -151,55 +155,19 @@ function initGlobe() {
     [3.14, 101.69] /* 48 吉隆坡 */,
     [-31.95, 115.86] /* 49 珀斯 */,
   ];
-  /* R48.13 主人改令:枢纽随机翻倍(50 城市 + 50 随机陆点 = 100)。随机点从陆地点阵取
-     (种子 PRNG,确定性可复现),与已放枢纽保持 ≥0.1 rad(约 640km)间距免叠压;
-     纯图形无标签——不构成设施声明。 */
-  const NH0 = HUBS.length;
-  const NH = NH0 * 2;
+  /* R48.16 主人裁定:枢纽回 50(R48.13 曾随机翻倍到 100,实看太密,随机陆点块整撤);
+     50 具名城市锚点为准。 */
+  const NH = HUBS.length;
   const hx3 = new Float32Array(NH),
     hy3 = new Float32Array(NH),
     hz3 = new Float32Array(NH);
-  for (let h = 0; h < NH0; h++) {
+  for (let h = 0; h < NH; h++) {
     const la = HUBS[h][0] * D2R,
       lo = HUBS[h][1] * D2R,
       cl = Math.cos(la);
     hx3[h] = cl * Math.sin(lo);
     hy3[h] = Math.sin(la);
     hz3[h] = cl * Math.cos(lo);
-  }
-  {
-    let seed = 0x9edc1d; /* 种子=品牌色,只为好记;mulberry32 */
-    const rnd = () => {
-      seed = (seed + 0x6d2b79f5) | 0;
-      let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
-      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
-    };
-    let minCos = Math.cos(0.1);
-    let placed = NH0;
-    let guard = 0;
-    while (placed < NH) {
-      if (++guard > 8000) {
-        guard = 0;
-        minCos = Math.cos(Math.acos(minCos) * 0.8); /* 兜底:陆点抽不满就放宽间距,保证必放满 */
-      }
-      const i = (rnd() * N) | 0;
-      const x = ux[i],
-        y = uy[i],
-        z = uz[i];
-      let ok = true;
-      for (let h = 0; h < placed; h++) {
-        if (hx3[h] * x + hy3[h] * y + hz3[h] * z > minCos) {
-          ok = false;
-          break;
-        }
-      }
-      if (!ok) continue;
-      hx3[placed] = x;
-      hy3[placed] = y;
-      hz3[placed] = z;
-      placed++;
-    }
   }
 
   /* ── 75 条大圆弧(R47.1 改令① + R47.4 二次加密;每枢纽 ≥1,区域网 + 跨洋干线),slerp 采样,弧中点抬离球面 6% */
@@ -280,30 +248,8 @@ function initGlobe() {
     [49, 18] /* 珀斯–新加坡 */,
     [49, 24] /* 珀斯–悉尼 */,
   ];
-  /* R48.13:随机枢纽全部入网(主人令「所有节点同时连线」)——每个新枢纽接最近邻一条,
-     每第 3 个再补一条次近邻织密区域网;老 50 枢纽本就每枢纽 ≥1。 */
+  /* R48.16:随机枢纽撤除后弧回策展 75 条(每枢纽 ≥1 保持);ARCS_ALL 名保留(下游三处消费) */
   const ARCS_ALL: Array<readonly [number, number]> = [...ARCS];
-  for (let h = NH0; h < NH; h++) {
-    let b1 = -1,
-      d1 = -2,
-      b2 = -1,
-      d2 = -2;
-    for (let b = 0; b < NH; b++) {
-      if (b === h) continue;
-      const d = hx3[h] * hx3[b] + hy3[h] * hy3[b] + hz3[h] * hz3[b];
-      if (d > d1) {
-        d2 = d1;
-        b2 = b1;
-        d1 = d;
-        b1 = b;
-      } else if (d > d2) {
-        d2 = d;
-        b2 = b;
-      }
-    }
-    ARCS_ALL.push([h, b1]);
-    if ((h - NH0) % 3 === 0 && b2 >= 0) ARCS_ALL.push([h, b2]);
-  }
   /* R47.5 评审修复:近邻拥挤度阻尼——地理聚集区(欧洲群 4-7 枢纽叠压)辉光糊成亮斑;
      0.13 rad(约 830km)内邻居数 n,辉光透明度 ×1/√n、辉光半径 ×n^-0.25,孤立枢纽不受影响;
      核心亮点不衰减(保持「多个独立枢纽」的辨识) */
@@ -346,13 +292,12 @@ function initGlobe() {
   }
 
   /* R30 同相位:陆点/枢纽/落点环落在品牌 #9EDC1D 色相带(particle-hue 门读以下 HUE-GUARD: 标注;改色值必同步改标注)。
-     R48.14 主人拍板:**连线族(弧基线+流光)离开柠檬带,换协调副色青碧 teal ~170°**——
-     用 HUE-GUARD-TEAL: 前缀标注(门的正则只认 HUE-GUARD:,副色不受 ±6° 品牌带约束;暂无副色机器门,靠本注释交底)。
+     R48.18 主人终裁:**连线族(弧基线+流光)= 中性浅灰/白**(经柠檬→青碧→科技紫三站收敛至此);
+     中性无色相,不进 ±6° 品牌带门。
      亮度阶:陆点 < 弧基线 < 枢纽 < 流光。
      HUE-GUARD:dot-dim (40, 55, 7)
      HUE-GUARD:dot-lit (150, 205, 38)
-     HUE-GUARD:hub (190, 245, 52)
-     HUE-GUARD-TEAL:arc-base (13, 64, 58) */
+     HUE-GUARD:hub (190, 245, 52) */
   const SHB = 12;
   const dotSprites: HTMLCanvasElement[] = [];
   for (let b = 0; b < SHB; b++) {
@@ -602,14 +547,13 @@ function initGlobe() {
   };
 
   /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮)。
-     R48.14:随弧基线一起换青碧副色(连线族整体离开柠檬带,主人拍板);落点环仍柠檬(节点事件归节点族)。
-     HUE-GUARD-TEAL:comet (150, 240, 225) */
-  const CB = 12,
-    TAILU = 0.3;
+     R48.14b:流光亮端 = COMET_RGB(--x-accent-2 科技紫 +白 0.5 派生);落点环仍柠檬(节点事件归节点族)。 */
+  const CB = 16,
+    TAILU = 0.65; /* R48.15b 主人令「拖尾加长」:0.3→0.65 弧长,亮迹读作「线从 A 飞到 B」;分段 12→16 保渐变顺滑 */
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
     const a = fade * fade * 0.88;
-    return `rgb(${Math.round(150 * a)},${Math.round(240 * a)},${Math.round(225 * a)})`;
+    return `rgb(${Math.round(COMET_RGB[0] * a)},${Math.round(COMET_RGB[1] * a)},${Math.round(COMET_RGB[2] * a)})`;
   });
 
   interface Flight {
@@ -623,7 +567,7 @@ function initGlobe() {
     h: number;
     t0: number;
   }
-  const FL = coarse ? 6 : 14; /* 同时活跃流光条数(改令① + R47.4 二次加密:算力繁忙感) */
+  const FL = coarse ? 14 : 36; /* R48.15 定的飞行密度(主人认可的繁忙感);75 弧轮换飞 */
   const flights: Flight[] = [];
   const rings: Ring[] = [];
   const nextPing = new Float64Array(NH);
@@ -674,11 +618,11 @@ function initGlobe() {
       }
     }
 
-    /* R48.13 主人令「所有节点同时连线」:全部弧常亮基线(此前只画在飞的 FL 条,网显得稀);
-       still 静帧同画全网;被球体遮挡段断笔,背半球天然剔除 */
+    /* R48.16 静线回归 + R48.17 主人令砍半:隔条取一(75→38,弧表按区域排,交替取保地理均布);
+       流光(细 1.1/尾 65%)仍飞全部 75 条弧;still 静帧同此。被球体遮挡段断笔,背半球天然剔除。 */
     nctx.lineWidth = Math.max(0.8, 0.9 * q);
-    nctx.strokeStyle = 'rgb(13,64,58)'; /* R48.14 青碧弧基线(HUE-GUARD-TEAL:arc-base) */
-    for (let a = 0; a < NA; a++) {
+    nctx.strokeStyle = ARC_BASE_STYLE;
+    for (let a = 0; a < NA; a += 2) {
       nctx.beginPath();
       let pen = false;
       for (let k = 0; k <= ASEG; k++) {
@@ -696,7 +640,7 @@ function initGlobe() {
     }
 
     if (!still) {
-      nctx.lineWidth = Math.max(1.1, 1.3 * q);
+      nctx.lineWidth = Math.max(1, 1.1 * q); /* R48.15b 主人令「流光细一点」:1.5→1.1,细丝质感 */
       for (const F of flights) {
         const e = (t - F.t0) / F.dur;
         if (e <= 0) continue;
@@ -875,7 +819,7 @@ function initGlobe() {
     lastSy = -1; /* 停摆期的滚动位移不折算成旋转 */
     if (!flights.length) {
       const t = performance.now();
-      for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 450));
+      for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 110)); /* R48.15:36 条 4s 内满编(450ms 错峰要 16s,首屏空窗) */
       for (let h = 0; h < NH; h++) nextPing[h] = t + 1500 + h * 420;
     }
     raf = requestAnimationFrame(frame);

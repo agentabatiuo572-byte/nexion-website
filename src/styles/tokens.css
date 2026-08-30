@@ -41,6 +41,8 @@
      R35 交底:此为官网自持派生档(主档提亮同色相);数值与 App legacy --brand-hover 相同属巧合级同值,
      不锚定其语义(hover),App 清退 legacy 后本档独立存续 */
   --x-accent-hot: #d4ff55;
+  /* R48.18:连线族(静线+流光)按主人令转中性浅灰/白,曾短暂存在的副色 --x-accent-2(V5 科技紫镜像)
+     随之清退(零消费死 token 纪律;历程见 fx.ts 网络层注释与提案台账)。 */
   /* R36:--x-accent-soft 清退(品类章改浅面底后零消费;死 token 纪律,需要 soft-tint 时再定义) */
   --x-on-accent: #0a0a0a; /* R31:对齐 App on-brand,消双源 */
   /* 纸面深柠檬单源(白带与全局浮层共用;对 #f2f2f2 实测 6.05:1)。
