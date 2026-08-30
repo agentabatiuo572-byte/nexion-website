@@ -59,7 +59,7 @@ const setVw = () =>
 
 /* ---------- ① 点阵地球算力网络(Dotted Globe;R47.1) ----------
    取代洛伦兹吸引子(R2/08-20)——规格 docs/changes/2026-08-27-dotted-globe.md + 主人 08-27 改令:
-   ① 50 枢纽 / 75 弧 / 14 条流光同飞(算力繁忙感,R47.4 二次加密);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
+   ① 100 枢纽(50 城市 + 50 随机陆点,R48.13 翻倍)/ 全弧常亮基线(~142 条,所有节点同时连线)/ 14 条流光同飞;② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
    时间累积,暂停/切页归来不跳帧)+ **滚动耦合旋转**(R47.2 改令④:转速随滑动速度/方向,单帧封顶),
    五姿态链管 cx/cy/r/pitch(缩放与位移),经度 = 常转 + 滚动耦合——
    R2「静止零重渲」契约由此退役,常转即常渲(辉光 180ms 节流保留);③ 原版鼠标推斥回归
@@ -97,7 +97,8 @@ function initGlobe() {
     }
   }
 
-  /* ── 算力枢纽 ×50(R47.1 改令① 加密 + R47.4 二次加密;纯图形无标签——不构成设施声明;越南两点在列不突出) */
+  /* ── 算力枢纽:50 具名城市锚点(R47.1/R47.4)+ R48.13 随机陆点 50(见下方翻倍块);
+     纯图形无标签——不构成设施声明;越南两点在列不突出 */
   const HUBS: ReadonlyArray<readonly [number, number]> = [
     [39.0, -77.5] /* 0 阿什本 */,
     [37.3, -121.9] /* 1 圣何塞 */,
@@ -150,17 +151,55 @@ function initGlobe() {
     [3.14, 101.69] /* 48 吉隆坡 */,
     [-31.95, 115.86] /* 49 珀斯 */,
   ];
-  const NH = HUBS.length;
+  /* R48.13 主人改令:枢纽随机翻倍(50 城市 + 50 随机陆点 = 100)。随机点从陆地点阵取
+     (种子 PRNG,确定性可复现),与已放枢纽保持 ≥0.1 rad(约 640km)间距免叠压;
+     纯图形无标签——不构成设施声明。 */
+  const NH0 = HUBS.length;
+  const NH = NH0 * 2;
   const hx3 = new Float32Array(NH),
     hy3 = new Float32Array(NH),
     hz3 = new Float32Array(NH);
-  for (let h = 0; h < NH; h++) {
+  for (let h = 0; h < NH0; h++) {
     const la = HUBS[h][0] * D2R,
       lo = HUBS[h][1] * D2R,
       cl = Math.cos(la);
     hx3[h] = cl * Math.sin(lo);
     hy3[h] = Math.sin(la);
     hz3[h] = cl * Math.cos(lo);
+  }
+  {
+    let seed = 0x9edc1d; /* 种子=品牌色,只为好记;mulberry32 */
+    const rnd = () => {
+      seed = (seed + 0x6d2b79f5) | 0;
+      let x = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+      x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+      return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+    };
+    let minCos = Math.cos(0.1);
+    let placed = NH0;
+    let guard = 0;
+    while (placed < NH) {
+      if (++guard > 8000) {
+        guard = 0;
+        minCos = Math.cos(Math.acos(minCos) * 0.8); /* 兜底:陆点抽不满就放宽间距,保证必放满 */
+      }
+      const i = (rnd() * N) | 0;
+      const x = ux[i],
+        y = uy[i],
+        z = uz[i];
+      let ok = true;
+      for (let h = 0; h < placed; h++) {
+        if (hx3[h] * x + hy3[h] * y + hz3[h] * z > minCos) {
+          ok = false;
+          break;
+        }
+      }
+      if (!ok) continue;
+      hx3[placed] = x;
+      hy3[placed] = y;
+      hz3[placed] = z;
+      placed++;
+    }
   }
 
   /* ── 75 条大圆弧(R47.1 改令① + R47.4 二次加密;每枢纽 ≥1,区域网 + 跨洋干线),slerp 采样,弧中点抬离球面 6% */
@@ -241,6 +280,30 @@ function initGlobe() {
     [49, 18] /* 珀斯–新加坡 */,
     [49, 24] /* 珀斯–悉尼 */,
   ];
+  /* R48.13:随机枢纽全部入网(主人令「所有节点同时连线」)——每个新枢纽接最近邻一条,
+     每第 3 个再补一条次近邻织密区域网;老 50 枢纽本就每枢纽 ≥1。 */
+  const ARCS_ALL: Array<readonly [number, number]> = [...ARCS];
+  for (let h = NH0; h < NH; h++) {
+    let b1 = -1,
+      d1 = -2,
+      b2 = -1,
+      d2 = -2;
+    for (let b = 0; b < NH; b++) {
+      if (b === h) continue;
+      const d = hx3[h] * hx3[b] + hy3[h] * hy3[b] + hz3[h] * hz3[b];
+      if (d > d1) {
+        d2 = d1;
+        b2 = b1;
+        d1 = d;
+        b1 = b;
+      } else if (d > d2) {
+        d2 = d;
+        b2 = b;
+      }
+    }
+    ARCS_ALL.push([h, b1]);
+    if ((h - NH0) % 3 === 0 && b2 >= 0) ARCS_ALL.push([h, b2]);
+  }
   /* R47.5 评审修复:近邻拥挤度阻尼——地理聚集区(欧洲群 4-7 枢纽叠压)辉光糊成亮斑;
      0.13 rad(约 830km)内邻居数 n,辉光透明度 ×1/√n、辉光半径 ×n^-0.25,孤立枢纽不受影响;
      核心亮点不衰减(保持「多个独立枢纽」的辨识) */
@@ -258,12 +321,12 @@ function initGlobe() {
     }
   }
 
-  const NA = ARCS.length,
+  const NA = ARCS_ALL.length,
     ASEG = 48;
   const arc3 = new Float32Array(NA * (ASEG + 1) * 3);
   const arcAng = new Float32Array(NA);
   for (let a = 0; a < NA; a++) {
-    const [h0, h1] = ARCS[a];
+    const [h0, h1] = ARCS_ALL[a];
     const dot = Math.max(-1, Math.min(1, hx3[h0] * hx3[h1] + hy3[h0] * hy3[h1] + hz3[h0] * hz3[h1]));
     const om = Math.acos(dot),
       so = Math.sin(om) || 1e-6;
@@ -600,18 +663,18 @@ function initGlobe() {
         const e = (t - F.t0) / F.dur;
         if (!F.pinged && e >= 1) {
           F.pinged = true;
-          const target = F.rev ? ARCS[F.a][0] : ARCS[F.a][1];
+          const target = F.rev ? ARCS_ALL[F.a][0] : ARCS_ALL[F.a][1];
           if (hdep[target] > 0) rings.push({ h: target, t0: t });
         }
         if (e >= 1 + TAILU) flights[i] = launch(t, 140 + Math.random() * 360);
       }
     }
 
-    /* 活跃弧基线(静帧取队列前 FL 条);被球体遮挡段断笔 */
+    /* R48.13 主人令「所有节点同时连线」:全部弧常亮基线(此前只画在飞的 FL 条,网显得稀);
+       still 静帧同画全网;被球体遮挡段断笔,背半球天然剔除 */
     nctx.lineWidth = Math.max(0.8, 0.9 * q);
     nctx.strokeStyle = 'rgb(52,68,13)';
-    const baseArcs = still ? Array.from({ length: Math.min(FL, NA) }, (_, i) => i) : flights.map((F) => F.a);
-    for (const a of baseArcs) {
+    for (let a = 0; a < NA; a++) {
       nctx.beginPath();
       let pen = false;
       for (let k = 0; k <= ASEG; k++) {
