@@ -345,12 +345,14 @@ function initGlobe() {
     }
   }
 
-  /* R30 同相位:全部落在品牌 #9EDC1D 色相带(particle-hue 门读以下标注;改色值必同步改标注)。
+  /* R30 同相位:陆点/枢纽/落点环落在品牌 #9EDC1D 色相带(particle-hue 门读以下 HUE-GUARD: 标注;改色值必同步改标注)。
+     R48.14 主人拍板:**连线族(弧基线+流光)离开柠檬带,换协调副色青碧 teal ~170°**——
+     用 HUE-GUARD-TEAL: 前缀标注(门的正则只认 HUE-GUARD:,副色不受 ±6° 品牌带约束;暂无副色机器门,靠本注释交底)。
      亮度阶:陆点 < 弧基线 < 枢纽 < 流光。
      HUE-GUARD:dot-dim (40, 55, 7)
      HUE-GUARD:dot-lit (150, 205, 38)
      HUE-GUARD:hub (190, 245, 52)
-     HUE-GUARD:arc-base (52, 68, 13) */
+     HUE-GUARD-TEAL:arc-base (13, 64, 58) */
   const SHB = 12;
   const dotSprites: HTMLCanvasElement[] = [];
   for (let b = 0; b < SHB; b++) {
@@ -599,13 +601,15 @@ function initGlobe() {
     glowStale = false;
   };
 
-  /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮) HUE-GUARD:comet (225, 255, 150) */
+  /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮)。
+     R48.14:随弧基线一起换青碧副色(连线族整体离开柠檬带,主人拍板);落点环仍柠檬(节点事件归节点族)。
+     HUE-GUARD-TEAL:comet (150, 240, 225) */
   const CB = 12,
     TAILU = 0.3;
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
     const a = fade * fade * 0.88;
-    return `rgb(${Math.round(225 * a)},${Math.round(255 * a)},${Math.round(150 * a)})`;
+    return `rgb(${Math.round(150 * a)},${Math.round(240 * a)},${Math.round(225 * a)})`;
   });
 
   interface Flight {
@@ -673,7 +677,7 @@ function initGlobe() {
     /* R48.13 主人令「所有节点同时连线」:全部弧常亮基线(此前只画在飞的 FL 条,网显得稀);
        still 静帧同画全网;被球体遮挡段断笔,背半球天然剔除 */
     nctx.lineWidth = Math.max(0.8, 0.9 * q);
-    nctx.strokeStyle = 'rgb(52,68,13)';
+    nctx.strokeStyle = 'rgb(13,64,58)'; /* R48.14 青碧弧基线(HUE-GUARD-TEAL:arc-base) */
     for (let a = 0; a < NA; a++) {
       nctx.beginPath();
       let pen = false;
