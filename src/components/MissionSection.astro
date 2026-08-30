@@ -1,13 +1,11 @@
 ---
-/* [FEAT-WEB09] 使命板块(算力去向)— R48.7 重构(主人 2026-08-28 令③):
-   眉标(柠檬刻度+16 档保形)→ 大陈述 48 档(zh 焊两行)→ 说明段 16 档纯白紧行距 —— 三件保留;
-   答案层从「竖标夹持的编号列表」改为 **2×3 玻璃图标格**:每格 = 线性图标(Icon.astro 单源)
-   + 24 档领域名 + 右端 01-06 编号(两端行体例与瓷砖章 metarow 同构)。
-   地球在本拍停右侧 65%(fx poseB),图格宽压在 660 画布内不压球心。
-   打字机眉标 / 行遮罩标题 / 进场钩子沿用;编号仍走 data-tw 打字机(错峰 80ms)。
+/* [FEAT-WEB09] 使命板块(算力去向)— R48.7 六宫格 + R48.19 实景小图(主人令:
+   「增加实际场景类图片,小图即可,用户看着有信任感,不要只是图标」)。
+   每格 = 实景缩略图(gpt-image-2 生成,真实感铁则:实景摄影/无文字/无人脸)+ 领域名 + 右端编号;
+   线性图标在本板块退役(Icon.astro 其余消费面不动)。
+   眉标/大陈述/说明段三件保留;地球在本拍停右侧 65%(fx poseB),图格宽压在 660 画布内不压球心。
    R45 手机放开(nowrap/画布上限)判例照旧。 */
 import { useT, type Locale } from '../i18n';
-import Icon from './Icon.astro';
 
 interface Props {
   locale: Locale;
@@ -15,12 +13,12 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const fields = [
-  { n: 1, icon: 'ai' },
-  { n: 2, icon: 'sci' },
-  { n: 3, icon: 'climate' },
-  { n: 4, icon: 'bio' },
-  { n: 5, icon: 'lang' },
-  { n: 6, icon: 'edu' },
+  { n: 1, img: '/mission/ai.webp' },
+  { n: 2, img: '/mission/sci.webp' },
+  { n: 3, img: '/mission/climate.webp' },
+  { n: 4, img: '/mission/bio.webp' },
+  { n: 5, img: '/mission/lang.webp' },
+  { n: 6, img: '/mission/edu.webp' },
 ] as const;
 const leadParas = t('mission.lead').split('\n');
 ---
@@ -42,9 +40,9 @@ const leadParas = t('mission.lead').split('\n');
   {/* R48.8 主人改令:六宫格 —— 单块玻璃底,细线分区(与数据条内分线同族),不再一格一底 */}
   <ol class="fgrid x-tile" role="list" data-rv>
     {
-      fields.map(({ n, icon }) => (
+      fields.map(({ n, img }) => (
         <li class="cell">
-          <Icon name={icon} class="fic" />
+          <img class="thumb" src={img} alt="" width="640" height="427" loading="lazy" decoding="async" />
           <span class="name x-h24">{t(`mission.f${n}`)}</span>
           <span class="idx x-mono" data-tw data-tw-delay={80 * (n - 1)}>
             0{n}
@@ -141,10 +139,10 @@ const leadParas = t('mission.lead').split('\n');
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .cell {
-    padding: calc(24 * var(--uc)) calc(26 * var(--uc));
+    padding: calc(16 * var(--uc)) calc(22 * var(--uc));
     display: flex;
     align-items: center;
-    gap: calc(14 * var(--uc));
+    gap: calc(16 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
   }
   .cell:nth-child(-n + 2) {
@@ -153,11 +151,14 @@ const leadParas = t('mission.lead').split('\n');
   .cell:nth-child(even) {
     border-left: 1px solid var(--x-line-soft);
   }
-  .cell :global(.fic) {
-    width: max(20px, calc(26 * var(--u)));
-    height: max(20px, calc(26 * var(--u)));
+  /* R48.19 实景缩略图:4/3 小图,height:auto 压掉宽高属性钉轴(R48.7 已踩 aspect-ratio 失效坑) */
+  .thumb {
+    width: max(72px, calc(96 * var(--u)));
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: calc(10 * var(--uc));
     flex: 0 0 auto;
-    color: var(--x-accent-hot); /* 图标走柠檬热档:黑区点睛体例(与编号同族) */
   }
   .name {
     font-size: max(16px, calc(20 * var(--u))); /* 格内领域名降半档(24 档在半宽格里 en 两行起步) */
