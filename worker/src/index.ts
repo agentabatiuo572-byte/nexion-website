@@ -3,10 +3,14 @@ import type { Env } from './env';
 import { auditRoutes, writeAudit } from './audit';
 import { authRoutes, requireAuth } from './auth';
 import { configRoutes } from './config';
+import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
 import { ingestRoutes } from './ingest';
 import { dailyJob, runDailyRollup } from './rollup';
 
 export const app = new Hono<{ Bindings: Env }>();
+
+// 🔴 区域屏蔽中间件:一切之前(CON12;/admin 与 /api 前缀在中间件内豁免——自锁保护)
+app.use('*', geoMiddleware);
 
 app.get('/api/health', (c) =>
   c.json({ ok: true, service: 'nexgrid-site-worker', environment: c.env.ENVIRONMENT }),
@@ -25,6 +29,12 @@ app.route('/api/audit', auditRoutes);
 
 // 匿名埋点采集(CON15):公开端点,限速+schema 校验在内
 app.route('/api/e', ingestRoutes);
+
+// 直通兑换(公开;令牌由控制台登录态签发)+ 屏蔽规则面(受保护)
+app.route('/api/bypass', bypassExchange);
+app.use('/api/geo', requireAuth);
+app.use('/api/geo/*', requireAuth);
+app.route('/api/geo', geoRoutes);
 
 // 配置模型(CON04/13):草稿/校验/版本,全部受保护
 app.use('/api/config', requireAuth);

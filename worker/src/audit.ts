@@ -9,6 +9,8 @@ export const AUDIT_ACTIONS = [
   'auth.logout',
   'admin.rollup',
   'config.save',
+  'geo.update',
+  'bypass.issue',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

@@ -14,7 +14,8 @@ import LegalPage from './pages/legal';
 import SeoPage from './pages/seo';
 import SkusPage from './pages/skus';
 import StatsPage from './pages/stats';
-import { DashboardStub, GeoStub, PublishStub } from './pages/stubs';
+import GeoPage from './pages/geo';
+import { DashboardStub, PublishStub } from './pages/stubs';
 
 const router = createBrowserRouter(
   [
@@ -33,7 +34,7 @@ const router = createBrowserRouter(
         { path: 'content/announcement', element: <AnnouncementPage /> },
         { path: 'content/seo', element: <SeoPage /> },
         { path: 'content/legal', element: <LegalPage /> },
-        { path: 'geo', element: <GeoStub /> },
+        { path: 'geo', element: <GeoPage /> },
         { path: 'publish', element: <PublishStub /> },
         { path: 'audit', element: <AuditPage /> },
         { path: '*', element: <section><h2>页面不存在</h2><p className="kv">左侧导航可回到任意模块。</p></section> },

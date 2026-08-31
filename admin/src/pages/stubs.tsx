@@ -36,9 +36,6 @@ export function DashboardStub() {
   );
 }
 
-export const GeoStub = () => (
-  <Stub title="区域屏蔽" con="FEAT-CON12" pkg="包⑦" desc="按国家屏蔽访问(默认仅中国大陆,港澳台不连带)+ 拦截统计;自锁保护(后台不受屏蔽+管理员直通)。整包在包⑦交付。" />
-);
 export const PublishStub = () => (
   <Stub title="发布与版本" con="FEAT-CON13" pkg="包⑨" desc="把草稿改动过全部机器门后上线;门红保旧版;版本历史一键回滚。版本表已在记录(包③),流水线与界面在包⑨交付。" />
 );

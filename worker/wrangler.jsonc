@@ -31,6 +31,7 @@
     "ENVIRONMENT": "dev",
     // 仅 dev 值;生产用 `wrangler secret put SETUP_TOKEN` / `... BEACON_SALT`(Phase C)
     "SETUP_TOKEN": "dev-setup-token",
-    "BEACON_SALT": "dev-beacon-salt"
+    "BEACON_SALT": "dev-beacon-salt",
+    "BYPASS_SECRET": "dev-bypass-secret"
   }
 }
