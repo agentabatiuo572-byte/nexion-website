@@ -43,6 +43,15 @@ app.post('/api/admin/rollup', requireAuth, async (c) => {
 // API 界域封口:未知 /api/* 返回 JSON 404,绝不落到静态层吐 HTML
 app.all('/api/*', (c) => c.json({ error: 'not-found' }, 404));
 
+// 控制台 SPA(V1-dev 同域 /admin 路径;Phase C 迁子域):深链回退到 admin/index.html
+// ⚠️ 区域屏蔽(T15)必须豁免本段(CON12-E1 自锁保护)
+app.get('/admin', (c) => c.redirect('/admin/'));
+app.get('/admin/*', async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw);
+  if (res.status !== 404) return res;
+  return c.env.ASSETS.fetch(new Request(new URL('/admin/index.html', c.req.url)));
+});
+
 // 静态产物兜底(T3;区域屏蔽中间件 T15 将插在一切之前)
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
