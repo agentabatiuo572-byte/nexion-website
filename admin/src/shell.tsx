@@ -88,9 +88,14 @@ export default function Shell() {
           {/* 线上内容与系统记录对不上:此前只在发布页显示,别的页面仍写「与线上一致」(第四轮 P1-6) */}
           {overview?.drift && (
             <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* 两种形态说法不同:版本号不符 vs 版本号对得上但内容被改过。
+                  此前只写前一种,于是被改动的情形会渲染出「记录里线上是 v11,快照来自 v11」这种自相矛盾的话(第六轮 P1-4)。 */}
               <span>
-                线上内容与系统记录对不上:记录里线上是 v{overview.liveVersion},线上实际伺服的快照
-                {overview.drift.snapshot ? `来自 v${overview.drift.snapshot}` : '没有上线标记'}。
+                {overview.drift.tampered?.length
+                  ? `线上文件被绕过发布流程改动过(v${overview.liveVersion}):${overview.drift.tampered.join('、')} 与发布时不一致`
+                  : `线上内容与系统记录对不上:记录里线上是 v${overview.liveVersion},线上实际伺服的快照${
+                      overview.drift.snapshot ? `来自 v${overview.drift.snapshot}` : '没有上线标记'
+                    }`}
               </span>
               <NavLink to="/publish" className="btn ghost sm">去处理</NavLink>
             </div>

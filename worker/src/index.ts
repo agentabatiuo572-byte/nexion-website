@@ -95,6 +95,10 @@ app.all('*', async (c) => {
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
     return c.json({ error: 'method-not-allowed' }, 405, { Allow: 'GET, HEAD' });
   }
+  /* 🔴 上线印记不对公网开放(2026-09-01 第六轮 P1-7):它里面装着**当前仍然有效**的一次性口令,
+     而 PRD CON13-④ 明写那枚口令「只经领单接口交给执行器」。它同时还泄露内部版本号与配置摘要。
+     worker 自己读它走的是资产绑定(不经过本路由),所以这里挡掉不影响核验。 */
+  if (new URL(c.req.url).pathname === '/.publish-stamp.json') return c.notFound();
   const res = await c.env.ASSETS.fetch(assetRequest(c.req.url, c.req.raw.headers));
   if (res.status === 404 && (c.req.header('accept') ?? '').includes('text/html')) {
     const ip = c.req.header('cf-connecting-ip') ?? 'unknown';

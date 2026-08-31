@@ -407,7 +407,12 @@ describe('CON13 发布流水线', () => {
     // 全新环境(种子版 + 快照无印记)也不该报——否则是永久噪音
     await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE status='live'").run();
     await env.DB.prepare("UPDATE config_versions SET status='live' WHERE created_by='system'").run();
-    const seeded = (await (await app.request('/api/publish/status', { headers: { cookie } }, env)).json()) as any;
+    /* 🔴 必须用「无印记」替身,不能用真实资产层(2026-09-01 第六轮 P1-2)。
+       这里原来直接传 env,于是这条断言的成败取决于**仓外的构建产物 dist-live 里有没有印记文件**:
+       没有印记(上一位验收方收尾清掉了)时 105/105 绿,有印记(任何一次成功发布之后的常态)时 104/105 红。
+       也就是说我历次报的「机器门全绿」在真实状态下从没成立过——**测试依赖了不在版本管理里的东西**,
+       它的绿就不是关于代码的结论。替身把「无印记」这个前提显式化,测试从此与产物无关。 */
+    const seeded = (await (await app.request('/api/publish/status', { headers: { cookie } }, envWithStamp(null) as unknown as typeof env)).json()) as any;
     expect(seeded.drift, '初始种子 + 无印记 = 全新环境,不报').toBeNull();
     await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE created_by='system'").run();
     await env.DB.prepare('UPDATE config_versions SET status=?2 WHERE id=?1').bind(r.versionId, 'live').run();
@@ -555,6 +560,83 @@ describe('CON13 发布流水线', () => {
     expect(dirty.drift!.dbLive).toBe(r.versionId);
   });
 
+
+  it('🔴🔴 第五次组合故障:swap ok 的响应丢了,重发必须把上线事务真正做完', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '重放收敛测试');
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
+    const e = envWithStamp({ versionId: r.versionId, stamp: job.stamp, configSha: await shaOfVersion(r.versionId) });
+    for (const step of ['materialize', 'gates', 'build']) {
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' });
+    }
+    await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
+
+    /* 模拟「服务端收到并处理了,但响应在回程丢了」:先把 swap 记成 ok 而**不触发上线事务**,
+       这正是丢响应那一刻数据库的样子;然后执行器重发同一条回报。 */
+    await env.DB.prepare("UPDATE publish_steps SET status='ok', ended_at=?2 WHERE version_id=?1 AND step='swap'").bind(r.versionId, Date.now()).run();
+    /* 🔴 锁也要删掉才是真实形态(2026-09-01 第六轮,192 格表抓出我这条测试的失真):
+       终态回报**本来就会释放锁**,所以「回报送到了、响应丢了」那一刻,库里是没有锁的。
+       原来这条测试保留了锁,于是它测的是一个现实中不会出现的状态,重放路径里
+       「口令从哪里读」这个关键分歧被它盖住了。 */
+    await env.DB.prepare('DELETE FROM publish_lock').run();
+    const beforeLive = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    expect(beforeLive!.id, '这一刻这一版还没被标 live').not.toBe(r.versionId);
+
+    const replay = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(replay.status, '重发不该被拒').toBe(200);
+    const body = (await replay.json()) as { idempotent?: boolean; effectEnsured?: boolean };
+    expect(body.idempotent).toBe(true);
+    expect(body.effectEnsured, '重发必须把没做完的上线事务补上,而不是只回一句「已受理」').toBe(true);
+
+    const live = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    expect(live!.id, '重发之后这一版必须真的上线').toBe(r.versionId);
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM publish_lock').first<{ n: number }>())!.n, '锁必须已释放').toBe(0);
+
+    // 再重发一次:收敛到同一终态,不叠加副作用
+    const again = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(again.status).toBe(200);
+    expect(((await again.json()) as { effectEnsured?: boolean }).effectEnsured, '已经上线了就不该再"补"一次').toBe(false);
+    const liveRows = await env.DB.prepare("SELECT COUNT(*) n FROM config_versions WHERE status='live'").first<{ n: number }>();
+    expect(liveRows!.n, '只能有一个 live').toBe(1);
+  });
+
+  it('🔴 P1-5 上线核验那一刻资产层读不到 → 判为可重试,不判失败、不误诊成「被人改过」', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '资产层不可用测试');
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
+    const sha = await shaOfVersion(r.versionId);
+    // 印记本身读得到,但锚点文件取不到(资产层抖动的形态)
+    const flaky = {
+      ...env,
+      ASSETS: {
+        fetch: async (req: Request) => {
+          const path = new URL(req.url).pathname;
+          if (path === '/.publish-stamp.json') {
+            return new Response(JSON.stringify({ versionId: r.versionId, stamp: job.stamp, configSha: sha, anchors: { '/index.html': 'c'.repeat(64) } }), { status: 200 });
+          }
+          return new Response('upstream busy', { status: 503 });
+        },
+      },
+    };
+    for (const step of ['materialize', 'gates', 'build']) {
+      await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+      await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' });
+    }
+    await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
+    const res = await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { error?: string; why?: string };
+    expect(body.error, '读不到 ≠ 被改过').toBe('live-check-unavailable');
+    expect(body.why).toContain('稍后重试');
+    // 版本没被判死、锁还在 → 执行器重试还能接着走
+    const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(r.versionId).first<{ status: string }>();
+    expect(v!.status, '环境抖动不该把这一版判失败').toBe('publishing');
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM publish_lock').first<{ n: number }>())!.n, '锁不该被释放').toBe(1);
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {
@@ -621,30 +703,49 @@ describe('CON13 发布流水线', () => {
    四次组合故障全部落在交叉处——第四次就落在「已记录=ok × 上报=ok × 无锁」这一格:
    终态回报会先删锁,于是它的重发走不到幂等,一次**完全成功的发布**把执行器打死了。
    抽样测试 = 只测我想到的那几格,而想不到的那一格就够打死执行器。所以这里逐格断言。 */
-describe('CON13 上报转移表(48 格穷举)', () => {
+describe('CON13 上报转移表(192 格穷举)', () => {
   type Recorded = 'none' | 'running' | 'ok' | 'failed';
   type Reported = 'running' | 'ok' | 'failed';
   type LockState = 'ours' | 'none' | 'other' | 'expired';
+  type Step = 'materialize' | 'gates' | 'build' | 'swap';
 
-  /** 期望结论:'idempotent' 已受理 · 'write' 真写入 · 或具体的拒绝原因 */
-  function expected(rec: Recorded, rep: Reported, lock: LockState): string {
-    if (rec === rep) return 'idempotent'; // 与锁无关:这是关于记录的事实
-    if (rec === 'ok' || rec === 'failed') return 'step-already-done'; // 已收口不许改口,与锁无关
-    // 到这里 rec ∈ {none, running},且要真改状态 → 才看授权
+  /* 期望结论。
+     🔴 补上「哪一步」这个维度(第六轮 P1-6):原表只跑第一步,而**前序顺序**这条判据
+     对第二步之后才会命中——换成 gates/build/swap 时三格全预测错,那张表其实只在 materialize 上成立。
+     「穷举」的前提是维度取齐;少一维,穷举就变成了抽样。
+     本表按 PRD CON13-④ 与两层结构独立推导,不照抄实现:
+     第一层(与锁无关)先判幂等与改口;第二层才看授权与顺序。 */
+  function expected(rec: Recorded, rep: Reported, lock: LockState, step: Step, priorDone: boolean): string {
+    if (rec === rep) return rep === 'running' ? 'idempotent' : 'idempotent'; // 同结果重报:与锁、与顺序都无关
+    if (rec === 'ok' || rec === 'failed') return 'step-already-done'; // 已收口不许改口,与锁、与顺序都无关
+    // 到这里 rec ∈ {none, running},确实要改状态 → 才看授权
     if (lock === 'none' || lock === 'other') return 'not-current-job';
     if (lock === 'expired') return 'lock-expired';
+    if (!priorDone) return 'step-out-of-order'; // 前序没跑完
     if (rec === 'none' && rep !== 'running') return 'step-not-running';
     return 'write';
   }
 
-  async function setup(cookie: string, rec: Recorded, lock: LockState) {
-    await makeChange(cookie, `表格用例-${rec}-${lock}-${Math.round(Math.random() * 1e9)}`);
+  const STEPS: Step[] = ['materialize', 'gates', 'build', 'swap'];
+  const RECORDED: Recorded[] = ['none', 'running', 'ok', 'failed'];
+  const REPORTED: Reported[] = ['running', 'ok', 'failed'];
+  const LOCKS: LockState[] = ['ours', 'none', 'other', 'expired'];
+
+  /** 造出「这一步之前的步骤都已 ok」的局面,再把本步与锁摆成指定状态 */
+  async function setup(cookie: string, step: Step, rec: Recorded, lock: LockState, seq: number) {
+    await makeChange(cookie, `表格用例-${step}-${rec}-${lock}-${seq}`);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
     const job = await claim(cookie);
+    for (const prev of STEPS.slice(0, STEPS.indexOf(step))) {
+      await env.DB
+        .prepare("INSERT INTO publish_steps (version_id, step, status, started_at, ended_at) VALUES (?1, ?2, 'ok', ?3, ?3)")
+        .bind(r.versionId, prev, Date.now())
+        .run();
+    }
     if (rec !== 'none') {
       await env.DB
         .prepare('INSERT INTO publish_steps (version_id, step, status, started_at, ended_at) VALUES (?1, ?2, ?3, ?4, ?5)')
-        .bind(r.versionId, 'materialize', rec, Date.now(), rec === 'running' ? null : Date.now())
+        .bind(r.versionId, step, rec, Date.now(), rec === 'running' ? null : Date.now())
         .run();
     }
     if (lock === 'none') await env.DB.prepare('DELETE FROM publish_lock').run();
@@ -653,35 +754,55 @@ describe('CON13 上报转移表(48 格穷举)', () => {
     return { versionId: r.versionId, stamp: job.stamp };
   }
 
-  const RECORDED: Recorded[] = ['none', 'running', 'ok', 'failed'];
-  const REPORTED: Reported[] = ['running', 'ok', 'failed'];
-  const LOCKS: LockState[] = ['ours', 'none', 'other', 'expired'];
-
-  it('48 格逐格与转移表一致', async () => {
+  it('192 格逐格与转移表一致', async () => {
     const cookie = await login();
     const bad: string[] = [];
     let n = 0;
-    for (const rec of RECORDED) {
-      for (const rep of REPORTED) {
-        for (const lk of LOCKS) {
-          n++;
-          const { versionId, stamp } = await setup(cookie, rec, lk);
-          const res = await post(cookie, '/api/publish/step', { versionId, stamp, step: 'materialize', status: rep });
-          const body = (await res.json()) as { ok?: boolean; idempotent?: boolean; error?: string };
-          const want = expected(rec, rep, lk);
-          const got =
-            body.idempotent ? 'idempotent'
-            : res.status === 200 ? 'write'
-            : String(body.error ?? '').split('(')[0];
-          if (got !== want) bad.push(`已记录=${rec} 上报=${rep} 锁=${lk} → 期望 ${want},实际 ${got}(HTTP ${res.status})`);
-          // 每格独立:清干净再进下一格
-          await env.DB.prepare('DELETE FROM publish_steps').run();
-          await env.DB.prepare('DELETE FROM publish_lock').run();
-          await env.DB.prepare("UPDATE config_versions SET status='failed' WHERE status IN ('validating','publishing')").run();
+    for (const step of STEPS) {
+      for (const rec of RECORDED) {
+        for (const rep of REPORTED) {
+          for (const lk of LOCKS) {
+            n++;
+            const { versionId, stamp } = await setup(cookie, step, rec, lk, n);
+            /* swap 的成功还要过上线核验;本表验的是**转移合法性**,不是核验本身,
+               所以给一个能过核验的替身,让 swap 的 'write' 格不被核验结果污染。 */
+            const e =
+              step === 'swap'
+                ? envWithStamp({ versionId, stamp, configSha: await shaOfVersion(versionId) })
+                : env;
+            const res = await postAs(e, cookie, '/api/publish/step', { versionId, stamp, step, status: rep });
+            const body = (await res.json()) as { ok?: boolean; idempotent?: boolean; error?: string };
+            const want = expected(rec, rep, lk, step, true); // setup 已把前序全铺成 ok
+            const got = body.idempotent ? 'idempotent' : res.status === 200 ? 'write' : String(body.error ?? '').split('(')[0];
+            if (got !== want) bad.push(`步=${step} 已记录=${rec} 上报=${rep} 锁=${lk} → 期望 ${want},实际 ${got}(HTTP ${res.status})`);
+            await env.DB.prepare('DELETE FROM publish_steps').run();
+            await env.DB.prepare('DELETE FROM publish_lock').run();
+            await env.DB.prepare("UPDATE config_versions SET status='failed' WHERE status IN ('validating','publishing')").run();
+          }
         }
       }
     }
-    expect(n, '必须真的跑满 48 格').toBe(48);
+    expect(n, '必须真的跑满 192 格').toBe(192);
     expect(bad, `\n${bad.join('\n')}`).toEqual([]);
-  }, 120_000); // 48 格 × 每格数次数据库往返,默认 5 秒不够
+  }, 300_000);
+
+  it('前序未完成时,任何步的写入都必须被判顺序错(表的另一半)', async () => {
+    const cookie = await login();
+    const bad: string[] = [];
+    for (const step of ['gates', 'build', 'swap'] as const) {
+      await makeChange(cookie, `前序缺失-${step}`);
+      const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+      const job = await claim(cookie);
+      // 故意不铺前序
+      const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+      const body = (await res.json()) as { error?: string };
+      const want = expected('none', 'running', 'ours', step, false);
+      const got = String(body.error ?? '').split('(')[0];
+      if (got !== want) bad.push(`步=${step} 前序缺失 → 期望 ${want},实际 ${got}`);
+      await env.DB.prepare('DELETE FROM publish_steps').run();
+      await env.DB.prepare('DELETE FROM publish_lock').run();
+      await env.DB.prepare("UPDATE config_versions SET status='failed' WHERE status IN ('validating','publishing')").run();
+    }
+    expect(bad, `\n${bad.join('\n')}`).toEqual([]);
+  }, 60_000);
 });

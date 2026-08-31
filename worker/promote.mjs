@@ -148,11 +148,22 @@ function writeStamp(dir) {
      ⚠️ 明确边界:这是**抽查**不是全量——只覆盖下面列出的锚点文件,
      动了别的资产仍然看不见。全量核验要求服务端遍历整个快照,代价与收益不成比例;
      锚点选的是「改了就一定影响访客看到什么」的那几个。 */
+  /* 锚点 = **全部 HTML 页面**(三语各页 + 404 + 控制台外壳)。
+     🔴 第一版只记了 3 个文件(112 个里的 3 个、36 个页面里的 1 个),于是改中文首页、
+     改全站样式表都照样 `drift=null`(第六轮 P1-3)。HTML 是访客真正读到的东西,
+     全记下来也就几十条,代价可以忽略。
+     ⚠️ 仍不是全量:非 HTML 资产(CSS/JS/图片)不在内——它们由页面按指纹文件名引用,
+     换内容通常会换文件名、于是页面本身的摘要就变了;但**直接覆盖同名资产**这一种仍看不见。
+     这个缺口在界面上常驻说明,不藏着。 */
   const anchors = {};
-  for (const rel of ['index.html', '404.html', 'admin/index.html']) {
-    const p = path.join(dir, rel);
-    if (existsSync(p)) anchors[`/${rel}`] = createHash('sha256').update(readFileSync(p)).digest('hex');
-  }
+  const walkHtml = (d, base = '') => {
+    for (const n of readdirSync(d).sort()) {
+      const p = path.join(d, n);
+      if (statSync(p).isDirectory()) walkHtml(p, `${base}/${n}`);
+      else if (n.endsWith('.html')) anchors[`${base}/${n}`] = createHash('sha256').update(readFileSync(p)).digest('hex');
+    }
+  };
+  walkHtml(dir);
 
   const body = JSON.stringify({ versionId, stamp: stampToken, configSha, anchors, at: new Date().toISOString() }) + '\n';
   writeFileSync(path.join(dir, STAMP), body);

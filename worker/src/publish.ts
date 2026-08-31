@@ -64,7 +64,11 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
     ]);
   }
   const nonce = randomHex(16);
-  await env.DB.prepare('INSERT INTO publish_lock (id, version_id, acquired_at, expires_at, claim_nonce) VALUES (1, ?1, ?2, ?3, ?4)').bind(versionId, now, now + LOCK_TTL_MS, nonce).run();
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO publish_lock (id, version_id, acquired_at, expires_at, claim_nonce) VALUES (1, ?1, ?2, ?3, ?4)').bind(versionId, now, now + LOCK_TTL_MS, nonce),
+    // 口令同时记在版本行上:锁会被释放,版本不会(见 0007 迁移的说明)
+    env.DB.prepare('UPDATE config_versions SET claim_nonce=?2 WHERE id=?1').bind(versionId, nonce),
+  ]);
   return { ok: true, nonce };
 }
 const releaseLock = (env: Env) => env.DB.prepare('DELETE FROM publish_lock WHERE id = 1').run();
@@ -153,6 +157,88 @@ export async function liveSnapshotDrift(env: Env): Promise<{ dbLive: number; sna
     if (seed?.created_by === 'system') return null;
   }
   return { dbLive: live.id, snapshot: snapVer };
+}
+
+/* 终态该带来的效果,做成**可重放**的一段:失败 → 版本 failed + 释放锁;swap 成功 → 核验后上线。
+   🔴 为什么必须可重放(2026-09-01 第六轮 P1-1,第五次组合故障):
+   幂等要保证的是**结果**,不是「记过一笔」。上一版对重复上报直接 return,于是 `swap ok` 的响应
+   一旦在回程丢失,执行器重发时被当成「已经记过了」而**整个上线事务被跳过**——
+   内容其实已经在线上,版本却永远不会被标 live,也不能重发;15 分钟后运营看到
+   「执行器无响应」+「线上仍是上一版,未受影响」,**两句都是假话**。
+   🔴 正常路径与重放路径**共用这一段**,不写两份:两份实现必然漂移,而漂移的那一天没人会发现。
+   每条写操作都带条件(`WHERE status=...`),重复执行不会叠加副作用。 */
+async function ensureTerminalEffect(
+  env: Env,
+  versionId: number,
+  step: PublishStep,
+  status: 'ok' | 'failed',
+  gate: string | undefined,
+  detail: string | undefined,
+  now: number,
+): Promise<{ ok: true; applied: boolean; reason?: string } | { ok: false; error: string; why: string }> {
+  if (status === 'failed') {
+    const reason = gate ? `${explainGate(gate)}(门:${gate})` : (detail ?? '执行器报告失败');
+    const r = await env.DB.batch([
+      env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=COALESCE(fail_reason, ?2) WHERE id=?1 AND status IN ('validating','publishing')").bind(versionId, reason),
+      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
+    ]);
+    const applied = (r[0]?.meta?.changes ?? 0) > 0;
+    if (applied) await writeAudit(env.DB, { action: 'config.publish.failed', target: `v${versionId}`, after: reason });
+    return { ok: true, applied, reason };
+  }
+
+  if (step !== 'swap') return { ok: true, applied: false }; // 非最后一步的成功没有额外副作用
+
+  const target = await env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id=?1').bind(versionId).first<{ id: number; status: string; payload: string }>();
+  if (!target) return { ok: false, error: 'version-not-found', why: `v${versionId} 不存在` };
+  if (target.status === 'live') return { ok: true, applied: false }; // 已经上线:重放收敛到同一终态
+
+  /* 标 live 之前先核实线上快照(见文件上方 STAMP_WHY)。fail-closed:核不过就不上线。
+     🔴 但要把「读不到」与「对不上」分开(第六轮 P1-5):资产层那一瞬读不到不等于有人动了文件,
+     此前一律说成「有人绕过发布流程直接改了线上文件」,既是错诊断又不可重试。 */
+  const stamp = await readLiveStamp(env);
+  /* 口令从**版本行**读,不从锁读(2026-09-01 第六轮,192 格表抓出)。
+     终态回报会删锁,所以在「回报丢了→重发」这个真实形态里,锁已经不在了;
+     从锁读会让重放必然核验失败。口令属于「这一次发布」,载体是版本行,不是那把会被释放的锁。 */
+  const nonceRow = await env.DB.prepare('SELECT claim_nonce FROM config_versions WHERE id=?1').bind(versionId).first<{ claim_nonce: string | null }>();
+  const wantSha = await expectedConfigSha(target.payload).catch(() => null);
+  const badAnchors = await verifyAnchors(env, stamp);
+  const unreadable = (badAnchors ?? []).filter((x) => x.includes('取不到') || x.includes('读取失败'));
+  if (unreadable.length) {
+    // 环境问题,不改版本状态、不释放锁 → 执行器重试即可继续
+    return { ok: false, error: 'live-check-unavailable', why: `暂时读不到线上快照(${unreadable.join('、')}),稍后重试;本次发布未判失败` };
+  }
+  const good =
+    stamp && stamp.versionId === versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha
+    && !(badAnchors && badAnchors.length);
+  if (!good) {
+    const why = !stamp
+      ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
+      : stamp.versionId !== versionId
+        ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${versionId}`
+        : stamp.stamp !== nonceRow?.claim_nonce
+          ? '线上快照的印记口令与本次发布不符'
+          : stamp.configSha !== wantSha
+            ? `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`
+            : `线上快照里这些文件已被改动过,与搬运时不符:${(badAnchors ?? []).join('、')}`;
+    await env.DB.batch([
+      env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(versionId, `上线核验未通过:${why}`),
+      env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(versionId, 'swap', why),
+      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+    ]);
+    await writeAudit(env.DB, { action: 'config.publish.failed', target: `v${versionId}`, after: `上线核验未通过:${why}` });
+    return { ok: false, error: 'live-verification-failed', why };
+  }
+
+  const live = await getLive(env);
+  const stmts = [
+    env.DB.prepare("UPDATE config_versions SET status='live', published_at=?2 WHERE id=?1").bind(versionId, now),
+    env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+  ];
+  if (live) stmts.unshift(env.DB.prepare("UPDATE config_versions SET status='archived' WHERE id=?1").bind(live.id));
+  await env.DB.batch(stmts);
+  await writeAudit(env.DB, { action: 'config.publish.live', target: `v${versionId}`, before: live ? `v${live.id}` : 'none' });
+  return { ok: true, applied: true };
 }
 
 async function getDraft(env: Env) {
@@ -307,7 +393,16 @@ publishRoutes.post('/step', async (c) => {
   const existing = await c.env.DB.prepare('SELECT status FROM publish_steps WHERE version_id=?1 AND step=?2').bind(b.versionId, b.step).first<{ status: string }>();
   const recorded = existing?.status ?? 'none';
   if (recorded === b.status) {
-    return c.json({ ok: true, idempotent: true }); // 已记成同样的结果:当作已受理,不看锁
+    /* 🔴 幂等要保证的是**结果**,不是「记过一笔」(2026-09-01 第六轮 P1-1,第五次组合故障)。
+       上一版这里直接 return —— 于是 `swap ok` 的响应一旦在回程丢失,执行器重发时被当作
+       「已经记过了」而**整个上线事务被跳过**:内容其实已经在线上,版本却永远不会被标 live,
+       也不能重发;15 分钟后运营看到「执行器无响应」+「线上仍是上一版,未受影响」——**两句都是假话**。
+       根因是我把一个**有副作用的事务的触发器**,当成了「记一笔事实」来做幂等。
+       正确的幂等:重放要让系统**收敛到同一个终态**,该发生的副作用如果还没发生,就补上。
+       所以这里只跳过「重复写步骤行」,终态该带来的效果仍然照走(下面 ensureTerminalEffect)。 */
+    if (b.status === 'running') return c.json({ ok: true, idempotent: true }); // 非终态无副作用,直接受理
+    const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, b.detail, now);
+    return eff.ok ? c.json({ ok: true, idempotent: true, effectEnsured: eff.applied }) : c.json({ error: eff.error, why: eff.why }, 409);
   }
   if (recorded === 'ok' || recorded === 'failed') {
     // 已收口的步骤不许改口(ok→failed / failed→ok / 终态→running 都在这里)
@@ -356,59 +451,9 @@ publishRoutes.post('/step', async (c) => {
     .run();
   if ((upd.meta.changes ?? 0) === 0) return c.json({ error: 'step-not-running(先报 running 再报结果)' }, 409);
 
-  if (b.status === 'failed') {
-    const reason = b.gate ? `${explainGate(b.gate)}(门:${b.gate})` : (b.detail ?? '执行器报告失败');
-    await c.env.DB.batch([
-      c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(b.versionId, reason),
-      c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
-    ]);
-    await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${b.versionId}`, after: reason });
-    return c.json({ ok: true, failed: true, reason });
-  }
-
-  // 最后一步成功 = 原子切换:旧 live 退历史,新版本上线
-  if (b.step === 'swap') {
-    /* 🔴 标 live 之前先核实线上快照(见文件上方 STAMP_WHY)。
-       印记缺失 / 版本对不上 / 口令对不上 —— 一律拒绝上线并把这一版标 failed。
-       fail-closed:读不到也算不通过。宁可让一次真发布因为环境异常而失败(重发即可),
-       也不能让一次没搬运过的发布被记成 live —— 那会让数据库说的和线上伺服的静默劈叉。 */
-    const stamp = await readLiveStamp(c.env);
-    const nonceRow = await c.env.DB.prepare('SELECT claim_nonce FROM publish_lock WHERE id = 1').first<{ claim_nonce: string | null }>();
-    const ver = await c.env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(b.versionId).first<{ payload: string }>();
-    const wantSha = ver ? await expectedConfigSha(ver.payload).catch(() => null) : null;
-    // 印记说的那几个锚点文件,线上现在真的是那个内容吗(第五轮 P1-4:此前只信印记里的数,不回核实物)
-    const badAnchors = await verifyAnchors(c.env, stamp);
-    const good =
-      stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha
-      && !(badAnchors && badAnchors.length);
-    if (!good) {
-      const why = !stamp
-        ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
-        : stamp.versionId !== b.versionId
-          ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${b.versionId}`
-          : stamp.stamp !== nonceRow?.claim_nonce
-            ? '线上快照的印记口令与本次发布不符'
-            : stamp.configSha !== wantSha
-              ? `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`
-              : `线上快照里这些文件已被改动过,与搬运时不符:${(badAnchors ?? []).join('、')}`;
-      await c.env.DB.batch([
-        c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(b.versionId, `上线核验未通过:${why}`),
-        c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(b.versionId, 'swap', why),
-        c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
-      ]);
-      await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${b.versionId}`, after: `上线核验未通过:${why}` });
-      return c.json({ error: 'live-verification-failed', why }, 409);
-    }
-    const live = await getLive(c.env);
-    const stmts = [
-      c.env.DB.prepare("UPDATE config_versions SET status='live', published_at=?2 WHERE id=?1").bind(b.versionId, now),
-      c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
-    ];
-    if (live) stmts.unshift(c.env.DB.prepare("UPDATE config_versions SET status='archived' WHERE id=?1").bind(live.id));
-    await c.env.DB.batch(stmts);
-    await writeAudit(c.env.DB, { action: 'config.publish.live', target: `v${b.versionId}`, before: live ? `v${live.id}` : 'none' });
-  }
-  return c.json({ ok: true });
+  const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, b.detail, now);
+  if (!eff.ok) return c.json({ error: eff.error, why: eff.why }, 409);
+  return c.json({ ok: true, ...(b.status === 'failed' ? { failed: true, reason: eff.reason } : {}) });
 });
 
 /** 版本列表 + 当前发布进度(UI 轮询用)。
