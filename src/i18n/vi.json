@@ -19,7 +19,7 @@
   },
   "hero": {
     "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
-    "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
+    "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán toàn cầu.",
     "scrollHint": "Xem mạng lưới",
     "note": "Thiết bị nhàn rỗi của bạn chạy tác vụ AI.\nBạn được trả bằng USDT.",
     "subtitle2": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao\nvà giải pháp lưu trữ đám mây GPU.",
@@ -164,7 +164,7 @@
     "mech1Title": "Phía cầu",
     "mech1Desc": "Khách hàng AI trả tiền cho năng lực tính toán; một phần doanh thu nền tảng dùng cho các đợt mua lại định kỳ.",
     "mech2Title": "Cơ chế đốt",
-    "mech2Desc": "30% phí nền tảng bị đốt vĩnh viễn, giảm nguồn cung theo thời gian.",
+    "mech2Desc": "30% phí nền tảng do bên mua năng lực tính toán chi trả bị đốt vĩnh viễn, giảm nguồn cung theo thời gian.",
     "faqTitle": "Giải đáp về NEX",
     "faq1Q": "NEX có phải stablecoin không?",
     "faq1A": "Không. USDT là tài sản kết toán ổn định; NEX là token tiện ích có giá thay đổi.",

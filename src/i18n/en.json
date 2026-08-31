@@ -164,7 +164,7 @@
     "mech1Title": "Demand side",
     "mech1Desc": "AI clients pay for compute; a share of platform revenue funds periodic buybacks.",
     "mech2Title": "Burn mechanism",
-    "mech2Desc": "30% of platform fees are permanently burned, reducing supply over time.",
+    "mech2Desc": "30% of the platform fees paid by compute buyers are permanently burned, reducing supply over time.",
     "faqTitle": "NEX questions, answered",
     "faq1Q": "Is NEX a stablecoin?",
     "faq1A": "No. USDT is the stable settlement asset; NEX is a utility token whose price varies.",
