@@ -17,16 +17,13 @@ const { locale } = Astro.props;
 const t = useT(locale);
 /* 版面顺序:事实(公司/MSB)→ 核验步骤(Colorado/FinCEN)→ 制度解释;卡 key 不变,只重排。
    R48.7 令②:每卡配语义线性图标(按卡内容不按版面序):注册实体/盾勾/查册/清单查询/天平。
-   R49-B1(总审五路之三同报):两张「教你去官方查」的卡此前是纯文本——最想核验的用户
-   操作成本反而最高;按 PRD WEB07 ⑥ 补齐阳光路径:官方入口真外链(新标签)+ 编号一键复制。
-   链接指检索入口页不指结果页(结果页 URL 不可稳定构造);编号单源在下方常量。 */
-const ENTITY_ID = '20221592644';
-const MSB_ID = '31000329265856';
+   R49b(主人 2026-08-31 改令):查册两卡**只留官网真外链**——复制编号按钮撤除,
+   卡文由 step-by-step 详述改一句话模糊化(查询细节交给官网自己)。链接仍指检索入口页。 */
 const order = [
   { card: 1, span: 's7', icon: 'registry' },
   { card: 3, span: 's7', icon: 'shield' },
-  { card: 2, span: 's6', icon: 'verify-search', verify: { url: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do', label: 'coloradosos.gov', num: ENTITY_ID } },
-  { card: 5, span: 's6', icon: 'lookup', verify: { url: 'https://www.fincen.gov/msb-state-selector', label: 'fincen.gov/msb-state-selector', num: MSB_ID } },
+  { card: 2, span: 's6', icon: 'verify-search', verify: { url: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do', label: 'coloradosos.gov' } },
+  { card: 5, span: 's6', icon: 'lookup', verify: { url: 'https://www.fincen.gov/msb-state-selector', label: 'fincen.gov/msb-state-selector' } },
   { card: 4, span: 's12', icon: 'scale' },
 ] as const;
 ---
@@ -81,9 +78,6 @@ const order = [
               <a class="vout x-mono" href={rest.verify.url} target="_blank" rel="noopener noreferrer">
                 {rest.verify.label} <span aria-hidden="true">↗</span>
               </a>
-              <button type="button" class="vcopy x-mono" data-copy={rest.verify.num} data-copied-label={t('trust.copied')}>
-                {t('trust.copyNum')} · {rest.verify.num}
-              </button>
             </p>
           )}
         </article>
@@ -191,7 +185,7 @@ const order = [
   .card p:lang(zh) {
     line-height: 1.6; /* 全站 CJK 行高不变量 */
   }
-  /* R49-B1 核验行:官方外链 + 编号复制;透明底件走 hairline(带 bg 禁边框铁律不涉及) */
+  /* R49b 核验行:官方外链(复制按钮已按主人令撤除) */
   .vrow {
     display: flex;
     flex-wrap: wrap;
@@ -212,32 +206,6 @@ const order = [
   }
   .vout:active {
     opacity: 0.6;
-  }
-  .vcopy {
-    font: inherit;
-    color: var(--x-ink-dim);
-    background: none;
-    border: 1px solid var(--x-line);
-    border-radius: calc(999 * var(--uc));
-    padding: calc(6 * var(--uc)) calc(14 * var(--uc));
-    min-height: max(32px, calc(36 * var(--uc)));
-    cursor: pointer;
-    font-variant-numeric: tabular-nums;
-    transition:
-      color 0.2s,
-      border-color 0.2s;
-  }
-  .vcopy:hover,
-  .vcopy:focus-visible {
-    color: var(--x-ink);
-    border-color: var(--x-ink-dim);
-  }
-  .vcopy:active {
-    opacity: 0.75;
-  }
-  .vcopy.done {
-    color: var(--x-accent-hot);
-    border-color: var(--x-accent-hot);
   }
   /* 灯箱内「查看原件」出口(R49-D6):dialog 是亮底,走纸面墨色 */
   .cert-orig {
@@ -439,45 +407,4 @@ const order = [
 </style>
 
 <script>
-  /* R49-B1 编号一键复制:成功态换标签 1.6s 复原;Clipboard API 被策略拒 → 选中文本退路
-     (用户手动 Ctrl+C,比静默失败诚实)。 */
-  /* R49-B3 承诺-兑付:How 的「收益怎么被验证 →」落点 #poc;意图到达(点链或带 hash 进页)自动展开,
-     默认仍折叠保版面平衡。 */
-  {
-    const poc = document.getElementById('poc') as HTMLDetailsElement | null;
-    if (poc) {
-      const openPoc = () => { poc.open = true; };
-      if (location.hash === '#poc') openPoc();
-      document.addEventListener('click', (e) => {
-        const a = (e.target as HTMLElement).closest?.('a[href="#poc"]');
-        if (a) openPoc();
-      });
-    }
-  }
-
-  for (const b of document.querySelectorAll<HTMLButtonElement>('.trust .vcopy')) {
-    const orig = b.textContent;
-    b.addEventListener('click', async () => {
-      const num = b.dataset.copy || '';
-      let ok = true;
-      try {
-        await navigator.clipboard.writeText(num);
-      } catch {
-        ok = false;
-        const sel = window.getSelection();
-        const range = document.createRange();
-        range.selectNodeContents(b);
-        sel?.removeAllRanges();
-        sel?.addRange(range);
-      }
-      if (ok) {
-        b.classList.add('done');
-        b.textContent = `${b.dataset.copiedLabel} · ${num}`;
-        setTimeout(() => {
-          b.classList.remove('done');
-          b.textContent = orig;
-        }, 1600);
-      }
-    });
-  }
 </script>

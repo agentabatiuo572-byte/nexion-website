@@ -19,14 +19,15 @@
   },
   "hero": {
     "title": "NexGrid\n让算力流动",
-    "subtitle": "闲置设备承接 AI 任务,收益以 USDT 结算。",
+    "subtitle": "全球领先的分布式计算能力共享服务提供商。",
     "scrollHint": "查看网络",
-    "note": "用你现有的手机,免费开始。"
+    "note": "闲置设备承接 AI 任务,收益以 USDT 结算。",
+    "subtitle2": "为您提供高性能计算服务和 GPU 云托管解决方案。",
+    "note2": "用你现有的手机,免费开始。"
   },
   "download": {
     "ios": "iOS 下载",
-    "android": "Android 下载",
-    "comingSoon": "即将上线——App Store 与 Google Play 上架流程收尾中。"
+    "android": "Android 下载"
   },
   "stats": {
     "activeDevices": "在线设备",
@@ -90,14 +91,12 @@
     "certMsbAlt": "NexGrid LTD 的 FinCEN MSB 登记状态信息文件",
     "certCoAlt": "科罗拉多州州务卿出具的 NexGrid LTD 文件备案证书",
     "card1": "NexGrid LTD 于美国科罗拉多州（coloradosos.gov）注册成立，为科罗拉多州公司，实体编号 20221592644，授权发行 1 亿股普通股，运营 NexGrid 全球分布式算力共享平台。",
-    "card2": "在浏览器中打开科罗拉多州州务卿官方网站，在「Search business database」搜索框输入 NexGrid LTD 或实体编号 20221592644，点击 Search；在结果页点击 ID 编号，即可查看公司注册详情。",
+    "card2": "公司注册信息可在科罗拉多州州务卿官网查询。",
     "card3": "NexGrid LTD 已在美国财政部金融犯罪执法网络（FinCEN）完成 MSB（货币服务业务）登记，登记编号 31000329265856，按《银行保密法》相关法规接受 FinCEN 监管框架约束。",
     "card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。登记是法定义务,不构成 FinCEN 对企业的背书。",
-    "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。",
+    "card5": "MSB 登记信息可在 FinCEN 官网查询。",
     "certZoom": "查看大图",
     "certClose": "关闭",
-    "copyNum": "复制编号",
-    "copied": "已复制",
     "openOriginal": "查看原件"
   },
   "social": {

@@ -625,13 +625,14 @@ html.x-boot #x-bg {
    自此立规:x-boot 下的动画 fill 一律 backwards;fx.ts 开场收官后再整只摘掉 x-boot 类兜底。 */
 html.x-boot .site-nav,
 html.x-boot .hero .scroll-hint,
-html.x-boot .hero .note {
+html.x-boot .hero .note,
+html.x-boot .hero .note2 {
   animation: x-fade 0.5s ease 0.1s backwards;
 }
-html.x-boot .hero .sub,
+html.x-boot .hero .subs,
 html.x-boot .hero .dl-wrap,
 html.x-boot #stats {
-  animation: x-fade 0.5s ease 0.55s backwards; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场 */
+  animation: x-fade 0.5s ease 0.55s backwards; /* 高屏(2560×1440)数字条落在首屏,跟副题拍出场;R49b .sub→.subs(双层副题成组) */
 }
 
 /* 焦点可见性 */

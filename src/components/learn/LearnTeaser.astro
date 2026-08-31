@@ -1,10 +1,10 @@
 ---
-/* [FEAT-WEB11 + §2.3 ⑩] Home 学习中心入口卡 — R48 玻璃重构(章 05,B+C 杂交):
-   章头 = 幽灵编号 05(右)+ kicker(nav.learn)+ 44 档标题(learn.homeTitle);
-   三行入口装进一块玻璃瓷砖(行式细线保留:编号 + 主题 + display 标题 + 箭头 + hover);
-   Browse all 按钮原样。 */
+/* [FEAT-WEB11 + §2.3 ⑩] Home 学习中心入口卡 — R48 玻璃瓷砖 + R49b 重排(主人:
+   「三行太空旷,大小字对比过大,加图标改排版」):行式改为 [主题图标(柠檬)] +
+   [标题(降档)+ 主题小注(竖排双层)] + [右端 dim 编号 + 箭头];行距收紧。 */
 import { useT, type Locale } from '../../i18n';
 import { learnList } from '../../lib/learn';
+import Icon from '../Icon.astro';
 
 interface Props {
   locale: Locale;
@@ -13,6 +13,8 @@ const { locale } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
 const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry.data.order));
+/* 主题→图标(六主题全配,入选三篇之外的换选也不掉图) */
+const TOPIC_ICON = { start: 'edu', earn: 'coin-bolt', devices: 'mech', wallet: 'swap', team: 'ai', nex: 'token' } as const;
 ---
 
 <section class="learn-entry" id="learn-entry">
@@ -25,9 +27,12 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
     {
       picks.map(({ entry, slug }, i) => (
         <a class="row x-dimlink" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${i * 0.08}s`}>
+          <Icon name={TOPIC_ICON[entry.data.topic as keyof typeof TOPIC_ICON] ?? 'edu'} class="tic" />
+          <span class="txt">
+            <span class="name x-display">{entry.data.title}</span>
+            <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
+          </span>
           <span class="idx x-mono">0{i + 1}</span>
-          <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
-          <span class="name x-display">{entry.data.title}</span>
           <span class="arr x-mono" aria-hidden="true">→</span>
         </a>
       ))
@@ -68,14 +73,15 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
   }
   .rows {
     display: grid;
-    padding: calc(6 * var(--uc)) calc(30 * var(--uc));
+    padding: calc(4 * var(--uc)) calc(26 * var(--uc));
     z-index: 1;
   }
+  /* R49b:行 = 图标 + (标题/主题小注) + 编号 + 箭头;行距收紧、标题降档,消「空旷 + 大小字断崖」 */
   .row {
     display: flex;
-    align-items: baseline;
-    gap: max(14px, calc(34.56 * var(--u)));
-    padding: clamp(18px, 2vw, calc(26 * var(--uc))) 0;
+    align-items: center;
+    gap: max(12px, calc(18 * var(--u)));
+    padding: clamp(14px, 1.6vw, calc(20 * var(--uc))) 0;
     border-top: 1px solid var(--x-line-soft);
     text-decoration: none;
     color: var(--x-ink);
@@ -84,28 +90,37 @@ const picks = (await learnList(locale)).filter((x) => [1, 2, 4].includes(x.entry
   .row:first-child {
     border-top: 0; /* 瓷砖边界已是首行上缘 */
   }
-  .idx {
-    color: var(--x-accent-hot);
-    flex: 0 0 calc(30 * var(--uc));
+  .row :global(.tic) {
+    width: max(22px, calc(28 * var(--u)));
+    height: max(22px, calc(28 * var(--u)));
+    flex: 0 0 auto;
+    color: var(--x-accent-hot); /* 图标接住编号让出的柠檬位(一行一个柠檬体例) */
+  }
+  .txt {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(4 * var(--uc));
+  }
+  /* 字族/字重/行高交回 .x-display 型类(vi/zh 行高补偿),这里只留尺寸;30→21 档(主人:大字太大) */
+  .name {
+    font-size: max(16px, calc(21 * var(--u)));
   }
   .topic {
     color: var(--x-ink-dim);
-    flex: 0 0 clamp(90px, 12vw, calc(150 * var(--uc)));
+    font-size: max(11px, calc(12 * var(--u))); /* 几何门可读地板 11px(10.5 曾 6 档全红) */
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
   }
-  /* 字族/字重/行高交回 .x-display 型类(vi/zh 行高补偿),这里只留尺寸 */
-  .name {
-    font-size: max(20px, calc(30 * var(--u)));
-    flex: 1;
+  .idx {
+    color: var(--x-ink-dim);
+    flex: 0 0 auto;
   }
   .arr {
     color: var(--x-ink-dim);
   }
   .more {
     margin-top: max(24px, calc(40 * var(--u)));
-  }
-  @media (max-width: 640px) {
-    .topic {
-      display: none;
-    }
   }
 </style>

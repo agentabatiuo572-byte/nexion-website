@@ -99,8 +99,8 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
    资产是否就绪只有产物说了算,故本门读 dist(上次 build 的产物;无 dist 记 NOT-BUILT 警示)。
    判据:① 统计快照仍=App mock 锚值(逐字面比对 Nexion-uniapp/src/lib/platform-stats.ts,
    ≥4/5 命中判镜像;App 仓缺席 warn 放行,与 brand-parity 同体例)——prod 红:公网虚假规模陈述;
-   ② 联系 mailto 缺席——prod 红;③ 下载键禁用而无 coming-soon 说明——任何模式都红(成对出现是结构约束);
-   其余空值(禁用键本身/白皮书)只列清单不拦。 */
+   ② 联系 mailto 缺席——prod 红;下载禁用键/白皮书等空值只列清单不拦
+   (R49b 主人令:coming-soon 说明行撤除、后台即将接配,原「禁用必配说明」配对红随之撤)。 */
 {
   const detail = [];
   const info = [];
@@ -110,10 +110,9 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   } else {
     const home = readFileSync(distHome, 'utf8');
     const disabledBtns = (home.match(/aria-disabled="true"/g) || []).length;
-    const hasNote = home.includes('dl-note');
     const hasMailto = home.includes('mailto:');
-    if (disabledBtns > 0 && !hasNote) detail.push(`下载键禁用 ×${disabledBtns} 且无 coming-soon 说明行(禁用必须给原因)`);
-    if (disabledBtns > 0 && hasNote) info.push(`空值清单:下载 URL 未配 ×${disabledBtns}(已带 coming-soon 说明,显式 pre-launch 态)`);
+    /* R49b 主人令:coming-soon 说明行撤除(后台即将接配),禁用态只列清单不拦 */
+    if (disabledBtns > 0) info.push(`空值清单:下载 URL 未配 ×${disabledBtns}(禁用态,后台接配即消)`);
     if (!hasMailto) (PROD ? detail : info).push('空值清单:联系邮箱未配(PUBLIC_CONTACT_EMAIL)→ 页脚无任何联系渠道');
     const nexHome = join(ROOT, 'dist', 'nex', 'index.html');
     if (existsSync(nexHome) && !readFileSync(nexHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
