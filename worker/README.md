@@ -17,6 +17,22 @@ npm run dev       # 本地起服 http://127.0.0.1:8787(先自动应用 D1 迁移
 npm run test:red-d1   # 故意去掉 D1 binding 跑同一套测试:必须非零退出,证明测试真依赖 D1
 ```
 
+## 发布流水线(CON13)
+
+控制台点「发布」只是**发起**;真正执行(物化 → 站上 13 门 → 构建 → 切换)由执行器完成。本机开发要另开一个终端:
+
+```bash
+cd worker
+npm run publish:runner -- --api http://127.0.0.1:8787 --cookie "nx_sid=<你的会话 cookie>"
+```
+
+- 不带 `--once` 时常驻轮询;带 `--once` 处理完一单退出。
+- 🔴 **必须走 npm 脚本**(它带 TS 解析钩子);直接 `node runner.mjs` 会在物化步就崩。
+- 🔴 **一次完整发布约 15 分钟**(13 门里三道要真渲染)。别用会超时的方式跑它——工具类超时会掐断执行器,让版本卡在「发布中」直到 15 分钟锁超时才自动标失败。脱离式启动:`(npm run publish:runner -- … &)`。
+- 执行器被掐断后重启会**自动接管仍持锁的那一版**并从头重跑,不用手工清理。
+- 门红时执行器**不会**回报最后一步,版本标失败、线上保持旧版、草稿改动原样保留。
+- 本地验定时任务:`curl "http://127.0.0.1:8787/__scheduled?cron=0+*/6+*+*+*"`(wrangler dev 的定时触发端点;日汇总那条把 cron 参数换成 `10+0+*+*+*`)。
+
 ## 其它
 
 - `npm run typecheck` —— tsc 0 错;`npm run gate:beacon` / `npm run gate:equivalence` / `node test-static.mjs` 见各文件头注。

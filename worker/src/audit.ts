@@ -11,6 +11,11 @@ export const AUDIT_ACTIONS = [
   'config.save',
   'geo.update',
   'bypass.issue',
+  'config.publish',
+  'config.publish.live',
+  'config.publish.failed',
+  'config.publish.cancel',
+  'config.rollback',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

@@ -18,8 +18,10 @@ interface DraftRow {
   updated_at: number;
 }
 
-/** 首访种子化:live v1 = 种子,草稿 = 种子副本(幂等) */
-async function ensureInit(db: D1Database): Promise<void> {
+/** 首访种子化:live v1 = 种子,草稿 = 种子副本(幂等)。
+    🔴 发布/驾驶舱等一切读配置的入口都必须先调它——否则全新安装上直接调用会读到 null 而 500
+    (T21 测试实证:发布接口漏调,空库发起发布即崩)。 */
+export async function ensureInit(db: D1Database): Promise<void> {
   const has = await db.prepare('SELECT id FROM config_versions LIMIT 1').first();
   if (has) return;
   const now = Date.now();

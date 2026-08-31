@@ -6,6 +6,7 @@ import { configRoutes, probeDownloads } from './config';
 import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
 import { ingestRoutes } from './ingest';
+import { publishRoutes } from './publish';
 import { createLimiter } from './ratelimit';
 import { dailyJob, runDailyRollup } from './rollup';
 
@@ -44,6 +45,11 @@ app.route('/api/geo', geoRoutes);
 // 驾驶舱(CON03):只读聚合,受保护
 app.use('/api/dash', requireAuth);
 app.route('/api/dash', dashRoutes);
+
+// 发布流水线(CON13):🔴 上新的唯一路径,内部必经「前置校验→物化→站上全部机器门→构建→原子切换」
+app.use('/api/publish', requireAuth);
+app.use('/api/publish/*', requireAuth);
+app.route('/api/publish', publishRoutes);
 
 // 配置模型(CON04/13):草稿/校验/版本,全部受保护
 app.use('/api/config', requireAuth);
