@@ -18,7 +18,13 @@ interface Dash {
   dims: Maybe<{ sources: Array<{ k: string; uv: number }>; countries: Array<{ k: string; uv: number }>; devices: Array<{ k: string; uv: number }> }>;
   content: Maybe<{ pages: Array<{ path: string; locale: string; pv: number; uv: number }>; faq: Array<{ faq_id: string; opens: number }>; learn: Array<{ slug: string; reads: number }>; sections: Array<{ section_id: string; uniq: number }> }>;
   quality: Maybe<{ latest: { date: string; lcp_p75: number; cls_p75: number; n: number } | null; errors: number; notFound: Array<{ path: string; hits: number }>; notFoundTotal: number }>;
-  health: Maybe<{ botShare: number | null; blocked: number; blockedTop: Array<{ country: string; hits: number }>; geo: { enabled: boolean; countries: number; degraded: boolean } | null; lastPublish: { id: number; status: string; fail_reason: string | null } | null }>;
+  health: Maybe<{
+    botShare: number | null; botLegacy: boolean; blocked: number; blockedShare: number | null;
+    blockedTop: Array<{ country: string; hits: number }>;
+    geo: { enabled: boolean; countries: number; degraded: boolean } | null;
+    lastPublish: { id: number; status: string; fail_reason: string | null } | null;
+    probes: Array<{ target: string; url: string; ok: boolean; status: number; fail_streak: number; checked_at: number; alert: boolean }>;
+  }>;
   todayLive: Maybe<{ pv: number; uv: number; cta: number; blocked: number }>;
 }
 
@@ -109,8 +115,10 @@ export default function Dashboard() {
             <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{pct(ov.starRate)}</div>
             <div className="kv">点击访客 {num(ov.ctaVisitors)}</div>
           </Card>
-          <Card title="今日实时" note="当日预览,口径以次日汇总为准">
-            {isErr(d.todayLive) ? <div className="kv">查询失败</div> : (
+          <Card title="今日实时" note="当日预览,口径以次日汇总为准;已排除爬虫">
+            {isErr(d.todayLive) ? (
+              <div className="note bad" style={{ margin: 0 }}>查询失败 <button className="btn ghost sm" onClick={() => load(range)}>重试</button></div>
+            ) : (
               <>
                 <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{num(d.todayLive.uv)}<span className="kv" style={{ fontSize: 12 }}> UV</span></div>
                 <div className="kv">PV {num(d.todayLive.pv)} · 点击 {num(d.todayLive.cta)} · 被屏蔽 {num(d.todayLive.blocked)}</div>
@@ -150,7 +158,7 @@ export default function Dashboard() {
           const rows = d.trend;
           const max = Math.max(...rows.map((x) => x.uv), 1);
           return (
-            <Card title="按日趋势(UV)" note={`${rows.length} 天有数据`}>
+            <Card title="按日趋势(UV)" note={rows.length > 10 ? `共 ${rows.length} 天有数据,下列为最近 10 天;条长按全期最大值 ${max} 归一` : `${rows.length} 天有数据`}>
               {rows.length === 0 ? <p className="kv">暂无数据</p> : rows.slice(-10).map((t) => (
                 <div key={t.date}><div className="kv">{t.date.slice(5)} · UV {t.uv} · 点击 {t.cta}</div><Bar v={t.uv} max={max} /></div>
               ))}
@@ -176,8 +184,12 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 内容榜 */}
-      {isErr(d.content) ? <ErrCard title="内容榜" onRetry={() => load(range)} /> : (
+      {/* 内容榜:四张卡各自独立(验收 P2:此前四卡共用一个失败分组,一张表挂了四张一起黑) */}
+      {isErr(d.content) ? (
+        <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
+          {['页面 PV 榜', '板块曝光', 'FAQ 展开榜', '学习中心阅读榜'].map((t) => <ErrCard key={t} title={t} onRetry={() => load(range)} />)}
+        </div>
+      ) : (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
           <Card title="页面 PV 榜">
             {d.content.pages.length === 0 ? <p className="kv">暂无数据</p> : (
@@ -219,8 +231,10 @@ export default function Dashboard() {
                 {d.quality.latest ? `${(d.quality.latest.lcp_p75 / 1000).toFixed(2)}s` : '—'}</div><div className="kv">LCP p75(红线 2.5s)</div></div>
               <div><div className="mono" style={{ fontSize: 18, fontWeight: 600, color: d.quality.latest && d.quality.latest.cls_p75 > 0.1 ? 'var(--bad)' : undefined }}>
                 {d.quality.latest ? d.quality.latest.cls_p75.toFixed(3) : '—'}</div><div className="kv">CLS p75(红线 0.1)</div></div>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{num(d.quality.errors)}</div><div className="kv">JS 报错</div></div>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{num(d.quality.notFoundTotal)}</div><div className="kv">404 命中</div></div>
+              {/* 空库时统一显「—」而不是 0(验收 P2:0 与「—」混用会让「没数据」和「真的是零」分不清) */}
+              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.quality.latest ? num(d.quality.errors) : '—'}</div><div className="kv">JS 报错</div></div>
+              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.quality.latest || d.quality.notFoundTotal > 0 ? num(d.quality.notFoundTotal) : '—'}</div>
+                <div className="kv">404 命中<span title="单来源每分钟超 120 次的部分不落库,此时为下限">*</span></div></div>
             </div>
             {d.quality.notFound.length > 0 && (
               <div style={{ marginTop: 8 }}><div className="kv">404 路径 Top</div>
@@ -233,10 +247,30 @@ export default function Dashboard() {
         )}
         {isErr(d.health) ? <ErrCard title="运营健康" onRetry={() => load(range)} /> : (
           <Card title="运营健康">
+            {/* P1-1 下载链接定时探活(每 6 小时):连续 2 次失败即红条——官网唯一转化路径挂了必须有人知道 */}
+            {d.health.probes.filter((p) => p.alert).map((p) => (
+              <div className="note bad" key={p.target} style={{ marginTop: 0 }}>
+                {CTA_LABEL[p.target] ?? p.target} 下载链接不可达(连续 {p.fail_streak} 次;最近核验 {new Date(p.checked_at).toLocaleString('zh-CN', { hour12: false })})
+                {' '}<NavLink to="/content/downloads" style={{ color: 'var(--bad)' }}>去处理 →</NavLink>
+              </div>
+            ))}
             <div className="row" style={{ gap: 20 }}>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{pct(d.health.botShare)}</div><div className="kv">Bot 占比(已排除出流量)</div></div>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{num(d.health.blocked)}</div><div className="kv">被屏蔽请求</div></div>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.geo ? (d.health.geo.enabled ? `${d.health.geo.countries} 地区` : '未启用') : '—'}</div><div className="kv">屏蔽规则</div></div>
+              <div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{pct(d.health.botShare)}</div>
+                <div className="kv">爬虫占比{d.health.botLegacy ? '(该区间为口径升级前数据,无法回算)' : '(按请求加权;已排除出流量指标)'}</div>
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.blocked > 0 || d.health.geo?.enabled ? num(d.health.blocked) : '—'}</div>
+                <div className="kv">被屏蔽请求{d.health.blockedShare !== null ? ` · 占 ${pct(d.health.blockedShare)}` : ''}<span title="单来源每分钟超 120 次的部分不落库,此时为下限">*</span></div>
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.geo ? (d.health.geo.enabled ? `${d.health.geo.countries} 地区` : '未启用') : '—'}</div>
+                <div className="kv">屏蔽规则 <NavLink to="/geo" style={{ color: 'var(--brand)' }}>详情 →</NavLink></div>
+              </div>
+              <div>
+                <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.probes.length ? `${d.health.probes.filter((p) => p.ok).length}/${d.health.probes.length}` : '—'}</div>
+                <div className="kv">下载链接可达(每 6 小时巡检)</div>
+              </div>
             </div>
             {d.health.geo?.degraded && <div className="note bad" style={{ marginBottom: 0 }}>屏蔽规则读取异常,边缘正在用兜底名单 <NavLink to="/geo" style={{ color: 'var(--bad)' }}>去查看 →</NavLink></div>}
             {d.health.blockedTop.length > 0 && <div className="kv" style={{ marginTop: 6 }}>被拦 Top:{d.health.blockedTop.map((b) => `${b.country} ${b.hits}`).join(' · ')}</div>}

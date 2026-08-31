@@ -168,17 +168,37 @@ dashRoutes.get('/', async (c) => {
 
   // ---- 运营健康:Bot 占比 + 屏蔽 + 下载探活状态(探活由前端按需触发,这里给规则/统计)----
   const health = await section(async () => {
-    const bot = (await db.prepare('SELECT AVG(bot_share) s FROM daily_bot WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ s: number | null }>())!.s;
+    /* 🔴 Bot 占比按**请求加权**算(验收 P1-3:此前 AVG(bot_share) 是各日占比的无权重平均,
+       实测与真实占比差近 2 倍还印成精确小数)。0004 迁移前的旧行没有分子分母 → 该期间回 null,
+       前端显「—」并标注「口径升级前的历史区间无法回算」,不拿旧口径的数冒充。 */
+    const botRow = await db
+      .prepare('SELECT COALESCE(SUM(bot_pv),0) b, COALESCE(SUM(human_pv),0) h, COUNT(*) n FROM daily_bot WHERE date BETWEEN ?1 AND ?2')
+      .bind(from, today)
+      .first<{ b: number; h: number; n: number }>();
+    const denom = (botRow?.b ?? 0) + (botRow?.h ?? 0);
+    const bot = denom > 0 ? botRow!.b / denom : null;
+    const botLegacy = (botRow?.n ?? 0) > 0 && denom === 0; // 有行但没分母 = 旧口径数据
     const blocked = (await db.prepare('SELECT COALESCE(SUM(hits),0) n FROM daily_blocked WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number }>())!.n;
     const blockedTop = (
       await db.prepare('SELECT country, COALESCE(SUM(hits),0) hits FROM daily_blocked WHERE date BETWEEN ?1 AND ?2 GROUP BY country ORDER BY hits DESC LIMIT 5').bind(from, today).all<{ country: string; hits: number }>()
     ).results;
     const geo = await loadRules(c.env).catch(() => null);
-    const lastPublish = await db.prepare("SELECT id, status, published_at, fail_reason FROM config_versions ORDER BY id DESC LIMIT 1").first<{ id: number; status: string; published_at: number | null; fail_reason: string | null }>();
+    // 「最近发布」要排除初始种子行(created_by=system):把种子说成一次发布会误导(验收 P2)
+    const lastPublish = await db
+      .prepare("SELECT id, status, published_at, fail_reason FROM config_versions WHERE created_by <> 'system' ORDER BY id DESC LIMIT 1")
+      .first<{ id: number; status: string; published_at: number | null; fail_reason: string | null }>();
+    // 下载链接定时探活状态(P1-1):连续失败 ≥2 次即红条(CON03-E3)
+    const probes = (
+      await db.prepare('SELECT target, url, ok, status, fail_streak, checked_at FROM probe_status').all<{ target: string; url: string; ok: number; status: number; fail_streak: number; checked_at: number }>()
+    ).results;
+    // 被屏蔽占比(P2:面板缺占比):口径同 geo 面板 = 拦截数 ÷(拦截 + 人类 pv)
+    const pvForShare = (await db.prepare('SELECT COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ pv: number }>())!.pv;
     return {
-      botShare: bot, blocked, blockedTop,
+      botShare: bot, botLegacy, blocked, blockedTop,
+      blockedShare: blocked + pvForShare > 0 ? blocked / (blocked + pvForShare) : null,
       geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
       lastPublish,
+      probes: probes.map((p) => ({ ...p, ok: p.ok === 1, alert: p.ok !== 1 && p.fail_streak >= 2 })),
     };
   });
 
@@ -186,10 +206,15 @@ dashRoutes.get('/', async (c) => {
   const todayLive = await section(async () => {
     const t0 = Date.parse(`${today}T00:00:00.000Z`);
     const row = (await db
-      .prepare("SELECT COUNT(*) pv, COUNT(DISTINCT uid) uv FROM raw_events WHERE type='pv' AND ts >= ?1 AND json_extract(payload,'$.bot') = 0")
+      .prepare("SELECT COUNT(*) pv, COUNT(DISTINCT uid) uv FROM raw_events WHERE type='pv' AND ts >= ?1 AND IFNULL(json_extract(payload,'$.bot'),0) = 0")
       .bind(t0)
       .first<{ pv: number; uv: number }>())!;
-    const cta = (await db.prepare("SELECT COUNT(*) n FROM raw_events WHERE type='cta' AND ts >= ?1").bind(t0).first<{ n: number }>())!.n;
+    // 🔴 cta 同样要排 bot(验收 P1-2:此前只有 pv 过滤,同一张卡内 UV 排 bot、点击不排,
+    //    与日汇总口径(rollup 对 cta 明确 if(isBot) break)也不一致 → 爬虫刷一波今天暴涨明天掉回)
+    const cta = (await db
+      .prepare("SELECT COUNT(*) n FROM raw_events WHERE type='cta' AND ts >= ?1 AND IFNULL(json_extract(payload,'$.bot'),0) = 0")
+      .bind(t0)
+      .first<{ n: number }>())!.n;
     const blocked = (await db.prepare("SELECT COUNT(*) n FROM raw_events WHERE type='blocked' AND ts >= ?1").bind(t0).first<{ n: number }>())!.n;
     return { ...row, cta, blocked };
   });

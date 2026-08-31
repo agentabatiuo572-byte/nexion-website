@@ -152,7 +152,11 @@ export async function runDailyRollup(db: D1Database, day: string): Promise<void>
   for (const [h, n] of errs) stmts.push(db.prepare('INSERT INTO daily_errors (date, msg_hash, count) VALUES (?1,?2,?3)').bind(day, h, n));
   for (const [cn, n] of blocked) stmts.push(db.prepare('INSERT INTO daily_blocked (date, country, hits) VALUES (?1,?2,?3)').bind(day, cn, n));
   if (pvHuman + pvBot > 0)
-    stmts.push(db.prepare('INSERT INTO daily_bot (date, bot_share) VALUES (?1, ?2)').bind(day, Math.round((pvBot / (pvHuman + pvBot)) * 1000) / 1000));
+    // 存分子分母:期间占比必须按请求加权算,不能对各日 bot_share 求平均(验收 P1-3)
+    stmts.push(
+      db.prepare('INSERT INTO daily_bot (date, bot_share, bot_pv, human_pv) VALUES (?1, ?2, ?3, ?4)')
+        .bind(day, Math.round((pvBot / (pvHuman + pvBot)) * 1000) / 1000, pvBot, pvHuman),
+    );
   await db.batch(stmts);
 }
 

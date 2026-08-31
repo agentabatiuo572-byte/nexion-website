@@ -42,7 +42,7 @@ async function seed() {
     env.DB.prepare("INSERT INTO daily_notfound (date,path,hits) VALUES (?1,'/old-page',7)").bind(today),
     env.DB.prepare("INSERT INTO daily_errors (date,msg_hash,count) VALUES (?1,'abc',3)").bind(today),
     env.DB.prepare("INSERT INTO daily_vitals (date,lcp_p75,cls_p75,n) VALUES (?1,2100,0.04,50)").bind(today),
-    env.DB.prepare("INSERT INTO daily_bot (date,bot_share) VALUES (?1,0.2)").bind(today),
+    env.DB.prepare("INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.2,20,80)").bind(today),
     env.DB.prepare("INSERT INTO daily_blocked (date,country,hits) VALUES (?1,'CN',12)").bind(today),
   ]);
 }
@@ -125,11 +125,69 @@ describe('CON03 驾驶舱聚合', () => {
       env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'pv','u1',?2)").bind(now, JSON.stringify({ t: 'pv', path: '/', bot: 0 })),
       env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'pv','u1',?2)").bind(now, JSON.stringify({ t: 'pv', path: '/x', bot: 0 })),
       env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'pv','bot1',?2)").bind(now, JSON.stringify({ t: 'pv', path: '/', bot: 1 })),
+      // 故意不带 bot 字段:缺字段应按「非爬虫」计(采集端总会写,但判据不能因缺字段把真人算成爬虫)
       env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'cta','u1',?2)").bind(now, JSON.stringify({ t: 'cta', cta: 'ios' })),
       env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'blocked',NULL,?2)").bind(now, JSON.stringify({ t: 'blocked', c: 'CN' })),
     ]);
     const d = await dash(cookie);
     expect(d.todayLive).toMatchObject({ pv: 2, uv: 1, cta: 1, blocked: 1 }); // bot 那条不计
+  });
+
+  it('P1-2 今日实时:点击数与 UV 同样排除爬虫(同卡内口径必须一致)', async () => {
+    const cookie = await login();
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'cta','u1',?2)").bind(now, JSON.stringify({ t: 'cta', cta: 'ios', bot: 0 })),
+      env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'cta','bot1',?2)").bind(now, JSON.stringify({ t: 'cta', cta: 'ios', bot: 1 })),
+      env.DB.prepare("INSERT INTO raw_events (ts,type,uid,payload) VALUES (?1,'cta','bot2',?2)").bind(now, JSON.stringify({ t: 'cta', cta: 'android', bot: 1 })),
+    ]);
+    const d = await dash(cookie);
+    expect(d.todayLive.cta).toBe(1); // 3 条里只有 1 条非爬虫
+  });
+
+  it('P1-3 爬虫占比按请求加权(非日均值);旧口径区间回 null 不冒充', async () => {
+    const cookie = await login();
+    // 两天:D1 bot 90/human 10(90%),D2 bot 10/human 90(10%)。
+    // 日均值 = 50%(错);请求加权 = 100/200 = 50%… 换组能区分的数:
+    // D1 bot 90/human 10;D2 bot 5/human 195 → 日均 (0.9+0.025)/2=46.3%;加权 95/300=31.7%
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.9,90,10)').bind(yesterday),
+      env.DB.prepare('INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.025,5,195)').bind(today),
+    ]);
+    const d = await dash(cookie);
+    expect(d.health.botShare).toBeCloseTo(95 / 300, 4); // 加权口径
+    expect(d.health.botShare).not.toBeCloseTo((0.9 + 0.025) / 2, 3); // 明确不是日均值
+    expect(d.health.botLegacy).toBe(false);
+    // 旧口径行(无分子分母)→ null + legacy 标记,不拿旧数冒充
+    await env.DB.prepare('DELETE FROM daily_bot').run();
+    await env.DB.prepare('INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.42,0,0)').bind(today).run();
+    const d2 = await dash(cookie);
+    expect(d2.health.botShare).toBeNull();
+    expect(d2.health.botLegacy).toBe(true);
+  });
+
+  it('P1-1 下载探活状态入库并给出红条判据(连续 ≥2 次失败)', async () => {
+    const cookie = await login();
+    const now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO probe_status (target,url,ok,status,fail_streak,checked_at) VALUES (?1,?2,?3,?4,?5,?6)').bind('android', 'https://play.example/x', 0, 0, 2, now),
+      env.DB.prepare('INSERT INTO probe_status (target,url,ok,status,fail_streak,checked_at) VALUES (?1,?2,?3,?4,?5,?6)').bind('h5', 'https://app.example', 1, 200, 0, now),
+    ]);
+    const d = await dash(cookie);
+    const byTarget = Object.fromEntries((d.health.probes as Array<{ target: string; alert: boolean; ok: boolean }>).map((p) => [p.target, p]));
+    expect(byTarget.android).toMatchObject({ ok: false, alert: true }); // 连续 2 次 → 红条
+    expect(byTarget.h5).toMatchObject({ ok: true, alert: false });
+    // 单次失败不报红(防抖:商店偶发抖动不该惊动运营)
+    await env.DB.prepare('UPDATE probe_status SET fail_streak = 1 WHERE target = ?1').bind('android').run();
+    const d2 = await dash(cookie);
+    expect((d2.health.probes as Array<{ target: string; alert: boolean }>).find((p) => p.target === 'android')!.alert).toBe(false);
+  });
+
+  it('最近发布排除初始种子行(种子不是一次发布)', async () => {
+    const cookie = await login();
+    await app.request('/api/config', { headers: { cookie } }, env); // 触发种子化
+    const d = await dash(cookie);
+    expect(d.health.lastPublish).toBeNull(); // 只有种子行时不谎报「最近发布成功」
   });
 
   it('E3 单卡失败互不拖垮:某表损坏时该组回 error,其余组照常', async () => {

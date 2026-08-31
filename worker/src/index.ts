@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { auditRoutes, writeAudit } from './audit';
 import { authRoutes, requireAuth } from './auth';
-import { configRoutes } from './config';
+import { configRoutes, probeDownloads } from './config';
 import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
 import { ingestRoutes } from './ingest';
@@ -95,9 +95,11 @@ app.all('*', async (c) => {
 
 const worker = {
   fetch: app.fetch,
-  // 每日 00:10 UTC:汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(dailyJob(env));
+  /* 定时任务两条(wrangler.jsonc triggers.crons):
+     · 每日 00:10 UTC —— 汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
+     · 每 6 小时 —— 下载链接探活巡检(PRD CON03-③;结果落 probe_status,连续 2 次失败在驾驶舱红条) */
+  async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(event.cron === '10 0 * * *' ? dailyJob(env) : probeDownloads(env, true).then(() => {}));
   },
 } satisfies ExportedHandler<Env>;
 

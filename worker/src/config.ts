@@ -137,12 +137,16 @@ configRoutes.post('/validate', async (c) => {
   return c.json({ errors, warnings, sensitiveChanged: sensitivePaths(changed) });
 });
 
-/** 下载链接即时探活(CON05-⑥「立即探活」;定时巡检归 T19 运营健康)。
-    预警不阻断:结果只回显,不写库不自动下架(CON05-④「永不自动下架」)。 */
-configRoutes.post('/probe-downloads', async (c) => {
-  const draft = await getDraft(c.env.DB);
-  const cfg = (JSON.parse(draft.payload) as SiteConfig).downloads;
-  const probe = async (url: string, enabled?: boolean) => {
+/** 下载链接探活(CON05-⑥ 按需 + CON03-③ 定时 6h 巡检共用同一实现,禁两套判据)。
+    预警不阻断:结果只回显/落库,不自动下架(CON05-④「永不自动下架」)。 */
+export async function probeDownloads(env: Env, persist: boolean): Promise<Record<string, unknown>> {
+  const draft = await env.DB.prepare('SELECT payload FROM config_draft WHERE id = 1').first<{ payload: string }>();
+  const live = await env.DB.prepare("SELECT payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ payload: string }>();
+  // 定时巡检看**线上**配置(线上才是访客真正点到的);按需探活看草稿(改完想立刻试)
+  const src = persist ? (live?.payload ?? draft?.payload) : (draft?.payload ?? live?.payload);
+  if (!src) return { at: Date.now() };
+  const cfg = (JSON.parse(src) as SiteConfig).downloads;
+  const one = async (url: string, enabled: boolean) => {
     if (!enabled || !url) return { skipped: true as const }; // 未启用/未配置不打不报红(T12 验收 P-5)
     try {
       const ctl = new AbortController();
@@ -154,13 +158,35 @@ configRoutes.post('/probe-downloads', async (c) => {
       return { ok: false, status: 0, note: 'unreachable' };
     }
   };
-  const [ios, android, h5] = await Promise.all([
-    probe(cfg.ios.url, cfg.ios.enabled),
-    probe(cfg.android.url, cfg.android.enabled),
-    probe(cfg.h5.url, cfg.h5.enabled),
-  ]);
-  return c.json({ ios, android, h5, at: Date.now() });
-});
+  const targets = ['ios', 'android', 'h5'] as const;
+  const results = await Promise.all(targets.map((k) => one(cfg[k].url, cfg[k].enabled)));
+  const out: Record<string, unknown> = { at: Date.now() };
+  const now = Date.now();
+  const stmts: D1PreparedStatement[] = [];
+  targets.forEach((k, i) => {
+    const r = results[i]!;
+    out[k] = r;
+    if (!persist) return;
+    if ('skipped' in r) {
+      stmts.push(env.DB.prepare('DELETE FROM probe_status WHERE target = ?1').bind(k)); // 未启用的不留旧红
+      return;
+    }
+    // 连续失败计数:成功清零,失败 +1(CON03-E3 判据「连续 2 次失败」)
+    stmts.push(
+      env.DB
+        .prepare(
+          `INSERT INTO probe_status (target, url, ok, status, fail_streak, checked_at) VALUES (?1,?2,?3,?4,?5,?6)
+           ON CONFLICT(target) DO UPDATE SET url=?2, ok=?3, status=?4, checked_at=?6,
+             fail_streak = CASE WHEN ?3 = 1 THEN 0 ELSE fail_streak + 1 END`,
+        )
+        .bind(k, cfg[k].url, r.ok ? 1 : 0, r.status, r.ok ? 0 : 1, now),
+    );
+  });
+  if (stmts.length) await env.DB.batch(stmts);
+  return out;
+}
+
+configRoutes.post('/probe-downloads', async (c) => c.json(await probeDownloads(c.env, false)));
 
 /** 版本列表(CON13-⑤ 下半;发布/回滚动作归 T21) */
 configRoutes.get('/versions', async (c) => {
