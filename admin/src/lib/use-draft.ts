@@ -38,11 +38,12 @@ export function useDraft() {
     try {
       const next = structuredClone(draft);
       mutate(next);
-      await api('/api/config/draft', {
+      const res = await api<{ sanitized?: number }>('/api/config/draft', {
         method: 'PUT',
         body: JSON.stringify({ payload: next, baseRevision: overview.draft.draftRev }),
       });
-      toast(okMsg);
+      // T14 验收 P-4:剥离提示用真实计数,不用「(如有)」泛化文案
+      toast(res.sanitized ? `已剥离 ${res.sanitized} 处危险内容并保存 · 未发布` : okMsg);
       reload();
       return true;
     } catch (e) {

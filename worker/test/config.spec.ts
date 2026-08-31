@@ -159,6 +159,14 @@ describe('CON04/CON13 配置模型', () => {
     await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p2, baseRevision: o2.draft.draftRev }) }, env);
     const o3 = await getOverview(cookie);
     expect(o3.draft.payload.announcement.id).toBe(id1); // 无关改动不换 id
+    // T14-P3 回归:文案改回与线上完全一致 → 还原线上 id,零幽灵改动
+    const liveId = (o3 as unknown as { live: { payload: { announcement: { id: string } } } }).live.payload.announcement.id;
+    const p3 = structuredClone(o3.draft.payload);
+    p3.announcement.text = structuredClone((o3 as unknown as { live: { payload: { announcement: { text: object } } } }).live.payload.announcement.text) as typeof p3.announcement.text;
+    await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p3, baseRevision: o3.draft.draftRev }) }, env);
+    const o4 = await getOverview(cookie);
+    expect(o4.draft.payload.announcement.id).toBe(liveId);
+    expect(o4.changedPaths.some((p) => p.startsWith('announcement'))).toBe(false); // 幽灵清零
   });
 
   it('CON11-E3 Legal 保存剥危险节点并回显计数', async () => {

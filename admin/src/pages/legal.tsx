@@ -93,7 +93,7 @@ export default function LegalPage() {
                 const [dd, ll] = k2.split('.') as ['terms', 'en'];
                 d.legal[dd].md[ll] = val;
               }
-            }, '草稿已保存(服务端已剥离危险内容,如有)');
+            });
             if (ok) setEdits({});
           }}>
           {saving ? '保存中…' : '保存草稿'}

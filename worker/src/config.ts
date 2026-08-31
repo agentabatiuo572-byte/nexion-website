@@ -73,10 +73,15 @@ configRoutes.put('/draft', async (c) => {
   const placeholderErrs = validateConfig(parsed.data, MANIFEST).errors.filter((e) => e.rule === 'placeholder');
   if (placeholderErrs.length) return c.json({ error: 'placeholder', issues: placeholderErrs.slice(0, 10) }, 400);
   const prev = JSON.parse(cur.payload) as SiteConfig;
-  // CON09-E3:公告内容(文案/链接)变更 → server 换 id(访客关闭记忆按 id 记,新公告重新展示)
+  // CON09-E3:公告内容(文案/链接)变更 → server 换 id(访客关闭记忆按 id 记,新公告重新展示)。
+  // T14 验收 P-3:内容改回与线上完全一致时还原线上 id——手工全量回滚不留幽灵改动。
   const a = parsed.data.announcement;
   const pa = prev.announcement;
-  if (JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
+  const liveRow = await getLive(c.env.DB);
+  const la = liveRow ? (JSON.parse(liveRow.payload) as SiteConfig).announcement : null;
+  if (la && JSON.stringify(a.text) === JSON.stringify(la.text) && a.href === la.href) {
+    a.id = la.id;
+  } else if (JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
     a.id = `ann-${crypto.randomUUID().slice(0, 8)}`;
   }
   // CON11-E3:Legal markdown 剥离危险节点(白名单外的可执行面),剥离计数回显给 UI 提示

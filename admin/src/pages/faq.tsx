@@ -9,7 +9,7 @@ const scan = scanForbidden as (t: string) => Array<{ label: string; match: strin
 type Item = { id: string; q: Tri; a: Tri; sort: number; visible: boolean; deleted?: boolean };
 
 export default function FaqPage() {
-  const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
+  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [work, setWork] = useState<Item[] | null>(null); // 本页工作副本(含新增/回收)
   const [open, setOpen] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
@@ -106,13 +106,22 @@ export default function FaqPage() {
       </div>
       <div className="card">
         <h3>回收区(发布前可恢复;发布后物理移除,不可恢复)</h3>
-        {bin.length === 0 ? <p className="kv">没有待删除条目</p> : bin.map((it) => (
-          <div className="row" key={it.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ color: 'var(--ink3)' }}>{it.q.en || it.id}</span>
-            <span className="spacer" />
-            <button className="btn ghost sm" onClick={() => upd(it.id, { deleted: false })}>恢复</button>
-          </div>
-        ))}
+        {bin.length === 0 ? <p className="kv">没有待删除条目</p> : bin.map((it) => {
+          // T13 验收 P-1:从未发布过的新条目(线上不存在)允许当场彻底移除,不留墓碑
+          const neverPublished = !!live && !(live.faq.items as Item[]).some((x) => x.id === it.id);
+          return (
+            <div className="row" key={it.id} style={{ padding: '6px 0', borderBottom: '1px solid var(--border)' }}>
+              <span style={{ color: 'var(--ink3)' }}>{it.q.en || it.id}</span>
+              {neverPublished && <span className="pill">从未发布</span>}
+              <span className="spacer" />
+              {/* T13 验收 P-2:恢复回列表末位(PRD ⑥ 字面) */}
+              <button className="btn ghost sm" onClick={() => setWork([...alive, { ...it, deleted: false }, ...bin.filter((b) => b.id !== it.id)])}>恢复(回末位)</button>
+              {neverPublished && (
+                <button className="btn ghost sm" style={{ color: 'var(--bad)' }} onClick={() => setWork(items.filter((x) => x.id !== it.id))}>彻底移除</button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
