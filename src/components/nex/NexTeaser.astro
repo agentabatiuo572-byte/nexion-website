@@ -1,8 +1,10 @@
 ---
-/* [FEAT-WEB10] Home NEX 锚点板块 — R8(白带块):
-   头行 16 mono 打字机;三卡改无盒左线开放列(编号 0.8 墨 + 48 档标题行遮罩 + 12 mono 说明),
-   三列视差 k=[0.06,0.11,0.16] + Learn more → /nex/。R45:内链尾斜杠;按钮滑层 aria-hidden。 */
+/* [FEAT-WEB10] Home NEX 锚点板块 — R48 玻璃重构(章 04,B+C 杂交):
+   章头 = 幽灵编号 04(左,正文右让)+ kicker(nex.pageTag)+ 44 档标题(nex.teaserTitle);
+   三卡改「1 高柠檬瓷砖 + 2 宽素瓷砖」:what 档带 NEX 字符水印为品牌记忆点,earn/use 横排;
+   Learn more 按钮 → /nex/ 原样;视差保留(what 档 k 略小,高瓷砖大位移会撞相邻行)。 */
 import { useT, type Locale } from '../../i18n';
+import Icon from '../Icon.astro';
 
 interface Props {
   locale: Locale;
@@ -10,28 +12,50 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
-const cards = ['what', 'earn', 'use'] as const;
-const ks = [0.06, 0.11, 0.16];
 ---
 
 <section class="nex-teaser" id="nex">
   <div class="head">
-    <p class="lab x-mono-lg" data-tw>{t('nex.teaserTitle')}</p>
+    <span class="x-ghost ghost" aria-hidden="true">04</span>
+    <div class="lead">
+      <p class="lab x-mono-lg" data-tw>{t('nex.pageTag')}</p>
+      <h2 class="x-display" data-lr>{t('nex.teaserTitle')}</h2>
+    </div>
   </div>
   <div class="cards">
-    {
-      cards.map((c, i) => (
-        <article class="card rv-fade" data-rv data-plx={ks[i]}>
-          <p class="idx x-mono" data-tw data-tw-delay={160 * i}>
-            0{i + 1}
-          </p>
-          <div class="stack">
-            <h3 class="x-display" data-lr data-lr-delay={100 * i}>{t(`nex.teaser.${c}Title`)}</h3>
-            <p class="x-mono desc">{t(`nex.teaser.${c}Desc`)}</p>
-          </div>
-        </article>
-      ))
-    }
+    <article class="card what x-tile x-tile-lit rv-fade" data-rv data-plx={0.05}>
+      <p class="idx x-mono" data-tw>01</p>
+      <div class="stack">
+        <span class="glyph x-display" aria-hidden="true">NEX</span>
+        <h3 class="x-display" data-lr>{t('nex.teaser.whatTitle')}</h3>
+        <p class="x-mono desc">{t('nex.teaser.whatDesc')}</p>
+      </div>
+    </article>
+    {/* R48.1 主人改令②:02/03 从跨行栅格改显式右列,**视差挂在整列**上 ——
+        视差位移随元素自身位置变,纵叠两砖各挂系数会互相剪切间距(实测 18 → 0-4px);
+        列级视差让两砖同进退,列内 gap 恒为 18。 */}
+    <div class="side" data-plx={0.08}>
+      <article class="card x-tile rv-fade" data-rv>
+        <p class="idx x-mono">
+          <span data-tw data-tw-delay={160}>02</span>
+          <Icon name="coin-bolt" class="tic" />
+        </p>
+        <div class="stack">
+          <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
+          <p class="x-mono desc">{t('nex.teaser.earnDesc')}</p>
+        </div>
+      </article>
+      <article class="card x-tile rv-fade" data-rv>
+        <p class="idx x-mono">
+          <span data-tw data-tw-delay={320}>03</span>
+          <Icon name="swap" class="tic" />
+        </p>
+        <div class="stack">
+          <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
+          <p class="x-mono desc">{t('nex.teaser.useDesc')}</p>
+        </div>
+      </article>
+    </div>
   </div>
   <div class="more" data-rv>
     <a class="xbtn" href={`${prefix}/nex/`}>
@@ -47,60 +71,102 @@ const ks = [0.06, 0.11, 0.16];
     padding: 0 var(--x-pad);
   }
   .head {
-    margin-bottom: max(48px, calc(120 * var(--u)));
+    position: relative;
+    margin-bottom: max(32px, calc(48 * var(--u)));
+  }
+  .ghost {
+    left: calc(-16 * var(--uc));
+    top: calc(-30 * var(--uc));
+  }
+  .lead {
+    position: relative;
+    z-index: 1;
+    margin-left: max(0px, calc(170 * var(--u)));
+  }
+  @media (max-width: 640px) {
+    .lead {
+      margin-left: 0;
+    }
   }
   .lab {
     color: var(--x-ink);
-    margin: 0;
+    margin: 0 0 calc(16 * var(--uc));
     min-height: 1.2em;
   }
+  .lead h2 {
+    font-size: max(30px, calc(44 * var(--u)));
+    color: var(--x-ink);
+    margin: 0;
+  }
+  /* 1 高瓷砖(what)+ 右列两砖(earn/use 均分高度,列内 gap 与全章同值) */
   .cards {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
-    gap: max(24px, calc(60 * var(--u)));
+    grid-template-columns: 5fr 7fr;
+    gap: calc(18 * var(--uc));
+    align-items: stretch;
   }
-  .card {
-    border-left: 1px solid var(--x-line-dark);
-    padding-left: calc(20 * var(--uc));
+  .side {
     display: flex;
     flex-direction: column;
-    gap: max(40px, calc(82 * var(--u)));
-    will-change: transform;
+    gap: calc(18 * var(--uc));
   }
+  .side .card {
+    flex: 1 1 0; /* 基准 0:两砖真均分(auto 基准会让文案长的那块更高) */
+  }
+  .card {
+    padding: calc(26 * var(--uc)) calc(30 * var(--uc)) calc(30 * var(--uc));
+    display: flex;
+    flex-direction: column;
+    gap: calc(22 * var(--uc));
+    will-change: transform;
+    z-index: 1;
+  }
+  /* R48.7 令②:侧卡编号行改两端行(编号 ←→ 语义图标),与瓷砖章 metarow 同构 */
   .idx {
-    color: var(--x-accent-ink); /* R30:纸面编号深柠檬回血 */
+    color: var(--x-accent-hot);
     margin: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .idx :global(.tic) {
+    width: max(18px, calc(24 * var(--u)));
+    height: max(18px, calc(24 * var(--u)));
+    color: var(--x-ink-dim);
+    flex: 0 0 auto;
   }
   .stack {
     display: flex;
     flex-direction: column;
-    gap: calc(24 * var(--uc));
+    gap: calc(14 * var(--uc));
+  }
+  /* NEX 字符水印:品牌记忆点,只在高瓷砖;hot 档大字压柠檬 lit 底 */
+  .glyph {
+    font-size: max(44px, calc(72 * var(--u)));
+    font-weight: 500;
+    color: var(--x-accent-hot);
+    line-height: 1;
   }
   .stack h3 {
-    /* 与 #how / #path 同形栏卡对齐(R45 拍板 ④:栏卡标题 48 档;参考站全部栏卡也统一 48) */
-    font-size: max(32px, calc(48 * var(--u)));
+    font-size: max(20px, calc(26 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
   .desc {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     margin: 0;
     text-wrap: pretty;
-    line-height: 1.2; /* R45 拍板 ③:卡内正文回 mono 1.2(与 #how / #path 同形栏卡一致) */
-  }
-  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 6.67) */
-  .desc:lang(vi):not(html) {
     line-height: 1.45;
   }
-  .more {
-    margin-top: max(32px, calc(57.6 * var(--u)));
+  .desc:lang(zh) {
+    line-height: 1.6;
   }
-  @media (max-width: 768px) {
-    .card {
-      border-left: 0;
-      border-top: 1px solid var(--x-line-dark);
-      padding: calc(20 * var(--uc)) 0 0;
-      gap: calc(40 * var(--uc));
+  .more {
+    margin-top: max(24px, calc(40 * var(--u)));
+  }
+  @media (max-width: 860px) {
+    .cards {
+      grid-template-columns: 1fr;
     }
   }
 </style>

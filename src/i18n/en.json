@@ -10,7 +10,7 @@
     "trust": "Trust",
     "learn": "Learn",
     "nex": "NEX",
-    "launchH5": "H5 Web App",
+    "launchH5": "Web App",
     "download": "Download",
     "ariaMain": "Main",
     "ariaMenu": "Menu",
@@ -21,7 +21,9 @@
     "title": "NexGrid\nLet compute flow",
     "subtitle": "The world's leading provider of distributed computing power sharing services.",
     "scrollHint": "See the network",
-    "note": "Offering you high-performance computing services\nand GPU cloud hosting solutions."
+    "note": "Your idle devices run AI tasks.\nYou get paid in USDT.",
+    "subtitle2": "Offering you high-performance computing services\nand GPU cloud hosting solutions.",
+    "note2": "Free to start with the phone you already own."
   },
   "download": {
     "ios": "Download for iOS",
@@ -37,6 +39,7 @@
   },
   "path": {
     "title": "Ways to join",
+    "headline": "Start free. Scale when ready.",
     "cat1": "Free",
     "cat2": "Scale",
     "freeTitle": "Start free with your phone",
@@ -81,19 +84,20 @@
     }
   },
   "trust": {
-    "title": "About NexGrid",
+    "title": "Registered in the U.S. Verify it yourself.",
     "pocTitle": "How earnings are verified (Proof-of-Compute)",
     "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. We record each receipt on the platform ledger and attest it on-chain.",
     "pocBody2": "Your app shows the full receipt trail for every payout, so earnings are traceable end to end.",
     "certMsbAlt": "FinCEN MSB Registration Status Information for NexGrid LTD",
     "certCoAlt": "Certificate of Document Filed for NexGrid LTD, issued by the Colorado Secretary of State",
     "card1": "NexGrid LTD is incorporated in the State of Colorado, USA (coloradosos.gov) as a Colorado corporation, Entity ID 20221592644. It is authorized to issue 100,000,000 common shares and operates the NexGrid global distributed compute sharing platform.",
-    "card2": "Open the Colorado Secretary of State website, enter NexGrid LTD or Entity ID 20221592644 in the business database search box, and click Search. On the results page, click the ID number to view the full registration record.",
+    "card2": "The company registration record can be looked up on the Colorado Secretary of State website.",
     "card3": "NexGrid LTD has completed MSB (Money Services Business) registration with FinCEN, the Financial Crimes Enforcement Network of the U.S. Department of the Treasury — registration number 31000329265856 — under the Bank Secrecy Act regulatory framework.",
-    "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
-    "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record.",
+    "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework. Registration is a legal obligation and does not constitute FinCEN endorsement of the business.",
+    "card5": "The MSB registration record can be looked up on FinCEN's website.",
     "certZoom": "View full size",
-    "certClose": "Close"
+    "certClose": "Close",
+    "openOriginal": "Open original"
   },
   "social": {
     "kicker": "Network scale",
@@ -160,7 +164,7 @@
     "mech1Title": "Demand side",
     "mech1Desc": "AI clients pay for compute; a share of platform revenue funds periodic buybacks.",
     "mech2Title": "Burn mechanism",
-    "mech2Desc": "30% of platform fees are permanently burned, reducing supply over time.",
+    "mech2Desc": "30% of the platform fees paid by compute buyers are permanently burned, reducing supply over time.",
     "faqTitle": "NEX questions, answered",
     "faq1Q": "Is NEX a stablecoin?",
     "faq1A": "No. USDT is the stable settlement asset; NEX is a utility token whose price varies.",
@@ -206,7 +210,13 @@
     "q5": "What does datacenter hosting mean?",
     "a5": "Dedicated devices run in professional datacenters — no shipping, no home setup. Your device activates shortly after purchase and appears in your app.",
     "q6": "How do withdrawals work?",
-    "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step."
+    "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step.",
+    "q7": "Will it drain my battery or overheat my phone?",
+    "a7": "It's managed — work is scheduled to respect battery and heat, so plugged-in, cool devices do more. You can turn phone compute off anytime in the app.",
+    "q8": "Which countries is NexGrid available in?",
+    "a8": "The sign-up flow in the app decides availability — it is the authoritative check for your region.",
+    "q9": "Are there any fees?",
+    "a9": "Starting is free. USDT withdrawals carry a network confirmation fee, shown on the withdrawal screen before you confirm; you can burn NEX to offset it."
   },
   "final": {
     "title": "Put your idle devices to work."
@@ -219,7 +229,11 @@
     "rights": "All rights reserved.",
     "ariaLegal": "Legal",
     "pauseBg": "Pause background",
-    "playBg": "Play background"
+    "playBg": "Play background",
+    "appPrivacy": "App Privacy",
+    "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
+    "forTeams": "For AI teams — NexGrid capacity is built to run production inference workloads.",
+    "forTeamsCta": "Discuss workloads:"
   },
   "legal": {
     "enPrevails": "This page is available in English only. The English version is the legally binding text."

@@ -26,4 +26,4 @@ New accounts receive a welcome bonus in NEX. Depending on account review, it lan
 
 The home screen shows your devices, today's activity, and balances. Next step: turn on phone compute — see the "Turning on phone compute" guide.
 
-> Screenshots follow the current app release (v3.7). If your screen differs slightly after an update, the flow stays the same.
+> The flow follows app v3.7. If your screen differs slightly after an update, the steps stay the same.

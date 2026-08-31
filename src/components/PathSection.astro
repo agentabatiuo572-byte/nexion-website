@@ -1,42 +1,45 @@
 ---
-/* [FEAT-WEB04] 收益路径 — R8(白带块):
-   头行=16 mono 打字机标签(path.title,新 key);
-   双列各带「编号↔类目词」两端行(path.cat1/2,新 key),
-   标题 48 档行遮罩、等高线图入流、双列视差 k=[0.06,0.11]。
+/* [FEAT-WEB04] 收益路径 — R48 玻璃重构(章 02,B+C 杂交):
+   章头 = 幽灵编号 02(左,正文右让)+ 16 mono 打字机 kicker + 44 档陈述(path.headline,R48 新 key);
+   双卡改非对称玻璃瓷砖:免费档 7/12 柠檬 lit 瓷砖(转化主位)+ 扩容档 5/12 素瓷砖;
+   瓷砖内保留「编号↔类目」两端行、标题、等高线图、正文、slide-swap 按钮;视差 k 不变。
    🔴 全板块无任何收益数字。 */
 import { useT, type Locale } from '../i18n';
-import { contour } from '../lib/contour';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+/* R48.9 主人令:等高线占位图换实景生成图(黑底柠檬光同族)——免费档=手机竖立轮廓光,扩容档=机架小盒阵列 */
+/* side=免费卡左文右图(方窗,整机常驻);扩容卡顶部横带(矮盒横排天然适配)——
+   R48.10b 主人两次打回「图只见半台机」后的定案:窗口比例跟着主体形状走,预裁不赌浏览器裁切 */
 const cards = [
-  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: contour(11, 12, 393, 237), k: 0.057 },
-  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: contour(47, 12, 393, 237), k: 0.099 },
+  { n: '01', cat: t('path.cat1'), title: t('path.freeTitle'), desc: t('path.freeDesc'), cta: t('path.freeCta'), href: '#download', solid: true, art: '/art-path-free.webp', k: 0.057, lit: true, side: true },
+  { n: '02', cat: t('path.cat2'), title: t('path.scaleTitle'), desc: t('path.scaleDesc'), cta: t('path.scaleLink'), href: '#devices', solid: false, art: '/art-path-scale.webp', k: 0.099, lit: false, side: false },
 ];
 ---
 
 <section class="path" id="path">
   <div class="head">
-    <p class="lab x-mono-lg" data-tw>{t('path.title')}</p>
+    <span class="x-ghost ghost" aria-hidden="true">02</span>
+    <div class="lead">
+      <p class="lab x-mono-lg" data-tw>{t('path.title')}</p>
+      <h2 class="x-display" data-lr>{t('path.headline')}</h2>
+    </div>
   </div>
   <div class="cards">
     {
       cards.map((c, i) => (
-        <article class="card rv-fade" data-rv data-plx={c.k}>
-          <p class="metarow x-mono">
-            <span data-tw data-tw-delay={160 * i}>{c.n}</span>
-            <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
-          </p>
-          <div class="stack">
+        <article class:list={['card', 'x-tile', 'rv-fade', { 'x-tile-lit': c.lit, 'side-media': c.side }]} data-rv data-plx={c.k}>
+          {/* R48.10 主人改令(卡太大/图漂在玻璃里四面留白):配图顶部通栏出血,文字区收紧,按钮沉底 */}
+          <img class="art" src={c.art} alt="" width="1280" height="853" loading="lazy" decoding="async" />
+          <div class="body">
+            <p class="metarow x-mono">
+              <span data-tw data-tw-delay={160 * i}>{c.n}</span>
+              <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
+            </p>
             <h3 class="x-display" data-lr data-lr-delay={100 * i}>{c.title}</h3>
-            <svg class="art" viewBox={c.art.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-              {c.art.paths.map((d) => (
-                <path d={d} fill="none" stroke="var(--x-dark)" stroke-width="1" opacity="0.5" />
-              ))}
-            </svg>
             <p class="desc x-mono">{c.desc}</p>
             <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
               <span class="xbtn-ghost" aria-hidden="true">{c.cta} <span class="arr">→</span></span>
@@ -56,75 +59,133 @@ const cards = [
     padding: 0 var(--x-pad);
   }
   .head {
-    margin-bottom: max(48px, calc(120 * var(--u)));
+    position: relative;
+    margin-bottom: max(32px, calc(48 * var(--u)));
+  }
+  .ghost {
+    left: calc(-16 * var(--uc));
+    top: calc(-30 * var(--uc));
+  }
+  /* 章头左置幽灵编号,正文右让一格(与 04 章同式,与 01/03 章的右置交替) */
+  .lead {
+    position: relative;
+    z-index: 1;
+    margin-left: max(0px, calc(170 * var(--u)));
+  }
+  @media (max-width: 640px) {
+    .lead {
+      margin-left: 0; /* 幽灵编号收掉后不再右让 */
+    }
   }
   .lab {
     color: var(--x-ink);
-    margin: 0;
+    margin: 0 0 calc(16 * var(--uc));
     min-height: 1.2em;
   }
-  .cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(calc(300 * var(--uc)), 1fr));
-    gap: max(24px, calc(60 * var(--u)));
-  }
-  /* 无盒开放列:左竖线 + pl20;列首「编号↔类目」两端行 */
-  .card {
-    border-left: 1px solid var(--x-line-dark);
-    padding-left: calc(20 * var(--uc));
-    display: flex;
-    flex-direction: column;
-    gap: max(40px, calc(82 * var(--u)));
-    will-change: transform;
-  }
-  .metarow {
-    display: flex;
-    justify-content: space-between;
-    margin: 0;
-    color: var(--x-dark-cap);
-    white-space: nowrap;
-  }
-  .metarow span:first-child {
-    color: var(--x-accent-ink); /* R30:纸面编号深柠檬回血(镜像黑区亮柠檬编号体例) */
-  }
-  .stack {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: calc(24 * var(--uc));
-  }
-  .stack h3 {
-    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
+  .lead h2 {
+    font-size: max(30px, calc(44 * var(--u)));
     color: var(--x-ink);
     margin: 0;
   }
+  .cards {
+    display: grid;
+    grid-template-columns: 7fr 5fr; /* 非对称:免费档主位(转化优先),扩容档次位 */
+    gap: calc(18 * var(--uc));
+  }
+  /* R48.10:通栏媒体卡解剖 —— 图吃满卡顶(出血到玻璃边),正文区窄内衬,按钮 margin-top:auto 沉底
+     把两卡内容差吞在弹性缝里(此前右卡矮内容被拉伸出底部空场) */
+  .card {
+    padding: 0;
+    overflow: hidden; /* 出血图角随玻璃圆角裁切 */
+    display: flex;
+    flex-direction: column;
+    will-change: transform;
+    z-index: 1;
+  }
+  .metarow {
+    align-self: stretch; /* body 是 flex-start 列:不拉伸的话两端行被压成贴身单团 */
+    display: flex;
+    justify-content: space-between;
+    margin: 0;
+    color: var(--x-ink-cap);
+    white-space: nowrap;
+  }
+  .metarow span:first-child {
+    color: var(--x-accent-hot);
+  }
   .art {
-    width: 100%;
-    aspect-ratio: 393 / 237;
+    object-fit: cover;
     display: block;
   }
-  .desc {
-    color: var(--x-dark-cap);
-    margin: 0;
-    max-width: calc(420 * var(--uc));
-    text-wrap: pretty;
-    line-height: 1.2; /* R45 拍板:卡内正文回参考站的 mono 1.2 */
+  /* 顶部横带档(扩容卡):定高,图区不随卡宽疯长 */
+  .card:not(.side-media) .art {
+    width: 100%;
+    height: max(140px, calc(180 * var(--u)));
   }
-  /* vi 的叠音符 + 下点与 CJK 同性质:1.2 会把行间墨隙压到 0.33px(en 是 5.67) */
-  .desc:lang(vi):not(html) {
+  /* 左文右图档(免费卡):竖窗贴右**绝对定位**——图永不参与撑高(竖构图源 height:auto 曾把卡顶到 540),
+     卡高由文字列定;竖机在竖窗里任何拉伸比都只裁背景不裁机 */
+  .side-media {
+    position: relative;
+  }
+  .side-media .art {
+    position: absolute;
+    inset: 0 0 0 auto;
+    width: min(46%, calc(360 * var(--u)));
+    height: 100%;
+  }
+  .side-media .body {
+    margin-right: min(46%, calc(360 * var(--u)));
+    min-width: 0;
+    justify-content: space-between; /* 等高行的弹性均匀吃在四件间,不聚成单个空场 */
+    min-height: max(240px, calc(300 * var(--u))); /* 竖窗的最低体面高度(文字列极短时兜底) */
+  }
+  .body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(14 * var(--uc));
+    padding: calc(20 * var(--uc)) calc(26 * var(--uc)) calc(24 * var(--uc));
+  }
+  .body h3 {
+    font-size: max(22px, calc(30 * var(--u)));
+    color: var(--x-ink);
+    margin: 0;
+  }
+  .body .xbtn {
+    margin-top: auto; /* 沉底:两卡内容差吞进这里,不再留底部空场 */
+  }
+  .desc {
+    color: var(--x-ink-cap);
+    margin: 0;
+    max-width: calc(480 * var(--uc));
+    text-wrap: pretty;
     line-height: 1.45;
   }
+  .desc:lang(zh) {
+    line-height: 1.6;
+  }
   .note {
-    color: var(--x-dark-dim);
-    margin: clamp(28px, 4vw, calc(48 * var(--uc))) 0 0;
+    color: var(--x-ink-dim);
+    margin: max(20px, calc(28 * var(--u))) 0 0;
     text-wrap: pretty;
   }
-  @media (max-width: 768px) {
-    .card {
-      border-left: 0;
-      border-top: 1px solid var(--x-line-dark);
-      padding: calc(20 * var(--uc)) 0 0;
-      gap: calc(40 * var(--uc));
+  @media (max-width: 860px) {
+    .cards {
+      grid-template-columns: 1fr; /* 窄屏竖排,免费档仍在前 */
+    }
+    /* 窄屏免费卡回「图上文下」;图窗用近方比例(6/5)——竖机源在 ≤1.19 的窗里才整机可见,
+       横带定高会拦腰(实测 220px 带裁掉机头机尾) */
+    .side-media .art {
+      position: static;
+      width: 100%;
+      height: auto;
+      aspect-ratio: 6 / 5;
+    }
+    .side-media .body {
+      margin-right: 0;
+      min-height: 0;
+      justify-content: flex-start;
     }
   }
 </style>

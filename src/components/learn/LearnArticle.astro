@@ -35,7 +35,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
     </p>
     {
       toc.length > 1 && (
-        <nav class="toc x-paper" aria-label={t('learn.toc')}>
+        <nav class="toc x-tile x-tile-calm" aria-label={t('learn.toc')}>
           <span class="x-label">{t('learn.toc')}</span>
           <ol role="list">
             {toc.map((h, n) => (
@@ -50,13 +50,13 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
         </nav>
       )
     }
-    <div class="prose x-paper" lang={fallback ? 'en' : undefined}>
+    <div class="prose x-tile x-tile-calm" lang={fallback ? 'en' : undefined}>
       <Content />
     </div>
   </article>
   {
     related.length > 0 && (
-      <aside class="related x-paper">
+      <aside class="related x-tile x-tile-calm">
         <span class="x-label">{t('learn.related')}</span>
         <div class="rows">
           {related.map((r) => (

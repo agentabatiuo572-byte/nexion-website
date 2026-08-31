@@ -6,6 +6,7 @@
    axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。
    R45 B7:子页标题不再继承正文行高 1.6(display 档行高 ≤1.1);FAQ 规格与首页 FAQ 归一(字重/字距/编号色/记号色/行高)。 */
 import { useT, type Locale } from '../../i18n';
+import Icon from '../Icon.astro';
 
 interface Props {
   locale: Locale;
@@ -26,8 +27,11 @@ const faqs = [1, 2, 3, 4] as const;
     <p class="lead x-mono" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
   </header>
 
-  <section class="block x-paper" aria-labelledby="nex-compare">
-    <h2 id="nex-compare" class="x-h24">{t('nex.compareTitle')}</h2>
+  {/* R48.7 令②:氛围配图(gpt-image-2 生成,机房柠檬灯带;纯装饰 alt 空,不进 i18n) */}
+  <img class="hero-art" src="/art-aisle.webp" alt="" width="1280" height="853" loading="lazy" decoding="async" data-rv style="--d:.22s" />
+
+  <section class="block x-tile" aria-labelledby="nex-compare">
+    <h2 id="nex-compare" class="x-h24"><Icon name="compare" class="bic" />{t('nex.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
         <thead>
@@ -42,8 +46,8 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-sources">
-    <h2 id="nex-sources" class="x-h24">{t('nex.sourcesTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="nex-sources">
+    <h2 id="nex-sources" class="x-h24"><Icon name="coin-bolt" class="bic" />{t('nex.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
@@ -55,8 +59,8 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-uses">
-    <h2 id="nex-uses" class="x-h24">{t('nex.usesTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="nex-uses">
+    <h2 id="nex-uses" class="x-h24"><Icon name="swap" class="bic" />{t('nex.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
@@ -68,8 +72,8 @@ const faqs = [1, 2, 3, 4] as const;
     </ul>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-mech">
-    <h2 id="nex-mech" class="x-h24">{t('nex.mechTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="nex-mech">
+    <h2 id="nex-mech" class="x-h24"><Icon name="mech" class="bic" />{t('nex.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
         <h3 class="x-h24">{t('nex.mech1Title')}</h3>
@@ -82,8 +86,8 @@ const faqs = [1, 2, 3, 4] as const;
     </div>
   </section>
 
-  <section class="block x-paper" aria-labelledby="nex-faq">
-    <h2 id="nex-faq" class="x-h24">{t('nex.faqTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="nex-faq">
+    <h2 id="nex-faq" class="x-h24"><Icon name="faq" class="bic" />{t('nex.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
         <summary>
@@ -141,6 +145,16 @@ const faqs = [1, 2, 3, 4] as const;
     max-width: calc(560 * var(--uc));
     text-wrap: pretty;
   }
+  /* 氛围图:整宽 21/8 裁切带,大圆角与玻璃块同族;与首块间距 = 块间距 */
+  .hero-art {
+    display: block;
+    width: 100%;
+    height: auto; /* 压掉 img height 属性的表现层提示——两轴被钉死时 aspect-ratio 会整条失效 */
+    aspect-ratio: 21 / 8;
+    object-fit: cover;
+    border-radius: var(--x-r);
+    margin: 0 0 calc(40 * var(--uc));
+  }
   .block {
     margin-bottom: calc(40 * var(--uc));
     padding: clamp(18px, 2.2vw, calc(30 * var(--uc)));
@@ -153,6 +167,16 @@ const faqs = [1, 2, 3, 4] as const;
     border-top: 1px solid var(--x-line);
     padding-top: calc(16 * var(--uc));
     margin: 0 0 calc(18 * var(--uc));
+    /* R48.7 令②:块头配语义图标(柠檬点睛;本行无编号,不犯「一行双柠檬」) */
+    display: flex;
+    align-items: center;
+    gap: calc(12 * var(--uc));
+  }
+  .block h2 :global(.bic) {
+    width: max(20px, calc(26 * var(--uc)));
+    height: max(20px, calc(26 * var(--uc)));
+    color: var(--x-accent-hot);
+    flex: 0 0 auto;
   }
   .table-wrap {
     overflow-x: auto;
@@ -238,10 +262,10 @@ const faqs = [1, 2, 3, 4] as const;
   /* 行线与收口语法同首页 FAQ:逐条上线 + 末条下线,墨阶用 --x-line-dark
      (原来只有 0.10 的下线且首条无上线,与同块 .block 的 0.23 上线打架) */
   .faq {
-    border-top: 1px solid var(--x-line-dark);
+    border-top: 1px solid var(--x-line);
   }
   .faq:last-of-type {
-    border-bottom: 1px solid var(--x-line-dark);
+    border-bottom: 1px solid var(--x-line);
   }
   .faq summary {
     cursor: pointer;
@@ -256,7 +280,7 @@ const faqs = [1, 2, 3, 4] as const;
     display: none;
   }
   .faq .idx {
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     font-weight: 400;
     flex: 0 0 calc(30 * var(--uc));
   }
@@ -283,7 +307,7 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .faq > p {
     max-width: calc(760 * var(--uc)); /* 与首页 FAQ 同(此前 680,是「同规格」漏掉的一项) */
-    color: var(--x-dark-cap);
+    color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     text-wrap: pretty;
     line-height: 1.45;

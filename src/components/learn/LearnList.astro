@@ -22,7 +22,7 @@ const items = await learnList(locale);
   <div class="grid">
     {
       items.map(({ entry, slug, fallback }, i) => (
-        <a class="card x-paper" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
+        <a class="card x-tile x-tile-calm" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${(i % 3) * 0.08}s`}>
           <span class="row1">
             <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>

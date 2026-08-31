@@ -1,11 +1,9 @@
 ---
-/* [FEAT-WEB01] 页脚 — R8(画布 1440 等比构图):
-   定高 660→45.83vw 房间;上行=左品牌记号(90→6.25vw)+ 右列 723→50.2vw
-   (wordmark 120→8.33vw 行遮罩 + 信息列 585→40.6vw:披露 + legal 链);
-   版权行钉底。key 不变,零死链。
-   R45(主人拍板 B1):页脚回**透底**——R30 改实底的前提「参考站页脚同为实底黑场」实测不成立
-   (参考站页脚透明,粒子从字标后穿过),且 R2 主人规则本就把页脚列在「保留粒子透底」一组;
-   法务链 hover 改「0.62 → 1 提亮」(预暗链接再降透明曾掉到 3.43:1,提亮到白再乘 0.6 又肉眼不可辨);内链尾斜杠。 */
+/* [FEAT-WEB01] 页脚 — R48.1(主人改令④):深磨砂面板内容化 ——
+   品牌方标与字标**锁成一组**(lockup),右侧披露 + legal 链;版权行走底部细线行;
+   面板高度随内容(不再 600 定高留大片空白);「暂停/播放背景」键按主人令删除
+   (⚠️ 交底:该键是 WCAG 2.2.2 的暂停出口,删后自动播放动画仅剩系统「减少动态」一条豁免路径;
+   fx 的 data-bg-toggle 监听保留为无害空转,后续要恢复只需把键加回来)。key 不变,零死链。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -19,131 +17,141 @@ const year = new Date().getFullYear();
 ---
 
 <footer class="site-footer">
-  <div class="top">
-    {/* 品牌方形记号(主人 2026-08-26 素材)。页脚是深底,只需深色版;读屏由页脚字标承担,此处 aria-hidden */}
-    {/* 壳必须是非替换元素:「::before」 挂在 <img> 上不渲染(替换元素没有伪元素盒),
-        护字层会变成一条查不出来的空操作 —— 声明在、用值宽高恒 auto、屏上什么都没有。 */}
-    <span class="mark">
-      <img src="/logo-mark-dark.webp" width="90" height="89" alt="" aria-hidden="true" />
-    </span>
+  <div class="panel x-tile">
+    <div class="top">
+      {/* 品牌组:方标 + 字标紧挨(主人改令④);读屏读字标,方标 aria-hidden */}
+      <div class="lockup">
+        <span class="mark">
+          <img src="/logo-mark-dark.webp" width="90" height="89" alt="" aria-hidden="true" />
+        </span>
+        <div class="wordmark x-display-mega" data-lr>NexGrid</div>
+      </div>
 
-    <div class="colr">
-      <div class="wordmark x-display-mega" data-lr>NexGrid</div>
       <div class="info">
         <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
+        {/* R49-E1 需求侧最小入口(拍板 8):一段话立「买家是谁」;联系 CTA 只在邮箱配置后出现(零死承诺) */}
+        <p class="teams x-mono">
+          {t('footer.forTeams')}
+          {CONTACT && (
+            <>
+              {' '}
+              {t('footer.forTeamsCta')} <a class="x-dimlink" href={`mailto:${CONTACT}`}>{CONTACT}</a>
+            </>
+          )}
+        </p>
         <nav aria-label={t('footer.ariaLegal')}>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy/`}>{t('footer.privacy')}</a>
+          <a class="x-mono x-dimlink" href={`${prefix}/legal/app-privacy/`}>{t('footer.appPrivacy')}</a>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/terms/`}>{t('footer.terms')}</a>
           {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
         </nav>
-        {/* WCAG 2.2.2(A 级):自动播放且超过 5 秒的动态内容要有暂停出口。
-            放页脚不放导航:导航已有 logo/时钟/五链接/三语言/下载键,再塞一个会挤坏版式。
-            只在真有动画时出现 —— 没有引擎(html 无 .fx)或开了「减少动态」时背景本就是静帧。 */}
-        <button class="bgtoggle x-mono x-dimlink" type="button" data-bg-toggle aria-pressed="false"
-          data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')}>{t('footer.pauseBg')}</button>
+        {/* R49-B4 法定名行:尽调第一眼(实体/州/MSB 全是已公开真实资料) */}
+        <p class="legalline x-mono">{t('footer.legalLine')}</p>
       </div>
     </div>
-  </div>
 
-  <p class="copy x-mono">© {year} NexGrid. {t('footer.rights')}</p>
+    <p class="copy x-mono">
+      © {year} NexGrid LTD. {t('footer.rights')}
+      {/* R49-E2 拍板 7:恢复背景动画页内暂停出口(WCAG 2.2.2);fx 的 data-bg-toggle 监听一直在位 */}
+      <button type="button" class="bgtoggle x-mono" data-bg-toggle data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')}></button>
+    </p>
+  </div>
 </footer>
 
 <style>
-  /* 没有引擎 / 开了减少动态时,背景是静帧,没有可暂停的东西 —— 那时这个键不该存在 */
-  .bgtoggle {
-    display: none;
-    background: none;
-    border: 0;
-    padding: 0;
-    font: inherit;
-    color: inherit;
-    cursor: pointer;
-    min-height: var(--x-touch);
-    text-align: left;
-  }
-  :global(html.fx) .bgtoggle {
-    display: inline-flex;
-    align-items: center;
-  }
-  @media (prefers-reduced-motion: reduce) {
-    :global(html.fx) .bgtoggle {
-      display: none;
-    }
-  }
   .site-footer {
     position: relative;
     z-index: 1;
-    /* 透底:粒子场穿到页脚(R2 规则 + 参考站同构);上一节的细线由本处 border-top 画,与参考站同位同值 */
-    border-top: 1px solid var(--x-line);
-    height: max(560px, calc(660 * var(--u)));
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: max(60px, calc(80 * var(--u))) var(--x-pad) calc(30 * var(--uc)); /* R39:内容随画布居中 */
-    overflow: hidden;
+    padding: 0 var(--x-pad) calc(30 * var(--uc));
+  }
+  /* 深磨砂面板:比通用 .x-tile 更暗(0.55 底);高度随内容(R48.1 撤 600 定高) */
+  .panel {
+    background: rgb(var(--x-bg-rgb) / 0.55);
+    padding: max(40px, calc(56 * var(--u))) max(32px, calc(56 * var(--u))) calc(24 * var(--uc));
   }
   .top {
     display: flex;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: calc(40 * var(--uc));
+    align-items: center;
+    gap: calc(48 * var(--uc));
   }
-  /* 方形品牌标是 app-icon 形态(带不透明砖底),而页脚是透底的 —— 直接放上去等于在粒子场上挖一个方洞,
-     丝线在砖缘硬切。素材的形态与配色是已排除项,故不动图,改用页脚已有的那套局部护字层把边界化开。 */
+  .lockup {
+    display: flex;
+    align-items: center;
+    gap: max(16px, calc(24 * var(--u)));
+    flex: 0 1 auto;
+    min-width: 0;
+  }
   .mark {
-    position: relative;
     display: block;
-    width: max(48px, calc(90 * var(--u)));
+    width: max(44px, calc(72 * var(--u)));
     flex: 0 0 auto;
   }
   .mark img {
     display: block;
     width: 100%;
     height: auto;
-  }
-  .mark::before {
-    content: '';
-    position: absolute;
-    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc));
-    background: var(--x-scrim);
-    filter: blur(calc(14 * var(--uc)));
-    z-index: -1;
-  }
-  .colr {
-    width: calc(723 * var(--u));
-    display: flex;
-    flex-direction: column;
-    gap: max(28px, calc(60 * var(--u)));
+    border-radius: var(--x-r-sm); /* 素材是带砖底的 app-icon 形态,圆角与面板同语 */
   }
   .wordmark {
-    font-size: max(56px, calc(120 * var(--u)));
+    font-size: max(40px, calc(72 * var(--u)));
     color: var(--x-white);
     white-space: nowrap;
     user-select: none;
   }
   .info {
-    position: relative;
-    width: calc(584.64 * var(--u));
+    width: calc(560 * var(--u));
     max-width: 100%;
+    flex: 0 0 auto;
     display: flex;
     flex-direction: column;
-    gap: calc(24 * var(--uc));
-  }
-  /* 护字层:透底(B1)不动,只在信息列身后铺一层向外羽化的暗底 —— 流光穿过小字时曾低到 1.3:1 */
-  .info::before {
-    content: '';
-    position: absolute;
-    /* 矩形羽化(椭圆径向渐变四角无保护、活粒子下露弧形边) */
-    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc));
-    background: var(--x-scrim);
-    filter: blur(calc(14 * var(--uc)));
-    z-index: -1;
+    gap: calc(18 * var(--uc));
   }
   .disclaimer {
     color: var(--x-ink-dim);
     margin: 0;
     text-wrap: pretty;
     line-height: 1.5;
+  }
+  .teams {
+    color: var(--x-ink-dim);
+    margin: 0;
+    text-wrap: pretty;
+    line-height: 1.5;
+  }
+  .teams a {
+    color: var(--x-ink);
+    text-decoration: underline;
+    text-underline-offset: calc(3 * var(--uc));
+  }
+  .legalline {
+    color: var(--x-ink-dim);
+    margin: 0;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 暂停键:版权行内的低调文字件(透明底 hairline,与 vcopy 同族);fx 按暂停态换标签 */
+  .bgtoggle {
+    font: inherit;
+    color: var(--x-ink-dim);
+    background: none;
+    border: 1px solid var(--x-line-soft);
+    border-radius: calc(999 * var(--uc));
+    padding: calc(5 * var(--uc)) calc(12 * var(--uc));
+    margin-left: calc(14 * var(--uc));
+    min-height: max(28px, calc(32 * var(--uc)));
+    cursor: pointer;
+    transition:
+      color 0.2s,
+      border-color 0.2s;
+  }
+  .bgtoggle:hover,
+  .bgtoggle:focus-visible {
+    color: var(--x-ink);
+    border-color: var(--x-ink-dim);
+  }
+  .bgtoggle:active {
+    opacity: 0.75;
   }
   nav {
     display: flex;
@@ -160,7 +168,7 @@ const year = new Date().getFullYear();
     text-transform: uppercase;
     letter-spacing: 0;
   }
-  /* 预暗链接的 hover 走提亮(与语言链同一手势:0.62 → 1);按下 0.75(对 #0c0c0d 12:1) */
+  /* 预暗链接的 hover 走提亮(0.62 → 1);按下 0.75(对 #0c0c0d 12:1) */
   nav a:hover,
   nav a:focus-visible {
     color: var(--x-white);
@@ -170,42 +178,27 @@ const year = new Date().getFullYear();
     color: var(--x-white);
     opacity: 0.75;
   }
-  /* 版权行是 .info 的兄弟,不在那层护字层里:R30 页脚还是实底时它本来安全,B1 撤掉实底后漏了它
-     (实测 70/70 帧低于 4.5:1,最差 1.24:1)。width:fit-content 是必需的——否则暗底铺满 1360 成一条可见暗带。 */
-  .copy::before {
-    content: '';
-    position: absolute;
-    inset: calc(-18 * var(--uc)) calc(-28 * var(--uc)); /* 与 .info 同一组羽化参数 */
-    background: var(--x-scrim);
-    filter: blur(calc(14 * var(--uc)));
-    z-index: -1;
-  }
+  /* 版权行:细线行钉底,与上方内容拉开一段呼吸 */
   .copy {
-    position: relative;
-    width: fit-content;
-    color: var(--x-ink-dim); /* R35:版权行升 dim 档(AA) */
-    margin: 0;
+    color: var(--x-ink-dim);
+    margin: max(32px, calc(48 * var(--u))) 0 0;
+    padding-top: calc(20 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
     letter-spacing: -0.03em; /* 参考站版权行同为 −0.03em(它的 12px 字距分两类,这一类保留) */
   }
   @media (max-width: 860px) {
-    .site-footer {
-      height: auto;
-      min-height: 70svh;
-      padding-top: calc(60 * var(--uc));
-      gap: calc(60 * var(--uc));
+    .panel {
+      padding: calc(36 * var(--uc)) calc(24 * var(--uc)) calc(20 * var(--uc));
     }
     .top {
       flex-direction: column;
+      align-items: flex-start;
+      gap: calc(32 * var(--uc));
     }
-    .colr {
-      width: 100%;
-    }
-    /* 上限接断点另一侧的实算值取整下调:861 宽走上面的 max(56px, 120·--u) = 71.75px。
-       此前封顶 96,于是 860 是 96、861 是 71.75 —— 窄一个像素反而大 34%,全站每条路由都有。
-       与首屏标题同一族(见 HeroSection 同处注释),由门 render-fit 判据 D 逐档实测钉住。
-       上限只在 ≥546px 宽处咬合(13vw = 71),手机档 390 仍是 50.7px,不受影响。 */
+    /* 上限接断点另一侧的实算值取整下调(861 宽 = 72·--u = 43.05 → 43):窄一像素不许反向变大。
+       与首屏标题同一族,由门 render-fit 判据 D 逐档实测钉住。 */
     .wordmark {
-      font-size: clamp(48px, 13vw, calc(71 * var(--uc)));
+      font-size: clamp(34px, 10vw, calc(43 * var(--uc)));
     }
     .info {
       width: 100%;

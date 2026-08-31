@@ -108,14 +108,19 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     transition: none;
     pointer-events: none;
   }
-  .site-nav::before {
+  /* R48:底板从「全出血幕布」改为**画布内悬浮玻璃胶囊条**(主人拍板圆角+磨砂)。
+     挂在 nav::before(nav 是画布缩放根,胶囊随画布等比);.site-nav 自身保持透明。
+     🔴 alpha 必须写在**颜色里**,不能用 opacity:两者同元素时,浏览器先按 alpha 把「模糊后的结果」
+     压回「未模糊的背景」上,磨砂只剩约 64%(隔离对照页实测:正确写法残留细节 0.04,opacity 写法 1.07,无磨砂 2.90)。 */
+  nav::before {
     content: '';
     position: absolute;
-    inset: 0;
+    inset: calc(14 * var(--uc)) calc(16 * var(--uc)) 0;
     pointer-events: none;
     z-index: -1;
-    /* 🔴 alpha 必须写在**颜色里**,不能用 opacity:两者同元素时,浏览器先按 alpha 把「模糊后的结果」
-       压回「未模糊的背景」上,磨砂只剩约 64%(隔离对照页实测:正确写法残留细节 0.04,opacity 写法 1.07,无磨砂 2.90)。 */
+    border-radius: calc(22 * var(--uc));
+    border: 1px solid var(--x-glass-border);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.07);
     background-color: rgb(var(--x-nav-tint) / var(--x-nav-a));
     -webkit-backdrop-filter: blur(14px) saturate(1.15);
     backdrop-filter: blur(14px) saturate(1.15);
@@ -131,29 +136,30 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   }
   /* 翻色窗(≈270ms):底板瞬间切到目标实底——文字同帧切,两边都是「纯色底 + 对的墨色」,对比不进中间灰。
      窗结束后 alpha 从 1 回到 0.64/0.72(底色已是目标色),看起来是「实底化开成磨砂」。 */
-  .site-nav.flipping::before {
+  .site-nav.flipping nav::before {
     --x-nav-a: 1;
     transition: background-color 0s;
   }
-  /* 内页无白带、导航不翻色:0.64 的暗磨砂压在白纸面板上成一块羽化灰影 → 内页底板 0.9(仍是磨砂,纸面只隐约透出) */
-  :global(html.x-inner) .site-nav {
-    --x-nav-a: 0.9;
-  }
+  /* R48.6:内页 0.9 特化档撤销 —— 那是给「内页白纸面板」防灰影立的,子页换玻璃暗面后
+     全站统一 0.64 暗磨砂(x-inner 类本身保留在 Base,按需再分档)。 */
   .site-nav a,
   .site-nav button {
     pointer-events: auto;
   }
   nav {
+    position: relative; /* 胶囊底板(nav::before)的定位根 */
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: max(20px, calc(43.2 * var(--u)));
-    /* R42:导航条在画布壳外(fixed 全宽,底板要全出血),故内层自套一份画布——
-       条内排印随画布缩放,底板仍铺满屏宽。断点与全站画布一致(1440)。 */
+    /* R42:导航条在画布壳外(fixed 全宽),内层自套一份画布——条内排印随画布缩放。
+       R48:底板改画布内胶囊(见 nav::before),不再需要全出血。断点与全站画布一致(1440)。 */
     width: 1440px;
     margin-inline: auto;
     zoom: var(--x-zoom);
-    padding: calc(30 * var(--uc)) var(--x-pad) 0; /* R39:导航条全出血,内容随画布居中 */
+    /* 内衬与胶囊几何互锁:上 26 = 胶囊上缘 14 + 胶囊内衬 12;横向 40(--x-pad)= 胶囊边 16 + 内衬 24,
+       内容左缘与正文区 40 对齐;下 12 = 胶囊内衬。总高 26+44+12 = 82 = --x-nav-h(改这里必同步 token)。 */
+    padding: calc(26 * var(--uc)) var(--x-pad) calc(12 * var(--uc));
   }
   /* LOGO + 时钟同格(时钟贴 LOGO 右侧) */
   .logo-cell {
@@ -344,7 +350,12 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   @media (max-width: 860px) {
     nav {
       align-items: center;
-      padding-top: calc(10 * var(--uc));
+      /* 同桌面的互锁式:上 14 = 胶囊上缘 6 + 内衬 8;下 4;总高 14+44+4 = 62 = 窄屏 --x-nav-h */
+      padding: calc(14 * var(--uc)) var(--x-pad) calc(4 * var(--uc));
+    }
+    nav::before {
+      inset: calc(6 * var(--uc)) calc(8 * var(--uc)) 0;
+      border-radius: calc(18 * var(--uc));
     }
     .menu-toggle {
       display: flex;

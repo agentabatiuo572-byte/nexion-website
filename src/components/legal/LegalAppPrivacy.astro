@@ -1,0 +1,90 @@
+---
+/* [R49-B2] App Privacy Policy — 路由与结构先行,正文待主人/法务供稿。
+   why:站内 Privacy §1 明文只覆盖官网,而 App Store(5.1.1)/Google Play 提交都要求
+   「公开可访问的隐私政策 URL」,官网是天然宿主——此页缺位=上架链条有洞(R49 总审 B2)。
+   App PRD §4.7 自证 App 内该文亦为占位,故本页不做无源杜撰,挂 PENDING-TRUST-ASSETS
+   标记交 verify:prod 拦截,正文就位前禁生产(与信任资料同一门)。
+   体例同 LegalPrivacy:en 权威,vi/zh 壳挂「以英文版为准」。 */
+/* PENDING-TRUST-ASSETS: App 隐私政策正文待主人/法务供稿(数据清单/权限/保留期/联系人) */
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+}
+const { locale } = Astro.props;
+const t = useT(locale);
+---
+
+<main class="legal" lang="en">
+  {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
+  <h1 class="x-display">App Privacy Policy</h1>
+  <p class="updated x-mono">Publication pending</p>
+
+  <div class="sheet x-tile x-tile-calm">
+    <h2>Notice</h2>
+    <p>
+      The privacy policy for the NexGrid App is being finalized with counsel and will be published on this page before
+      the App becomes publicly available. It will describe what data the App collects, how it is used and retained, and
+      how to contact us about it.
+    </p>
+    <p>
+      The policy for this marketing website is already available at <a href={locale === 'en' ? '/legal/privacy/' : `/${locale}/legal/privacy/`}>Privacy Policy</a>.
+    </p>
+  </div>
+</main>
+
+<style>
+  .legal {
+    position: relative;
+    z-index: 1;
+    max-width: calc(780 * var(--uc));
+    margin-top: calc(84 * var(--uc));
+    padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
+  }
+  .prevails {
+    border: 1px solid var(--x-line);
+    color: var(--x-ink-dim);
+    line-height: 1.2;
+    padding: calc(10 * var(--uc)) calc(16 * var(--uc));
+    margin: 0 0 calc(20 * var(--uc));
+  }
+  h1 {
+    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
+    color: var(--x-ink);
+    margin: 0 0 calc(14 * var(--uc));
+  }
+  .updated {
+    color: var(--x-ink-dim);
+    line-height: 1.2;
+    margin: 0 0 calc(30 * var(--uc));
+  }
+  h2 {
+    font-family: var(--x-font-display);
+    font-size: clamp(18px, 1.9vw, calc(24 * var(--uc)));
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--x-ink);
+    margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
+    letter-spacing: -0.02em;
+  }
+  p {
+    font-family: var(--x-font-mono);
+    color: var(--x-ink-dim);
+    font-size: calc(12 * var(--uc));
+    line-height: 1.85;
+    margin: 0 0 calc(12 * var(--uc));
+    text-wrap: pretty;
+  }
+  a {
+    color: var(--x-ink);
+    text-decoration: underline;
+    text-underline-offset: calc(3 * var(--uc));
+  }
+  .sheet {
+    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    margin-top: calc(8 * var(--uc));
+  }
+  .sheet > h2:first-child {
+    margin-top: 0;
+  }
+</style>

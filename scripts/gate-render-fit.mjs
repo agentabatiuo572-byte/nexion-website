@@ -1,9 +1,12 @@
-/* 门:版面在真渲染下不能自相矛盾 —— 五条判据一起判。
+/* 门:版面在真渲染下不能自相矛盾 —— 六条判据一起判。
  *   A 行间:相邻两行的墨(含变音符与下点)不能相接;
  *   B 层间:首屏文字的墨不能钻进导航的磨砂蒙版底下;
  *   C 声明:`--x-nav-h` 的声明值必须等于导航的实测高;
  *   D 单调:视口变窄时字号不能变大(分档版式两套梯子在断点处对不齐);
- *   E 弹层:打开的 <dialog> 在每一档视口里都要装得下。
+ *   E 弹层:打开的 <dialog> 在每一档视口里都要装得下;
+ *   F 弹层:**关闭态**的 <dialog> 必须真隐藏(载入即测 + 开关一轮后再测)——
+ *     基类写 display 会顶掉 UA 的 `dialog:not([open]){display:none}`,弹层自首帧常驻可见、
+ *     吞掉底下内容的点击。这一族曾在 13 门全绿下溜进产物,靠两路独立终审肉眼抓回(R49 收线 P0)。
  *
  * 🔴 还有一条不叫判据、但比判据更要紧的东西:**观测面缺口一律判红(exit 3)**。
  *    判据写得再对,取样时刻 / 采样面 / 统计量不对,就是假绿。三次实证:
@@ -359,6 +362,27 @@ const MEASURE_OPEN = () => {
   }
   return out;
 };
+/* ── ③ F 判据量具:关闭态弹层必须真隐藏 ──
+   从 DOM 枚举 `dialog:not([open])`(不列清单):display 既非 none、visibility 又非 hidden、
+   还占着 >1px 的盒 → 它在真渲染里是可见的。逃生阀 class `closed-dialog-ok`(有意常显才加)。 */
+const MEASURE_CLOSED = () => {
+  const out = [];
+  for (const d of document.querySelectorAll('dialog:not([open])')) {
+    if (d.classList.contains('closed-dialog-ok')) continue;
+    const cs = getComputedStyle(d);
+    if (cs.display === 'none' || cs.visibility === 'hidden') continue;
+    const r = d.getBoundingClientRect();
+    if (r.width <= 1 || r.height <= 1) continue;
+    const cls = typeof d.className === 'string' ? d.className : '';
+    out.push({
+      sel: 'dialog' + (cls ? '.' + cls.trim().split(/\s+/).join('.') : ''),
+      display: cs.display,
+      w: Math.round(r.width),
+      h: Math.round(r.height),
+    });
+  }
+  return out;
+};
 
 /* 1% 是 vw 制字号的亚像素噪声带(同一条 clamp 在相邻两档宽下本来就差零点几个百分点),
    不是给「小台阶」留的口子:这一族的成因是两套梯子各算各的,差距一向是两位数百分比。 */
@@ -428,6 +452,16 @@ if (process.argv.includes('--self-test')) {
   await p.setViewportSize({ width: 600, height: 700 });
   const dWide = await p.evaluate(SCAN_SIZES);
   const dHit = sizeViolations(dNarrow, dWide).map((v) => v.sel).join(' ');
+  // F:关闭态弹层 —— 强制可见的要抓、UA 默认隐藏的不抓、逃生阀生效、打开态不归 F 管(E 的地盘)
+  await p.setContent(
+    '<!doctype html><html lang="en"><head><meta charset="utf-8"><style>.bad-dialog{display:flex}.esc-dialog{display:flex}</style></head><body>' +
+      '<dialog class="bad-dialog">forced visible</dialog>' +
+      '<dialog class="ua-hidden">normal closed</dialog>' +
+      '<dialog class="esc-dialog closed-dialog-ok">escaped</dialog>' +
+      '<dialog open class="open-one">open one</dialog></body></html>',
+    { waitUntil: 'load' },
+  );
+  const fHit = (await p.evaluate(MEASURE_CLOSED)).map((x) => x.sel).join(' ');
   await b.close();
   const expect = [
     ['① 行距不足的多行文本 → 抓到', names.indexOf('bad') >= 0],
@@ -443,6 +477,10 @@ if (process.argv.includes('--self-test')) {
     ['⑨ D 两档同尺 → 不抓', dHit.indexOf('h3') < 0],
     ['⑩ 拆行态的揭示宿主记成观测面缺口(不静默跳过)', blindCase.blind.some((b) => b.startsWith('h1'))],
     ['⑪ 普通的 span 包裹不算缺口', !blindCase.blind.some((b) => b.startsWith('h2'))],
+    ['⑫ F 关闭态被样式顶成可见 → 抓到', fHit.indexOf('bad-dialog') >= 0],
+    ['⑬ F UA 默认隐藏的不抓', fHit.indexOf('ua-hidden') < 0],
+    ['⑭ F 逃生阀 closed-dialog-ok 生效', fHit.indexOf('esc-dialog') < 0],
+    ['⑮ F 打开态不归 F 管', fHit.indexOf('open-one') < 0],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
@@ -516,6 +554,23 @@ const settle = async () => {
   await page
     .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 6000 })
     .catch(() => {});
+  /* R48 补拍「点名唤醒」:个别宿主会在冲刺滚动里错过 IO(玻璃瓷砖版式让触发时点更挤,
+     /vi/ @320 实录一处 h3 未还原)。把还带结构的逐个滚进视口正中再给一轮还原窗;
+     仍未还原的才落 blind —— 判据一点不放宽,只是观测面不自己制造盲点。 */
+  const stuck = await page.evaluate(() => [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0).length);
+  if (stuck > 0) {
+    await page.evaluate(async () => {
+      const left = [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0);
+      for (const e of left) {
+        e.scrollIntoView({ block: 'center' });
+        await new Promise((r) => setTimeout(r, 350));
+      }
+      window.scrollTo(0, 0);
+    });
+    await page
+      .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 3000 })
+      .catch(() => {});
+  }
   await page.waitForTimeout(60);
 };
 
@@ -591,14 +646,24 @@ for (const r of ROUTES) {
     prevSizes = sizes900;
   }
 }
-/* ── E:弹层装不装得下 ── */
+/* ── E:弹层装不装得下 · F:关闭态必须真隐藏 ── */
 const hitsE = new Map();
+const hitsF = new Map();
 let dialogRoutes = 0;
 for (const r of ROUTES) {
   await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   const n = await page.evaluate(() => document.querySelectorAll('dialog').length);
   if (!n) continue;
   dialogRoutes++;
+  // F(载入即测):最窄与最宽两档 —— 基类规则与媒体块规则两侧都看得到
+  for (const w of [widths[0], widths[widths.length - 1]]) {
+    await page.setViewportSize({ width: w, height: 900 });
+    await page.waitForTimeout(40);
+    for (const m of await page.evaluate(MEASURE_CLOSED)) {
+      const k = `${r}|${m.sel}|fresh`;
+      if (!hitsF.has(k)) hitsF.set(k, { ...m, where: `${r} @${w}×900 载入即可见` });
+    }
+  }
   for (let idx = 0; idx < n; idx++) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(60);
@@ -619,6 +684,12 @@ for (const r of ROUTES) {
       }
     }
     await page.evaluate(() => { for (const d of document.querySelectorAll('dialog')) if (d.open) d.close(); });
+  }
+  // F(开关一轮后):黑盒实录残留面板会迁到页顶盖住 hero 下载键 —— 交互后的关闭态同样要真隐藏
+  await page.waitForTimeout(60);
+  for (const m of await page.evaluate(MEASURE_CLOSED)) {
+    const k = `${r}|${m.sel}|after`;
+    if (!hitsF.has(k)) hitsF.set(k, { ...m, where: `${r} 开关一轮后仍可见` });
   }
 }
 
@@ -656,8 +727,9 @@ console.log(`             宽: ${widths.join(' ')}`);
 console.log(`             高: ${SHORT_H.join(' ')}`);
 const D = [...hitsD.values()].sort((a, b) => b.pct - a.pct);
 const E = [...hitsE.values()].sort((a, b) => b.worst - a.worst);
+const F = [...hitsF.values()];
 console.log(`             判据 A 实扫 ${scansA} 次(${heightSensitive}/${ROUTES.length} 条路由对视口高敏感,按高度分档加扫)`);
-console.log(`             判据 E 覆盖 ${dialogRoutes} 条带弹层的路由 × ${widths.length * heights.length} 档视口`);
+console.log(`             判据 E 覆盖 ${dialogRoutes} 条带弹层的路由 × ${widths.length * heights.length} 档视口;判据 F 同路由载入即测+开关一轮后再测`);
 
 /* 🔴 观测面缺口 = NOT-RUN,不是「没问题」。
    判据再对,取样时刻不对就是假绿:曾有 60 次扫描里 33 次看不到首屏标题,而那里真有 4.4px 墨相接。 */
@@ -669,8 +741,8 @@ if (blindSpots.size) {
   process.exit(3);
 }
 
-if (!A.length && !B.length && !hitsC.length && !D.length && !E.length) {
-  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档视口装得下 · 无观测面缺口');
+if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length) {
+  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 无观测面缺口');
   process.exit(0);
 }
 if (hitsC.length) {
@@ -697,8 +769,13 @@ if (E.length) {
     console.log(`  - ${x.where}  ${x.sel}  盒内需滚 纵 ${x.overY} 横 ${x.overX};出界 上 ${x.offTop} 下 ${x.offBottom} 左 ${x.offLeft} 右 ${x.offRight}`);
   }
 }
+if (F.length) {
+  console.log(`[render-fit] ✘ F 关闭态弹层可见:${F.length} 处(UA 的 dialog:not([open]) 隐藏被样式顶掉)`);
+  for (const x of F) console.log(`  - ${x.where}  ${x.sel}  display=${x.display} ${x.w}×${x.h}`);
+}
 console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数;');
 console.log('        D 把窄档的上限接到断点另一侧的实算值(取整下调留方向余量),不要另挑一个好看的数;');
-console.log('        E 让弹层内容按剩余空间收缩(竖向 flex + min-height:0 + object-fit:contain),别写死关闭行高度。');
-console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok。');
+console.log('        E 让弹层内容按剩余空间收缩(竖向 flex + min-height:0 + object-fit:contain),别写死关闭行高度;');
+console.log('        F 弹层的 display/弹性只挂 [open] 态,别写进基类。');
+console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok;常显 dialog 加 class closed-dialog-ok。');
 process.exit(1);

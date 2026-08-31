@@ -22,12 +22,18 @@ const t = useT(locale);
         <span class="tick" aria-hidden="true"></span>
         <span class="txt">{t('hero.scrollHint')}</span>
       </a>
+      {/* R49b 主人终版:两套文案各自成组——左下=第一套(赚钱主张两句),右下=第二套(toB 背书两句);
+          组内层级:首句亮、次句暗 */}
       <p class="note x-mono">{t('hero.note')}</p>
+      <p class="note2 x-mono">{t('hero.note2')}</p>
     </div>
 
     <div class="cluster">
       <h1 class="x-display-mega" data-lr="load" data-lr-delay="200">{t('hero.title')}</h1>
-      <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
+      <div class="subs">
+        <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
+        <p class="sub2 x-mono">{t('hero.subtitle2')}</p>
+      </div>
       <div class="dl-wrap" id="download">
         <DownloadButtons locale={locale} />
       </div>
@@ -43,9 +49,9 @@ const t = useT(locale);
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    /* 底空回画布 220(R45 主人拍板 B2):165.6 时下载键在 1366×673 / 1440×700 / 1536×774 笔记本首屏掉到折叠线下;
-       vi 三行簇顶仍离导航 ≥150px */
-    padding: calc(96 * var(--uc)) var(--x-pad) max(60px, calc(220 * var(--u)));
+    /* R49c 主人令(2026-08-31,附 vi 实景):vi 三行标题顶到导航、屏底大片空白——整组内容下沉屏底,
+       底空 220→72(R45-B2 的 220 为护 1366×673 折叠线,本令覆盖;上方留白交给地球,标题随组下落) */
+    padding: calc(96 * var(--uc)) var(--x-pad) max(48px, calc(72 * var(--u)));
   }
   .spacer {
     flex: 1;
@@ -88,7 +94,7 @@ const t = useT(locale);
     max-width: max(129px, calc(129 * var(--u)));
   }
   .note {
-    color: var(--x-ink-dim);
+    color: var(--x-ink); /* R49b:第一套首句(主张)提亮,组内分层 */
     margin: 0;
     max-width: 50ch; /* 容住焊定断行的首段(en/vi 各 48ch;zh 短句仍单行) */
     text-wrap: pretty;
@@ -128,6 +134,13 @@ const t = useT(locale);
   h1:lang(zh) {
     font-size: max(48px, calc(115.2 * var(--u)));
   }
+  /* R49b 双层副题:主张(亮)+ toB 背书(暗一档、小一档),右缘对齐成一组 */
+  .subs {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: calc(10 * var(--uc));
+  }
   .sub {
     color: var(--x-white);
     margin: 0;
@@ -135,7 +148,27 @@ const t = useT(locale);
        300px 下限保证最窄桌面也不落到四行 */
     width: max(300px, calc(439.2 * var(--u)));
     text-wrap: pretty;
+    text-align: right; /* R49b 主人令:右下套装整组右对齐(vi 两行曾左齐与次句错茬) */
     font-size: calc(16 * var(--uc)); /* 原版副题 16 @1440,随视口放大(R13) */
+  }
+  .sub2 {
+    color: var(--x-ink-dim);
+    margin: 0;
+    width: max(300px, calc(439.2 * var(--u)));
+    text-wrap: pretty;
+    white-space: pre-line; /* 第二套次句 en/vi 带 \n 两行制 */
+    font-size: max(11px, calc(12 * var(--u)));
+    text-align: right;
+  }
+  .note2 {
+    color: var(--x-ink-dim);
+    margin: 0;
+    max-width: 50ch;
+    text-wrap: pretty;
+    line-height: 1.5;
+    white-space: pre-line;
+    font-size: max(11px, calc(11.5 * var(--u)));
+    opacity: 0.85;
   }
   .dl-wrap :global(.dl) {
     justify-content: flex-end;
@@ -154,9 +187,14 @@ const t = useT(locale);
       width: 100% !important; /* 覆盖桌面按语言定宽 */
       align-items: flex-start;
     }
-    .sub {
+    .subs {
+      align-items: flex-start;
+    }
+    .sub,
+    .sub2 {
       width: auto;
       max-width: calc(420 * var(--uc));
+      text-align: left;
     }
     .dl-wrap :global(.dl) {
       justify-content: flex-start;

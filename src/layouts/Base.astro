@@ -74,6 +74,7 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: 'NexGrid',
+        legalName: 'NexGrid LTD' /* R49-B4:尽调/搜索场景的法定名锚点;address 待主人核册(B5)后补 */,
         url: site.href,
         logo: new URL('/icon-512.png', site).href,
       })}
@@ -104,6 +105,8 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
   </head>
   <body>
     <canvas id="x-bg" aria-hidden="true"></canvas>
+    {/* R48.5:R48.4 的 Liquid Glass 位移场滤镜(#x-liquid)已拆除 —— url 型 backdrop 每帧对
+        动态画布整块重算,真机滚动直接卡死(主人一票否决);折射观感改由 .x-tile 的静态高光近似。 */}
     {/* noindex 页(404)无对应语言版:语言链回各语首页(不生成 /vi/404/ 这种死链),
         但页内锚点在该页不成立——导航链接必须指回首页的锚点,否则点了只改 URL 不动 */}
     {/* 跳至正文:导航里有 10 个可聚焦件,没有这条链接的话,键盘用户每换一页都要按 10 次 Tab 才够到内容。

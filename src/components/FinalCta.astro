@@ -1,6 +1,7 @@
 ---
-/* [FEAT-WEB12] 收尾 CTA — 收束宣言 + 下载键(与 hero 同组件同配置,PRD ⑦ 单源)。
-   axiom 方向:黑底大陈述 + slide-swap 下载键。 */
+/* [FEAT-WEB12] 收尾 CTA — R48 玻璃重构(C 记忆点):84 档大陈述**错位压**玻璃面板,
+   下载三键(与 hero 同组件同配置,PRD ⑦ 单源)右置于面板内。
+   负外边距做压叠(纯流式,三语标题行数不同也不会错位失稳)。 */
 import DownloadButtons from './hero/DownloadButtons.astro';
 import { useT, type Locale } from '../i18n';
 
@@ -13,26 +14,69 @@ const t = useT(locale);
 
 <section class="final" id="final-cta">
   <h2 class="x-display" data-lr>{t('final.title')}</h2>
-  <div class="btns" data-rv style="--d:.3s">
-    <DownloadButtons locale={locale} />
+  <div class="plate x-tile" data-rv style="--d:.3s">
+    {/* R48.7 令②:氛围配图(gpt-image-2 生成,GPU 电路柠檬光路;纯装饰 alt 空,不进 i18n)。
+        底对齐编辑排版:图左、三键右,都沉到面板底线;面板顶 96u 内衬仍是标题压叠区,不与图相撞。 */}
+    <img class="pmedia" src="/art-circuit.webp" alt="" width="1280" height="853" loading="lazy" decoding="async" />
+    <div class="dlcol">
+      <DownloadButtons locale={locale} />
+    </div>
   </div>
 </section>
 
 <style>
-  /* R8:manifesto 位(画布 py-140,40 档陈述) */
   .final {
     position: relative;
     z-index: 1;
-    padding: max(80px, calc(140 * var(--u))) var(--x-pad);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: max(28px, calc(43.2 * var(--u)));
+    padding: max(80px, calc(150 * var(--u))) var(--x-pad) max(70px, calc(110 * var(--u)));
   }
   h2 {
-    font-size: max(28px, calc(40 * var(--u)));
+    position: relative;
+    z-index: 2; /* 大字压在面板上层 */
+    font-size: max(38px, calc(84 * var(--u)));
     color: var(--x-white);
-    margin: 0;
-    /* R45(B3b):去 24ch 上限——参考站宣言行跑满画布;vi 曾因此被折成两行 */
+    margin: 0 0 calc(-40 * var(--u)); /* 错位量:末行墨底压进面板上缘(C 记忆点) */
+    max-width: calc(1080 * var(--u));
+  }
+  .plate {
+    margin-left: max(0px, calc(260 * var(--u))); /* 面板右让:标题行首落在裸地球上,行尾压玻璃 */
+    padding: max(64px, calc(96 * var(--u))) calc(44 * var(--uc)) calc(40 * var(--uc));
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: calc(32 * var(--uc));
+    z-index: 1;
+  }
+  /* R49-A1:三键+coming-soon 说明行成一竖列(面板是横向弹性布局,裸放会把说明行挤到按钮右侧) */
+  .dlcol {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 0;
+  }
+  .pmedia {
+    display: block;
+    width: min(50%, calc(500 * var(--u)));
+    height: auto; /* 压掉 img height 属性的表现层提示——两轴被钉死时 aspect-ratio 会整条失效 */
+    aspect-ratio: 21 / 8;
+    object-fit: cover;
+    border-radius: var(--x-r-sm);
+    flex: 0 0 auto;
+  }
+  @media (max-width: 860px) {
+    h2 {
+      margin-bottom: calc(-22 * var(--uc));
+    }
+    .plate {
+      margin-left: 0;
+      padding: calc(56 * var(--uc)) calc(24 * var(--uc)) calc(24 * var(--uc));
+      flex-direction: column;
+      align-items: stretch;
+      justify-content: flex-start;
+    }
+    .pmedia {
+      width: 100%;
+      aspect-ratio: 16 / 7;
+    }
   }
 </style>

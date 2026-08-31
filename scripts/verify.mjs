@@ -86,12 +86,72 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   for (const f of files) {
     if (readFileSync(f, 'utf8').includes('PENDING-TRUST-ASSETS')) detail.push(`${rel(f)}: 信任资料未填充(PENDING-TRUST-ASSETS)`);
   }
-  for (const page of ['legal/privacy', 'legal/terms']) {
+  for (const page of ['legal/privacy', 'legal/terms', 'legal/app-privacy']) {
     const found = ['.astro', '.md'].some((ext) => existsSync(join(SRC, 'pages', `${page}${ext}`)));
     if (!found) detail.push(`缺 Legal 页: src/pages/${page}.(astro|md)`);
   }
   // 非 --prod 只告警不拦(开发期必然半成品);--prod 阻断
   results.push({ gate: 'deploy-gate' + (PROD ? '' : '(warn-only)'), pass: detail.length === 0 || !PROD, warn: !PROD && detail.length > 0, detail });
+}
+
+/* ── 门 3b:上线资产门(R49-F1)——把「带哪些降级态上线」变成显式清单而非默认发生。
+   五路总审的共同结构:代码侧降级机制都在(未配置不渲染/禁用),欠的是资产;
+   资产是否就绪只有产物说了算,故本门读 dist(上次 build 的产物;无 dist 记 NOT-BUILT 警示)。
+   判据:① 统计快照仍=App mock 锚值(逐字面比对 Nexion-uniapp/src/lib/platform-stats.ts,
+   ≥4/5 命中判镜像;App 仓缺席 warn 放行,与 brand-parity 同体例)——prod 红:公网虚假规模陈述;
+   ② 联系 mailto 缺席——prod 红;下载禁用键/白皮书等空值只列清单不拦
+   (R49b 主人令:coming-soon 说明行撤除、后台即将接配,原「禁用必配说明」配对红随之撤)。 */
+{
+  const detail = [];
+  const info = [];
+  const distHome = join(ROOT, 'dist', 'index.html');
+  if (!existsSync(distHome)) {
+    detail.push('NOT-BUILT:dist/index.html 缺席,本门未真正检查(先 npm run build)');
+  } else {
+    const home = readFileSync(distHome, 'utf8');
+    const disabledBtns = (home.match(/aria-disabled="true"/g) || []).length;
+    const hasMailto = home.includes('mailto:');
+    /* R49b 主人令:coming-soon 说明行撤除(后台即将接配),禁用态只列清单不拦 */
+    if (disabledBtns > 0) info.push(`空值清单:下载 URL 未配 ×${disabledBtns}(禁用态,后台接配即消)`);
+    if (!hasMailto) (PROD ? detail : info).push('空值清单:联系邮箱未配(PUBLIC_CONTACT_EMAIL)→ 页脚无任何联系渠道');
+    const nexHome = join(ROOT, 'dist', 'nex', 'index.html');
+    if (existsSync(nexHome) && !readFileSync(nexHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
+  }
+  const appAnchor = join(ROOT, '..', 'Nexion-uniapp', 'src', 'lib', 'platform-stats.ts');
+  const statsSrc = readFileSync(join(SRC, 'lib', 'stats.ts'), 'utf8');
+  const nums = [...statsSrc.matchAll(/(?:activeDevices|activeJobs|nodes|countries|uptime):\s*([\d_.]+)/g)].map((m) => m[1]);
+  if (existsSync(appAnchor)) {
+    const anchor = readFileSync(appAnchor, 'utf8');
+    const hits = nums.filter((n) => anchor.includes(n)).length;
+    if (nums.length >= 5 && hits >= 4) {
+      (PROD ? detail : info).push(`统计快照仍=App mock 锚值(${hits}/${nums.length} 字面命中)——上线前必须真值化或分层降级`);
+    }
+  } else {
+    info.push('App 仓缺席,统计镜像比对未执行(warn 放行,与 brand-parity 同体例)');
+  }
+  results.push({
+    gate: 'launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'),
+    pass: detail.length === 0,
+    warn: detail.length === 0 && info.length > 0,
+    detail: [...detail, ...info],
+  });
+}
+
+/* ── 门 3c:状态钩子消费方门(R49-F2)——渲染出的状态钩子必须有消费方。
+   案由:data-empty 渲染了 12 个月零消费方,「降级态的用户可见面」静默缺位(五路总审同根发现);
+   判据:清单内钩子在 src 有 EMIT(data-x= 模板属性)则必须有 CONSUMER([data-x 选择器 或 dataset.x),
+   0 消费即红。新状态钩子加进 HOOKS 清单。 */
+{
+  const detail = [];
+  const HOOKS = ['empty'];
+  const files = walk(SRC, ['.astro', '.ts', '.css']);
+  const all = files.map((f) => readFileSync(f, 'utf8')).join('\n');
+  for (const h of HOOKS) {
+    const emits = (all.match(new RegExp(`data-${h}=`, 'g')) || []).length;
+    const consumers = (all.match(new RegExp(`\\[data-${h}[\\]=']`, 'g')) || []).length + (all.match(new RegExp(`dataset\\.${h}\\b`, 'g')) || []).length;
+    if (emits > 0 && consumers === 0) detail.push(`data-${h}:EMIT ×${emits} 但 0 消费方——状态渲染了却没有任何用户可见面`);
+  }
+  results.push({ gate: 'state-hook-consumer(R49-F2)', pass: detail.length === 0, detail });
 }
 
 /* ── 门 4:页内锚点存在性(PRD §6-5 近似;T11 升级为 dist 级死链扫描)── */

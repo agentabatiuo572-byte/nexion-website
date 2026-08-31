@@ -2,7 +2,9 @@
 /* [FEAT-WEB02/12] 下载三键 — R9(主人 2026-08-21 第一屏令⑤):
    文案改「iOS 下载 / Android 下载 / H5 版入口」,iOS/Android 带自绘平台图标;
    H5 键恒渲染。URL 未配置 → 同文案禁用态(零死链,异常1)。
-   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。 */
+   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。
+   R49b(主人 2026-08-31):coming-soon 说明行撤除——下载地址后台即将接配,禁用态为纯开发期过渡;
+   data-empty 钩子随之退役(钩子与消费方同生同灭,state-hook 门 0 EMIT 即静默)。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
@@ -15,7 +17,6 @@ const t = useT(locale);
 const IOS = import.meta.env.PUBLIC_IOS_URL ?? '';
 const ANDROID = import.meta.env.PUBLIC_ANDROID_URL ?? '';
 const H5 = import.meta.env.PUBLIC_H5_URL ?? '';
-const allEmpty = !IOS && !ANDROID && !H5;
 const lightCls = onLight ? 'on-light' : '';
 
 const btns = [
@@ -25,7 +26,7 @@ const btns = [
 ];
 ---
 
-<div class="dl" data-empty={allEmpty ? 'true' : undefined}>
+<div class="dl">
   {
     btns.map((b) => {
       const inner = (

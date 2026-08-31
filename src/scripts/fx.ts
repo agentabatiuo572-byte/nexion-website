@@ -59,7 +59,7 @@ const setVw = () =>
 
 /* ---------- ① 点阵地球算力网络(Dotted Globe;R47.1) ----------
    取代洛伦兹吸引子(R2/08-20)——规格 docs/changes/2026-08-27-dotted-globe.md + 主人 08-27 改令:
-   ① 50 枢纽 / 75 弧 / 14 条流光同飞(算力繁忙感,R47.4 二次加密);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
+   ① 50 城市枢纽 / 38 条静线(隔条取一,浅灰)+ 36 条近白细长流光同飞(宽 1.1/尾 0.65,R48.13-18 主人多轮收敛);② 地球**常态缓慢自转**(80s/圈,spinYaw 按运行
    时间累积,暂停/切页归来不跳帧)+ **滚动耦合旋转**(R47.2 改令④:转速随滑动速度/方向,单帧封顶),
    五姿态链管 cx/cy/r/pitch(缩放与位移),经度 = 常转 + 滚动耦合——
    R2「静止零重渲」契约由此退役,常转即常渲(辉光 180ms 节流保留);③ 原版鼠标推斥回归
@@ -74,6 +74,10 @@ function initGlobe() {
   /* 底色单一真源(tokens.css 的 --x-bg),读不到才退字面量(R2 教训沿袭) */
   const BG = getComputedStyle(document.documentElement).getPropertyValue('--x-bg').trim() || '#0c0c0d';
   const D2R = Math.PI / 180;
+  /* R48.18 主人令:连线族转**中性浅灰/白**(柠檬→青碧→科技紫→中性,四轮收敛终点)——
+     静线=浅灰暗档,流光=近白;中性无色相,不进 ±6° 品牌带门;亮度对齐此前各版(基线 lum≈56 / 流光头≈193)。 */
+  const ARC_BASE_STYLE = 'rgb(56,56,60)';
+  const COMET_RGB = [235, 238, 242] as const;
 
   /* ── 陆地点阵:生成物 globe-dots.ts(小端 Int16 centi-degree 交错 [lat,lon])→ 单位向量。
      坐标系:ux=cosφ·sinλ,uy=sinφ(北为上),uz=cosφ·cosλ;绕 Y 转 yaw 后面向观者的经度 = -yaw。
@@ -97,7 +101,8 @@ function initGlobe() {
     }
   }
 
-  /* ── 算力枢纽 ×50(R47.1 改令① 加密 + R47.4 二次加密;纯图形无标签——不构成设施声明;越南两点在列不突出) */
+  /* ── 算力枢纽 ×50(R47.1/R47.4 策展;R48.13 曾翻倍到 100、R48.16 主人裁回);
+     纯图形无标签——不构成设施声明;越南两点在列不突出 */
   const HUBS: ReadonlyArray<readonly [number, number]> = [
     [39.0, -77.5] /* 0 阿什本 */,
     [37.3, -121.9] /* 1 圣何塞 */,
@@ -150,6 +155,8 @@ function initGlobe() {
     [3.14, 101.69] /* 48 吉隆坡 */,
     [-31.95, 115.86] /* 49 珀斯 */,
   ];
+  /* R48.16 主人裁定:枢纽回 50(R48.13 曾随机翻倍到 100,实看太密,随机陆点块整撤);
+     50 具名城市锚点为准。 */
   const NH = HUBS.length;
   const hx3 = new Float32Array(NH),
     hy3 = new Float32Array(NH),
@@ -241,6 +248,8 @@ function initGlobe() {
     [49, 18] /* 珀斯–新加坡 */,
     [49, 24] /* 珀斯–悉尼 */,
   ];
+  /* R48.16:随机枢纽撤除后弧回策展 75 条(每枢纽 ≥1 保持);ARCS_ALL 名保留(下游三处消费) */
+  const ARCS_ALL: Array<readonly [number, number]> = [...ARCS];
   /* R47.5 评审修复:近邻拥挤度阻尼——地理聚集区(欧洲群 4-7 枢纽叠压)辉光糊成亮斑;
      0.13 rad(约 830km)内邻居数 n,辉光透明度 ×1/√n、辉光半径 ×n^-0.25,孤立枢纽不受影响;
      核心亮点不衰减(保持「多个独立枢纽」的辨识) */
@@ -258,12 +267,12 @@ function initGlobe() {
     }
   }
 
-  const NA = ARCS.length,
+  const NA = ARCS_ALL.length,
     ASEG = 48;
   const arc3 = new Float32Array(NA * (ASEG + 1) * 3);
   const arcAng = new Float32Array(NA);
   for (let a = 0; a < NA; a++) {
-    const [h0, h1] = ARCS[a];
+    const [h0, h1] = ARCS_ALL[a];
     const dot = Math.max(-1, Math.min(1, hx3[h0] * hx3[h1] + hy3[h0] * hy3[h1] + hz3[h0] * hz3[h1]));
     const om = Math.acos(dot),
       so = Math.sin(om) || 1e-6;
@@ -282,12 +291,13 @@ function initGlobe() {
     }
   }
 
-  /* R30 同相位:全部落在品牌 #9EDC1D 色相带(particle-hue 门读以下标注;改色值必同步改标注)。
+  /* R30 同相位:陆点/枢纽/落点环落在品牌 #9EDC1D 色相带(particle-hue 门读以下 HUE-GUARD: 标注;改色值必同步改标注)。
+     R48.18 主人终裁:**连线族(弧基线+流光)= 中性浅灰/白**(经柠檬→青碧→科技紫三站收敛至此);
+     中性无色相,不进 ±6° 品牌带门。
      亮度阶:陆点 < 弧基线 < 枢纽 < 流光。
      HUE-GUARD:dot-dim (40, 55, 7)
      HUE-GUARD:dot-lit (150, 205, 38)
-     HUE-GUARD:hub (190, 245, 52)
-     HUE-GUARD:arc-base (52, 68, 13) */
+     HUE-GUARD:hub (190, 245, 52) */
   const SHB = 12;
   const dotSprites: HTMLCanvasElement[] = [];
   for (let b = 0; b < SHB; b++) {
@@ -536,13 +546,14 @@ function initGlobe() {
     glowStale = false;
   };
 
-  /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮) HUE-GUARD:comet (225, 255, 150) */
-  const CB = 12,
-    TAILU = 0.3;
+  /* 流光:12 档预乘衰减色(R34 技法沿用,黑底不透明覆盖零增亮)。
+     R48.14b:流光亮端 = COMET_RGB(--x-accent-2 科技紫 +白 0.5 派生);落点环仍柠檬(节点事件归节点族)。 */
+  const CB = 16,
+    TAILU = 0.65; /* R48.15b 主人令「拖尾加长」:0.3→0.65 弧长,亮迹读作「线从 A 飞到 B」;分段 12→16 保渐变顺滑 */
   const cometStyles = Array.from({ length: CB }, (_, k) => {
     const fade = 1 - (k + 0.5) / CB;
     const a = fade * fade * 0.88;
-    return `rgb(${Math.round(225 * a)},${Math.round(255 * a)},${Math.round(150 * a)})`;
+    return `rgb(${Math.round(COMET_RGB[0] * a)},${Math.round(COMET_RGB[1] * a)},${Math.round(COMET_RGB[2] * a)})`;
   });
 
   interface Flight {
@@ -556,7 +567,7 @@ function initGlobe() {
     h: number;
     t0: number;
   }
-  const FL = coarse ? 6 : 14; /* 同时活跃流光条数(改令① + R47.4 二次加密:算力繁忙感) */
+  const FL = coarse ? 14 : 36; /* R48.15 定的飞行密度(主人认可的繁忙感);75 弧轮换飞 */
   const flights: Flight[] = [];
   const rings: Ring[] = [];
   const nextPing = new Float64Array(NH);
@@ -600,18 +611,18 @@ function initGlobe() {
         const e = (t - F.t0) / F.dur;
         if (!F.pinged && e >= 1) {
           F.pinged = true;
-          const target = F.rev ? ARCS[F.a][0] : ARCS[F.a][1];
+          const target = F.rev ? ARCS_ALL[F.a][0] : ARCS_ALL[F.a][1];
           if (hdep[target] > 0) rings.push({ h: target, t0: t });
         }
         if (e >= 1 + TAILU) flights[i] = launch(t, 140 + Math.random() * 360);
       }
     }
 
-    /* 活跃弧基线(静帧取队列前 FL 条);被球体遮挡段断笔 */
+    /* R48.16 静线回归 + R48.17 主人令砍半:隔条取一(75→38,弧表按区域排,交替取保地理均布);
+       流光(细 1.1/尾 65%)仍飞全部 75 条弧;still 静帧同此。被球体遮挡段断笔,背半球天然剔除。 */
     nctx.lineWidth = Math.max(0.8, 0.9 * q);
-    nctx.strokeStyle = 'rgb(52,68,13)';
-    const baseArcs = still ? Array.from({ length: Math.min(FL, NA) }, (_, i) => i) : flights.map((F) => F.a);
-    for (const a of baseArcs) {
+    nctx.strokeStyle = ARC_BASE_STYLE;
+    for (let a = 0; a < NA; a += 2) {
       nctx.beginPath();
       let pen = false;
       for (let k = 0; k <= ASEG; k++) {
@@ -629,7 +640,7 @@ function initGlobe() {
     }
 
     if (!still) {
-      nctx.lineWidth = Math.max(1.1, 1.3 * q);
+      nctx.lineWidth = Math.max(1, 1.1 * q); /* R48.15b 主人令「流光细一点」:1.5→1.1,细丝质感 */
       for (const F of flights) {
         const e = (t - F.t0) / F.dur;
         if (e <= 0) continue;
@@ -808,7 +819,7 @@ function initGlobe() {
     lastSy = -1; /* 停摆期的滚动位移不折算成旋转 */
     if (!flights.length) {
       const t = performance.now();
-      for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 450));
+      for (let i = 0; i < FL; i++) flights.push(launch(t, 250 + i * 110)); /* R48.15:36 条 4s 内满编(450ms 错峰要 16s,首屏空窗) */
       for (let h = 0; h < NH; h++) nextPing[h] = t + 1500 + h * 420;
     }
     raf = requestAnimationFrame(frame);
@@ -904,6 +915,8 @@ function initCertZoom() {
   const dlg = document.querySelector<HTMLDialogElement>('.cert-zoom');
   const img = dlg?.querySelector('img') as HTMLImageElement | null;
   if (!dlg || !img) return;
+  /* R49-D6:灯箱桌面实渲仅 ~528px,letter 版式小字读不清(可用性实测)——补显式「查看原件」出口 */
+  const orig = dlg.querySelector<HTMLAnchorElement>('.cert-orig');
   for (const btn of document.querySelectorAll<HTMLAnchorElement>('.cert-open')) {
     btn.addEventListener('click', (e) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // 修饰键放行:新标签打开原件(与锚点处理器同口径)
@@ -913,6 +926,7 @@ function initCertZoom() {
       img.src = btn.dataset.src ?? btn.href;
       if (btn.dataset.srcset) img.srcset = btn.dataset.srcset;
       img.alt = btn.dataset.alt ?? '';
+      if (orig) orig.href = btn.dataset.src ?? btn.href;
       dlg.classList.add('is-loading'); // 慢网下大图要几秒,先给个加载态
       const settle = () => dlg.classList.remove('is-loading');
       if (img.complete) settle();
@@ -1227,12 +1241,13 @@ function initReveal() {
 /* ---------- ⑥ 设备 deck:画布几何连续推进(R8) ----------
    机制:滚动总程 = N×区高,拍 k 占 [k/N,(k+1)/N];
    卡 i 位移 = STEP·(i − Σ_{k<i}beats)(STEP=1.0923 卡宽),缩放 = 1−0.15·beats[i];
-   末态全叠于锚位(高序号在上);白幕布带(.band-light)在 decked 时上拉一个区高盖过钉屏尾段。 */
+   末态全叠于锚位(高序号在上);透明深带(.band-deep,R48 前身是白幕布 .band-light)在 decked 时
+   上拉一个区高盖过钉屏尾段——带子透明后「遮挡」由叠卡在重叠段自淡出承担(见 apply 末段)。 */
 function initPile() {
   const sec = document.querySelector<HTMLElement>('[data-deck]');
   const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]') ?? null;
   const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
-  const band = document.querySelector<HTMLElement>('.band-light');
+  const band = document.querySelector<HTMLElement>('.band-deep');
   if (!sec || !pin || !cards.length) return;
   const engaged = () => !reduced && !coarse && !matchMedia('(max-width: 860px)').matches;
   let active = false;
@@ -1257,6 +1272,7 @@ function initPile() {
     sec.classList.remove('decked');
     band?.classList.remove('curtain');
     sec.style.height = '';
+    pin.style.opacity = '';
     for (const c of cards) c.style.transform = '';
   };
   const smooth = (t: number) => t * t * (3 - 2 * t); // smoothstep(P2-22)
@@ -1269,7 +1285,15 @@ function initPile() {
     // 「钉住但什么都不发生」的死区,末段编舞又发生在钉屏区已开始上移、幕布已盖上之后
     // (实测 1440 高屏:336px 死区 + 末卡只收到 0.90 而非 0.85)。
     const T = (parseFloat(getComputedStyle(pin).top) || 0) * ZOOM; // CSS 值是画布单位,换算到屏幕单位
-    const e = clamp01((T - sec.getBoundingClientRect().top) / DIST);
+    const secTop = sec.getBoundingClientRect().top;
+    const e = clamp01((T - secTop) / DIST);
+    /* R48:深带透明后,curtain 重叠段的「遮挡」改由叠卡自淡出承担(白幕布时代靠不透明底)。
+       带顶从 DIST−secH 处开始压进钉屏区、到 DIST 处盖满 —— 重叠窗与**最后一拍同期**
+       (白幕布时代最后一拍本来就在幕布底下播完,不可见;淡出让这段等价)。
+       0.8 让卡在盖满前略提前隐没,不与压上来的新区内容叠影。 */
+    const secH = pin.offsetHeight * ZOOM || 1;
+    const o = smooth(clamp01((T - secTop - (DIST - secH)) / (secH * 0.8)));
+    pin.style.opacity = o > 0 ? (1 - o).toFixed(3) : '';
     const beats: number[] = [];
     for (let k = 0; k < N; k++) beats.push(smooth(clamp01((e - k / N) * N)));
     for (let i = 0; i < N; i++) {
@@ -1410,6 +1434,9 @@ function initClock() {
 function initScramble() {
   const els = [...document.querySelectorAll<HTMLElement>('[data-scr]')];
   if (!els.length || reduced || !matchMedia('(hover: hover)').matches) return;
+  /* R49-D6:导航落地后光标常驻原位,新页同位元素立刻收到 mouseenter——语言标签在
+     「刚切完语言」这一最敏感时刻闪 130ms 乱码(可用性实测)。落地 600ms 内不响应首次悬停。 */
+  const ARM_AT = performance.now() + 600;
   const LAT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const DIG = '0123456789';
   const CJK = '一丨丿丶乛十';
@@ -1442,6 +1469,7 @@ function initScramble() {
       else raf = 0;
     };
     el.addEventListener('mouseenter', () => {
+      if (performance.now() < ARM_AT) return;
       stop(false);
       frame = 0;
       raf = requestAnimationFrame(run);
@@ -1475,6 +1503,14 @@ const boot = () => {
   initPile();
   initParallax();
   initScramble();
+
+  /* R48.7:开场编排收官后整只摘掉 x-boot —— fill 态动画会让挂它的祖先永久成为 backdrop root,
+     子孙的 backdrop-filter 采样面被切空(第一案 .site-nav 磨砂、第二案 #stats 玻璃带,均实测)。
+     规则层已全改 backwards,这里把类摘掉让「x-boot 只存在于开场窗口」成为结构事实,同族永绝。
+     2.6s = 最晚 CSS 拍(0.55s 延迟 + 0.5s 时长,锚点首帧)+ 余量;JS 拍只在注册时读该类,不受影响。 */
+  if (html.classList.contains('x-boot')) {
+    setTimeout(() => html.classList.remove('x-boot'), Math.max(0, BEAT_T0 + 2600 - performance.now()));
+  }
 };
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot, { once: true });

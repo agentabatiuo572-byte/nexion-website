@@ -2,7 +2,7 @@
   "site": {
     "name": "NexGrid",
     "tagline": "Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
-    "description": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị lưu trữ hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí."
+    "description": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí."
   },
   "nav": {
     "how": "Cách hoạt động",
@@ -10,7 +10,7 @@
     "trust": "Tin cậy",
     "learn": "Học",
     "nex": "NEX",
-    "launchH5": "Bản Web H5",
+    "launchH5": "Bản web",
     "download": "Tải xuống",
     "ariaMain": "Chính",
     "ariaMenu": "Menu",
@@ -18,10 +18,12 @@
     "ariaLanguage": "Ngôn ngữ"
   },
   "hero": {
-    "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
-    "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
+    "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
+    "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán toàn cầu.",
     "scrollHint": "Xem mạng lưới",
-    "note": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao\nvà giải pháp lưu trữ đám mây GPU."
+    "note": "Thiết bị nhàn rỗi của bạn chạy tác vụ AI.\nBạn được trả bằng USDT.",
+    "subtitle2": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao\nvà giải pháp lưu trữ đám mây GPU.",
+    "note2": "Bắt đầu miễn phí với chiếc điện thoại bạn đang có."
   },
   "download": {
     "ios": "Tải bản iOS",
@@ -32,15 +34,16 @@
     "activeJobs": "Tác vụ AI đang chạy",
     "nodes": "Nút mạng",
     "countries": "Quốc gia",
-    "uptime": "Thời gian hoạt động",
+    "uptime": "Tỷ lệ trực tuyến",
     "asOf": "Dữ liệu tính đến"
   },
   "path": {
     "title": "Cách tham gia",
+    "headline": "Bắt đầu miễn phí. Mở rộng khi sẵn sàng.",
     "cat1": "Miễn phí",
     "cat2": "Mở rộng",
     "freeTitle": "Bắt đầu miễn phí với điện thoại",
-    "freeDesc": "Cài ứng dụng và năng lực xử lý dư thừa của điện thoại bắt đầu chạy tác vụ AI. Không phải mua phần cứng, không đặt cọc.",
+    "freeDesc": "Cài ứng dụng và năng lực tính toán dư thừa của điện thoại bắt đầu chạy tác vụ AI. Không phải mua phần cứng, không đặt cọc.",
     "freeCta": "Bắt đầu miễn phí",
     "scaleTitle": "Mở rộng với NexGridBox",
     "scaleDesc": "Thiết bị chuyên dụng nhân lên năng lực tính toán của bạn. Chúng chạy trong trung tâm dữ liệu và hoạt động ngay từ ngày đầu.",
@@ -81,19 +84,20 @@
     }
   },
   "trust": {
-    "title": "Về NexGrid",
+    "title": "Đăng ký tại Hoa Kỳ. Tự mình kiểm chứng.",
     "pocTitle": "Thu nhập được xác minh thế nào (Proof-of-Compute)",
     "pocBody1": "Mỗi tác vụ hoàn thành tạo một biên nhận suy luận — chạy gì, khi nào, thu được bao nhiêu. Chúng tôi ghi từng biên nhận vào sổ cái nền tảng và chứng thực on-chain.",
     "pocBody2": "Ứng dụng hiển thị toàn bộ chuỗi biên nhận cho từng lần chi trả, nên thu nhập truy vết được từ đầu đến cuối.",
     "certMsbAlt": "Thông tin trạng thái đăng ký MSB của NexGrid LTD tại FinCEN",
     "certCoAlt": "Chứng nhận hồ sơ đã nộp của NexGrid LTD do Thư ký Bang Colorado cấp",
     "card1": "NexGrid LTD được thành lập tại bang Colorado, Hoa Kỳ (coloradosos.gov), là công ty Colorado, mã thực thể 20221592644, được phép phát hành 100.000.000 cổ phần phổ thông, vận hành nền tảng chia sẻ năng lực tính toán phân tán toàn cầu NexGrid.",
-    "card2": "Mở trang web Thư ký Bang Colorado, nhập NexGrid LTD hoặc mã thực thể 20221592644 vào ô tìm kiếm cơ sở dữ liệu doanh nghiệp rồi bấm Search. Ở trang kết quả, bấm vào số ID để xem hồ sơ đăng ký đầy đủ.",
+    "card2": "Hồ sơ đăng ký công ty có thể tra cứu trên trang web Thư ký Bang Colorado.",
     "card3": "NexGrid LTD đã hoàn tất đăng ký MSB (Dịch vụ tiền tệ) với FinCEN — Mạng lưới Thực thi Tội phạm Tài chính thuộc Bộ Tài chính Hoa Kỳ — số đăng ký 31000329265856, theo khung pháp lý Đạo luật Bảo mật Ngân hàng.",
-    "card4": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ. Hoàn tất đăng ký MSB nghĩa là doanh nghiệp đã đăng ký với FinCEN theo luật định, chịu các nghĩa vụ tuân thủ tương ứng và có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó.",
-    "card5": "Tra cứu đăng ký MSB: mở trang MSB Registrant Search của FinCEN (www.fincen.gov/msb-state-selector), nhập NexGrid LTD vào trường LEGAL NAME, hoặc 31000329265856 vào trường MSB REGISTRATION NUMBER/DCN để xem hồ sơ đăng ký của NexGrid.",
+    "card4": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ. Hoàn tất đăng ký MSB nghĩa là doanh nghiệp đã đăng ký với FinCEN theo luật định, chịu các nghĩa vụ tuân thủ tương ứng và có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó. Đăng ký là nghĩa vụ pháp lý và không phải là sự chứng thực của FinCEN đối với doanh nghiệp.",
+    "card5": "Đăng ký MSB có thể tra cứu trên trang web của FinCEN.",
     "certZoom": "Xem kích thước đầy đủ",
-    "certClose": "Đóng"
+    "certClose": "Đóng",
+    "openOriginal": "Mở bản gốc"
   },
   "social": {
     "kicker": "Quy mô mạng lưới",
@@ -160,7 +164,7 @@
     "mech1Title": "Phía cầu",
     "mech1Desc": "Khách hàng AI trả tiền cho năng lực tính toán; một phần doanh thu nền tảng dùng cho các đợt mua lại định kỳ.",
     "mech2Title": "Cơ chế đốt",
-    "mech2Desc": "30% phí nền tảng bị đốt vĩnh viễn, giảm nguồn cung theo thời gian.",
+    "mech2Desc": "30% phí nền tảng do bên mua năng lực tính toán chi trả bị đốt vĩnh viễn, giảm nguồn cung theo thời gian.",
     "faqTitle": "Giải đáp về NEX",
     "faq1Q": "NEX có phải stablecoin không?",
     "faq1A": "Không. USDT là tài sản kết toán ổn định; NEX là token tiện ích có giá thay đổi.",
@@ -206,7 +210,13 @@
     "q5": "Đặt tại trung tâm dữ liệu nghĩa là gì?",
     "a5": "Thiết bị chuyên dụng chạy trong trung tâm dữ liệu chuyên nghiệp — không vận chuyển, không lắp đặt tại nhà. Thiết bị kích hoạt ngay sau khi mua và xuất hiện trong ứng dụng.",
     "q6": "Rút tiền thế nào?",
-    "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước."
+    "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước.",
+    "q7": "Có làm hao pin hay nóng máy không?",
+    "a7": "Luôn trong tầm kiểm soát — tác vụ được lên lịch theo mức pin và nhiệt độ: thiết bị đang cắm sạc và mát sẽ nhận nhiều việc hơn. Bạn có thể tắt tính năng này bất cứ lúc nào trong ứng dụng.",
+    "q8": "NexGrid dùng được ở những quốc gia nào?",
+    "a8": "Phạm vi khả dụng do luồng đăng ký trong ứng dụng quyết định — đó là bước kiểm tra chính thức cho khu vực của bạn.",
+    "q9": "Có mất phí gì không?",
+    "a9": "Bắt đầu hoàn toàn miễn phí. Rút USDT có một khoản phí xác nhận mạng, hiển thị rõ trên màn hình rút trước khi bạn xác nhận; có thể đốt NEX để bù khoản phí này."
   },
   "final": {
     "title": "Để những thiết bị nhàn rỗi của bạn làm việc."
@@ -219,7 +229,11 @@
     "rights": "Bảo lưu mọi quyền.",
     "ariaLegal": "Pháp lý",
     "pauseBg": "Tạm dừng nền động",
-    "playBg": "Phát nền động"
+    "playBg": "Phát nền động",
+    "appPrivacy": "Quyền riêng tư ứng dụng",
+    "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
+    "forTeams": "Dành cho đội ngũ AI — hạ tầng NexGrid được xây để chạy khối lượng suy luận cấp sản xuất.",
+    "forTeamsCta": "Trao đổi về khối lượng công việc:"
   },
   "legal": {
     "enPrevails": "Trang này chỉ có bản tiếng Anh. Bản tiếng Anh là văn bản có giá trị pháp lý."

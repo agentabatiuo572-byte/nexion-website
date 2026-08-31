@@ -1,9 +1,10 @@
 ---
-/* [FEAT-WEB09] 使命板块 — R23 v3(三路复审合并 + 体例仲裁:站内体例>单屏还原、内容语义>参考站语义):
-   眉标(琥珀刻度+16 档保形)→ 大陈述 48 档(zh 焊两行)→ 说明段 16 档纯白紧行距(高反差回归)→
-   答案层=琥珀编号网格(01-06 + 展示体域名,两列;全站编号体例,去 disc 双记号),
-   「[」竖标夹持整网格、缩进精确 80 画布。设备特写姿态延迟起混在 fx(R23)。
-   R45:桌面的单行/越列决定(主人 R24)只在桌面成立——手机上说明段曾被裁、标题被画布上限折成三行,≤860 放开。 */
+/* [FEAT-WEB09] 使命板块(算力去向)— R48.7 六宫格 + R48.19 实景小图(主人令:
+   「增加实际场景类图片,小图即可,用户看着有信任感,不要只是图标」)。
+   每格 = 实景缩略图(gpt-image-2 生成,真实感铁则:实景摄影/无文字/无人脸)+ 领域名 + 右端编号;
+   线性图标在本板块退役(Icon.astro 其余消费面不动)。
+   眉标/大陈述/说明段三件保留;地球在本拍停右侧 65%(fx poseB),图格宽压在 660 画布内不压球心。
+   R45 手机放开(nowrap/画布上限)判例照旧。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -11,7 +12,14 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-const fields = [1, 2, 3, 4, 5, 6] as const;
+const fields = [
+  { n: 1, img: '/mission/ai.webp' },
+  { n: 2, img: '/mission/sci.webp' },
+  { n: 3, img: '/mission/climate.webp' },
+  { n: 4, img: '/mission/bio.webp' },
+  { n: 5, img: '/mission/lang.webp' },
+  { n: 6, img: '/mission/edu.webp' },
+] as const;
 const leadParas = t('mission.lead').split('\n');
 ---
 
@@ -27,23 +35,22 @@ const leadParas = t('mission.lead').split('\n');
     <div class="body" data-rv>
       {leadParas.map((p) => <p>{p}</p>)}
     </div>
-
-    <div class="cluster" data-rv style="--d:.12s">
-      <span class="bullet" aria-hidden="true"></span>
-      <ol class="fields" role="list">
-        {
-          fields.map((n, i) => (
-            <li>
-              <span class="idx" data-tw data-tw-delay={80 * i}>
-                0{n}
-              </span>
-              <span class="name x-h24">{t(`mission.f${n}`)}</span>
-            </li>
-          ))
-        }
-      </ol>
-    </div>
   </div>
+
+  {/* R48.8 主人改令:六宫格 —— 单块玻璃底,细线分区(与数据条内分线同族),不再一格一底 */}
+  <ol class="fgrid x-tile" role="list" data-rv>
+    {
+      fields.map(({ n, img }) => (
+        <li class="cell">
+          <img class="thumb" src={img} alt="" width="640" height="427" loading="lazy" decoding="async" />
+          <span class="name x-h24">{t(`mission.f${n}`)}</span>
+          <span class="idx x-mono" data-tw data-tw-delay={80 * (n - 1)}>
+            0{n}
+          </span>
+        </li>
+      ))
+    }
+  </ol>
 </section>
 
 <style>
@@ -57,6 +64,7 @@ const leadParas = t('mission.lead').split('\n');
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
+    gap: max(24px, calc(36 * var(--u)));
   }
   .col {
     width: calc(538.56 * var(--u));
@@ -64,7 +72,7 @@ const leadParas = t('mission.lead').split('\n');
     flex-direction: column;
     gap: max(24px, calc(40 * var(--u))); /* cap 精确(R27) */
   }
-  /* 章节眉(全站体例:琥珀刻度 + 16 档保形眉标) */
+  /* 章节眉(全站体例:柠檬刻度 + 16 档保形眉标) */
   .kicker {
     color: var(--x-white);
     margin: 0;
@@ -81,7 +89,7 @@ const leadParas = t('mission.lead').split('\n');
   }
   /* 大陈述 48 档:能单行则单行(可越出列宽,参考站同构;主人 R24),zh 焊两行成块 */
   .state {
-    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档(档位数不变,只换值) */
+    font-size: max(32px, calc(48 * var(--u))); /* R45 拍板:区块与卡标题回参考站的 48 档 */
     color: var(--x-white);
     margin: 0;
     white-space: pre-line;
@@ -94,7 +102,7 @@ const leadParas = t('mission.lead').split('\n');
     font-size: calc(16 * var(--uc));
     letter-spacing: 0;
     text-transform: uppercase;
-    line-height: 1.2; /* R26:与眉标同尺(zh 侧 1.5 对 1.5 已齐);两句密簇贴参考质感 */
+    line-height: 1.2; /* R26:与眉标同尺;两句密簇贴参考质感 */
     color: var(--x-white);
     max-width: 31em; /* en 两句各自单行(主人 R24);随字号 em 流动 */
     display: flex;
@@ -119,50 +127,52 @@ const leadParas = t('mission.lead').split('\n');
     word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
     max-width: 26em;
   }
-  /* 答案层:琥珀编号网格(两列 3×2),「[」竖标夹持,缩进 80 画布 */
-  .cluster {
-    display: flex;
-    gap: max(14px, calc(20 * var(--u)));
-    align-items: stretch;
-    margin-left: max(0px, calc(80 * var(--u))); /* cap=80×1.3333 精确(R26) */
-  }
-  .bullet {
-    width: max(5px, calc(5 * var(--u)));
-    align-self: stretch;
-    flex: 0 0 auto;
-    border-style: solid;
-    border-width: 1px 0 1px 1px; /* 与参考竖标同为 1px 线(R25 明示,DPR1 下不再降级) */
-    /* 渐变只暗 ~25%(对齐参考竖标顶亮→微暗比例,R24 收敛) */
-    border-image: linear-gradient(to bottom, var(--x-accent-hot), color-mix(in srgb, var(--x-accent-hot) 78%, var(--x-bg))) 1;
-  }
-  /* R27:单列(参考站同构)——en 双列曾越列压图、双列行序有歧义、左下空场,单列三消 */
-  .fields {
+  /* 答案层 R48.8:六宫格 —— 一块玻璃底 + 细线分区(简洁大气;线用 --x-line-soft 与数据条内分线同族)。
+     分线走单元自身边:偶数格吃左线成两条纵线段位,第二行起吃顶线成横线;无 gap,线即区界。 */
+  .fgrid {
     list-style: none;
     margin: 0;
     padding: 0;
+    width: calc(660 * var(--u));
+    max-width: 100%;
     display: grid;
-    grid-template-columns: 1fr;
-    row-gap: max(12px, calc(16 * var(--u)));
-    align-content: center;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .fields li {
+  .cell {
+    padding: calc(16 * var(--uc)) calc(22 * var(--uc));
     display: flex;
-    align-items: baseline;
-    gap: calc(10 * var(--uc)); /* R26:px-clamp 保形(em 基曾挂死,弃用) */
-    white-space: nowrap;
+    align-items: center;
+    gap: calc(16 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+  }
+  .cell:nth-child(-n + 2) {
+    border-top: 0; /* 首行上缘 = 玻璃边界 */
+  }
+  .cell:nth-child(even) {
+    border-left: 1px solid var(--x-line-soft);
+  }
+  /* R48.19 实景缩略图:4/3 小图,height:auto 压掉宽高属性钉轴(R48.7 已踩 aspect-ratio 失效坑) */
+  .thumb {
+    width: max(72px, calc(96 * var(--u)));
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: calc(10 * var(--uc));
+    flex: 0 0 auto;
+  }
+  .name {
+    font-size: max(16px, calc(20 * var(--u))); /* 格内领域名降半档(24 档在半宽格里 en 两行起步) */
+    color: var(--x-white);
+    flex: 1 1 auto;
+    min-width: 0;
   }
   .idx {
-    line-height: 1.2; /* A7 把序号章脱离全局 .x-mono 时漏了这一格,掉到 body 的 1.6 */
+    line-height: 1.2;
     font-family: var(--x-font-mono);
     font-size: max(12px, calc(12 * var(--u)));
     letter-spacing: 0;
-    color: var(--x-accent-hot); /* 黑底编号走亮柠檬热档(R38 换系后正名) */
-  }
-  /* 字族/字重/字距/行高与 vi·zh 分支交给 .x-h24;这里只留本处特有的字号地板与颜色。
-     原来行高写 1.15 且**没有** vi/zh 分支 —— 挂型类后行高归 1.1、语言补偿这才生效。 */
-  .name {
-    font-size: max(21px, calc(24 * var(--u)));
-    color: var(--x-white);
+    color: var(--x-ink-dim); /* 编号让位给图标(一格双柠檬会吵),退暗档 */
+    flex: 0 0 auto;
   }
   @media (max-width: 860px) {
     .mission {
@@ -182,13 +192,21 @@ const leadParas = t('mission.lead').split('\n');
     .state {
       max-width: 100%;
     }
-    .cluster {
-      margin-left: clamp(12px, 5vw, calc(60 * var(--uc)));
+    /* 660 画布宽在 390 视口只剩 ~179px(u 随画布缩),图格放开吃满列宽 */
+    .fgrid {
+      width: 100%;
     }
   }
   @media (max-width: 560px) {
-    .fields {
+    .fgrid {
       grid-template-columns: 1fr;
+    }
+    /* 单列后区界只剩横线:第 2 格起全部吃顶线,纵线退场 */
+    .cell:nth-child(2) {
+      border-top: 1px solid var(--x-line-soft);
+    }
+    .cell:nth-child(even) {
+      border-left: 0;
     }
   }
 </style>
