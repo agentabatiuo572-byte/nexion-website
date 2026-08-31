@@ -145,6 +145,7 @@
 
 ### [ ] T23 · security-reviewer 全面审 + 审计覆盖测试
 - **AC**:security-reviewer agent 过 auth/输入校验/SQL 参数化/CSRF/安全头/限速/cookie 属性/直通签名,CRITICAL/HIGH = 0;审计覆盖测试(§6-5):遍历动作字典逐动作触发,审计表逐行有据,缺一红。
+- **挂账清单**(前包验收观察项,此处收口):T2 评审 MED——CSRF 自定义头中间件(全部写接口)+ 纯 IP 限速键的 IPv6 纵深复评;T3 验收 P2——test-static 脚本 shell 传参弃用警告修正 + 字节扫描面扩展到全部 dist 文件(HTML 之外的资产)。
 - **敏感度**:🔴 安全 · **tester 报告**: · **回源三问**:
 
 ## 包⑪ 联调与审计(收官)
