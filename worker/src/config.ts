@@ -46,10 +46,12 @@ export const configRoutes = new Hono<{ Bindings: Env }>();
 configRoutes.get('/', async (c) => {
   await ensureInit(c.env.DB);
   const [draft, live] = await Promise.all([getDraft(c.env.DB), getLive(c.env.DB)]);
-  const changed = diffPaths(JSON.parse(live!.payload), JSON.parse(draft.payload));
+  const livePayload = JSON.parse(live!.payload) as SiteConfig;
+  const changed = diffPaths(livePayload, JSON.parse(draft.payload));
   return c.json({
     liveVersion: live!.id,
     livePublishedAt: live!.published_at,
+    live: { payload: livePayload }, // 编辑器「查看线上值/行级撤销」的对照源(CON04-⑥)
     draft: { payload: JSON.parse(draft.payload) as SiteConfig, draftRev: draft.draft_rev, updatedAt: draft.updated_at },
     dirty: changed.length,
     changedPaths: changed.slice(0, 200),
@@ -91,6 +93,27 @@ configRoutes.post('/validate', async (c) => {
   const changed = live ? diffPaths(JSON.parse(live.payload), parsed.data) : [];
   const { errors, warnings } = validateConfig(parsed.data, MANIFEST);
   return c.json({ errors, warnings, sensitiveChanged: sensitivePaths(changed) });
+});
+
+/** 下载链接即时探活(CON05-⑥「立即探活」;定时巡检归 T19 运营健康)。
+    预警不阻断:结果只回显,不写库不自动下架(CON05-④「永不自动下架」)。 */
+configRoutes.post('/probe-downloads', async (c) => {
+  const draft = await getDraft(c.env.DB);
+  const cfg = (JSON.parse(draft.payload) as SiteConfig).downloads;
+  const probe = async (url: string) => {
+    if (!url) return { ok: false, status: 0, note: 'empty' };
+    try {
+      const ctl = new AbortController();
+      const t = setTimeout(() => ctl.abort(), 5000);
+      const res = await fetch(url, { method: 'HEAD', redirect: 'follow', signal: ctl.signal });
+      clearTimeout(t);
+      return { ok: res.status < 400, status: res.status };
+    } catch {
+      return { ok: false, status: 0, note: 'unreachable' };
+    }
+  };
+  const [ios, android, h5] = await Promise.all([probe(cfg.ios.url), probe(cfg.android.url), probe(cfg.h5.url)]);
+  return c.json({ ios, android, h5, at: Date.now() });
 });
 
 /** 版本列表(CON13-⑤ 下半;发布/回滚动作归 T21) */

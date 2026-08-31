@@ -6,7 +6,10 @@ import Shell from './shell';
 import AuditPage from './pages/audit';
 import Login from './pages/login';
 import Setup from './pages/setup';
-import { AnnouncementStub, ContentStub, DashboardStub, DownloadsStub, FaqStub, GeoStub, LegalStub, PublishStub, SeoStub, SkusStub, StatsStub } from './pages/stubs';
+import ContentPage from './pages/content';
+import DownloadsPage from './pages/downloads';
+import StatsPage from './pages/stats';
+import { AnnouncementStub, DashboardStub, FaqStub, GeoStub, LegalStub, PublishStub, SeoStub, SkusStub } from './pages/stubs';
 
 const router = createBrowserRouter(
   [
@@ -17,9 +20,9 @@ const router = createBrowserRouter(
       element: <Shell />,
       children: [
         { index: true, element: <DashboardStub /> },
-        { path: 'content', element: <ContentStub /> },
-        { path: 'content/downloads', element: <DownloadsStub /> },
-        { path: 'content/stats', element: <StatsStub /> },
+        { path: 'content', element: <ContentPage /> },
+        { path: 'content/downloads', element: <DownloadsPage /> },
+        { path: 'content/stats', element: <StatsPage /> },
         { path: 'content/skus', element: <SkusStub /> },
         { path: 'content/faq', element: <FaqStub /> },
         { path: 'content/announcement', element: <AnnouncementStub /> },

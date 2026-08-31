@@ -9,6 +9,7 @@ export default defineConfig({
   server: {
     port: 5175,
     proxy: { '/api': 'http://127.0.0.1:8787' },
+    fs: { allow: ['..'] }, // 禁用词单源在仓根 scripts/,dev 需放行上级读取
   },
   build: {
     // 构建到自有目录;站 dist 保持纯官网产物(站上三道运行时门按「dist=官网页」设计,

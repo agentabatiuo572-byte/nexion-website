@@ -36,15 +36,6 @@ export function DashboardStub() {
   );
 }
 
-export const ContentStub = () => (
-  <Stub title="文案树" con="FEAT-CON04" pkg="包⑤" desc="18 组三语文案并排编辑,缺译红旗、禁用词即时拦截。后端草稿/校验接口已就绪(包③),编辑界面在包⑤交付。" />
-);
-export const DownloadsStub = () => (
-  <Stub title="下载入口" con="FEAT-CON05" pkg="包⑤" desc="iOS/Android/Web App 三入口的 URL 与上下架。站侧已改由配置驱动(包③),表单界面在包⑤交付。" />
-);
-export const StatsStub = () => (
-  <Stub title="平台统计数字" con="FEAT-CON06" pkg="包⑤" desc="官网五个平台数字与口径月;等于旧演示值时软警告(R49-A2 真值化)。界面在包⑤交付。" />
-);
 export const SkusStub = () => (
   <Stub title="产品卡" con="FEAT-CON07" pkg="包⑥" desc="设备阶梯卡片的三语标语/排序/显隐;产品事实字段高敏。界面在包⑥交付。" />
 );
