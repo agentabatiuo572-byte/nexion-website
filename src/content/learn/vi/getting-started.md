@@ -26,4 +26,4 @@ Tài khoản mới nhận thưởng chào mừng bằng NEX. Tùy kết quả x�
 
 Màn hình chính hiển thị thiết bị, hoạt động hôm nay và số dư. Bước tiếp theo: bật năng lực điện thoại — xem hướng dẫn "Bật năng lực điện thoại".
 
-> Ảnh chụp theo bản phát hành hiện tại (v3.7). Giao diện có thể khác nhẹ sau cập nhật, quy trình không đổi.
+> Quy trình theo bản phát hành v3.7. Giao diện có thể khác nhẹ sau cập nhật, các bước không đổi.

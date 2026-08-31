@@ -29,16 +29,32 @@ const year = new Date().getFullYear();
 
       <div class="info">
         <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
+        {/* R49-E1 需求侧最小入口(拍板 8):一段话立「买家是谁」;联系 CTA 只在邮箱配置后出现(零死承诺) */}
+        <p class="teams x-mono">
+          {t('footer.forTeams')}
+          {CONTACT && (
+            <>
+              {' '}
+              {t('footer.forTeamsCta')} <a class="x-dimlink" href={`mailto:${CONTACT}`}>{CONTACT}</a>
+            </>
+          )}
+        </p>
         <nav aria-label={t('footer.ariaLegal')}>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy/`}>{t('footer.privacy')}</a>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/app-privacy/`}>{t('footer.appPrivacy')}</a>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/terms/`}>{t('footer.terms')}</a>
           {CONTACT && <a class="x-mono x-dimlink" href={`mailto:${CONTACT}`}>{t('footer.contact')}</a>}
         </nav>
+        {/* R49-B4 法定名行:尽调第一眼(实体/州/MSB 全是已公开真实资料) */}
+        <p class="legalline x-mono">{t('footer.legalLine')}</p>
       </div>
     </div>
 
-    <p class="copy x-mono">© {year} NexGrid. {t('footer.rights')}</p>
+    <p class="copy x-mono">
+      © {year} NexGrid LTD. {t('footer.rights')}
+      {/* R49-E2 拍板 7:恢复背景动画页内暂停出口(WCAG 2.2.2);fx 的 data-bg-toggle 监听一直在位 */}
+      <button type="button" class="bgtoggle x-mono" data-bg-toggle data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')}></button>
+    </p>
   </div>
 </footer>
 
@@ -96,6 +112,46 @@ const year = new Date().getFullYear();
     margin: 0;
     text-wrap: pretty;
     line-height: 1.5;
+  }
+  .teams {
+    color: var(--x-ink-dim);
+    margin: 0;
+    text-wrap: pretty;
+    line-height: 1.5;
+  }
+  .teams a {
+    color: var(--x-ink);
+    text-decoration: underline;
+    text-underline-offset: calc(3 * var(--uc));
+  }
+  .legalline {
+    color: var(--x-ink-dim);
+    margin: 0;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+  /* 暂停键:版权行内的低调文字件(透明底 hairline,与 vcopy 同族);fx 按暂停态换标签 */
+  .bgtoggle {
+    font: inherit;
+    color: var(--x-ink-dim);
+    background: none;
+    border: 1px solid var(--x-line-soft);
+    border-radius: calc(999 * var(--uc));
+    padding: calc(5 * var(--uc)) calc(12 * var(--uc));
+    margin-left: calc(14 * var(--uc));
+    min-height: max(28px, calc(32 * var(--uc)));
+    cursor: pointer;
+    transition:
+      color 0.2s,
+      border-color 0.2s;
+  }
+  .bgtoggle:hover,
+  .bgtoggle:focus-visible {
+    color: var(--x-ink);
+    border-color: var(--x-ink-dim);
+  }
+  .bgtoggle:active {
+    opacity: 0.75;
   }
   nav {
     display: flex;

@@ -19,9 +19,9 @@
   },
   "hero": {
     "title": "NexGrid\n让算力流动",
-    "subtitle": "全球领先的分布式计算能力共享服务提供商。",
+    "subtitle": "闲置设备承接 AI 任务,收益以 USDT 结算。",
     "scrollHint": "查看网络",
-    "note": "为您提供高性能计算服务和 GPU 云托管解决方案。"
+    "note": "用你现有的手机,免费开始。"
   },
   "download": {
     "ios": "iOS 下载",
@@ -83,7 +83,7 @@
     }
   },
   "trust": {
-    "title": "关于 NexGrid",
+    "title": "美国注册实体,欢迎自行查证。",
     "pocTitle": "收益如何被验证（Proof-of-Compute）",
     "pocBody1": "每个完成的任务都会生成一张推理收据——跑了什么、何时、收益多少。我们把每张收据记录进平台账本，并做链上存证。",
     "pocBody2": "App 内可查看每笔结算的完整收据链路，收益全程可追溯。",
@@ -92,7 +92,7 @@
     "card1": "NexGrid LTD 于美国科罗拉多州（coloradosos.gov）注册成立，为科罗拉多州公司，实体编号 20221592644，授权发行 1 亿股普通股，运营 NexGrid 全球分布式算力共享平台。",
     "card2": "在浏览器中打开科罗拉多州州务卿官方网站，在「Search business database」搜索框输入 NexGrid LTD 或实体编号 20221592644，点击 Search；在结果页点击 ID 编号，即可查看公司注册详情。",
     "card3": "NexGrid LTD 已在美国财政部金融犯罪执法网络（FinCEN）完成 MSB（货币服务业务）登记，登记编号 31000329265856，按《银行保密法》相关法规接受 FinCEN 监管框架约束。",
-    "card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。",
+    "card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。登记是法定义务,不构成 FinCEN 对企业的背书。",
     "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。",
     "certZoom": "查看大图",
     "certClose": "关闭",
@@ -210,7 +210,13 @@
     "q5": "机房托管是什么意思？",
     "a5": "专用设备运行在专业数据中心——无需物流、无需在家安装。购买后设备很快激活并出现在你的 App 里。",
     "q6": "提现怎么操作？",
-    "a6": "收益以 USDT 在 App 内结算，你把 USDT 提现到自己的钱包。App 会一步步引导你完成。"
+    "a6": "收益以 USDT 在 App 内结算，你把 USDT 提现到自己的钱包。App 会一步步引导你完成。",
+    "q7": "会不会耗电、让手机发热?",
+    "a7": "不会失控——任务调度会顾及电量与温度:插电、低温的设备承接更多;手机算力可随时在 App 内关闭。",
+    "q8": "哪些国家和地区可用?",
+    "a8": "可用范围以 App 内注册流程为准——那是你所在地区能否使用的权威校验。",
+    "q9": "有哪些费用?",
+    "a9": "开始是免费的。USDT 提现有一笔网络确认费,提现页会在确认前明示;持有 NEX 可燃烧抵扣。"
   },
   "final": {
     "title": "让你的闲置设备工作起来。"
@@ -224,7 +230,10 @@
     "ariaLegal": "法务",
     "pauseBg": "暂停背景动画",
     "playBg": "播放背景动画",
-    "appPrivacy": "App 隐私政策"
+    "appPrivacy": "App 隐私政策",
+    "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
+    "forTeams": "面向 AI 团队——NexGrid 的算力面向生产级推理负载而建。",
+    "forTeamsCta": "洽谈工作负载:"
   },
   "legal": {
     "enPrevails": "本页仅提供英文版，并以英文版为准。"

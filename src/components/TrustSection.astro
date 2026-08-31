@@ -101,7 +101,7 @@ const order = [
     <img alt="" width="1160" height="1548" sizes="(max-width: 860px) 1160px, (min-width: 1441px) 747px, 560px" />
   </dialog>
 
-  <details class="poc">
+  <details class="poc" id="poc">
     <summary>
       <span class="q x-q">{t('trust.pocTitle')}</span>
       <span class="mark x-mono" aria-hidden="true">+</span>
@@ -418,6 +418,20 @@ const order = [
 <script>
   /* R49-B1 编号一键复制:成功态换标签 1.6s 复原;Clipboard API 被策略拒 → 选中文本退路
      (用户手动 Ctrl+C,比静默失败诚实)。 */
+  /* R49-B3 承诺-兑付:How 的「收益怎么被验证 →」落点 #poc;意图到达(点链或带 hash 进页)自动展开,
+     默认仍折叠保版面平衡。 */
+  {
+    const poc = document.getElementById('poc') as HTMLDetailsElement | null;
+    if (poc) {
+      const openPoc = () => { poc.open = true; };
+      if (location.hash === '#poc') openPoc();
+      document.addEventListener('click', (e) => {
+        const a = (e.target as HTMLElement).closest?.('a[href="#poc"]');
+        if (a) openPoc();
+      });
+    }
+  }
+
   for (const b of document.querySelectorAll<HTMLButtonElement>('.trust .vcopy')) {
     const orig = b.textContent;
     b.addEventListener('click', async () => {
