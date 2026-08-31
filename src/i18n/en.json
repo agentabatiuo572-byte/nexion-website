@@ -25,7 +25,8 @@
   },
   "download": {
     "ios": "Download for iOS",
-    "android": "Download for Android"
+    "android": "Download for Android",
+    "comingSoon": "Coming soon — App Store and Google Play listings are being finalized."
   },
   "stats": {
     "activeDevices": "Active devices",
@@ -94,7 +95,9 @@
     "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
     "card5": "To look up the MSB registration: open the FinCEN MSB Registrant Search page (www.fincen.gov/msb-state-selector), enter NexGrid LTD in the LEGAL NAME field, or 31000329265856 in the MSB REGISTRATION NUMBER/DCN field, to view NexGrid's registration record.",
     "certZoom": "View full size",
-    "certClose": "Close"
+    "certClose": "Close",
+    "copyNum": "Copy number",
+    "copied": "Copied"
   },
   "social": {
     "kicker": "Network scale",
@@ -220,7 +223,8 @@
     "rights": "All rights reserved.",
     "ariaLegal": "Legal",
     "pauseBg": "Pause background",
-    "playBg": "Play background"
+    "playBg": "Play background",
+    "appPrivacy": "App Privacy"
   },
   "legal": {
     "enPrevails": "This page is available in English only. The English version is the legally binding text."

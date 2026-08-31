@@ -25,7 +25,8 @@
   },
   "download": {
     "ios": "iOS 下载",
-    "android": "Android 下载"
+    "android": "Android 下载",
+    "comingSoon": "即将上线——App Store 与 Google Play 上架流程收尾中。"
   },
   "stats": {
     "activeDevices": "在线设备",
@@ -94,7 +95,9 @@
     "card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。",
     "card5": "MSB 登记查询流程：打开 FinCEN 官网的 MSB Registrant Search 页面（www.fincen.gov/msb-state-selector），在「LEGAL NAME」字段输入 NexGrid LTD，或在「MSB REGISTRATION NUMBER/DCN」字段输入 31000329265856，即可查看 NexGrid 的 MSB 登记信息。",
     "certZoom": "查看大图",
-    "certClose": "关闭"
+    "certClose": "关闭",
+    "copyNum": "复制编号",
+    "copied": "已复制"
   },
   "social": {
     "kicker": "网络规模",
@@ -220,7 +223,8 @@
     "rights": "保留所有权利。",
     "ariaLegal": "法务",
     "pauseBg": "暂停背景动画",
-    "playBg": "播放背景动画"
+    "playBg": "播放背景动画",
+    "appPrivacy": "App 隐私政策"
   },
   "legal": {
     "enPrevails": "本页仅提供英文版，并以英文版为准。"

@@ -25,7 +25,8 @@
   },
   "download": {
     "ios": "Tải bản iOS",
-    "android": "Tải bản Android"
+    "android": "Tải bản Android",
+    "comingSoon": "Sắp ra mắt — đang hoàn tất niêm yết trên App Store và Google Play."
   },
   "stats": {
     "activeDevices": "Thiết bị hoạt động",
@@ -94,7 +95,9 @@
     "card4": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ. Hoàn tất đăng ký MSB nghĩa là doanh nghiệp đã đăng ký với FinCEN theo luật định, chịu các nghĩa vụ tuân thủ tương ứng và có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó.",
     "card5": "Tra cứu đăng ký MSB: mở trang MSB Registrant Search của FinCEN (www.fincen.gov/msb-state-selector), nhập NexGrid LTD vào trường LEGAL NAME, hoặc 31000329265856 vào trường MSB REGISTRATION NUMBER/DCN để xem hồ sơ đăng ký của NexGrid.",
     "certZoom": "Xem kích thước đầy đủ",
-    "certClose": "Đóng"
+    "certClose": "Đóng",
+    "copyNum": "Sao chép mã số",
+    "copied": "Đã sao chép"
   },
   "social": {
     "kicker": "Quy mô mạng lưới",
@@ -220,7 +223,8 @@
     "rights": "Bảo lưu mọi quyền.",
     "ariaLegal": "Pháp lý",
     "pauseBg": "Tạm dừng nền động",
-    "playBg": "Phát nền động"
+    "playBg": "Phát nền động",
+    "appPrivacy": "Quyền riêng tư ứng dụng"
   },
   "legal": {
     "enPrevails": "Trang này chỉ có bản tiếng Anh. Bản tiếng Anh là văn bản có giá trị pháp lý."

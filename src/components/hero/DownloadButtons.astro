@@ -2,20 +2,26 @@
 /* [FEAT-WEB02/12] 下载三键 — R9(主人 2026-08-21 第一屏令⑤):
    文案改「iOS 下载 / Android 下载 / H5 版入口」,iOS/Android 带自绘平台图标;
    H5 键恒渲染。URL 未配置 → 同文案禁用态(零死链,异常1)。
-   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。 */
+   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。
+   R49-A1:任一 URL 未配 → 键组下渲染一行 coming-soon 解释(PRD WEB02 异常1 的
+   「Coming soon」文案落地),禁用键 aria-describedby 指向它——无解释的灰键会被读成
+   「站坏了」而不是「即将上线」(五路总审四路同报)。noteId 由调用方传(同页两实例防撞 id)。 */
 import { useT, type Locale } from '../../i18n';
 
 interface Props {
   locale: Locale;
   /** 反白区块内使用时置 true(边框/文字换深色) */
   onLight?: boolean;
+  /** coming-soon 说明行的元素 id(同页多实例必须互异) */
+  noteId?: string;
 }
-const { locale, onLight = false } = Astro.props;
+const { locale, onLight = false, noteId = 'dl-note' } = Astro.props;
 const t = useT(locale);
 const IOS = import.meta.env.PUBLIC_IOS_URL ?? '';
 const ANDROID = import.meta.env.PUBLIC_ANDROID_URL ?? '';
 const H5 = import.meta.env.PUBLIC_H5_URL ?? '';
 const allEmpty = !IOS && !ANDROID && !H5;
+const anyEmpty = !IOS || !ANDROID || !H5;
 const lightCls = onLight ? 'on-light' : '';
 
 const btns = [
@@ -69,13 +75,14 @@ const btns = [
         // 原生 button 而不是 span[role=button]:后者按空格会滚页(独立评审实测 scrollY 0 → 738),
         // 空格正是这类件的标准激活键,按下去既无反馈又把人甩下大半屏。原生按钮不滚页。
         // 仍用 aria-disabled 而非原生 disabled —— 原生 disabled 会连焦点一起拿掉。
-        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
+        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true" aria-describedby={noteId}>
           <span class="static">{inner}</span>
         </button>
       );
     })
   }
 </div>
+{anyEmpty && <p class="dl-note x-mono" id={noteId}>{t('download.comingSoon')}</p>}
 
 <style>
   .dl {
@@ -97,6 +104,17 @@ const btns = [
     display: inline-flex;
     align-items: center;
     gap: calc(8 * var(--uc));
+  }
+  /* coming-soon 说明行:预期管理文案。部分渠道未配 = dim 辅注;
+     三键全空(data-empty)= 它就是本区主信息,提亮一档——这条真实语义同时让
+     状态钩子有了消费方(状态钩子消费方门 F2 的判据对象,禁空操作假消费) */
+  .dl-note {
+    color: var(--x-ink-dim);
+    margin: calc(10 * var(--uc)) 0 0;
+    text-wrap: pretty;
+  }
+  .dl[data-empty='true'] + .dl-note {
+    color: var(--x-ink-cap);
   }
   @media (max-width: 520px) {
     .dl {

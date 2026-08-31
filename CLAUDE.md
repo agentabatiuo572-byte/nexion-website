@@ -28,7 +28,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
 
 - dev:`npm run dev`(端口 **4321**;Browser pane 用 launch.json 名 `nexgrid-website`)
 - 类型:`npm run typecheck`(astro check,完成前 0 错)
-- 验证:`npm run verify`(**11 门**:禁用词/三语 parity/部署门 warn/锚点/brand-parity/particle-hue/**canvas-hazard**/**css-shadowed**/**canvas-geometry**/**render-fit**/**deck-clearance**);**退出码读 `.verify-exit.code` 文件不读管道**(开跑即置 2,崩溃/中止不会留下上一次的绿)
+- 验证:`npm run verify`(**13 门**:禁用词/三语 parity/部署门 warn/**launch-assets(R49-F1:统计 mock 镜像·联系渠道·禁用键必配说明,读 dist,prod 阻断)**/**state-hook-consumer(R49-F2:状态钩子零消费即红)**/锚点/brand-parity/particle-hue/**canvas-hazard**/**css-shadowed**/**canvas-geometry**/**render-fit**/**deck-clearance**);**退出码读 `.verify-exit.code` 文件不读管道**(开跑即置 2,崩溃/中止不会留下上一次的绿)
   - `deck-clearance`:叠卡编舞几何——任一滚动相位卡不得侵入左栏文字,且卡宽/卡锚相对钉屏区必须 45.14%/27.43%(9e24b27 兜底栅格的 max-width 漏进编舞档把包含块缩到 1120,十门全绿主人肉眼抓到;max-width 不参与特异度竞争,编舞档必须显式 `max-width:none`)
   - `css-shadowed`:抓「写进去了但从未生效」的死声明——同一规则内同属性重复、或更窄的 media 块写在基础规则**前面**(嵌套 media 不加特异度,同层靠源序决胜)。同型踩过两次且两次都是独立评审逐像素才量出来的;逃生阀 `/* shadow-ok */`,红测 `scripts/test-css-shadowed.mjs`(红绿两向 13 条)。🔴 它对**正交相交**的媒体块也报(如 `max-width:860` 与 `max-height:520` 各自都不是对方的超集,却在横屏手机上重叠):那不是死声明,但答案藏在「谁写在后面」里 —— 修法是**把两块写成互斥**(`and (min-height: 521px)` / `max-height: 520px`),别加逃生阀
   - `render-fit`:**版面在真渲染下不能自相矛盾**,四条判据。A 行间:逐行取出该行的字、用它自己的字体量实际上伸/下伸,上一行的墨底不得低于下一行的墨顶;B 层间:首屏文字的墨不得钻进导航磨砂蒙版底下;C:`--x-nav-h` 的声明值 × zoom 必须等于导航实测高(首屏上内衬从它派生,声明漂了就红);**D:视口变窄时字号不许变大**——分档版式两套梯子(桌面 `--u` 制 / 窄屏 vw 制)在断点处不会自己对齐,两侧单独看都正常,只有并排才看得出来,人工走查天然扫不到(首屏标题的 46% 反向跳变在四十多轮走查里活了下来)。**修法是把窄档上限接到断点另一侧的实算值并取整下调**(留方向余量),不是另挑一个好看的数。

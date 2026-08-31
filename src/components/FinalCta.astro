@@ -18,7 +18,9 @@ const t = useT(locale);
     {/* R48.7 令②:氛围配图(gpt-image-2 生成,GPU 电路柠檬光路;纯装饰 alt 空,不进 i18n)。
         底对齐编辑排版:图左、三键右,都沉到面板底线;面板顶 96u 内衬仍是标题压叠区,不与图相撞。 */}
     <img class="pmedia" src="/art-circuit.webp" alt="" width="1280" height="853" loading="lazy" decoding="async" />
-    <DownloadButtons locale={locale} />
+    <div class="dlcol">
+      <DownloadButtons locale={locale} noteId="dl-note-cta" />
+    </div>
   </div>
 </section>
 
@@ -44,6 +46,13 @@ const t = useT(locale);
     justify-content: space-between;
     gap: calc(32 * var(--uc));
     z-index: 1;
+  }
+  /* R49-A1:三键+coming-soon 说明行成一竖列(面板是横向弹性布局,裸放会把说明行挤到按钮右侧) */
+  .dlcol {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    min-width: 0;
   }
   .pmedia {
     display: block;
