@@ -25,7 +25,8 @@ const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
 const page = (p: string) => (p === '/' ? `${prefix}/` : `${prefix}${p}/`);
 const langHref = (l: Locale) => withSlash(l === 'en' ? path : `/${l}${path === '/' ? '/' : path}`);
 
-const H5_URL = import.meta.env.PUBLIC_H5_URL ?? '';
+import { DOWNLOAD_URLS } from '../lib/downloads';
+const H5_URL = DOWNLOAD_URLS.h5;
 const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
 ---
 

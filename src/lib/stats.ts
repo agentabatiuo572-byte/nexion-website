@@ -1,14 +1,11 @@
 /* [FEAT-WEB03] 平台统计数据契约 — server-canonical,字段名与 App PRD §12 线名一致。
    双模:snapshot(v1 默认,构建期常量)/ sse(接真后端 GET+SSE /api/platform/stats)。
-   降级链(PRD WEB03 异常1/2):sse 失败 → 无缝回快照(不闪不清零);快照在 v1 为编译期
-   常量恒存在(异常2「快照缺失→整条隐藏」在 snapshot 模式不可达,SSE-only 部署才可能)。
-   🔴 快照值 = App 单源锚的字面镜像,禁自造数字(mock-real-compatible):
-     activeDevices ← Nexion-uniapp/src/lib/platform-stats.ts FLEET_DEVICES(28_432)
-     activeJobs    ← Nexion-uniapp/src/store/app.ts L221 ACTIVE_JOBS_SEED(4_812)
-     nodes/countries/uptime ← 同文件 L226-228(156 / 47 / 99.7)
-   快照口径日 2026-08-20;App 锚变更时同步此处(值不同步=同品牌两套口径,回归级)。
-   R45(主人拍板 B8):千分位/小数点随语言(vi 页曾与主人 vi 文案里的 100.000.000 两套写法并存);
-   价格(USD)保持国际 $ 写法,见 skus.ts。 */
+   降级链(PRD WEB03 异常1/2):sse 失败 → 无缝回快照(不闪不清零)。
+   🔴 快照单源 = 官网后台配置(2026-08-31 CON06/CON16 接管:src/config/site.json 由控制台
+   配置物化,禁在此手改数字)。种子期数值 = App 锚字面镜像(28_432/4_812/156/47/99.7,
+   出处见官网后台 PRD CON06);上线前主人在控制台真值化——R49-F1 生产门拦截仍等于锚值的快照。
+   R45(主人拍板 B8):千分位/小数点随语言;价格(USD)保持国际 $ 写法,见 skus.ts。 */
+import site from '../config/site.json';
 import type { Locale } from '../i18n';
 
 export interface PlatformStats {
@@ -20,15 +17,15 @@ export interface PlatformStats {
 }
 
 export const STATS_SNAPSHOT: PlatformStats = {
-  activeDevices: 28_432,
-  activeJobs: 4_812,
-  nodes: 156,
-  countries: 47,
-  uptime: 99.7,
+  activeDevices: site.stats.activeDevices,
+  activeJobs: site.stats.activeJobs,
+  nodes: site.stats.nodes,
+  countries: site.stats.countries,
+  uptime: site.stats.uptime,
 };
 
-/** 快照口径日(展示 "Data as of" 小字;更新快照时同步) */
-export const STATS_SNAPSHOT_AT = '2026-08';
+/** 快照口径日(展示 "Data as of" 小字;随控制台配置物化) */
+export const STATS_SNAPSHOT_AT = site.stats.asOf;
 
 export type StatsMode = 'snapshot' | 'sse';
 

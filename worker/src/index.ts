@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { auditRoutes, writeAudit } from './audit';
 import { authRoutes, requireAuth } from './auth';
+import { configRoutes } from './config';
 import { ingestRoutes } from './ingest';
 import { dailyJob, runDailyRollup } from './rollup';
 
@@ -24,6 +25,11 @@ app.route('/api/audit', auditRoutes);
 
 // 匿名埋点采集(CON15):公开端点,限速+schema 校验在内
 app.route('/api/e', ingestRoutes);
+
+// 配置模型(CON04/13):草稿/校验/版本,全部受保护
+app.use('/api/config', requireAuth);
+app.use('/api/config/*', requireAuth);
+app.route('/api/config', configRoutes);
 
 // 手动汇总/回填(运维面,审计留痕;日常由 cron 驱动)
 app.post('/api/admin/rollup', requireAuth, async (c) => {

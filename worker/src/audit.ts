@@ -8,6 +8,7 @@ export const AUDIT_ACTIONS = [
   'login.fail',
   'auth.logout',
   'admin.rollup',
+  'config.save',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 

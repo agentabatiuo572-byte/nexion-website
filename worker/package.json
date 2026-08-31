@@ -12,7 +12,9 @@
     "postinstall": "wrangler types",
     "types": "wrangler types",
     "test:static": "node test-static.mjs",
-    "gate:beacon": "node gate-beacon-size.mjs"
+    "gate:beacon": "node gate-beacon-size.mjs",
+    "seed": "node --import ./register-ts-ext.mjs build-seed.mjs --write",
+    "gate:equivalence": "node --import ./register-ts-ext.mjs gate-equivalence.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0",

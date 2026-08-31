@@ -1,2 +1,7 @@
-/** SiteConfig zod 单源(PRD §5.1)。T7 填充结构与校验器;骨架期仅立版本锚。 */
-export const SCHEMA_VERSION = 0;
+/* nexgrid-site-schema —— SiteConfig 单源(结构/清单/校验/物化)。
+   消费面:worker(校验+物化+种子)· 控制台表单 · 站上门(词表经 scripts/forbidden-patterns.mjs 双向共源)。 */
+export * from './site-config.js';
+export * from './manifest.js';
+export * from './validators.js';
+export * from './materialize.js';
+export * from './diff.js';

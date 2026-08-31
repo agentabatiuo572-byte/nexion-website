@@ -4,5 +4,8 @@
   "private": true,
   "type": "module",
   "description": "SiteConfig zod 单源 + 校验器(禁用词/占位符/parity)。站构建/worker/admin 三面同 import。T7 填充。",
-  "main": "src/index.ts"
+  "main": "src/index.ts",
+  "dependencies": {
+    "zod": "^3.23.0"
+  }
 }
