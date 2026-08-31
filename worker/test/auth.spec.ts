@@ -97,6 +97,14 @@ describe('CON01 初始化与登录', () => {
     expect(await auditActions()).toContain('auth.logout');
   });
 
+  it('E4 状态探针:初始化前 false / 后 true(T10-P1 回归:setup 页访问即知)', async () => {
+    const before = (await (await app.request('/api/auth/state', {}, env)).json()) as { initialized: boolean };
+    expect(before.initialized).toBe(false);
+    await setup();
+    const after = (await (await app.request('/api/auth/state', {}, env)).json()) as { initialized: boolean };
+    expect(after.initialized).toBe(true);
+  });
+
   it('AC3b 未初始化受保护路由不可达;/setup 初始化后 410;错 token 403;短口令 400', async () => {
     expect((await app.request('/api/me', {}, env)).status).toBe(401);
     const bad = await app.request(

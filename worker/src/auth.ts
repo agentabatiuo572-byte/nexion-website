@@ -146,6 +146,10 @@ export const requireAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next)
 
 export const authRoutes = new Hono<{ Bindings: Env }>();
 
+/** 初始化状态探针(公开只读):setup 页开门即知该渲染表单还是死卡(CON01-E4「访问即 410 卡」;
+    T10 验收 P-1 修)。只暴露布尔,无枚举面。 */
+authRoutes.get('/state', async (c) => c.json({ initialized: await isInitialized(c.env.DB) }));
+
 /** 首次初始化(CON01;已初始化 → 410 永久失效,E4)。SETUP_TOKEN 暴力猜测按 IP 限速(MEDIUM)。 */
 authRoutes.post('/setup', async (c) => {
   const now = Date.now();

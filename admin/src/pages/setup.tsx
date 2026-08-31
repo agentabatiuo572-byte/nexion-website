@@ -1,5 +1,6 @@
-/* 首次初始化(CON01:令牌+设口令;已初始化 → 410 提示,E4) */
-import { useState } from 'react';
+/* 首次初始化(CON01:令牌+设口令;已初始化 → 死卡,E4「访问即见」——开门即探 /state,
+   T10 验收 P-1 修:此前要提交才知道) */
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
 
@@ -11,6 +12,12 @@ export default function Setup() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [gone, setGone] = useState(false);
+
+  useEffect(() => {
+    api<{ initialized: boolean }>('/api/auth/state')
+      .then((s) => s.initialized && setGone(true))
+      .catch(() => {}); // 探针失败不拦表单;提交侧 410 仍兜底
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
