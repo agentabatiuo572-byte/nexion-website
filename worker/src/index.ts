@@ -93,13 +93,22 @@ app.all('*', async (c) => {
   return res;
 });
 
+/* 定时任务登记表(cron 表达式 → 处理函数)。
+   🔴 单一真源:`gate-config-consistency.mjs` 双向比对本表的键与 wrangler.jsonc 的 triggers.crons——
+   声明了没人处理、或代码处理了没声明,都会红(复测 O11:此前用三元兜底,「6h 那条」在代码里
+   根本没出现过,门只能靠硬编码断言咬住,换个合法频率就会为错误的理由变红)。 */
+const CRON_JOBS: Record<string, (env: Env) => Promise<void>> = {
+  // 每日 00:10 UTC:汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
+  '10 0 * * *': (env) => dailyJob(env),
+  // 每 6 小时:下载链接探活巡检(PRD CON03-③;结果落 probe_status,连续 2 次失败在驾驶舱红条)
+  '0 */6 * * *': (env) => probeDownloads(env, true).then(() => {}),
+};
+
 const worker = {
   fetch: app.fetch,
-  /* 定时任务两条(wrangler.jsonc triggers.crons):
-     · 每日 00:10 UTC —— 汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
-     · 每 6 小时 —— 下载链接探活巡检(PRD CON03-③;结果落 probe_status,连续 2 次失败在驾驶舱红条) */
   async scheduled(event: ScheduledController, env: Env, ctx: ExecutionContext) {
-    ctx.waitUntil(event.cron === '10 0 * * *' ? dailyJob(env) : probeDownloads(env, true).then(() => {}));
+    const job = CRON_JOBS[event.cron];
+    if (job) ctx.waitUntil(job(env));
   },
 } satisfies ExportedHandler<Env>;
 

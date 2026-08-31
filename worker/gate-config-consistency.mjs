@@ -22,13 +22,16 @@ const say = (ok, msg) => {
 function check(cfgText, srcText, migFiles) {
   const cfg = JSON.parse(stripJsonc(cfgText));
   const declared = cfg.triggers?.crons ?? [];
-  const used = [...srcText.matchAll(/event\.cron\s*===\s*['"]([^'"]+)['"]/g)].map((m) => m[1]);
+  /* 从 CRON_JOBS 登记表取「代码处理的 cron」——通用判据,不再硬编码具体表达式(复测 O11)。
+     取块内的字符串键;块以 `const CRON_JOBS` 起、到首个单独 `};` 止。 */
+  const block = /const CRON_JOBS[\s\S]*?\n};/.exec(srcText)?.[0] ?? '';
+  const handled = [...block.matchAll(/^\s*'([^']+)':/gm)].map((m) => m[1]);
   const out = [];
-  out.push([used.length > 0, `index.ts 按 cron 分流(找到 ${used.length} 处比较)`]);
-  for (const u of used) out.push([declared.includes(u), `代码比较的 cron "${u}" 已在 wrangler.jsonc 声明`]);
-  out.push([declared.includes('10 0 * * *'), '声明了日汇总 cron(10 0 * * *)']);
-  out.push([declared.some((c) => /^0 \*\/6 \* \* \*$/.test(c)), '声明了 6 小时探活巡检 cron(0 */6 * * *)']);
-  out.push([declared.length >= used.length, `声明数(${declared.length})≥ 代码分流数(${used.length})`]);
+  out.push([block.length > 0, 'index.ts 有 CRON_JOBS 登记表(定时任务的单一真源)']);
+  out.push([handled.length > 0, `登记表里有 ${handled.length} 条定时任务`]);
+  // 双向:代码处理的必须声明,声明的必须有人处理(否则要么死代码、要么白跑一趟)
+  for (const h of handled) out.push([declared.includes(h), `代码处理的 cron "${h}" 已在 wrangler.jsonc 声明`]);
+  for (const dcl of declared) out.push([handled.includes(dcl), `声明的 cron "${dcl}" 在 CRON_JOBS 里有处理函数`]);
   out.push([cfg.d1_databases?.[0]?.migrations_dir === 'migrations', 'D1 迁移目录声明正确']);
   const seqOk = migFiles.every((f, i) => f.startsWith(String(i + 1).padStart(4, '0')));
   out.push([seqOk, `迁移序号连续(${migFiles.length} 个:${migFiles.join(', ')})`]);
@@ -40,13 +43,14 @@ const srcText = read('src/index.ts');
 const migFiles = readdirSync(path.join(here, 'migrations')).filter((f) => f.endsWith('.sql')).sort();
 
 if (process.argv.includes('--self-test')) {
-  // 注入「代码用了但没声明」的不一致,门必须变红(防假门)
-  const brokenCfg = cfgText.replace(/"crons":\s*\[[^\]]*\]/, '"crons": ["10 0 * * *"]');
-  const res = check(brokenCfg, srcText, migFiles);
-  const reds = res.filter(([ok]) => !ok).length;
-  say(reds > 0, `self-test:抽掉 6h cron 后确实变红(${reds} 条)`);
-  const clean = check(cfgText, srcText, migFiles).filter(([ok]) => !ok).length;
-  say(clean === 0, 'self-test:真实配置无红(不误报)');
+  // 双向注入,证明两个方向都真会红(防假门)
+  const missingDecl = cfgText.replace(/"crons":\s*\[[^\]]*\]/, '"crons": ["10 0 * * *"]'); // 声明少一条
+  say(check(missingDecl, srcText, migFiles).some(([ok]) => !ok), 'self-test:代码处理了但配置没声明 → 变红');
+  const extraDecl = cfgText.replace(/"crons":\s*\[([^\]]*)\]/, '"crons": [$1, "5 5 * * *"]'); // 声明多一条无人处理
+  say(check(extraDecl, srcText, migFiles).some(([ok]) => !ok), 'self-test:配置声明了但没人处理 → 变红');
+  const noTable = srcText.replace(/const CRON_JOBS[\s\S]*?\n};/, 'const CRON_JOBS = {};');
+  say(check(cfgText, noTable, migFiles).some(([ok]) => !ok), 'self-test:登记表被清空 → 变红');
+  say(check(cfgText, srcText, migFiles).every(([ok]) => ok), 'self-test:真实配置全绿(不误报)');
   process.exit(fails ? 1 : 0);
 }
 

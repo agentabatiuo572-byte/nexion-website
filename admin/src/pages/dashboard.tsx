@@ -274,10 +274,21 @@ export default function Dashboard() {
                       : '(按请求加权;已排除出流量指标)'}
                 </div>
               </div>
-              <div>
-                <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.blocked > 0 || d.health.geo?.enabled ? num(d.health.blocked) : '—'}</div>
-                <div className="kv">被屏蔽请求{d.health.blockedShare !== null ? ` · 占 ${pct(d.health.blockedShare)}` : ''}<span title="单来源每分钟超 120 次的部分不落库,此时为下限">*</span></div>
-              </div>
+              {/* 数字与占比共用同一判据(复测 R3-P1:此前数字看「有拦截或已启用」、占比看「有流量」,
+                  于是「站上线了但还没开屏蔽」这段常态画面会显示「— · 占 0.0%」——左边说没数据、
+                  右边给精确到小数的 0.0%,自相矛盾。同族即本轮刚修的「0 与『—』混用」)。 */}
+              {(() => {
+                const meaningful = d.health.blocked > 0 || !!d.health.geo?.enabled;
+                return (
+                  <div>
+                    <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{meaningful ? num(d.health.blocked) : '—'}</div>
+                    <div className="kv">
+                      被屏蔽请求{meaningful && d.health.blockedShare !== null ? ` · 占 ${pct(d.health.blockedShare)}` : ''}
+                      <span title="单来源每分钟超 120 次的部分不落库,此时为下限">*</span>
+                    </div>
+                  </div>
+                );
+              })()}
               <div>
                 <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.geo ? (d.health.geo.enabled ? `${d.health.geo.countries} 地区` : '未启用') : '—'}</div>
                 <div className="kv">屏蔽规则 <NavLink to="/geo" style={{ color: 'var(--brand)' }}>详情 →</NavLink></div>
