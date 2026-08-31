@@ -9,7 +9,8 @@ const ROWS = [
   ['h5', 'Web App', '产品 H5 部署 URL(https://…)'],
 ] as const;
 
-type Probe = Record<string, { ok: boolean; status: number; note?: string }> & { at?: number };
+type ProbeItem = { ok?: boolean; status?: number; note?: string; skipped?: boolean };
+type Probe = Record<string, ProbeItem> & { at?: number };
 
 export default function DownloadsPage() {
   const { draft, saving, conflict, save, reload } = useDraft();
@@ -52,7 +53,7 @@ export default function DownloadsPage() {
             <div className="row">
               <b style={{ width: 88 }}>{label}</b>
               <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : 'coming-soon'}</span>
-              {p && (p.ok ? <span className="pill ok">可达 {p.status}</span> : <span className="pill bad">不可达{p.note === 'empty' ? '(空)' : `(${p.status || '超时'})`}</span>)}
+              {p && (p.skipped ? <span className="pill">未启用/未配置,不探</span> : p.ok ? <span className="pill ok">可达 {p.status}</span> : <span className="pill bad">不可达({p.status || '超时'})</span>)}
               <span className="spacer" />
               <label className="row" style={{ gap: 6 }}>
                 <span className="kv">开启</span>
@@ -63,7 +64,7 @@ export default function DownloadsPage() {
             <div className="field" style={{ marginBottom: 0 }}>
               <input placeholder={ph} value={c.url} onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], url: e.target.value.trim() } }))} />
             </div>
-            {c.enabled && p && !p.ok && p.note !== 'empty' && (
+            {c.enabled && p && !p.skipped && !p.ok && (
               <div className="note warn" style={{ margin: '8px 0 0' }}>链接当前不可达——预警不阻断(商店未过审可先配);是否下架由您决定,系统永不自动下架。</div>
             )}
           </div>

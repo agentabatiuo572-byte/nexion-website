@@ -42,7 +42,7 @@ export const SiteConfigSchema = z.object({
     nodes: z.number().int().positive(),
     countries: z.number().int().positive(),
     uptime: z.number().gt(0).max(100),
-    asOf: z.string().regex(/^\d{4}-\d{2}$/),
+    asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), // 月份 01-12(T11/12 验收观察项收紧)
   }),
   skus: z.array(SkuSchema).min(1),
   faq: z.object({ items: z.array(FaqItem) }),

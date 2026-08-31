@@ -68,6 +68,10 @@ configRoutes.put('/draft', async (c) => {
   if (!parsed.success) return c.json({ error: 'bad-structure', issues: parsed.error.issues.slice(0, 10) }, 400);
   const cur = await getDraft(c.env.DB);
   if (cur.draft_rev !== body.baseRevision) return c.json({ error: 'conflict', draftRev: cur.draft_rev }, 409); // E3:不静默覆盖
+  // CON04-E2(T11 验收 P-2 修):占位符守恒是「保存级」硬拦——缺了站上渲染字面残缺;
+  // 禁用词/缺译仍为草稿可存、发布拦(E1/E4 的分层设计不变)
+  const placeholderErrs = validateConfig(parsed.data, MANIFEST).errors.filter((e) => e.rule === 'placeholder');
+  if (placeholderErrs.length) return c.json({ error: 'placeholder', issues: placeholderErrs.slice(0, 10) }, 400);
   const now = Date.now();
   const changed = diffPaths(JSON.parse(cur.payload), parsed.data);
   await c.env.DB
@@ -100,8 +104,8 @@ configRoutes.post('/validate', async (c) => {
 configRoutes.post('/probe-downloads', async (c) => {
   const draft = await getDraft(c.env.DB);
   const cfg = (JSON.parse(draft.payload) as SiteConfig).downloads;
-  const probe = async (url: string) => {
-    if (!url) return { ok: false, status: 0, note: 'empty' };
+  const probe = async (url: string, enabled?: boolean) => {
+    if (!enabled || !url) return { skipped: true as const }; // 未启用/未配置不打不报红(T12 验收 P-5)
     try {
       const ctl = new AbortController();
       const t = setTimeout(() => ctl.abort(), 5000);
@@ -112,7 +116,11 @@ configRoutes.post('/probe-downloads', async (c) => {
       return { ok: false, status: 0, note: 'unreachable' };
     }
   };
-  const [ios, android, h5] = await Promise.all([probe(cfg.ios.url), probe(cfg.android.url), probe(cfg.h5.url)]);
+  const [ios, android, h5] = await Promise.all([
+    probe(cfg.ios.url, cfg.ios.enabled),
+    probe(cfg.android.url, cfg.android.enabled),
+    probe(cfg.h5.url, cfg.h5.enabled),
+  ]);
   return c.json({ ios, android, h5, at: Date.now() });
 });
 

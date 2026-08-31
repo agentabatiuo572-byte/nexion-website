@@ -34,7 +34,7 @@ export default function StatsPage() {
     else if (dec === 0 && !Number.isInteger(v)) errs.push(`${k}:须为整数`);
   }
   const asOf = String(cur('asOf'));
-  if (!/^\d{4}-\d{2}$/.test(asOf)) errs.push('口径月格式:YYYY-MM');
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(asOf)) errs.push('口径月格式:YYYY-MM(月份 01-12)');
   const anchorHits = FIELDS.filter(([k]) => numOf(k) === ANCHORS[k]).map(([k]) => k);
   const dirty = Object.keys(edits).length > 0;
 

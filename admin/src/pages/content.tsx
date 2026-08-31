@@ -24,10 +24,12 @@ type Hit = { label: string; match: string };
 const scan = scanForbidden as (t: string) => Hit[];
 
 export default function ContentPage() {
-  const { draft, live, saving, conflict, save, reload } = useDraft();
+  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [group, setGroup] = useState('hero');
   const [q, setQ] = useState('');
   const [edits, setEdits] = useState<Record<string, Partial<Record<'en' | 'vi' | 'zh', string>>>>({});
+  const [confirmRevert, setConfirmRevert] = useState<string | null>(null); // 撤销两步确认(PRD ④,T11-P3)
+  const [showLive, setShowLive] = useState<Record<string, boolean>>({}); // 行内线上值展开(PRD ⑥,T11-P4)
 
   const keys = useMemo(() => {
     if (!draft) return [];
@@ -42,6 +44,14 @@ export default function ContentPage() {
     return edits[k]?.[loc] ?? d.copy[loc][k] ?? '';
   }
   const dirtyCount = Object.keys(edits).length;
+  // CON04-E2(保存级硬拦,与服务端同判):任何键任一译文占位符缺失 → 保存禁用
+  const placeholderBlocked = Object.keys(edits).some((k) => {
+    const en = val(draft, 'en', k);
+    return (['vi', 'zh'] as const).some((loc) => {
+      const v = val(draft, loc, k);
+      return v && tokensOf(en).some((t) => !tokensOf(v).includes(t));
+    });
+  });
 
   async function saveAll() {
     const ok = await save((d) => {
@@ -57,7 +67,7 @@ export default function ContentPage() {
       <h2>文案树 · 三语编辑</h2>
       {conflict && (
         <div className="note bad">草稿已在别处更新(另一个标签页?)。为不覆盖那边的改动,本次保存被拒——
-          <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试(本页未保存改动将丢弃)</button>
+          <button className="btn ghost sm" onClick={() => { setEdits({}); clearConflict(); reload(); }}>刷新后重试(本页未保存改动将丢弃)</button>
         </div>
       )}
       <div style={{ display: 'grid', gridTemplateColumns: '210px 1fr', gap: 14 }}>
@@ -74,8 +84,8 @@ export default function ContentPage() {
           <div className="row" style={{ marginBottom: 10 }}>
             <input placeholder="按 key 或内容过滤本组…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
             <span className="spacer" />
-            <span className="kv">{dirtyCount ? `本页未保存 ${dirtyCount} 处` : '无未保存改动'}</span>
-            <button className="btn primary sm" disabled={!dirtyCount || saving} onClick={saveAll}>{saving ? '保存中…' : '保存草稿'}</button>
+            <span className="kv">{placeholderBlocked ? '有占位符缺失,保存被拦' : dirtyCount ? `本页未保存 ${dirtyCount} 处` : '无未保存改动'}</span>
+            <button className="btn primary sm" disabled={!dirtyCount || saving || placeholderBlocked} onClick={saveAll}>{saving ? '保存中…' : '保存草稿'}</button>
           </div>
           {COLLECTION_NOTE[group] && <div className="note info">{COLLECTION_NOTE[group]}</div>}
           {keys.length === 0 && <div className="card"><p className="kv">没有匹配的文案 {q && <button className="btn ghost sm" onClick={() => setQ('')}>清空过滤</button>}</p></div>}
@@ -91,18 +101,40 @@ export default function ContentPage() {
                   {sensitive && <span className="pill warn">高敏 · 发布须理由</span>}
                   {(edits[k] || liveDiff) && <span className="pill">已改未发布</span>}
                   <span className="spacer" />
-                  {live && (edits[k] || liveDiff) && (
-                    <button
-                      className="btn ghost sm"
-                      onClick={() =>
-                        setEdits((s) => ({ ...s, [k]: { en: live.copy.en[k] ?? '', vi: live.copy.vi[k] ?? '', zh: live.copy.zh[k] ?? '' } }))
-                      }
-                      title={`线上值(en):${live.copy.en[k] ?? ''}`}
-                    >
-                      撤销为线上值
+                  {live && (
+                    <button className="btn ghost sm" onClick={() => setShowLive((s) => ({ ...s, [k]: !s[k] }))}>
+                      {showLive[k] ? '收起线上值' : '查看线上值'}
                     </button>
                   )}
+                  {live && (edits[k] || liveDiff) && (
+                    confirmRevert === k ? (
+                      <button
+                        className="btn sm" style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }}
+                        onClick={() => {
+                          setEdits((s) => ({ ...s, [k]: { en: live.copy.en[k] ?? '', vi: live.copy.vi[k] ?? '', zh: live.copy.zh[k] ?? '' } }));
+                          setConfirmRevert(null);
+                        }}
+                      >
+                        确认撤销为线上值?
+                      </button>
+                    ) : (
+                      <button className="btn ghost sm" onClick={() => setConfirmRevert(k)}>撤销为线上值</button>
+                    )
+                  )}
                 </div>
+                {showLive[k] && live && (
+                  <div className="note info" style={{ margin: '0 0 8px' }}>
+                    <div className="kv" style={{ marginBottom: 4 }}>线上值(与草稿对照;发布前站上实际显示的内容)</div>
+                    {(['en', 'vi', 'zh'] as const).map((loc) => (
+                      <div key={loc} style={{ display: 'flex', gap: 8 }}>
+                        <span className="tag" style={{ flex: 'none', width: 20 }}>{loc}</span>
+                        <span style={(live.copy[loc][k] ?? '') !== val(draft, loc, k) ? { color: 'var(--warn)' } : {}}>
+                          {live.copy[loc][k] || <i className="kv">(空)</i>}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
                   {(['en', 'vi', 'zh'] as const).map((loc) => {
                     const v = val(draft, loc, k);
@@ -115,13 +147,13 @@ export default function ContentPage() {
                         <textarea
                           rows={Math.min(6, Math.max(2, Math.ceil(v.length / 46)))}
                           value={v}
-                          style={hits.length ? { borderColor: 'var(--bad)' } : missTokens.length ? { borderColor: 'var(--warn)' } : {}}
+                          style={hits.length || missTokens.length ? { borderColor: 'var(--bad)' } : {}}
                           onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], [loc]: e.target.value } }))}
                         />
                         {hits.map((h, i) => (
                           <div className="kv" style={{ color: 'var(--bad)' }} key={i}>合规拦截 [{h.label}]:「{h.match}」——可存草稿,发布将被拒</div>
                         ))}
-                        {missTokens.length > 0 && <div className="kv" style={{ color: 'var(--warn)' }}>占位符缺失:{missTokens.join(' ')}(保存后发布校验将拒)</div>}
+                        {missTokens.length > 0 && <div className="kv" style={{ color: 'var(--bad)' }}>占位符缺失:{missTokens.join(' ')}——保存被拦(缺了站上会渲染残缺)</div>}
                       </div>
                     );
                   })}

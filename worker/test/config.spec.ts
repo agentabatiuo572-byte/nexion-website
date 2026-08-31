@@ -94,6 +94,21 @@ describe('CON04/CON13 配置模型', () => {
     expect(body.sensitiveChanged.some((s) => s.startsWith('downloads.android'))).toBe(true);
   });
 
+  it('E2 占位符守恒是保存级硬拦:vi 丢 {devices} → PUT 400(T11-P2 回归)', async () => {
+    const cookie = await login();
+    const o = await getOverview(cookie);
+    const p = structuredClone(o.draft.payload);
+    p.copy.vi['social.scaleLine'] = 'Thiết bị đang chạy khắp nơi'; // 丢 {devices}/{countries}
+    const res = await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string; issues: Array<{ rule: string }> };
+    expect(body.error).toBe('placeholder');
+    expect(body.issues.every((i) => i.rule === 'placeholder')).toBe(true);
+    // 未被写入
+    const o2 = await getOverview(cookie);
+    expect(o2.draft.payload.copy.vi['social.scaleLine']).toContain('{devices}');
+  });
+
   it('key 树=代码所有:增删 key 在 validate 被拒(unknown/missing)', async () => {
     const cookie = await login();
     const o = await getOverview(cookie);

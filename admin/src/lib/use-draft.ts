@@ -59,7 +59,7 @@ export function useDraft() {
     }
   }
 
-  return { draft, live, saving, conflict, save, reload, loadFailed: failed, draftRev: overview?.draft.draftRev };
+  return { draft, live, saving, conflict, clearConflict: () => setConflict(false), save, reload, loadFailed: failed, draftRev: overview?.draft.draftRev };
 }
 
 export const PLACEHOLDER_RE = /\{[a-zA-Z][a-zA-Z0-9_]*\}/g;
