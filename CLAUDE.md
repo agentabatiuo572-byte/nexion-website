@@ -22,7 +22,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
 - 🔴 **本机截图验证坑(2026-08-20 实证)**:主人 Windows 全暗色主题,Chromium 无头/被遮挡窗口会**非确定性**触发强制暗色(Auto Dark)——反白板块被翻成黑底亮字(彩色/图片不动),连 `meta color-scheme` 都可能被无视,且同一配方时好时坏。**站点代码无罪**(最小复现页复现同症;计算样式/产物 CSS 全对;可见 GPU 窗口渲染正确)。协议:**DOM/计算样式断言任何模式都可信;亮区块(path/how/trust)的像素级截图必须用「废 canvas 无头」配方(addInitScript 令 #x-bg getContext 返回 null)或可见有头窗,且拍完必须回看**。暗区块截图不受影响。
 - 🔴 Browser pane(Claude 面板)在深滚动位整页黑屏,不可作渲染判断面;真验证一律 Playwright(借 `Nexion-uniapp` 依赖:`createRequire('D:/WORKS/PLAN/Nexion-uniapp/package.json')('playwright')`)。
 - 证书图 `public/cert-{msb,colorado}.png` 已降采样 660w(缩略 2x);灯箱用 `cert-*@2x.png`(1160w 原件);更早原件在 `.trash/*-cert-reencode/`。
-- 源文件 CRLF 警告无害(Windows);commit 用 `-c core.autocrlf=false`。
+- 行尾:仓内一律存 LF,由 `.gitattributes`(`* text=auto`)机器强制(2026-09-01 焊门)。**旧惯例「commit 带 `-c core.autocrlf=false`」已废**——它把 CRLF 工作副本原样入库,两天内两仓各制造一次千行假 diff(admin-ops 交接书 / 本仓 5 文件)。工作副本是 CRLF 无妨,入库自动归一;正常 `git commit` 即可。
 
 ## Commands
 
