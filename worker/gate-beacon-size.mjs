@@ -15,11 +15,16 @@ if (!existsSync(DIST)) {
   process.exit(3);
 }
 
-function htmlFiles(dir) {
+/* 枚举官网页面。跳过 dist/admin —— 那是控制台 SPA 的外壳,不是官网页面,本来就不该带访客埋点
+   (给运营自己的操作计 PV 会污染统计)。门域分离下站门跑在纯官网 dist 上、admin 还没组装进来,
+   所以这行平时用不上;单独手跑本门时 dist 里往往已组装过控制台,没这行会把它当成「漏挂埋点的一页」
+   报红(2026-09-01 实踩)。`/admin` 由 worker 保留给控制台,不会有官网页面落在里面。 */
+function htmlFiles(dir, rel = '') {
   const out = [];
   for (const name of readdirSync(dir)) {
+    if (rel === '' && name === 'admin') continue;
     const p = path.join(dir, name);
-    if (statSync(p).isDirectory()) out.push(...htmlFiles(p));
+    if (statSync(p).isDirectory()) out.push(...htmlFiles(p, `${rel}/${name}`));
     else if (name === 'index.html' || name === '404.html') out.push(p);
   }
   return out;

@@ -5,11 +5,18 @@
 ## 三条命令(全新 checkout)
 
 ```bash
+npm --prefix .. run build          # 造出站产物 dist/
+npm --prefix .. run build:console  # 把控制台组装进 dist/admin
 cd worker
 npm install
+node promote.mjs  # 把 dist 提升为线上快照 dist-live —— worker 伺服的是它,不先跑这步起服会 404
 npm test          # 单测:内置本地 D1/KV,自动应用 migrations/
 npm run dev       # 本地起服 http://127.0.0.1:8787(先自动应用 D1 迁移)——GET /api/health 应答 {ok:true}
 ```
+
+🔴 **worker 伺服 `dist-live`(线上快照),不是 `dist`(待验产物)**。质检门内部会 `npm run build` 重写 dist;
+若线上直接伺服 dist,门还在跑、未过门的内容就已经对外了(2026-09-01 验收 P0-3)。两者只由发布流水线的
+swap 步搬运一次。`node promote.mjs --check` 比对两者是否一致——**门没通过时「不一致」才是正确状态**。
 
 ## 红测(预期失败,别修它)
 
@@ -30,7 +37,11 @@ npm run publish:runner -- --api http://127.0.0.1:8787 --cookie "nx_sid=<你的�
 - 🔴 **必须走 npm 脚本**(它带 TS 解析钩子);直接 `node runner.mjs` 会在物化步就崩。
 - 🔴 **一次完整发布约 15 分钟**(13 门里三道要真渲染)。别用会超时的方式跑它——工具类超时会掐断执行器,让版本卡在「发布中」直到 15 分钟锁超时才自动标失败。脱离式启动:`(npm run publish:runner -- … &)`。
 - 执行器被掐断后重启会**自动接管仍持锁的那一版**并从头重跑,不用手工清理。
-- 门红时执行器**不会**回报最后一步,版本标失败、线上保持旧版、草稿改动原样保留。
+- 门红时执行器**不会**回报最后一步,版本标失败、线上保持旧版(线上伺服的是上一份快照,失败的构建产物根本没被搬过去)、草稿改动原样保留。
+- **步骤顺序由服务端强制**:必须 `materialize → gates → build → swap` 逐步、每步先报 `running` 再报结果,跳步 / 补报 / 过期锁一律 409。手工用 curl 补一句 `swap ok` 让版本上线是**不成立**的(这条正是 2026-09-01 验收的 P0-1/P0-2)。
+- **swap 步 = `node promote.mjs`**:优先换名(强原子),换不动时退回就地同步。Windows 上服务运行时目录被
+  wrangler 占着,换名必 EBUSY,所以退路是必需的、不是可选优化。它还会拒绝「dist 里没有控制台却要提升」
+  (刚跑完门时 dist 被 astro build 清空过),防手工操作把线上后台抹掉。
 - 本地验定时任务:`curl "http://127.0.0.1:8787/__scheduled?cron=0+*/6+*+*+*"`(wrangler dev 的定时触发端点;日汇总那条把 cron 参数换成 `10+0+*+*+*`)。
 
 ## 其它

@@ -13,7 +13,7 @@ interface Preflight {
 }
 interface StepRow { step: string; status: string; detail: string | null; started_at: number; ended_at: number | null }
 interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }
-interface Status { activeVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[] }
+interface Status { activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[] }
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
 const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', validating: '校验中', publishing: '发布中' };
@@ -23,7 +23,7 @@ const RULE_LABEL: Record<string, string> = {
   'missing-key': '缺 key', 'enabled-empty-url': '开启的入口缺 URL', url: '链接格式', email: '邮箱格式',
   'all-hidden': '设备板块全隐藏', 'min-visible': 'FAQ 可见不足 3 条', 'dup-id': 'FAQ id 重复', window: '公告时间窗',
   structure: '数据结构', 'mock-anchor': '统计仍是演示值', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
-  'newline-shape': '换行结构',
+  'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符', 'all-hidden-sku': '设备板块全隐藏',
 };
 /** 红项 → 该去哪个页面修 */
 function fixLink(path: string): string {
@@ -93,7 +93,8 @@ export default function PublishPage() {
 
   const active = st.activeVersion;
   const lastFailed = st.versions.find((v) => v.status === 'failed');
-  const stepDone = (name: string) => st.steps.find((s) => s.step === name);
+  // 步骤只认「本次进行中版本」的日志,防把上一次的步骤画进这一次(stepsOfVersion 由服务端标明)
+  const stepDone = (name: string) => (st.stepsOfVersion === active ? st.steps.find((s) => s.step === name) : undefined);
 
   return (
     <section>
@@ -130,9 +131,10 @@ export default function PublishPage() {
       {!active && lastFailed && lastFailed.id === Math.max(...st.versions.map((v) => v.id)) && (
         <div className="note bad">
           <b>上次发布失败(v{lastFailed.id}):{lastFailed.fail_reason ?? '原因未记录'}</b>
-          <div className="kv" style={{ marginTop: 4 }}>线上仍是上一版,未受影响;你的草稿改动也原样保留,修好后可再次发布。</div>
+          <div className="kv" style={{ marginTop: 4 }}>线上仍是上一版,未受影响(线上伺服的是已发布快照,失败的构建产物不会对外);你的草稿改动也原样保留,修好后可再次发布。</div>
           {(() => {
-            const detail = st.steps.find((s) => s.status === 'failed')?.detail;
+            // 失败态下 steps 来自「最近一次」版本,需确认就是这一版的日志(验收 P1:此前失败态取不到日志)
+            const detail = st.stepsOfVersion === lastFailed.id ? st.steps.find((s) => s.status === 'failed')?.detail : null;
             return detail ? (
               <>
                 <button className="btn ghost sm" onClick={() => setOpenLog(openLog ? null : 'x')}>{openLog ? '收起' : '查看原始日志'}</button>

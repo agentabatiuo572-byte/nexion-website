@@ -153,6 +153,85 @@ describe('CON13 发布流水线', () => {
     expect(acts.length).toBe(1);
   });
 
+  it('🔴 P0-1 步骤顺序不可跳:发起后直接报 swap ok 必须被拒,版本不得 live', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    // 形态①:一步不跑,直接收口最后一步
+    const jump = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+    expect(jump.status).toBe(409);
+    expect(((await jump.json()) as any).error).toBe('step-out-of-order');
+    // 形态②:先声明 swap running 再 ok(绕开「必须先 running」那道)——前序缺失仍应拒
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' })).status).toBe(409);
+    // 形态③:跳过 gates(物化 ok 后直接 build)
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    const skipGates = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'build', status: 'running' });
+    expect(skipGates.status).toBe(409);
+    expect(((await skipGates.json()) as any).missing).toContain('gates');
+    // 全程 live 未变
+    const live = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    expect(live!.id).not.toBe(r.versionId);
+  });
+
+  it('🔴 P0-1b 未先报 running 不得收口;同一步不得重复收口', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const noRunning = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    expect(noRunning.status).toBe(409);
+    expect(((await noRunning.json()) as any).error).toContain('step-not-running');
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' })).status).toBe(200);
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' })).status).toBe(409); // 重复
+  });
+
+  it('🔴 P0-2 锁过期后 step 一律拒收(此前过期锁照收即可上线)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    await env.DB.prepare('UPDATE publish_lock SET expires_at = ?1').bind(Date.now() - 1000).run();
+    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).error).toContain('lock-expired');
+  });
+
+  it('P1 执行器租约:已被领取的任务不再派发给第二个执行器', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const first = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: { versionId: number } | null };
+    expect(first.job!.versionId).toBe(r.versionId);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' }); // 第一个执行器开工
+    const second = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: unknown; note?: string };
+    expect(second.job).toBeNull();
+    expect(second.note).toBe('already-claimed');
+  });
+
+  it('P1 失败态可取回步骤日志(此前只对进行中版本返回,失败后日志取不回)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'failed', gate: 'render-fit', detail: '门日志尾部若干行' });
+    const s = await status(cookie);
+    expect(s.activeVersion).toBeNull();
+    expect(s.stepsOfVersion).toBe(r.versionId);
+    expect((s.steps as { status: string; detail: string | null }[]).find((x) => x.status === 'failed')?.detail).toContain('门日志尾部');
+  });
+
+  it('P1 取消仅限排队态:任何步骤开始后即不可取消', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' }); // 仅 running,未完成
+    const res = await post(cookie, '/api/publish/cancel');
+    expect(res.status).toBe(409);
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

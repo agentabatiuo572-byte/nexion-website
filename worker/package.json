@@ -16,7 +16,8 @@
     "seed": "node --import ./register-ts-ext.mjs build-seed.mjs --write",
     "gate:equivalence": "node --import ./register-ts-ext.mjs gate-equivalence.mjs",
     "gate:config": "node gate-config-consistency.mjs",
-    "publish:runner": "node --import ./register-ts-ext.mjs runner.mjs"
+    "publish:runner": "node --import ./register-ts-ext.mjs runner.mjs",
+    "publish:promote": "node promote.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0",

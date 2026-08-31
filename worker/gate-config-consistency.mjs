@@ -11,7 +11,11 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, p), 'utf8');
-const stripJsonc = (s) => s.replace(/^\s*\/\/.*$/gm, '');
+/* JSONC 注释清理:块注释 + 行首行注释。
+   块注释这一半是 2026-09-01 补的——wrangler.jsonc 里加一段 `/* … *\/` 说明(合法 JSONC,wrangler 自己读得动)
+   就让本门整个崩掉。崩了是失败关闭、不算放过,但一道读不懂被守文件半数合法语法的门,迟早会以别的形式咬人。
+   行注释仍只吃行首那种:URL 里的 `//` 不能误伤。 */
+const stripJsonc = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
 let fails = 0;
 const say = (ok, msg) => {

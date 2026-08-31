@@ -137,24 +137,46 @@ publishRoutes.post('/', async (c) => {
   return c.json({ ok: true, versionId, rollbackFrom, steps: PUBLISH_STEPS });
 });
 
-/** 执行器领取任务(§5.4 契约;dev 本机 runner / Phase C CI runner 共用) */
+/** 执行器领取任务(§5.4 契约;dev 本机 runner / Phase C CI runner 共用)。
+    已有步骤开始的任务不再派发:防两个执行器领到同一单各干各的(验收 P1「/next 无租约」)。
+    执行器崩溃后的续跑走「锁过期 → 自愈标 failed → 重新发起」,不靠二次派发同一单。 */
 publishRoutes.get('/next', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
   const v = await c.env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string }>();
   if (!v || !['validating', 'publishing'].includes(v.status)) return c.json({ job: null });
+  const taken = await c.env.DB.prepare('SELECT COUNT(*) n FROM publish_steps WHERE version_id=?1').bind(v.id).first<{ n: number }>();
+  if ((taken?.n ?? 0) > 0) return c.json({ job: null, note: 'already-claimed' });
   return c.json({ job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS } });
 });
 
-/** 执行器回报步骤(running/ok/failed);任一步 failed → 版本 failed + 释放锁,线上保持旧版 */
+/** 执行器回报步骤(running/ok/failed);任一步 failed → 版本 failed + 释放锁,线上保持旧版。
+    🔴 三道硬约束(2026-09-01 验收 P0-1/P0-2:此前只校验「版本号是当前锁持有的」,
+    于是「发起发布 + 直接报 swap ok」两条请求就能让版本 live,publish_steps 表全空——
+    连跑过门的痕迹都没有;过期锁也照收):
+      ① 锁必须未过期(与 /next、/status 同判据);
+      ② **前序步骤必须都已 ok**(顺序不可跳);
+      ③ 报 ok/failed 前该步必须已 running(先声明再收口,防凭空落一步)。 */
 publishRoutes.post('/step', async (c) => {
   const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string }>().catch(() => null);
   if (!b?.versionId || !b.step || !PUBLISH_STEPS.includes(b.step) || !['running', 'ok', 'failed'].includes(b.status ?? '')) {
     return c.json({ error: 'bad-request' }, 400);
   }
   const now = Date.now();
-  const lock = await c.env.DB.prepare('SELECT version_id FROM publish_lock WHERE id = 1').first<{ version_id: number }>();
+  const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.version_id !== b.versionId) return c.json({ error: 'not-current-job' }, 409);
+  if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409); // ①
+
+  // ② 前序步骤必须全部 ok —— 这是「不存在绕门上线」的实际承载点
+  const idx = PUBLISH_STEPS.indexOf(b.step);
+  const done = (
+    await c.env.DB.prepare("SELECT step FROM publish_steps WHERE version_id=?1 AND status='ok'").bind(b.versionId).all<{ step: string }>()
+  ).results.map((r) => r.step);
+  const missing = PUBLISH_STEPS.slice(0, idx).filter((s) => !done.includes(s));
+  if (missing.length) {
+    return c.json({ error: 'step-out-of-order', missing, expected: PUBLISH_STEPS[done.length] ?? null }, 409);
+  }
+  if (b.status !== 'running' && done.includes(b.step)) return c.json({ error: 'step-already-done' }, 409); // 重复收口
 
   if (b.status === 'running') {
     await c.env.DB.batch([
@@ -165,10 +187,12 @@ publishRoutes.post('/step', async (c) => {
     return c.json({ ok: true });
   }
 
-  await c.env.DB
+  // ③ 该步必须已 running(受影响行数=0 说明没先声明就想收口)
+  const upd = await c.env.DB
     .prepare("UPDATE publish_steps SET status=?3, detail=?4, ended_at=?5 WHERE version_id=?1 AND step=?2 AND status='running'")
     .bind(b.versionId, b.step, b.status, b.detail ?? null, now)
     .run();
+  if ((upd.meta.changes ?? 0) === 0) return c.json({ error: 'step-not-running(先报 running 再报结果)' }, 409);
 
   if (b.status === 'failed') {
     const reason = b.gate ? `${explainGate(b.gate)}(门:${b.gate})` : (b.detail ?? '执行器报告失败');
@@ -211,23 +235,28 @@ publishRoutes.get('/status', async (c) => {
     .bind(active)
     .run();
   if (!active && lock) await releaseLock(c.env); // 顺手清掉过期锁
-  const steps = active
-    ? (await c.env.DB.prepare('SELECT step, status, detail, started_at, ended_at FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(active).all()).results
+  /* 步骤日志:进行中看当前版本;没有进行中时回**最近一次**的步骤日志——
+     否则失败态下「查看原始日志」永远没有数据可渲染(验收 P1:日志存了却取不回)。 */
+  const stepsOf = active ?? (await c.env.DB.prepare('SELECT version_id FROM publish_steps ORDER BY id DESC LIMIT 1').first<{ version_id: number }>())?.version_id ?? null;
+  const steps = stepsOf
+    ? (await c.env.DB.prepare('SELECT version_id, step, status, detail, started_at, ended_at FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(stepsOf).all()).results
     : [];
   const versions = (
     await c.env.DB
       .prepare('SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions ORDER BY id DESC LIMIT 30')
       .all<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>()
   ).results;
-  return c.json({ activeVersion: active, steps, versions, stepNames: PUBLISH_STEPS });
+  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, stepNames: PUBLISH_STEPS });
 });
 
 /** 取消排队中的发布(CON13-E4:执行器不在线时不吊死) */
 publishRoutes.post('/cancel', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id FROM publish_lock WHERE id = 1').first<{ version_id: number }>();
   if (!lock) return c.json({ error: 'no-active-publish' }, 409);
-  const started = await c.env.DB.prepare("SELECT COUNT(*) n FROM publish_steps WHERE version_id=?1 AND status<>'running'").bind(lock.version_id).first<{ n: number }>();
-  if ((started?.n ?? 0) > 0) return c.json({ error: 'already-running(已有步骤完成,不可取消)' }, 409);
+  // 仅「排队态」可取消(PRD E4 字面):任何步骤已开始(含 running)即不可取消——
+  // 执行器正在写文件时抽掉锁,会留下一个没人收口的中间态(验收 P1)
+  const started = await c.env.DB.prepare('SELECT COUNT(*) n FROM publish_steps WHERE version_id=?1').bind(lock.version_id).first<{ n: number }>();
+  if ((started?.n ?? 0) > 0) return c.json({ error: 'already-running(已有步骤开始,不可取消)' }, 409);
   await c.env.DB.batch([
     c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason='已取消(执行器未上线)' WHERE id=?1").bind(lock.version_id),
     c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),

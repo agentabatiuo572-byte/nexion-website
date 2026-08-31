@@ -1,6 +1,10 @@
 #!/usr/bin/env node
-/* T3-AC 字节级验收:worker 伺服的响应体 == dist 对应文件字节(≥10 条路由,从 dist 枚举不手写);
-   另验 /api/health 直通与未知路径 404。用法:node test-static.mjs(需先 npm run build 出 ../dist)。
+/* T3-AC 字节级验收:worker 伺服的响应体 == 伺服目录里对应文件的字节(≥10 条路由,枚举不手写);
+   另验 /api/health 直通与未知路径 404。
+   🔴 对照物 = wrangler.jsonc 里 assets.directory 声明的那个目录,不写死(2026-09-01):
+   伺服目录已从 dist 改成 dist-live(见 wrangler.jsonc 注释),门若自带一份路径,改配置时它会静静
+   对着旧目录报绿——这类「门守的不是被守物」踩过多次,所以让门去读配置,配置改了门跟着改。
+   用法:node test-static.mjs(需先 npm run build && npm run publish:promote 造出伺服目录)。
    退出码:0 全对;非 0 有差异。收尾杀净自起进程并回读端口(孤儿教训 2026-08-31)。 */
 import { spawn, execSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
@@ -8,16 +12,23 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const DIST = path.join(here, '..', 'dist');
+const wranglerSrc = readFileSync(path.join(here, 'wrangler.jsonc'), 'utf8');
+const declared = /"assets"\s*:\s*\{[\s\S]*?"directory"\s*:\s*"([^"]+)"/.exec(wranglerSrc)?.[1];
+if (!declared) {
+  console.error('✗ wrangler.jsonc 里读不到 assets.directory —— 无法确定该拿哪个目录做对照(拒绝猜)');
+  process.exit(3);
+}
+const DIST = path.resolve(here, declared);
 const PORT = 8788;
 const BASE = `http://127.0.0.1:${PORT}`;
 
 if (!existsSync(DIST)) {
-  console.error(`✗ 缺 ${DIST} —— 先在站仓根 npm run build(造环境,不读码顶账)`);
+  console.error(`✗ 缺伺服目录 ${DIST}(wrangler 声明 ${declared})`);
+  console.error('  先在站仓根 npm run build,再 npm --prefix worker run publish:promote(造环境,不读码顶账)');
   process.exit(3);
 }
 
-// 从 dist 枚举路由(构造性,不手写清单)
+// 从伺服目录枚举路由(构造性,不手写清单)
 function collectRoutes(dir, base = '') {
   const out = [];
   for (const name of readdirSync(dir)) {
@@ -29,7 +40,7 @@ function collectRoutes(dir, base = '') {
 }
 const routes = collectRoutes(DIST);
 if (routes.length < 10) {
-  console.error(`✗ dist 只枚举到 ${routes.length} 条路由(<10),产物可疑`);
+  console.error(`✗ ${declared} 只枚举到 ${routes.length} 条路由(<10),产物可疑`);
   process.exit(3);
 }
 
