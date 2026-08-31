@@ -39,8 +39,8 @@ async function pbkdf2Hex(password: string, saltHex: string, iterations: number):
   return toHex(bits);
 }
 
-/** 常数时间比较(workerd 提供 timingSafeEqual;长度不同直接 false) */
-function timingSafeEqualHex(a: string, b: string): boolean {
+/** 常数时间比较(workerd 提供 timingSafeEqual;长度不同直接 false)。geo 直通签名同用此实现。 */
+export function timingSafeEqualHex(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   const ab = enc.encode(a);
   const bb = enc.encode(b);

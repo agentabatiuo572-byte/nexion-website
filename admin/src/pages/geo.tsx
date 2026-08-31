@@ -13,6 +13,7 @@ interface Rules {
 interface GeoState {
   rules: Rules;
   degraded: boolean;
+  bypassAvailable: boolean;
   stats: { last7: Array<{ country: string; hits: number }>; todayLive: number; blocked7: number; shareOfRequests: number };
 }
 
@@ -81,9 +82,16 @@ export default function GeoPage() {
           <input type="checkbox" style={{ width: 18, height: 18 }} checked={r.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
           {dirty ? <span className="pill warn">改动未应用</span> : <span className="pill ok">已生效{st.rules.updatedAt ? ` · ${new Date(st.rules.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })} 回读确认` : ''}</span>}
           <span className="spacer" />
-          <button className="btn" onClick={() => void getBypass()}>获取直通(从任何地区预览官网)</button>
+          <button className="btn" disabled={!st.bypassAvailable} title={st.bypassAvailable ? '' : '直通密钥未配置或仍为默认值'} onClick={() => void getBypass()}>
+            获取直通(从任何地区预览官网)
+          </button>
         </div>
         <p className="kv" style={{ marginTop: 6 }}>控制台永不受屏蔽;规则改动走即时通道(约 1 分钟全球生效),不经内容发布链。</p>
+        {!st.bypassAvailable && (
+          <div className="note warn" style={{ marginBottom: 0 }}>
+            直通功能当前停用:部署密钥(BYPASS_SECRET)未配置、或仍是仓库内的开发默认值。上线前必须轮换成真密钥,否则任何人都能自行伪造直通凭证绕过屏蔽。
+          </div>
+        )}
       </div>
       <div className="card" style={{ marginBottom: 12 }}>
         <h3>屏蔽名单(ISO 国家/地区码 · 选择不手输)</h3>
@@ -146,7 +154,7 @@ export default function GeoPage() {
       )}
 
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-        <div className="card"><h3>今日拦截(实时)</h3><div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{st.stats.todayLive}</div><div className="kv">仅页面级请求;直通与资产不计</div></div>
+        <div className="card"><h3>今日拦截(实时)</h3><div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{st.stats.todayLive}</div><div className="kv">仅页面级请求;直通与资产不计。同一来源每分钟超 120 次的洪水流量会被采样记录,此时该数字是<b>下限</b></div></div>
         <div className="card"><h3>近 7 天拦截</h3><div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{st.stats.blocked7}</div><div className="kv">占总请求 {(st.stats.shareOfRequests * 100).toFixed(1)}%(口径:拦截数 ÷ 拦截+人类访问)</div></div>
         <div className="card">
           <h3>被拦区域 TopN(近 7 天)</h3>

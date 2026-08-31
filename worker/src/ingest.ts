@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { BatchSchema } from './events';
+import { createLimiter } from './ratelimit';
 
 /* 采集接口(PRD CON15-A1/E1/E2/E3):畸形 4xx 丢弃、限速 429、匿名化在此完成。
    隐私硬约束:IP 只在本函数瞬时参与去重哈希,不落库不落日志。 */
@@ -8,22 +9,11 @@ import { BatchSchema } from './events';
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_BURST = 120; // PRD:60/分,突发 120——按突发值拦
 
-// ponytail: 每 isolate 内存限速(生产多 isolate 下为近似值)。它是滥用挡板不是计费表;
-// 需要全局精确时升级 Rate Limiting binding / DO,路径已知。
-let rateBucket = new Map<string, { n: number; start: number }>();
+const limiter = createLimiter(RATE_LIMIT_WINDOW_MS, RATE_LIMIT_BURST);
 export function resetRateLimiter(): void {
-  rateBucket = new Map();
+  limiter.reset();
 }
-function rateLimited(ip: string, now: number): boolean {
-  const b = rateBucket.get(ip);
-  if (!b || now - b.start > RATE_LIMIT_WINDOW_MS) {
-    rateBucket.set(ip, { n: 1, start: now });
-    return false;
-  }
-  b.n++;
-  if (rateBucket.size > 10_000) rateBucket.clear(); // 内存上限保险丝
-  return b.n > RATE_LIMIT_BURST;
-}
+const rateLimited = (ip: string, now: number) => limiter.hit(ip, now);
 
 const BOT_RE = /bot|crawl|spider|slurp|headless|python|curl|wget|monitor|preview|scan|lighthouse/i;
 
