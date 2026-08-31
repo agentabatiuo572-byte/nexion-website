@@ -65,19 +65,22 @@ if (!DNT) {
   const u = (k: string) => (sp.get(k) || '').slice(0, 64);
   push({ t: 'pv', path, loc, dev, ref, us: u('utm_source'), um: u('utm_medium'), uc: u('utm_campaign') });
 
-  // ---- sec:12 板块曝光 ≥50% 首次(id=站内真实锚点)----
+  // ---- sec:12 板块曝光首次(id=站内真实锚点)----
+  // 判据:板块可视 ≥50% **或** 板块占满视口 ≥50%(等效判据,治超高板块——
+  // devices 叠卡区 5000+px,前者构造性永不可达,T4 验收实测挖出;PRD CON03-③ 同步)。
+  // 细阈值梯度让超高板块滚入过程有回调可判(0.5 单阈值对它永不触发)。
   const SECTIONS = ['download', 'stats', 'social', 'mission', 'devices', 'how', 'path', 'trust', 'nex', 'learn-entry', 'faq', 'final-cta'];
   try {
     const io = new IntersectionObserver(
       (es) => {
         for (const e of es) {
-          if (e.isIntersecting) {
+          if (e.intersectionRatio >= 0.5 || e.intersectionRect.height >= innerHeight / 2) {
             push({ t: 'sec', sec: (e.target as HTMLElement).id, path });
             io.unobserve(e.target);
           }
         }
       },
-      { threshold: 0.5 },
+      { threshold: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5] },
     );
     for (const id of SECTIONS) {
       const el = document.getElementById(id);
