@@ -363,6 +363,12 @@ html {
   -webkit-backdrop-filter: none;
   backdrop-filter: none;
 }
+/* R49-D6 长文静读膜:saturate 1.5 会把身后柠檬点阵晕成大团绿雾,悬在法务/教程正文字后读作「脏屏」
+   (视觉路实景复核)。读字面板降到 1.05;装饰区照旧 1.5。 */
+.x-tile-calm {
+  -webkit-backdrop-filter: blur(var(--x-blur)) saturate(1.05);
+  backdrop-filter: blur(var(--x-blur)) saturate(1.05);
+}
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
   .x-tile:not(.x-tile-clear) {
     background: rgb(var(--x-bg-rgb) / 0.88);

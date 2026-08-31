@@ -21,13 +21,13 @@ const t = useT(locale);
 // R48.12(主人定调「信任感+真实感」):四档设备照全换真实白底棚拍风生成图(gpt-image-2,同族工业设计,
 // 无灯条/发光设计,身价随档位递增:掌上节点→小盒→方塔→2U 机架);旧 jpg 移 .trash/20260829-device-jpg/
 const PHOTO: Record<string, string | undefined> = {
-  phone: '/devices/phone.png',
+  phone: '/devices/phone.webp', // R49 拍板9:iPhone 官方渲染图→匿名无品牌手机(IP/审核观感)
   'cloud-share': '/devices/cloud-share.webp',
   's1': '/devices/s1.webp',
   'pro': '/devices/pro.webp',
-  'pro-v2': '/devices/pro.webp',
+  'pro-v2': '/devices/pro-v2.webp', // R49-D2:v2 独立图(双段方塔),孪生卡拆分
   'rack-p1': '/devices/rack.webp',
-  'rack-p2': '/devices/rack.webp',
+  'rack-p2': '/devices/rack-p2.webp', // R49-D2:P2 独立图(四仓 2U)
 };
 /* 正方形白底产品图(手机)cover 会切掉上下 42%——白底对白底,contain 整机可见;黑底摄影图保持 cover */
 const CONTAIN = new Set(['phone']);

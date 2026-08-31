@@ -97,7 +97,8 @@
     "certZoom": "View full size",
     "certClose": "Close",
     "copyNum": "Copy number",
-    "copied": "Copied"
+    "copied": "Copied",
+    "openOriginal": "Open original"
   },
   "social": {
     "kicker": "Network scale",

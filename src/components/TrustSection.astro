@@ -98,6 +98,7 @@ const order = [
     {/* 1x 屏复用页面里已下好的 660 缩略件(桌面灯箱只渲染约 528px);HiDPI 与手机取 @2x。
         手机档故意写死 1160(远大于适宽后的渲染宽):双指放大不会回源重取,取小图放大就是糊的。
         实测慢网首开 2521ms → 179ms */}
+    <a class="cert-orig x-mono" target="_blank" rel="noopener noreferrer" href="#">{t('trust.openOriginal')} <span aria-hidden="true">↗</span></a>
     <img alt="" width="1160" height="1548" sizes="(max-width: 860px) 1160px, (min-width: 1441px) 747px, 560px" />
   </dialog>
 
@@ -238,6 +239,17 @@ const order = [
     color: var(--x-accent-hot);
     border-color: var(--x-accent-hot);
   }
+  /* 灯箱内「查看原件」出口(R49-D6):dialog 是亮底,走纸面墨色 */
+  .cert-orig {
+    display: inline-flex;
+    align-items: center;
+    gap: calc(4 * var(--uc));
+    color: var(--x-accent-ink-paper);
+    text-decoration: underline;
+    text-underline-offset: calc(3 * var(--uc));
+    margin: calc(8 * var(--uc)) 0;
+    min-height: var(--x-touch);
+  }
   @media (max-width: 900px) {
     .certs,
     .s7,
@@ -277,10 +289,16 @@ const order = [
     border: 0;
     padding: 0 calc(16 * var(--uc)) calc(16 * var(--uc));
     background: var(--x-light);
+    /* R49 修门:高度预算从「写死关闭行 100」改 160(关闭行 + 新增「查看原件」行 + 内衬),
+       且下方转竖向弹性 + 图 min-height:0 收缩——预算再有残差只 letterbox 不溢出(门判据 E 的修法)。 */
+    display: flex;
+    flex-direction: column;
+    /* 第三项(按高度反推宽)在极矮视口会塌穿弹层自身构件宽(1920×360 实测横溢 19px)——
+       给 240 下限:装得下关闭行与原件行;纵向富余交给图的 min-height:0 收缩(letterbox 不溢出)。 */
     width: min(
       calc(96vw / var(--x-zoom)),
       calc(760 * var(--uc)),
-      calc((94vh / var(--x-zoom) - 100 * var(--uc)) * 0.7494)
+      max(calc((94vh / var(--x-zoom) - 160 * var(--uc)) * 0.7494), calc(240 * var(--uc)))
     );
     max-width: min(calc(96vw / var(--x-zoom)), calc(760 * var(--uc))); /* 画布内须换算,否则被二次放大 */
     max-height: calc(94vh / var(--x-zoom));
@@ -293,7 +311,12 @@ const order = [
     display: block;
     width: 100%;
     height: auto;
+    min-height: 0; /* flex 项默认不缩到内容高以下;与 contain 配合,超预算时收缩不溢出 */
+    object-fit: contain;
     background: var(--x-line-soft); /* 大图在慢网要几秒:盒子先显浅底,不是一片空白 */
+  }
+  .cert-orig {
+    flex: 0 0 auto;
   }
   .cert-zoom.is-loading img {
     animation: x-pulse 1.4s ease-in-out infinite;

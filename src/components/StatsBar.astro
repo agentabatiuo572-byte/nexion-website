@@ -117,17 +117,19 @@ const items = [
   };
 
   if (!reduced && nums.length) {
-    for (const el of nums) render(el, 0); // 注册即归零:淡入时不再先露出 SSR 终值
+    /* R49-D4「任何一帧都是海报」:起点 0 曾让快滚用户只带走一屏「0 设备/0 国家」(截图包实证);
+       起点改 70% 终值、时长 1200→800——中间帧永远是像样的数字 */
+    for (const el of nums) render(el, Number(el.dataset.target) * 0.7);
     const io = new IntersectionObserver(
       ([e]) => {
         if (!e.isIntersecting) return;
         io.disconnect();
         const t0 = performance.now();
-        const DUR = 1200;
+        const DUR = 800;
         const tick = (now: number) => {
           const p = Math.min(1, (now - t0) / DUR);
           const ease = 1 - Math.pow(1 - p, 3);
-          for (const el of nums) render(el, Number(el.dataset.target) * ease);
+          for (const el of nums) render(el, Number(el.dataset.target) * (0.7 + 0.3 * ease));
           if (p < 1) requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);

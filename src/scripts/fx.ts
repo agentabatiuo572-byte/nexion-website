@@ -915,6 +915,8 @@ function initCertZoom() {
   const dlg = document.querySelector<HTMLDialogElement>('.cert-zoom');
   const img = dlg?.querySelector('img') as HTMLImageElement | null;
   if (!dlg || !img) return;
+  /* R49-D6:灯箱桌面实渲仅 ~528px,letter 版式小字读不清(可用性实测)——补显式「查看原件」出口 */
+  const orig = dlg.querySelector<HTMLAnchorElement>('.cert-orig');
   for (const btn of document.querySelectorAll<HTMLAnchorElement>('.cert-open')) {
     btn.addEventListener('click', (e) => {
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return; // 修饰键放行:新标签打开原件(与锚点处理器同口径)
@@ -924,6 +926,7 @@ function initCertZoom() {
       img.src = btn.dataset.src ?? btn.href;
       if (btn.dataset.srcset) img.srcset = btn.dataset.srcset;
       img.alt = btn.dataset.alt ?? '';
+      if (orig) orig.href = btn.dataset.src ?? btn.href;
       dlg.classList.add('is-loading'); // 慢网下大图要几秒,先给个加载态
       const settle = () => dlg.classList.remove('is-loading');
       if (img.complete) settle();
@@ -1431,6 +1434,9 @@ function initClock() {
 function initScramble() {
   const els = [...document.querySelectorAll<HTMLElement>('[data-scr]')];
   if (!els.length || reduced || !matchMedia('(hover: hover)').matches) return;
+  /* R49-D6:导航落地后光标常驻原位,新页同位元素立刻收到 mouseenter——语言标签在
+     「刚切完语言」这一最敏感时刻闪 130ms 乱码(可用性实测)。落地 600ms 内不响应首次悬停。 */
+  const ARM_AT = performance.now() + 600;
   const LAT = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
   const DIG = '0123456789';
   const CJK = '一丨丿丶乛十';
@@ -1463,6 +1469,7 @@ function initScramble() {
       else raf = 0;
     };
     el.addEventListener('mouseenter', () => {
+      if (performance.now() < ARM_AT) return;
       stop(false);
       frame = 0;
       raf = requestAnimationFrame(run);
