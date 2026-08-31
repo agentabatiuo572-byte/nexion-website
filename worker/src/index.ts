@@ -3,9 +3,14 @@ import type { Env } from './env';
 import { auditRoutes, writeAudit } from './audit';
 import { authRoutes, requireAuth } from './auth';
 import { configRoutes } from './config';
+import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
 import { ingestRoutes } from './ingest';
+import { createLimiter } from './ratelimit';
 import { dailyJob, runDailyRollup } from './rollup';
+
+/** 404 计数节流:同采集/拦截统计同档,防扫描器把 raw_events 写爆(计数因此为下限,面板标注) */
+const notFoundLimiter = createLimiter(60_000, 120);
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -36,6 +41,10 @@ app.use('/api/geo', requireAuth);
 app.use('/api/geo/*', requireAuth);
 app.route('/api/geo', geoRoutes);
 
+// 驾驶舱(CON03):只读聚合,受保护
+app.use('/api/dash', requireAuth);
+app.route('/api/dash', dashRoutes);
+
 // 配置模型(CON04/13):草稿/校验/版本,全部受保护
 app.use('/api/config', requireAuth);
 app.use('/api/config/*', requireAuth);
@@ -62,8 +71,27 @@ app.get('/admin/*', async (c) => {
   return c.env.ASSETS.fetch(new Request(new URL('/admin/index.html', c.req.url)));
 });
 
-// 静态产物兜底(T3;区域屏蔽中间件 T15 将插在一切之前)
-app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
+// 静态产物兜底(T3;区域屏蔽中间件 T15 已插在一切之前)
+// 404 命中计数(CON03-③ 质量卡):服务端侧记,比页内埋点准(无 JS/爬虫的 404 也算);按 IP 节流
+app.all('*', async (c) => {
+  const res = await c.env.ASSETS.fetch(c.req.raw);
+  if (res.status === 404 && (c.req.header('accept') ?? '').includes('text/html')) {
+    const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+    if (!notFoundLimiter.hit(ip)) {
+      const log = c.env.DB.prepare('INSERT INTO raw_events (ts, type, uid, payload) VALUES (?1, ?2, NULL, ?3)')
+        .bind(Date.now(), 'e404', JSON.stringify({ t: 'e404', path: new URL(c.req.url).pathname.slice(0, 200) }))
+        .run()
+        .then(() => {})
+        .catch(() => {});
+      try {
+        c.executionCtx.waitUntil(log);
+      } catch {
+        await log;
+      }
+    }
+  }
+  return res;
+});
 
 const worker = {
   fetch: app.fetch,

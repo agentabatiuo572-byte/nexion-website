@@ -43,6 +43,8 @@ export async function runDailyRollup(db: D1Database, day: string): Promise<void>
   const learn = new Map<string, number>();
   const errs = new Map<string, number>();
   const blocked = new Map<string, number>();
+  const page = new Map<string, { pv: number; uv: Set<string> }>(); // key: path|locale(CON03 页面榜)
+  const notfound = new Map<string, number>(); // 404 命中(服务端计数,CON03 质量卡)
   const lcps: number[] = [];
   const clss: number[] = [];
   let vitN = 0;
@@ -73,6 +75,13 @@ export async function runDailyRollup(db: D1Database, day: string): Promise<void>
         lastTsByUid.set(uid, r.ts);
         const m = /^(?:\/(?:vi|zh))?\/learn\/([^/]+)\/?$/.exec(String(p.path ?? ''));
         if (m) learn.set(m[1]!, (learn.get(m[1]!) ?? 0) + 1);
+        {
+          const pk = `${String(p.path ?? '/')}|${String(p.loc ?? 'en')}`;
+          let pg = page.get(pk);
+          if (!pg) page.set(pk, (pg = { pv: 0, uv: new Set() }));
+          pg.pv++;
+          pg.uv.add(uid);
+        }
         break;
       }
       case 'sec': {
@@ -107,15 +116,23 @@ export async function runDailyRollup(db: D1Database, day: string): Promise<void>
       case 'blocked':
         blocked.set(String(p.c ?? 'XX'), (blocked.get(String(p.c ?? 'XX')) ?? 0) + 1);
         break;
+      case 'e404':
+        notfound.set(String(p.path ?? '/'), (notfound.get(String(p.path ?? '/')) ?? 0) + 1);
+        break;
     }
   }
 
   // ---- 幂等写入:该日先删后插,单个 batch 原子提交 ----
   const stmts: D1PreparedStatement[] = [
-    ...['daily_traffic', 'daily_cta', 'daily_section', 'daily_faq', 'daily_learn', 'daily_vitals', 'daily_errors', 'daily_blocked', 'daily_bot'].map(
+    ...['daily_traffic', 'daily_cta', 'daily_section', 'daily_faq', 'daily_learn', 'daily_vitals', 'daily_errors', 'daily_blocked', 'daily_bot', 'daily_page', 'daily_notfound'].map(
       (t) => db.prepare(`DELETE FROM ${t} WHERE date = ?1`).bind(day),
     ),
   ];
+  for (const [key, v] of page) {
+    const [pth, loc] = key.split('|');
+    stmts.push(db.prepare('INSERT INTO daily_page (date, path, locale, pv, uv) VALUES (?1,?2,?3,?4,?5)').bind(day, pth, loc, v.pv, v.uv.size));
+  }
+  for (const [pth, n] of notfound) stmts.push(db.prepare('INSERT INTO daily_notfound (date, path, hits) VALUES (?1,?2,?3)').bind(day, pth, n));
   for (const [key, v] of traffic) {
     const [loc, country, devC, ref] = key.split('|');
     stmts.push(

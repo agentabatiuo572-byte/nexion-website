@@ -7,6 +7,7 @@ import AuditPage from './pages/audit';
 import Login from './pages/login';
 import Setup from './pages/setup';
 import AnnouncementPage from './pages/announcement';
+import Dashboard from './pages/dashboard';
 import ContentPage from './pages/content';
 import DownloadsPage from './pages/downloads';
 import FaqPage from './pages/faq';
@@ -15,7 +16,7 @@ import SeoPage from './pages/seo';
 import SkusPage from './pages/skus';
 import StatsPage from './pages/stats';
 import GeoPage from './pages/geo';
-import { DashboardStub, PublishStub } from './pages/stubs';
+import { PublishStub } from './pages/stubs';
 
 const router = createBrowserRouter(
   [
@@ -25,7 +26,7 @@ const router = createBrowserRouter(
       path: '/',
       element: <Shell />,
       children: [
-        { index: true, element: <DashboardStub /> },
+        { index: true, element: <Dashboard /> },
         { path: 'content', element: <ContentPage /> },
         { path: 'content/downloads', element: <DownloadsPage /> },
         { path: 'content/stats', element: <StatsPage /> },
