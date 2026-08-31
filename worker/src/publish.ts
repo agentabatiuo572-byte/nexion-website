@@ -194,10 +194,23 @@ publishRoutes.post('/step', async (c) => {
   return c.json({ ok: true });
 });
 
-/** 版本列表 + 当前发布进度(UI 轮询用) */
+/** 版本列表 + 当前发布进度(UI 轮询用)。
+    🔴 读时自愈:锁已过期(或根本没锁)却还挂在 validating/publishing 的版本,一律标 failed——
+    否则执行器中途死掉后,界面会一直显示「正在发布」直到下一次有人发起发布才被顺手清理,
+    那是「看起来在跑、其实早死了」的假状态(实测:执行器被开发服务器重启掐断后即如此)。 */
 publishRoutes.get('/status', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
-  const active = lock && lock.expires_at > Date.now() ? lock.version_id : null;
+  const now = Date.now();
+  const active = lock && lock.expires_at > now ? lock.version_id : null;
+  await c.env.DB
+    .prepare(
+      `UPDATE config_versions SET status='failed',
+         fail_reason=COALESCE(fail_reason,'发布中断(执行器无响应或超时),线上保持旧版')
+       WHERE status IN ('validating','publishing') AND id <> COALESCE(?1, -1)`,
+    )
+    .bind(active)
+    .run();
+  if (!active && lock) await releaseLock(c.env); // 顺手清掉过期锁
   const steps = active
     ? (await c.env.DB.prepare('SELECT step, status, detail, started_at, ended_at FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(active).all()).results
     : [];

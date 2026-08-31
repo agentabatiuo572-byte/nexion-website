@@ -67,6 +67,17 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   for (const [path, text] of allProse(c))
     for (const h of scan(text)) errors.push({ path, rule: 'forbidden-word', message: `合规拦截 [${h.label}]:「${h.match}」` });
 
+  /* 2b) 编码损坏字符 U+FFFD(2026-09-01 实景发布中实测:一段中文经不当编码的通道传入后,
+     「手机」变成「手<?>」——产品老实存下并物化,肉眼极难发现,上线即公开页面乱码。
+     替换字符在正常文案里没有任何合法用途,见到即拒。这也保护「从别处复制粘贴」的场景。 */
+  for (const [path, text] of allProse(c)) {
+    const i = text.indexOf('�');
+    if (i >= 0) {
+      const ctx = text.slice(Math.max(0, i - 8), i + 8);
+      errors.push({ path, rule: 'encoding-damage', message: `文本含编码损坏字符(位置 ${i} 附近:「${ctx}」)——多半是复制粘贴或传输时编码出错,请重新输入这段文字` });
+    }
+  }
+
   // 3) 占位符守恒 + 换行结构软警(CON04-E2)
   for (const k of manifest.editable) {
     const en = c.copy.en[k] ?? '';

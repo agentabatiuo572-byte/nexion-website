@@ -168,6 +168,36 @@ describe('CON13 发布流水线', () => {
     expect(spoof.status).toBe(409);
   });
 
+  it('状态读时自愈:执行器死掉后「发布中」不会永远挂着(实景实测的假状态)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    // 模拟执行器猝死:锁过期,版本仍挂 publishing
+    await env.DB.prepare('UPDATE publish_lock SET expires_at = ?1').bind(Date.now() - 1000).run();
+    const st = await status(cookie);
+    expect(st.activeVersion).toBeNull();
+    const v = (st.versions as Array<{ id: number; status: string; fail_reason: string }>).find((x) => x.id === r.versionId)!;
+    expect(v.status).toBe('failed'); // 不再显示「发布中」
+    expect(v.fail_reason).toContain('中断');
+    expect(await env.DB.prepare('SELECT COUNT(*) c FROM publish_lock').first<{ c: number }>()).toMatchObject({ c: 0 }); // 过期锁已清
+    // 自愈后可以直接重新发布(不需要人工清理)
+    expect((await post(cookie, '/api/publish')).status).toBe(200);
+  });
+
+  it('编码损坏字符入前置校验:U+FFFD 被拒(实景发布中挖出的缺口)', async () => {
+    const cookie = await login();
+    const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;
+    const p = structuredClone(o.draft.payload);
+    p.copy.zh['hero.scrollHint'] = '连接手�闲置算力'; // 「手机」被编码损坏后的形态
+    await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
+    const pre = (await (await app.request('/api/publish/preflight', { headers: { cookie } }, env)).json()) as any;
+    expect(pre.ready).toBe(false);
+    expect(pre.errors.some((e: any) => e.rule === 'encoding-damage' && e.path.includes('hero.scrollHint'))).toBe(true);
+    expect((await post(cookie, '/api/publish')).status).toBe(409); // 不进流水线
+  });
+
   it('高敏改动须理由(下载 URL);非高敏不须', async () => {
     const cookie = await login();
     const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;

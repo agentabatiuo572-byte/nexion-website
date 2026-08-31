@@ -20,10 +20,18 @@ const COOKIE = arg('--cookie', '');
 const ONCE = process.argv.includes('--once');
 const POLL_MS = 3000;
 
-const api = async (p, init = {}) => {
-  const res = await fetch(`${API}${p}`, { ...init, headers: { 'content-type': 'application/json', cookie: COOKIE, ...(init.headers ?? {}) } });
-  if (!res.ok && res.status !== 409) throw new Error(`${p} → ${res.status}`);
-  return res.json();
+/* 网络抖动重试:质检门里的生产构建会重写 dist,而 wrangler dev 监视该目录 → 自动重启 →
+   正在写的连接被掐断(实测 ECONNABORTED)。回报不能因此丢失,否则版本卡在「发布中」。 */
+const api = async (p, init = {}, attempt = 1) => {
+  try {
+    const res = await fetch(`${API}${p}`, { ...init, headers: { 'content-type': 'application/json', cookie: COOKIE, ...(init.headers ?? {}) } });
+    if (!res.ok && res.status !== 409) throw new Error(`${p} → ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    if (attempt >= 5) throw e;
+    await new Promise((r) => setTimeout(r, 1000 * attempt));
+    return api(p, init, attempt + 1);
+  }
 };
 const report = (versionId, step, status, extra = {}) => api('/api/publish/step', { method: 'POST', body: JSON.stringify({ versionId, step, status, ...extra }) });
 
