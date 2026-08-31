@@ -1,7 +1,9 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
-import { auditRoutes } from './audit';
+import { auditRoutes, writeAudit } from './audit';
 import { authRoutes, requireAuth } from './auth';
+import { ingestRoutes } from './ingest';
+import { dailyJob, runDailyRollup } from './rollup';
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -20,6 +22,18 @@ app.use('/api/audit', requireAuth);
 app.use('/api/audit/*', requireAuth);
 app.route('/api/audit', auditRoutes);
 
+// 匿名埋点采集(CON15):公开端点,限速+schema 校验在内
+app.route('/api/e', ingestRoutes);
+
+// 手动汇总/回填(运维面,审计留痕;日常由 cron 驱动)
+app.post('/api/admin/rollup', requireAuth, async (c) => {
+  const body = await c.req.json<{ date?: string }>().catch(() => null);
+  if (!body?.date || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) return c.json({ error: 'bad-date' }, 400);
+  await runDailyRollup(c.env.DB, body.date);
+  await writeAudit(c.env.DB, { action: 'admin.rollup', target: body.date });
+  return c.json({ ok: true });
+});
+
 // API 界域封口:未知 /api/* 返回 JSON 404,绝不落到静态层吐 HTML
 app.all('/api/*', (c) => c.json({ error: 'not-found' }, 404));
 
@@ -28,8 +42,10 @@ app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 
 const worker = {
   fetch: app.fetch,
-  // 每日 00:10 UTC:日汇总 + 原始事件 90 天滚动清理(T6 实现;骨架期占位防 cron 报错)
-  async scheduled(_event: ScheduledController, _env: Env, _ctx: ExecutionContext) {},
+  // 每日 00:10 UTC:汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext) {
+    ctx.waitUntil(dailyJob(env));
+  },
 } satisfies ExportedHandler<Env>;
 
 export default worker;

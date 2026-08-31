@@ -7,6 +7,7 @@ export const AUDIT_ACTIONS = [
   'login.success',
   'login.fail',
   'auth.logout',
+  'admin.rollup',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];
 
