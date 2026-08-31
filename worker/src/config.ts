@@ -4,6 +4,7 @@ import seedJson from '../seed/site-config.seed.json';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
 import { writeAudit } from './audit';
+import { loadRules } from './geo';
 
 /* 配置模型(CON04-A1/E3 + CON13-③ 版本表底座)。
    编辑面永不直写线上:一切上新只经发布流水线(T21);此处只有 草稿/校验/版本读。 */
@@ -48,9 +49,12 @@ configRoutes.get('/', async (c) => {
   const [draft, live] = await Promise.all([getDraft(c.env.DB), getLive(c.env.DB)]);
   const livePayload = JSON.parse(live!.payload) as SiteConfig;
   const changed = diffPaths(livePayload, JSON.parse(draft.payload));
+  // CON02-③ geoEnabled:壳状态条第三 chip 的只读数据源(包④ 挂账「待 CON12 接真」,T17 交付后此处关账)
+  const geo = await loadRules(c.env).catch(() => null);
   return c.json({
     liveVersion: live!.id,
     livePublishedAt: live!.published_at,
+    geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
     live: { payload: livePayload }, // 编辑器「查看线上值/行级撤销」的对照源(CON04-⑥)
     draft: { payload: JSON.parse(draft.payload) as SiteConfig, draftRev: draft.draft_rev, updatedAt: draft.updated_at },
     dirty: changed.length,

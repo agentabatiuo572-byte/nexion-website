@@ -90,7 +90,10 @@ export default function Shell() {
               <>
                 <span className="chip">线上 <b>v{overview.liveVersion}</b></span>
                 <span className={`chip ${overview.dirty ? 'warnc' : ''}`}>{overview.dirty ? `草稿 · ${overview.dirty} 处未发布改动` : '与线上一致'}</span>
-                <span className="chip" title="区域屏蔽规则面板随包⑦交付;此处只读展示">屏蔽 <b>—</b></span>
+                <NavLink to="/geo" className={`chip ${overview.geo?.degraded ? 'warnc' : ''}`} title="区域屏蔽(只读状态;点击进入规则面板)">
+                  屏蔽 <b>{overview.geo ? (overview.geo.enabled ? `开启 · ${overview.geo.countries} 个地区` : '未启用') : '状态未知'}</b>
+                  {overview.geo?.degraded && ' ⚠ 兜底中'}
+                </NavLink>
               </>
             ) : failed ? (
               <span className="note bad" style={{ margin: 0 }}>状态获取失败 <button className="btn ghost sm" onClick={reload}>重试</button></span>

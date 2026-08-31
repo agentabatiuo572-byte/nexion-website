@@ -28,6 +28,8 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 export interface Overview {
   liveVersion: number;
   livePublishedAt: number;
+  /** 区域屏蔽只读状态(CON02-③;来自 CON12 的 KV 规则) */
+  geo: { enabled: boolean; countries: number; degraded: boolean } | null;
   draft: { payload: Record<string, unknown>; draftRev: number; updatedAt: number };
   dirty: number;
   changedPaths: string[];

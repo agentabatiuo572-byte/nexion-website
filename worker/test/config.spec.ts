@@ -34,6 +34,16 @@ beforeEach(async () => {
 });
 
 describe('CON04/CON13 配置模型', () => {
+  it('CON02-③ 概览带 geo 只读状态(壳状态条第三 chip 的数据源;包④挂账关账)', async () => {
+    const cookie = await login();
+    const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as {
+      geo: { enabled: boolean; countries: number; degraded: boolean } | null;
+    };
+    expect(o.geo).not.toBeNull();
+    expect(typeof o.geo!.enabled).toBe('boolean');
+    expect(o.geo!.countries).toBeGreaterThan(0); // 初始态名单含 CN
+  });
+
   it('首访种子化:live v1 + 草稿 = 种子,dirty=0;未登录 401', async () => {
     expect((await app.request('/api/config', {}, env)).status).toBe(401);
     const cookie = await login();
