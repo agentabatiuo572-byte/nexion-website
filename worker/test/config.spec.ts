@@ -129,6 +129,55 @@ describe('CON04/CON13 配置模型', () => {
     expect(body.warnings.some((w) => w.rule === 'mock-anchor')).toBe(true); // R49-A2 提醒在场
   });
 
+  it('CON08-③ 服务端造 id + 回收区语义(deleted 不计可见/不拦缺译)', async () => {
+    const cookie = await login();
+    const mint = await app.request('/api/config/mint-id', { method: 'POST', headers: J(cookie), body: JSON.stringify({ kind: 'faq' }) }, env);
+    expect(mint.status).toBe(200);
+    expect(((await mint.json()) as { id: string }).id).toMatch(/^faq-[0-9a-f-]{8}$/);
+    expect((await app.request('/api/config/mint-id', { method: 'POST', headers: J(cookie), body: JSON.stringify({ kind: 'x' }) }, env)).status).toBe(400);
+    const o = await getOverview(cookie);
+    const p = structuredClone(o.draft.payload);
+    for (const it of p.faq.items.slice(0, 7)) (it as { deleted?: boolean }).deleted = true; // 剩 2 可见
+    (p.faq.items[0] as { q: { zh: string } }).q.zh = ''; // 回收区条目缺译不该被拦
+    const v = await app.request('/api/config/validate', { method: 'POST', headers: J(cookie), body: JSON.stringify({ payload: p }) }, env);
+    const body = (await v.json()) as { errors: Array<{ rule: string; path: string }> };
+    expect(body.errors.some((e) => e.rule === 'min-visible')).toBe(true);
+    expect(body.errors.some((e) => e.rule === 'untranslated' && e.path.startsWith('faq.'))).toBe(false);
+  });
+
+  it('CON09-E3 公告内容变更 server 换 id;未变则稳定', async () => {
+    const cookie = await login();
+    const o = await getOverview(cookie);
+    const p = structuredClone(o.draft.payload);
+    p.announcement.text.en = 'Maintenance window tonight';
+    await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
+    const o2 = await getOverview(cookie);
+    const id1 = o2.draft.payload.announcement.id;
+    expect(id1).toMatch(/^ann-/);
+    const p2 = structuredClone(o2.draft.payload);
+    p2.copy.en['final.title'] = 'unrelated change';
+    await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p2, baseRevision: o2.draft.draftRev }) }, env);
+    const o3 = await getOverview(cookie);
+    expect(o3.draft.payload.announcement.id).toBe(id1); // 无关改动不换 id
+  });
+
+  it('CON11-E3 Legal 保存剥危险节点并回显计数', async () => {
+    const cookie = await login();
+    const o = await getOverview(cookie);
+    const p = structuredClone(o.draft.payload);
+    p.legal.terms.md.en = '# Terms\nok<script>alert(1)</script>\n<iframe src="x"></iframe>\n<a href="/x" onclick="evil()">link</a>';
+    const res = await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
+    const body = (await res.json()) as { sanitized: number };
+    expect(res.status).toBe(200);
+    expect(body.sanitized).toBeGreaterThan(0);
+    const o2 = await getOverview(cookie);
+    const md = o2.draft.payload.legal.terms.md.en;
+    expect(md).not.toContain('<script');
+    expect(md).not.toContain('<iframe');
+    expect(md).not.toContain('onclick');
+    expect(md).toContain('# Terms');
+  });
+
   it('版本列表可读;编辑面无直写线上路由', async () => {
     const cookie = await login();
     await getOverview(cookie);

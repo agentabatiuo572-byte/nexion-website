@@ -25,11 +25,13 @@ const tokensOf = (s: string) => new Set(s.match(PLACEHOLDER_RE) ?? []);
 /** 遍历配置里全部「会上站的人写文本」:文案树 + faq + sku 标语 + 公告 + seo + legal */
 function* allProse(c: SiteConfig): Generator<[string, string]> {
   for (const loc of LOCALES) for (const [k, v] of Object.entries(c.copy[loc])) yield [`copy.${loc}.${k}`, v];
-  for (const it of c.faq.items)
+  for (const it of c.faq.items) {
+    if (it.deleted) continue;
     for (const loc of LOCALES) {
       yield [`faq.${it.id}.q.${loc}`, it.q[loc]];
       yield [`faq.${it.id}.a.${loc}`, it.a[loc]];
     }
+  }
   for (const s of c.skus) for (const loc of LOCALES) yield [`skus.${s.id}.tagline.${loc}`, s.tagline[loc]];
   for (const loc of LOCALES) yield [`announcement.text.${loc}`, c.announcement.text[loc]];
   for (const [pid, p] of Object.entries(c.seo.pages))
@@ -81,11 +83,13 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   // 4) 三语 parity/缺译(CON04-E4:发布级)
   for (const k of manifest.editable)
     for (const loc of LOCALES) if (!(c.copy[loc][k] ?? '').trim()) errors.push({ path: `copy.${loc}.${k}`, rule: 'untranslated', message: '缺译' });
-  for (const it of c.faq.items)
+  for (const it of c.faq.items) {
+    if (it.deleted) continue; // 回收区条目不参与缺译/禁用词的发布拦(物化不含它)
     for (const loc of LOCALES) {
       if (!it.q[loc].trim()) errors.push({ path: `faq.${it.id}.q.${loc}`, rule: 'untranslated', message: '缺译' });
       if (!it.a[loc].trim()) errors.push({ path: `faq.${it.id}.a.${loc}`, rule: 'untranslated', message: '缺译' });
     }
+  }
   for (const s of c.skus)
     for (const loc of LOCALES) if (!s.tagline[loc].trim()) errors.push({ path: `skus.${s.id}.tagline.${loc}`, rule: 'untranslated', message: '缺译' });
 
@@ -102,7 +106,7 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
 
   // 7) 产品卡(CON07-E2)与 FAQ 门槛(CON08-E1)
   if (!c.skus.some((s) => s.visible)) errors.push({ path: 'skus', rule: 'all-hidden', message: '设备板块不可为空(至少 1 个可见)' });
-  if (c.faq.items.filter((i) => i.visible).length < 3) errors.push({ path: 'faq', rule: 'min-visible', message: 'FAQ 可见条目须 ≥3' });
+  if (c.faq.items.filter((i) => i.visible && !i.deleted).length < 3) errors.push({ path: 'faq', rule: 'min-visible', message: 'FAQ 可见条目须 ≥3(回收区不计)' });
   const ids = new Set<string>();
   for (const it of c.faq.items) {
     if (ids.has(it.id)) errors.push({ path: `faq.${it.id}`, rule: 'dup-id', message: 'FAQ id 重复' });

@@ -36,21 +36,6 @@ export function DashboardStub() {
   );
 }
 
-export const SkusStub = () => (
-  <Stub title="产品卡" con="FEAT-CON07" pkg="包⑥" desc="设备阶梯卡片的三语标语/排序/显隐;产品事实字段高敏。界面在包⑥交付。" />
-);
-export const FaqStub = () => (
-  <Stub title="FAQ" con="FEAT-CON08" pkg="包⑥" desc="FAQ 条目增删改排(至少保留 3 条可见),发布后站上问答与结构化数据自动跟随。界面在包⑥交付。" />
-);
-export const AnnouncementStub = () => (
-  <Stub title="公告条" con="FEAT-CON09" pkg="包⑥" desc="站顶限时公告:三语文案+链接+起止时间,到点自动下线。界面在包⑥交付。" />
-);
-export const SeoStub = () => (
-  <Stub title="SEO 与页脚" con="FEAT-CON10" pkg="包⑥" desc="6 页 title/description 三语与页脚社媒/联系邮箱。校验器已发现现网 6 条超长(包⑤⑥上线后此处可改)。" />
-);
-export const LegalStub = () => (
-  <Stub title="Legal" con="FEAT-CON11" pkg="包⑥" desc="条款/隐私/App 隐私三份法务文本(Markdown 粘贴+预览;高敏发布)。界面在包⑥交付。" />
-);
 export const GeoStub = () => (
   <Stub title="区域屏蔽" con="FEAT-CON12" pkg="包⑦" desc="按国家屏蔽访问(默认仅中国大陆,港澳台不连带)+ 拦截统计;自锁保护(后台不受屏蔽+管理员直通)。整包在包⑦交付。" />
 );

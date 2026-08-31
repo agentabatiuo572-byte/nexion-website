@@ -72,6 +72,28 @@ configRoutes.put('/draft', async (c) => {
   // 禁用词/缺译仍为草稿可存、发布拦(E1/E4 的分层设计不变)
   const placeholderErrs = validateConfig(parsed.data, MANIFEST).errors.filter((e) => e.rule === 'placeholder');
   if (placeholderErrs.length) return c.json({ error: 'placeholder', issues: placeholderErrs.slice(0, 10) }, 400);
+  const prev = JSON.parse(cur.payload) as SiteConfig;
+  // CON09-E3:公告内容(文案/链接)变更 → server 换 id(访客关闭记忆按 id 记,新公告重新展示)
+  const a = parsed.data.announcement;
+  const pa = prev.announcement;
+  if (JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
+    a.id = `ann-${crypto.randomUUID().slice(0, 8)}`;
+  }
+  // CON11-E3:Legal markdown 剥离危险节点(白名单外的可执行面),剥离计数回显给 UI 提示
+  let sanitized = 0;
+  for (const doc of ['terms', 'privacy', 'appPrivacy'] as const) {
+    for (const loc of ['en', 'vi', 'zh'] as const) {
+      const before = parsed.data.legal[doc].md[loc];
+      const after = before
+        .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
+        .replace(/<iframe[\s\S]*?(?:<\/iframe\s*>|\/>)/gi, '')
+        .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+      if (after !== before) {
+        parsed.data.legal[doc].md[loc] = after;
+        sanitized++;
+      }
+    }
+  }
   const now = Date.now();
   const changed = diffPaths(JSON.parse(cur.payload), parsed.data);
   await c.env.DB
@@ -83,7 +105,14 @@ configRoutes.put('/draft', async (c) => {
     target: 'draft',
     after: `${changed.length} 处改动:${changed.slice(0, 5).join(', ')}${changed.length > 5 ? ' …' : ''}`,
   });
-  return c.json({ ok: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length });
+  return c.json({ ok: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length, sanitized });
+});
+
+/** 服务端造 id(CON08-③:禁客户端造)。kind 封闭枚举,新集合类字段接入时扩 */
+configRoutes.post('/mint-id', async (c) => {
+  const body = await c.req.json<{ kind?: string }>().catch(() => null);
+  if (body?.kind !== 'faq') return c.json({ error: 'bad-kind' }, 400);
+  return c.json({ id: `faq-${crypto.randomUUID().slice(0, 8)}` });
 });
 
 /** 发布前置校验(CON13-E1 的数据源;也供各模块「保存时即时校验」共用) */

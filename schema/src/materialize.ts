@@ -11,7 +11,7 @@ export function serialize(obj: unknown): string {
 }
 
 function visibleFaq(c: SiteConfig) {
-  return c.faq.items.filter((i) => i.visible).sort((a, b) => a.sort - b.sort);
+  return c.faq.items.filter((i) => i.visible && !i.deleted).sort((a, b) => a.sort - b.sort);
 }
 
 /** 单语言 i18n JSON 物化 */

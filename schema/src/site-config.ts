@@ -29,6 +29,8 @@ export const FaqItem = z.object({
   a: L(z.string().max(2000)),
   sort: z.number().int(),
   visible: z.boolean(),
+  /** 回收区(CON08-④/E3):草稿态可恢复;物化/发布不含;发布流水线在出版时物理剪除 */
+  deleted: z.boolean().optional(),
 });
 
 export const SEO_PAGE_IDS = ['home', 'learn', 'nex', 'legal-privacy', 'legal-terms', 'legal-app-privacy'] as const;
