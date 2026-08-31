@@ -21,7 +21,7 @@
     "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
     "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
     "scrollHint": "Xem mạng lưới",
-    "note": "Thiết bị nhàn rỗi của bạn chạy tác vụ AI. Bạn được trả bằng USDT.",
+    "note": "Thiết bị nhàn rỗi của bạn chạy tác vụ AI.\nBạn được trả bằng USDT.",
     "subtitle2": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao\nvà giải pháp lưu trữ đám mây GPU.",
     "note2": "Bắt đầu miễn phí với chiếc điện thoại bạn đang có."
   },
@@ -212,7 +212,7 @@
     "q6": "Rút tiền thế nào?",
     "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước.",
     "q7": "Có làm hao pin hay nóng máy không?",
-    "a7": "Không — tác vụ được lên lịch theo mức pin và nhiệt độ: thiết bị đang cắm sạc và mát sẽ nhận nhiều việc hơn. Bạn có thể tắt tính năng này bất cứ lúc nào trong ứng dụng.",
+    "a7": "Luôn trong tầm kiểm soát — tác vụ được lên lịch theo mức pin và nhiệt độ: thiết bị đang cắm sạc và mát sẽ nhận nhiều việc hơn. Bạn có thể tắt tính năng này bất cứ lúc nào trong ứng dụng.",
     "q8": "NexGrid dùng được ở những quốc gia nào?",
     "a8": "Phạm vi khả dụng do luồng đăng ký trong ứng dụng quyết định — đó là bước kiểm tra chính thức cho khu vực của bạn.",
     "q9": "Có mất phí gì không?",

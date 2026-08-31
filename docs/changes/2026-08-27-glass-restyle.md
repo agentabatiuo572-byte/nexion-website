@@ -1,6 +1,6 @@
 # R48 · 玻璃改版:首屏段换皮 + 「工作原理→页底」重构
 
-Status: **Aligned**(主人 2026-08-27 逐项拍板后「定稿开工」;设计画布 https://claude.ai/code/artifact/869c7df8-8d65-431d-a806-3f0775f63efd)
+Status: **Shipped**(2026-08-31 收线;R48 全系 T1-T15+追加令均已落地合审。原拍板:主人 2026-08-27 逐项拍板后「定稿开工」;设计画布 https://claude.ai/code/artifact/869c7df8-8d65-431d-a806-3f0775f63efd)
 Branch: `restyle/glass`(基 `eb3b326`)
 
 ## Why

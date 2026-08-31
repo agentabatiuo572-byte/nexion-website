@@ -181,9 +181,13 @@ const order = [
     color: var(--x-ink-cap);
     text-wrap: pretty;
     line-height: 1.45;
+    /* 量宽上限(R49 收线 D2):s12 卡曾 1290px≈179 字符/行,s7 卡 ≈100 字符/行——
+       全大写 12px mono 超舒适带一倍以上;封 640(≈89ch),zh 3 字孤行随之消失。 */
+    max-width: calc(640 * var(--uc));
   }
   .card p:lang(zh) {
     line-height: 1.6; /* 全站 CJK 行高不变量 */
+    text-wrap: balance; /* CJK 短段孤行控制:pretty 对 CJK 几乎不管孤行(R49 收线 D1) */
   }
   /* R49b 核验行:官方外链(复制按钮已按主人令撤除) */
   .vrow {
@@ -257,10 +261,6 @@ const order = [
     border: 0;
     padding: 0 calc(16 * var(--uc)) calc(16 * var(--uc));
     background: var(--x-light);
-    /* R49 修门:高度预算从「写死关闭行 100」改 160(关闭行 + 新增「查看原件」行 + 内衬),
-       且下方转竖向弹性 + 图 min-height:0 收缩——预算再有残差只 letterbox 不溢出(门判据 E 的修法)。 */
-    display: flex;
-    flex-direction: column;
     /* 第三项(按高度反推宽)在极矮视口会塌穿弹层自身构件宽(1920×360 实测横溢 19px)——
        给 240 下限:装得下关闭行与原件行;纵向富余交给图的 min-height:0 收缩(letterbox 不溢出)。 */
     width: min(
@@ -271,6 +271,13 @@ const order = [
     max-width: min(calc(96vw / var(--x-zoom)), calc(760 * var(--uc))); /* 画布内须换算,否则被二次放大 */
     max-height: calc(94vh / var(--x-zoom));
     overscroll-behavior: contain; /* 灯箱滚到端点不串联滚后面的页面 */
+  }
+  /* 竖向弹性只挂打开态(R49 修门的高度预算 160 机制不变)。
+     ⚠️ 禁写回基类:dialog 关闭态靠 UA 的 display:none 藏身,基类 display 会把它顶掉——
+     弹层从首帧起常驻可见、吞信任区点击(R49 收线 P0,两路独立审计同时抓到)。 */
+  .cert-zoom[open] {
+    display: flex;
+    flex-direction: column;
   }
   .cert-zoom::backdrop {
     background: rgb(var(--x-bg-rgb) / 0.82);
@@ -382,8 +389,6 @@ const order = [
   /* 手机端灯箱:R46 竖向 flex 收缩方案原样 */
   @media (max-width: 860px) {
     .cert-zoom {
-      display: flex;
-      flex-direction: column;
       width: 100vw;
       max-width: 100vw;
       max-height: 100dvh;
@@ -407,4 +412,20 @@ const order = [
 </style>
 
 <script>
+  /* PoC 意图到达自动展开(WEB07):点站内 #poc 链 / 带 #poc 直达 → details 自动打开。
+     (此脚本曾被批量替换写成空壳,黑盒审计以「只滚不开」抓回——R49 收线 P1。) */
+  const poc = document.getElementById('poc') as HTMLDetailsElement | null;
+  if (poc) {
+    const openPoc = () => {
+      poc.open = true;
+    };
+    if (location.hash === '#poc') openPoc();
+    window.addEventListener('hashchange', () => {
+      if (location.hash === '#poc') openPoc();
+    });
+    document.addEventListener('click', (e) => {
+      const hit = e.target instanceof Element && e.target.closest('a[href$="#poc"]');
+      if (hit) openPoc();
+    });
+  }
 </script>

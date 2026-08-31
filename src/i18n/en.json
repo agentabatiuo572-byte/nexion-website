@@ -21,7 +21,7 @@
     "title": "NexGrid\nLet compute flow",
     "subtitle": "The world's leading provider of distributed computing power sharing services.",
     "scrollHint": "See the network",
-    "note": "Your idle devices run AI tasks. You get paid in USDT.",
+    "note": "Your idle devices run AI tasks.\nYou get paid in USDT.",
     "subtitle2": "Offering you high-performance computing services\nand GPU cloud hosting solutions.",
     "note2": "Free to start with the phone you already own."
   },
@@ -212,7 +212,7 @@
     "q6": "How do withdrawals work?",
     "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step.",
     "q7": "Will it drain my battery or overheat my phone?",
-    "a7": "No — work is scheduled to respect battery and heat, so plugged-in, cool devices do more. You can turn phone compute off anytime in the app.",
+    "a7": "It's managed — work is scheduled to respect battery and heat, so plugged-in, cool devices do more. You can turn phone compute off anytime in the app.",
     "q8": "Which countries is NexGrid available in?",
     "a8": "The sign-up flow in the app decides availability — it is the authoritative check for your region.",
     "q9": "Are there any fees?",

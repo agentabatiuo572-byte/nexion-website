@@ -146,6 +146,7 @@ const ks = [0.057, 0.099, 0.138];
   }
   .stack .body:lang(zh) {
     line-height: 1.6; /* 全站 CJK 行高不变量 */
+    text-wrap: balance; /* CJK 短段孤行控制(R49 收线 D1:step2 曾 355px 整行下吊 3 字孤行) */
   }
   .vlink {
     color: var(--x-ink);
@@ -154,9 +155,10 @@ const ks = [0.057, 0.099, 0.138];
     display: block;
     width: fit-content;
     position: relative;
-    /* 44 命中盒:行高 1.45 行盒 17.4,内衬 (44−17.4)/2=13.3;负外边距抵消占位(版面零变化) */
+    /* 44 命中盒:行高 1.45 行盒 17.4,内衬 (44−17.4)/2=13.3;负外边距与内衬同量对称抵消,
+       墨位与总高双零漂(R49 收线 D3:旧 -6/-20.6 只守总高,墨整体下沉 7.3px 顶破段内节奏)。 */
     padding: calc(13.3 * var(--uc)) 0;
-    margin: calc(-6 * var(--uc)) 0 calc(-20.6 * var(--uc));
+    margin: calc(-13.3 * var(--uc)) 0;
     transition: opacity 0.2s;
   }
   .vlink:hover {

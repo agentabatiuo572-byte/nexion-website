@@ -110,7 +110,7 @@ const TOPIC_ICON = { start: 'edu', earn: 'coin-bolt', devices: 'mech', wallet: '
   .topic {
     color: var(--x-ink-dim);
     font-size: max(11px, calc(12 * var(--u))); /* 几何门可读地板 11px(10.5 曾 6 档全红) */
-    letter-spacing: 0.04em;
+    /* 字距不加正值:tokens 排版尺明文「字距无正值」,uppercase+dim 色差已足够立住(R49 收线 D7) */
     text-transform: uppercase;
   }
   .idx {
