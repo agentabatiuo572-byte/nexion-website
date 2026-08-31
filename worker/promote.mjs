@@ -140,7 +140,21 @@ function writeStamp(dir) {
     parts.push(`${rel}\0${readFileSync(p, 'utf8')}`);
   }
   const configSha = createHash('sha256').update(parts.join('\0'), 'utf8').digest('hex');
-  const body = JSON.stringify({ versionId, stamp: stampToken, configSha, at: new Date().toISOString() }) + '\n';
+
+  /* 锚点指纹:记下快照里几个关键文件**搬运那一刻**的内容摘要。
+     🔴 为什么需要(2026-09-01 第五轮 P1-4):此前印记只带版本号,于是「有人直接改了线上快照」
+     这件事完全报不出来——劈叉自查比的是版本号,而版本号没变。
+     服务端读得到自己伺服的内容,所以它能拿这几个摘要**回核实物**。
+     ⚠️ 明确边界:这是**抽查**不是全量——只覆盖下面列出的锚点文件,
+     动了别的资产仍然看不见。全量核验要求服务端遍历整个快照,代价与收益不成比例;
+     锚点选的是「改了就一定影响访客看到什么」的那几个。 */
+  const anchors = {};
+  for (const rel of ['index.html', '404.html', 'admin/index.html']) {
+    const p = path.join(dir, rel);
+    if (existsSync(p)) anchors[`/${rel}`] = createHash('sha256').update(readFileSync(p)).digest('hex');
+  }
+
+  const body = JSON.stringify({ versionId, stamp: stampToken, configSha, anchors, at: new Date().toISOString() }) + '\n';
   writeFileSync(path.join(dir, STAMP), body);
   return versionId;
 }

@@ -481,6 +481,80 @@ describe('CON13 发布流水线', () => {
     expect(live!.id, '线上仍是甲').toBe(r1.versionId);
   });
 
+
+  it('🔴 P1-4 线上快照被直接改动 → 标 live 前必须拒,且劈叉自查要报出来', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '锚点核验用改动');
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
+    const sha = await shaOfVersion(r.versionId);
+
+    /* 替身扮演「印记说这个文件该是 A,而实物是 B」——即有人绕过发布流程直接改了线上文件。
+       印记本身的版本号、口令、配置摘要**全都对**,只有实物对不上。 */
+    const tampered = {
+      ...env,
+      ASSETS: {
+        fetch: async (req: Request) => {
+          const path = new URL(req.url).pathname;
+          if (path === '/.publish-stamp.json') {
+            return new Response(
+              JSON.stringify({ versionId: r.versionId, stamp: job.stamp, configSha: sha, anchors: { '/index.html': 'a'.repeat(64) } }),
+              { status: 200 },
+            );
+          }
+          return new Response('被改过的内容', { status: 200 }); // 摘要必然不等于 'aaaa…'
+        },
+      },
+    };
+
+    for (const step of ['materialize', 'gates', 'build']) {
+      await postAs(tampered, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+      await postAs(tampered, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' });
+    }
+    await postAs(tampered, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
+    const res = await postAs(tampered, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(res.status, '实物与印记不符时不许上线').toBe(409);
+    expect(((await res.json()) as { why?: string }).why).toContain('已被改动过');
+  });
+
+  it('🔴 P1-4 版本号对得上但内容被改 → 劈叉自查要点名是哪些文件', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '锚点劈叉用改动');
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await runPipeline(cookie, r.versionId); // 正常上线
+
+    const okAnchor = await (async () => {
+      const body = '一致的内容';
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body));
+      return { body, sha: Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('') };
+    })();
+
+    const mk = (anchorSha: string) => ({
+      ...env,
+      ASSETS: {
+        fetch: async (req: Request) => {
+          const path = new URL(req.url).pathname;
+          if (path === '/.publish-stamp.json') {
+            return new Response(JSON.stringify({ versionId: r.versionId, stamp: 'x', anchors: { '/index.html': anchorSha } }), { status: 200 });
+          }
+          return new Response(okAnchor.body, { status: 200 });
+        },
+      },
+    });
+
+    const clean = (await (await app.request('/api/publish/status', { headers: { cookie } }, mk(okAnchor.sha) as unknown as typeof env)).json()) as {
+      drift: unknown;
+    };
+    expect(clean.drift, '实物与印记一致时不该报警').toBeNull();
+
+    const dirty = (await (await app.request('/api/publish/status', { headers: { cookie } }, mk('b'.repeat(64)) as unknown as typeof env)).json()) as {
+      drift: { dbLive: number; tampered?: string[] } | null;
+    };
+    expect(dirty.drift, '实物被改过必须报出来').not.toBeNull();
+    expect(dirty.drift!.tampered).toContain('/index.html');
+    expect(dirty.drift!.dbLive).toBe(r.versionId);
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

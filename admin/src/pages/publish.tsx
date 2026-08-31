@@ -15,8 +15,8 @@ interface StepRow { step: string; status: string; detail: string | null; started
 interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }
 interface Status {
   activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[];
-  /** 线上快照实际是哪一版 ≠ 系统记录的线上版本(切换已落盘、回报没送到时会这样) */
-  drift: { dbLive: number; snapshot: number | null } | null;
+  /** 线上快照对不上:版本号不符,或版本号对但内容被直接改过(tampered 列出对不上的文件) */
+  drift: { dbLive: number; snapshot: number | null; tampered?: string[] } | null;
 }
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
@@ -176,11 +176,21 @@ export default function PublishPage() {
       {st.drift && (
         <div className="note bad">
           <b>线上内容与系统记录对不上</b>
-          <div className="kv">
-            系统记录的线上版本是 v{st.drift.dbLive},而线上实际伺服的快照
-            {st.drift.snapshot ? `来自 v${st.drift.snapshot}` : '没有上线标记(可能是首次部署,或被手工替换过)'}。
-            多半是上一次发布的切换已经落盘、但回报没送达。
-          </div>
+          {st.drift.tampered?.length ? (
+            <div className="kv">
+              版本号对得上(v{st.drift.dbLive}),但线上这些文件的内容**与发布那一刻不一样**了:
+              <span className="mono"> {st.drift.tampered.join('、')}</span>。
+              说明有人绕过发布流程直接改了线上文件。请重新发布一次把线上恢复成系统记录的版本。
+              <br />
+              (这是抽查:只核对了几个关键文件,其它资产不在核查范围内。)
+            </div>
+          ) : (
+            <div className="kv">
+              系统记录的线上版本是 v{st.drift.dbLive},而线上实际伺服的快照
+              {st.drift.snapshot ? `来自 v${st.drift.snapshot}` : '没有上线标记(可能是首次部署,或被手工替换过)'}。
+              多半是上一次发布的切换已经落盘、但回报没送达。
+            </div>
+          )}
           {/* 🔴 出路必须是**当下真能点的**:草稿零改动时「发布」按钮是灰的,劝人「重新发起」等于没说(第四轮 P1-6)。
               回滚到当前记录的线上版本会走完整门链并重新搬运快照,正好把两边对齐。 */}
           <div className="row" style={{ marginTop: 6, gap: 8 }}>

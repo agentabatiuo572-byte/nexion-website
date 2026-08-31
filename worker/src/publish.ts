@@ -69,15 +69,51 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
 }
 const releaseLock = (env: Env) => env.DB.prepare('DELETE FROM publish_lock WHERE id = 1').run();
 
+interface LiveStamp {
+  versionId?: number;
+  stamp?: string;
+  configSha?: string;
+  /** 搬运那一刻几个关键文件的内容摘要(抽查用,见 verifyAnchors) */
+  anchors?: Record<string, string>;
+}
+
 /** 读线上快照的上线印记。读不到 / 读不动都返回 null —— 由调用方判成「不许上线」(fail-closed)。 */
-async function readLiveStamp(env: Env): Promise<{ versionId?: number; stamp?: string; configSha?: string } | null> {
+async function readLiveStamp(env: Env): Promise<LiveStamp | null> {
   try {
     const res = await env.ASSETS.fetch(new Request(`https://assets.internal${STAMP_PATH}`, { method: 'GET' }));
     if (!res.ok) return null;
-    return (await res.json()) as { versionId?: number; stamp?: string; configSha?: string };
+    return (await res.json()) as LiveStamp;
   } catch {
     return null;
   }
+}
+
+const sha256Hex = async (buf: ArrayBuffer): Promise<string> =>
+  Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', buf)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+/* 拿印记里的锚点摘要**回核实物**:线上现在伺服的这几个文件,还是搬运那一刻的内容吗?
+   🔴 为什么需要(2026-09-01 第五轮 P1-4):印记只带版本号时,「有人直接改了线上快照」报不出来——
+   劈叉自查比的是版本号,而版本号不会因为文件被改而变。服务端读得到自己伺服的内容,那就该真去读。
+   ⚠️ 明确边界:**抽查不是全量**。只覆盖 promote 记下的那几个锚点,动了别的资产仍看不见;
+   全量遍历整个快照的代价与收益不成比例。锚点选的是「改了就一定影响访客看到什么」的那几个。
+   返回:null = 没有锚点可核(旧印记 / 无印记);[] = 全部一致;非空 = 对不上的那些路径。 */
+async function verifyAnchors(env: Env, stamp: LiveStamp | null): Promise<string[] | null> {
+  const anchors = stamp?.anchors;
+  if (!anchors || Object.keys(anchors).length === 0) return null;
+  const bad: string[] = [];
+  for (const [p, want] of Object.entries(anchors)) {
+    try {
+      const res = await env.ASSETS.fetch(new Request(`https://assets.internal${p}`, { method: 'GET' }));
+      if (!res.ok) {
+        bad.push(`${p}(取不到,HTTP ${res.status})`);
+        continue;
+      }
+      if ((await sha256Hex(await res.arrayBuffer())) !== want) bad.push(p);
+    } catch {
+      bad.push(`${p}(读取失败)`);
+    }
+  }
+  return bad;
 }
 
 /* 这一版的配置**该**物化成什么样 —— 服务端自己算,不问执行器(见 STAMP_WHY 第二段)。
@@ -100,11 +136,15 @@ async function expectedConfigSha(payload: string): Promise<string> {
 }
 
 /** 线上快照实际是哪一版(据印记);与数据库记的 live 不一致 = 劈叉,必须让人看见 */
-export async function liveSnapshotDrift(env: Env): Promise<{ dbLive: number; snapshot: number | null } | null> {
+export async function liveSnapshotDrift(env: Env): Promise<{ dbLive: number; snapshot: number | null; tampered?: string[] } | null> {
   const [stamp, live] = await Promise.all([readLiveStamp(env), getLive(env)]);
   if (!live) return null;
   const snapVer = stamp?.versionId ?? null;
-  if (snapVer === live.id) return null;
+  if (snapVer === live.id) {
+    /* 版本号对上了还不够:内容也可能被直接动过(第五轮 P1-4)。拿锚点摘要回核实物。 */
+    const bad = await verifyAnchors(env, stamp);
+    return bad && bad.length ? { dbLive: live.id, snapshot: snapVer, tampered: bad } : null;
+  }
   /* 全新环境豁免:线上那一版是**初始种子**(= 上线前手工构建的站内容,从没走过流水线),
      快照自然没有上线印记。此时报劈叉是永久噪音,而永久红条只会训练人忽略红条。
      一旦真发布过一次,种子就不再是 live,这条豁免自动失效。 */
@@ -336,8 +376,11 @@ publishRoutes.post('/step', async (c) => {
     const nonceRow = await c.env.DB.prepare('SELECT claim_nonce FROM publish_lock WHERE id = 1').first<{ claim_nonce: string | null }>();
     const ver = await c.env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(b.versionId).first<{ payload: string }>();
     const wantSha = ver ? await expectedConfigSha(ver.payload).catch(() => null) : null;
+    // 印记说的那几个锚点文件,线上现在真的是那个内容吗(第五轮 P1-4:此前只信印记里的数,不回核实物)
+    const badAnchors = await verifyAnchors(c.env, stamp);
     const good =
-      stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha;
+      stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha
+      && !(badAnchors && badAnchors.length);
     if (!good) {
       const why = !stamp
         ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
@@ -345,7 +388,9 @@ publishRoutes.post('/step', async (c) => {
           ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${b.versionId}`
           : stamp.stamp !== nonceRow?.claim_nonce
             ? '线上快照的印记口令与本次发布不符'
-            : `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`;
+            : stamp.configSha !== wantSha
+              ? `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`
+              : `线上快照里这些文件已被改动过,与搬运时不符:${(badAnchors ?? []).join('、')}`;
       await c.env.DB.batch([
         c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(b.versionId, `上线核验未通过:${why}`),
         c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(b.versionId, 'swap', why),
