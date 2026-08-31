@@ -6,6 +6,7 @@ import type { Env } from './env';
 import { writeAudit } from './audit';
 import { timingSafeEqualHex } from './auth';
 import { createLimiter } from './ratelimit';
+import { SENTINEL_COUNTRY, isRealCountryCode } from '../../schema/src/countries';
 
 /* 区域屏蔽(PRD CON12)。两条通道原则(§2.3):规则走 KV 即时生效,不经发布链。
    自锁保护(E1):/admin 与 /api 前缀恒不拦(V1-dev 同域路径制;Phase C 子域后可收紧 /api 面);
@@ -198,7 +199,10 @@ const TriPage = z.object({
 });
 const GeoPutSchema = z.object({
   enabled: z.boolean(),
-  countries: z.array(z.string().regex(/^[A-Z]{2}$/)).max(249),
+  /* 🔴 必须是真实 ISO 码且非兜底哨兵 XX(2026-08-31 第二路验收 P2):
+     只校验「两个大写字母」时,ZZ 这类假码可入名单形同噪声,而 XX 会把所有
+     「拿不到国家信息」的访客一并拦掉——那是误伤,不是屏蔽策略。面板与此处同表。 */
+  countries: z.array(z.string().refine(isRealCountryCode, '必须是真实 ISO 国家/地区码(且不得为兜底值 XX)')).max(249),
   blockPage: TriPage.optional(),
   reason: z.string().trim().min(8),
   confirmHighTraffic: z.boolean().optional(),

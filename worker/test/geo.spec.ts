@@ -170,6 +170,10 @@ describe('CON12 区域屏蔽', () => {
     const bad = [
       { enabled: true, countries: ['CN'], reason: '短' },
       { enabled: true, countries: ['cn'], reason: '国家码小写测试用例' },
+      // P2(第二路验收):非真实 ISO 码 + 兜底哨兵 XX 必须拒——XX 入名单会误伤全部无地理信息访客
+      { enabled: true, countries: ['ZZ'], reason: '非真实国家码测试用例' },
+      { enabled: true, countries: ['CN', 'XX'], reason: '兜底哨兵入名单测试' },
+      { enabled: true, countries: ['QQ'], reason: '未分配码测试用例xx' },
       { enabled: 'yes', countries: ['CN'], reason: '布尔类型错误测试' },
       { enabled: true, countries: ['CN'], reason: '文案超长测试用例', blockPage: { title: { zh: 'x'.repeat(200), en: 'y' }, body: { zh: 'a', en: 'b' } } },
       { enabled: true, countries: ['CN'], reason: '结构错误测试用例', blockPage: 42 },
@@ -179,6 +183,12 @@ describe('CON12 区域屏蔽', () => {
       expect(res.status, JSON.stringify(b).slice(0, 60)).toBe(400);
     }
     expect(await env.KV.get('geo:rules')).toBeNull(); // 一条都没落盘
+    // 正对照:真实码照常通过(证明上面的拒绝不是「整条 PUT 坏掉」的假绿)
+    const ok = await app.request('/api/geo', {
+      method: 'PUT', headers: J(cookie),
+      body: JSON.stringify({ enabled: true, countries: ['CN', 'HK', 'VN'], reason: '真实码正对照用例', confirmHighTraffic: true }),
+    }, env);
+    expect(ok.status).toBe(200);
   });
 
   it('E3 KV 读取异常 → 内置基线 CN 生效(不失守);面板 degraded=true', async () => {
