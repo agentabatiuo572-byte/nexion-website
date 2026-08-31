@@ -9,7 +9,9 @@
     "test": "vitest run",
     "test:red-d1": "vitest run --config vitest.red-d1.config.ts",
     "typecheck": "tsc --noEmit",
-    "postinstall": "wrangler types"
+    "postinstall": "wrangler types",
+    "types": "wrangler types",
+    "test:static": "node test-static.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0",

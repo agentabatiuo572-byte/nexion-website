@@ -8,7 +8,13 @@ export default defineConfig(async () => {
     plugins: [
       cloudflareTest({
         wrangler: { configPath: './wrangler.jsonc' },
-        miniflare: { bindings: { TEST_MIGRATIONS: migrations } },
+        miniflare: {
+          bindings: {
+            TEST_MIGRATIONS: migrations,
+            // 测试提速:KDF 迭代降到 1k(正确性与 600k 同构,迭代数是配置值;性能非测试对象)
+            KDF_ITER: '1000',
+          },
+        },
       }),
     ],
     test: {

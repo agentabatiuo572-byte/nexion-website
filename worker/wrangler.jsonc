@@ -1,9 +1,17 @@
 {
   // NexGrid 官网 worker —— 本地 dev 全量可跑(D1/KV 本地模拟);
   // database_id / kv id 为占位,Phase C 上线切换时换真值(PRD §7-O1)。
+  // ⚠️ 改本文件后跑 `npm run types` 重新生成 worker-configuration.d.ts。
   "name": "nexgrid-site-worker",
   "main": "src/index.ts",
   "compatibility_date": "2026-04-01",
+  "assets": {
+    // 站静态产物由 worker 前置伺服(PRD §2.2):先跑 worker(屏蔽中间件/API),再落静态
+    "directory": "../dist",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
   "d1_databases": [
     {
       "binding": "DB",
@@ -20,6 +28,8 @@
     "crons": ["10 0 * * *"]
   },
   "vars": {
-    "ENVIRONMENT": "dev"
+    "ENVIRONMENT": "dev",
+    // 仅 dev 值;生产用 `wrangler secret put SETUP_TOKEN`(Phase C)
+    "SETUP_TOKEN": "dev-setup-token"
   }
 }
