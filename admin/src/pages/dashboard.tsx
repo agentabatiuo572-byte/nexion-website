@@ -302,7 +302,11 @@ export default function Dashboard() {
             {d.health.blockedTop.length > 0 && <div className="kv" style={{ marginTop: 6 }}>被拦 Top:{d.health.blockedTop.map((b) => `${b.country} ${b.hits}`).join(' · ')}</div>}
             {d.health.lastPublish && (
               <div className={`note ${d.health.lastPublish.status === 'failed' ? 'bad' : 'info'}`} style={{ marginBottom: 0 }}>
-                最近发布 v{d.health.lastPublish.id}:{d.health.lastPublish.status === 'live' ? '成功' : d.health.lastPublish.status === 'failed' ? `失败(${d.health.lastPublish.fail_reason ?? '原因见发布页'})` : d.health.lastPublish.status}
+                {/* 枚举值不许直出到页面上(实测印过「最近发布 v8:cancelled」)。缺映射时说「状态未知」而不是原样吐机器词。 */}
+                最近发布 v{d.health.lastPublish.id}:
+                {{ live: '成功', failed: `失败(${d.health.lastPublish.fail_reason ?? '原因见发布页'})`, cancelled: '已取消', validating: '校验中', publishing: '发布中', archived: '已被更新的版本取代' }[
+                  d.health.lastPublish.status
+                ] ?? '状态未知(见发布页)'}
                 {' '}<NavLink to="/publish" style={{ color: 'var(--brand)' }}>发布页 →</NavLink>
               </div>
             )}

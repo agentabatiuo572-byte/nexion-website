@@ -41,6 +41,23 @@ const api = async (p, init = {}, attempt = 1) => {
     return api(p, init, attempt + 1);
   }
 };
+
+/* 🔴 被中止就自己退场(第五轮 P1-6)。
+   强制中止只在服务端放开这次发布,**碰不到本进程**——worker 没有停掉本机进程的能力。
+   若本进程还在闷头跑,就会出现「运营以为已经中止、于是重新发起」与「旧执行器还在写文件」
+   同时成立,而 V1 的整个设计前提是单执行器。
+   所以由执行器**自己**每一步开工前确认「这单还是我的吗」;不是了就干净退出,
+   把「请先手工关掉它」从文档约定变成程序行为。 */
+async function stillMine(versionId, stamp) {
+  try {
+    const s = await api('/api/publish/status');
+    if (s.activeVersion === versionId) return true;
+    console.log(`■ v${versionId} 已不在进行中(可能被强制中止或已超时),执行器退出,不再写任何文件`);
+    return false;
+  } catch {
+    return true; // 查不到就按「还是我的」继续:宁可多跑一步,也不因为一次网络抖动放弃已跑完的门链
+  }
+}
 /** 上报要带本次领单口令:服务端据此确认是「领过单的那个执行器」在说话 */
 const report = (versionId, step, status, stamp, extra = {}) => api('/api/publish/step', { method: 'POST', body: JSON.stringify({ versionId, step, status, stamp, ...extra }) });
 
@@ -89,7 +106,8 @@ async function runJob(job) {
     return;
   }
 
-  // ② 站上全部机器门(必须在物化后的产物上跑)
+  // ② 站上全部机器门(必须在物化后的产物上跑)。门要跑五六分钟,开跑前先确认这单还是自己的。
+  if (!(await stillMine(versionId, stamp))) return;
   await report(versionId, 'gates', 'running', stamp);
   const gates = runGates();
   if (!gates.ok) {
@@ -114,6 +132,8 @@ async function runJob(job) {
      🔴 一次性口令原样透传给 promote,由它写进快照里的上线印记;服务端标 live 前会回读核实
         (复验 P0-A:光有序列校验挡不住「照合法顺序全报一遍」,必须让上线依赖一件
          纯 HTTP 调用者做不到的事——往文件系统里落一个文件)。 */
+  // 切换是唯一会动线上快照的一步:动手前再确认一次这单还是自己的,别在已被中止后还去改线上
+  if (!(await stillMine(versionId, stamp))) return;
   await report(versionId, 'swap', 'running', stamp);
   try {
     execFileSync('node', ['promote.mjs', '--version', String(versionId), '--stamp', String(stamp ?? '')], { cwd: here, stdio: 'pipe' });

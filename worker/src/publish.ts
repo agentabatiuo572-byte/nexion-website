@@ -250,18 +250,44 @@ publishRoutes.post('/step', async (c) => {
     return c.json({ error: 'bad-request' }, 400);
   }
   const now = Date.now();
+
+  /* ══════════ 第一层:幂等与转移合法性(与锁无关) ══════════
+     🔴 结构性改动(2026-09-01 第五轮后,见 `docs/changes/2026-09-01-publish-step-structural-reflection.md`)。
+     此前六道校验是四轮里一条条累加出来的**否决清单**,按固定顺序求值,而「幂等」排在最后一条——
+     在锁归属之后。可每个**终态**回报都会先删锁,于是终态回报的重发**根本走不到幂等**,
+     必然撞上 `not-current-job`;而「响应会丢」在当前配置下恰好只发生在 swap 那一拍
+     (伺服目录是 dist-live,唯一写它的就是切换步,写入触发开发服务器重载)。
+     结果:**一次完全成功的发布把常驻执行器打死了**。这是同一形态的第四次组合故障。
+
+     根治不是再加一个 if,是把判断收成两层:
+     **「这条回报有没有被记下」是一个关于记录的事实,与锁还在不在、谁持锁完全无关**——
+     终态删锁不该让「我上次到底成功了没」变得无法回答。
+     只有真的要**改变状态**时才需要授权;重发一条已经生效的回报不改变任何状态,不需要授权。
+     转移表穷举 4(已记录)×3(本次上报)格,测试逐格断言,不抽样。 */
+  const existing = await c.env.DB.prepare('SELECT status FROM publish_steps WHERE version_id=?1 AND step=?2').bind(b.versionId, b.step).first<{ status: string }>();
+  const recorded = existing?.status ?? 'none';
+  if (recorded === b.status) {
+    return c.json({ ok: true, idempotent: true }); // 已记成同样的结果:当作已受理,不看锁
+  }
+  if (recorded === 'ok' || recorded === 'failed') {
+    // 已收口的步骤不许改口(ok→failed / failed→ok / 终态→running 都在这里)
+    return c.json({ error: 'step-already-done', recorded }, 409);
+  }
+  if (recorded === 'running' && b.status === 'running') {
+    return c.json({ error: 'step-already-started', at: recorded }, 409); // 理论上被上面的幂等接住,留作兜底
+  }
+
+  /* ══════════ 第二层:授权与时序(仅当确实要写入时才求值) ══════════ */
   const lock = await c.env.DB
     .prepare('SELECT version_id, expires_at, claim_nonce, claimed_at FROM publish_lock WHERE id = 1')
     .first<{ version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }>();
   if (!lock || lock.version_id !== b.versionId) return c.json({ error: 'not-current-job' }, 409);
-  if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409); // ①
-  /* 上报必须来自**领过单的那个执行器**。此前 /step 与领单完全不绑定:不调 /next 也能一路上报
-     (复验 P2)。虽然最后过不了上线核验,但足以占住锁、制造一堆假步骤记录。 */
+  if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409);
+  /* 上报必须来自**领过单的那个执行器**:不领单也能一路上报的话,足以占住锁、制造一堆假步骤记录。 */
   if (!lock.claimed_at || !lock.claim_nonce || b.stamp !== lock.claim_nonce) {
     return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
   }
-
-  // ② 前序步骤必须全部 ok —— 这是「不存在绕门上线」的实际承载点
+  // 前序步骤必须全部 ok —— 这是「不存在绕门上线」的实际承载点
   const idx = PUBLISH_STEPS.indexOf(b.step);
   const done = (
     await c.env.DB.prepare("SELECT step FROM publish_steps WHERE version_id=?1 AND status='ok'").bind(b.versionId).all<{ step: string }>()
@@ -270,20 +296,9 @@ publishRoutes.post('/step', async (c) => {
   if (missing.length) {
     return c.json({ error: 'step-out-of-order', missing, expected: PUBLISH_STEPS[done.length] ?? null }, 409);
   }
-  /* 重复上报的处理:**同样的结果再报一次 = 幂等成功**,不同的结果才是非法。
-     🔴 为什么必须幂等(2026-09-01 第四轮 P1-2,也是「两个各自正确的修法合起来造新故障」的第三次):
-     ① 我把「重复上报」一律判成 409;② 执行器有网络重试(为的是门链重建 dist 时开发服务器重启掐断连接);
-     ③ 执行器把 409 当作服务端拒绝、抛错退出。
-     三条各自都对,合起来是:**一次「回报其实送到了、只是响应在回程丢了」的重发**,
-     会拿到 409 → 执行器当场死掉 → 已经跑完的 5 分半钟门链全作废、发布挂死到锁超时,
-     而服务端那段时间还在对运营说「执行器仍在工作」。
-     重试本来就是为了对付「不知道到没到」,那就必须允许「到了再来一次」。 */
-  const existing = await c.env.DB.prepare('SELECT status FROM publish_steps WHERE version_id=?1 AND step=?2').bind(b.versionId, b.step).first<{ status: string }>();
-  if (existing?.status === b.status) {
-    return c.json({ ok: true, idempotent: true }); // 同一步、同一结果:当作已受理
+  if (b.status !== 'running' && recorded !== 'running') {
+    return c.json({ error: 'step-not-running(先报 running 再报结果)' }, 409);
   }
-  if (b.status === 'running' && existing) return c.json({ error: 'step-already-started', at: existing.status }, 409);
-  if (b.status !== 'running' && done.includes(b.step)) return c.json({ error: 'step-already-done' }, 409); // 已收口后改口
 
   if (b.status === 'running') {
     await c.env.DB.batch([

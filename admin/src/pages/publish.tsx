@@ -159,7 +159,9 @@ export default function PublishPage() {
           {forcing && (
             <div className="note bad" style={{ marginTop: 8 }}>
               <b>强制中止 v{active}</b>
-              <div className="kv">执行器已失联。中止后这一版记为失败、线上保持不变,可以重新发起。理由会记进审计。</div>
+              {/* 口径要与列表和审计一致:中止后列表显示「已取消」,这里就不能写「记为失败」(第五轮 P1-7) */}
+              <div className="kv">执行器已失联。中止后这一版记为**已取消**、线上保持不变,可以重新发起。理由会记进审计。</div>
+              <div className="kv">⚠️ 中止只在系统里放开这次发布,**并不会去停掉那个执行器进程**。若它其实还活着,请先把它关掉再重新发起。</div>
               <div className="row" style={{ marginTop: 6, gap: 8 }}>
                 <input className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
                 <button className="btn" onClick={forceCancel}>确认中止</button>
@@ -191,7 +193,10 @@ export default function PublishPage() {
       )}
 
       {/* 上次失败:大白话 + 门名 + 原始日志折叠 */}
-      {!active && lastFailed && lastFailed.id === Math.max(...st.versions.map((v) => v.id)) && (
+      {/* 🔴 判据是「线上之后没有再成功发布过」,不是「失败的那版恰好号最大」(第五轮 P1-5):
+          取消一次就会占掉最大号,失败面**整块消失**,而壳顶红条还在指人来这一页看详情。
+          与服务端 lastPublishFailed 同口径:失败版本比线上新即显示。 */}
+      {!active && lastFailed && lastFailed.id > (st.versions.find((v) => v.status === 'live')?.id ?? 0) && (
         <div className="note bad">
           <b>上次发布失败(v{lastFailed.id}):{lastFailed.fail_reason ?? '原因未记录'}</b>
           <div className="kv" style={{ marginTop: 4 }}>线上仍是上一版,未受影响(线上伺服的是已发布快照,失败的构建产物不会对外);你的草稿改动也原样保留,修好后可再次发布。</div>
@@ -292,7 +297,9 @@ export default function PublishPage() {
                 <td><span className={`pill ${v.status === 'live' ? 'brand' : v.status === 'failed' ? 'bad' : ''}`}>{STATUS_LABEL[v.status] ?? v.status}</span></td>
                 <td>{v.fail_reason ?? v.reason ?? (v.created_by === 'system' ? <span className="kv">初始种子(非发布)</span> : '—')}</td>
                 <td>
-                  {v.status !== 'live' && v.status !== 'failed' && !active && (
+                  {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,
+                      于是 cancelled 行也长出按钮,点了必 404 —— 界面给的每个按钮都该是能点通的。 */}
+                  {v.status === 'archived' && !active && (
                     <button className="btn ghost sm" onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
                   )}
                 </td>

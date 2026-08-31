@@ -75,9 +75,11 @@ function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText
 
   /* 🔴 失败面的规则名映射必须与校验器的规则集**双向**相等。
      缺映射 → 用户看到机器规则名;多映射 → 死键(曾凭空多出一个校验器从不产出的 'all-hidden-sku')。 */
-  const rules = [...new Set([...validatorText.matchAll(/rule:\s*'([a-z-]+)'/g)].map((m) => m[1]))];
+  /* 规则名允许数字:此前 [a-z-]+ 让 'h1-count' / 'seo-length2' 这类命名对本门**完全隐形**——
+     不是判错,是根本没看见,而没看见的东西不会让任何断言变红(第四轮 P2-10 提出、第五轮 P1-3 证明未落地)。 */
+  const rules = [...new Set([...validatorText.matchAll(/rule:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]))];
   const labelBlock = /const RULE_LABEL[\s\S]*?\n};/.exec(labelText)?.[0] ?? '';
-  const labels = [...new Set([...labelBlock.matchAll(/(?:^|[{,]\s*)'?([a-z][a-z-]*)'?\s*:/gm)].map((m) => m[1]))].filter((k) => k !== 'RULE_LABEL');
+  const labels = [...new Set([...labelBlock.matchAll(/(?:^|[{,]\s*)'?([a-z][a-z0-9-]*)'?\s*:/gm)].map((m) => m[1]))].filter((k) => k !== 'RULE_LABEL');
   out.push([rules.length > 5, `校验器里解析到 ${rules.length} 条规则`]);
   for (const r of rules) out.push([labels.includes(r), `校验规则 "${r}" 在失败面有大白话映射`]);
   for (const l of labels) out.push([rules.includes(l), `失败面映射的 "${l}" 是校验器真会产出的规则(非死键)`]);
@@ -129,9 +131,19 @@ if (process.argv.includes('--self-test')) {
   const trailing = cfgText.replace('"directory":', '"directory": // 说明\n    ');
   const r = check(trailing, srcText, migFiles);
   say(r.some(([ok, m]) => !ok && String(m).includes('行尾')), 'self-test:配置含行尾注释 → 给人话诊断而不是抛栈');
-  // 规则名含数字必须被本门看见
-  const numRule = VALIDATOR_TEXT.replace("rule: 'structure'", "rule: 'h1-count'");
-  say(check(cfgText, srcText, migFiles, ASTRO_TEXT, numRule).some(([ok]) => !ok), 'self-test:带数字的规则名(h1-count)也要被双向断言看见');
+  /* 规则名含数字必须被本门看见。
+     🔴 这条自检上一版是**假绿**(第五轮 P1-3):它用「把 structure 换成 h1-count」来注入,
+     于是门变红的真实原因是「structure 的映射突然多余了」,与「认不认数字」毫无关系——
+     换成 `brandnewrule`(纯字母)同样会红。**替换式变异会把别的断言的红算到自己头上。**
+     正确形态是**新增**一条:只有当门真的看见 h1-count、发现它没有映射时才会红。
+     这正是「自选变异 = 假信心」的实例:变异要能把「修法在场」与「修法不在场」区分开,
+     否则它测的是别的东西。 */
+  const numRule = VALIDATOR_TEXT.replace("rule: 'structure'", "rule: 'structure' }); void ({ rule: 'h1-count'");
+  const numRes = check(cfgText, srcText, migFiles, ASTRO_TEXT, numRule);
+  say(
+    numRes.some(([ok, m]) => !ok && String(m).includes('h1-count')),
+    'self-test:**新增**一条带数字的规则名(h1-count)→ 门必须点名它缺映射',
+  );
   say(check(cfgText, srcText, migFiles).every(([ok]) => ok), 'self-test:真实配置全绿(不误报)');
   process.exit(fails ? 1 : 0);
 }
