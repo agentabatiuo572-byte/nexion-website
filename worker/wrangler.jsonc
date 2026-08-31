@@ -1,0 +1,25 @@
+{
+  // NexGrid 官网 worker —— 本地 dev 全量可跑(D1/KV 本地模拟);
+  // database_id / kv id 为占位,Phase C 上线切换时换真值(PRD §7-O1)。
+  "name": "nexgrid-site-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nexgrid_site",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    { "binding": "KV", "id": "local-dev-placeholder" }
+  ],
+  "triggers": {
+    // 每日 00:10 UTC:日汇总 + 90 天原始事件滚动清理(PRD §5.3;T6 实现)
+    "crons": ["10 0 * * *"]
+  },
+  "vars": {
+    "ENVIRONMENT": "dev"
+  }
+}

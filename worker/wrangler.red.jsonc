@@ -1,0 +1,8 @@
+{
+  // 红测专用:与 wrangler.jsonc 相同但【无 D1】——test:red-d1 必须因此失败。
+  "name": "nexgrid-site-worker-red",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-01",
+  "kv_namespaces": [{ "binding": "KV", "id": "local-dev-placeholder" }],
+  "vars": { "ENVIRONMENT": "dev" }
+}

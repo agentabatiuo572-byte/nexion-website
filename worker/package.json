@@ -1,0 +1,24 @@
+{
+  "name": "nexgrid-site-worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "NexGrid 官网后台 worker:静态伺服 + 区域屏蔽 + 采集 + 配置 API。规格:PLAN/PRD/NexGrid_官网后台PRD_v1.0.md",
+  "scripts": {
+    "dev": "wrangler d1 migrations apply nexgrid_site --local && wrangler dev",
+    "test": "vitest run",
+    "test:red-d1": "vitest run --config vitest.red-d1.config.ts",
+    "typecheck": "tsc --noEmit",
+    "postinstall": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.6.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "^0.22.0",
+    "typescript": "^5.6.0",
+    "vitest": "^4.1.0",
+    "wrangler": "^4.127.0"
+  }
+}
