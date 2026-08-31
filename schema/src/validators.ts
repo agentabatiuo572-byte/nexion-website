@@ -1,5 +1,6 @@
-// @ts-expect-error —— 站上门 1 的同一份词表(.mjs 单源,禁副本);类型由下方使用处收窄
-import { FORBIDDEN_PATTERNS } from '../../scripts/forbidden-patterns.mjs';
+// @ts-expect-error —— 站上门 1 的同一份词表 + 同一个判定函数(.mjs 单源,禁副本;
+// T7 验收 P2:判定语义也锁消费面——豁免/循环逻辑只许改共享函数,两面同变)
+import { scanForbidden as scanForbiddenShared } from '../../scripts/forbidden-patterns.mjs';
 import type { CopyManifest } from './manifest.js';
 import { MOCK_STAT_ANCHORS, SENSITIVE_COPY_PREFIXES, SiteConfigSchema, type SiteConfig, LOCALES } from './site-config.js';
 
@@ -16,16 +17,7 @@ export interface ValidationResult {
   warnings: Finding[];
 }
 
-const PATTERNS = FORBIDDEN_PATTERNS as Array<[RegExp, string]>;
-
-function scan(text: string): Array<{ label: string; match: string }> {
-  const hits: Array<{ label: string; match: string }> = [];
-  for (const [re, label] of PATTERNS) {
-    const m = text.match(re);
-    if (m) hits.push({ label, match: m[0]! });
-  }
-  return hits;
-}
+const scan = scanForbiddenShared as (text: string) => Array<{ label: string; match: string }>;
 
 const PLACEHOLDER_RE = /\{[a-zA-Z][a-zA-Z0-9_]*\}/g;
 const tokensOf = (s: string) => new Set(s.match(PLACEHOLDER_RE) ?? []);

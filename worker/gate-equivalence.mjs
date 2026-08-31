@@ -27,7 +27,10 @@ if (process.argv.includes('--self-test')) {
   const mutated = structuredClone(config);
   mutated.copy.en['hero.subtitle'] = 'MUTATED-FOR-SELF-TEST';
   const out = materializeI18n(mutated, manifest, 'en');
-  const orig = readFileSync(path.join(SITE, 'src/i18n/en.json'), 'utf8');
+  // CRLF 归一与主门 ② 同式(T9 验收 P2:不归一时 Windows 检出下断言恒真,防假门保护空转)
+  const orig = readFileSync(path.join(SITE, 'src/i18n/en.json'), 'utf8').replaceAll('\r\n', '\n');
+  const clean = materializeI18n(config, manifest, 'en');
+  say(clean === orig, 'self-test:未变异时基线相等(排除检出格式噪声)');
   say(out !== orig, 'self-test:注入变异 → 物化结果确实偏离原文件(比较器活着)');
   const v = validateConfig(mutated, manifest);
   say(v.errors.length === 0, 'self-test:变异值本身合法(不该误报)');

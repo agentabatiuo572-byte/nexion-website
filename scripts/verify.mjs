@@ -8,7 +8,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from '
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
-import { FORBIDDEN_PATTERNS } from './forbidden-patterns.mjs';
+import { scanForbidden } from './forbidden-patterns.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
@@ -32,17 +32,12 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 /* ── 门 1:禁用词(PRD §1.4-1/3/4)──────────────────────────────
    注意:"not guaranteed" 是免责声明合法用法,模式只抓「保证收益」组合。 */
 {
-  /* 词表 2026-08-31 抽至 scripts/forbidden-patterns.mjs(官网后台校验器同 import 单源);
-     历史注记随词表迁移,此处只留门执行体 */
-  const PATTERNS = FORBIDDEN_PATTERNS;
+  /* 词表+判定函数 2026-08-31 抽至 scripts/forbidden-patterns.mjs(官网后台校验器同 import 单源;
+     T7 验收 P2:判定循环也必须共享——任一面单独加豁免即静默分叉);历史注记随词表迁移 */
   const files = walk(SRC, ['.astro', '.ts', '.tsx', '.jsx', '.json', '.md']);
   const hits = [];
   for (const f of files) {
-    const text = readFileSync(f, 'utf8');
-    for (const [re, label] of PATTERNS) {
-      const m = text.match(re);
-      if (m) hits.push(`${rel(f)}: [${label}] "${m[0]}"`);
-    }
+    for (const h of scanForbidden(readFileSync(f, 'utf8'))) hits.push(`${rel(f)}: [${h.label}] "${h.match}"`);
   }
   results.push({ gate: 'forbidden-words', pass: hits.length === 0, detail: hits });
 }
