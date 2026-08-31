@@ -12,27 +12,32 @@
 
 ## 包① 基建与登录底座(pkg/w-console-core)
 
-### [ ] T1 · monorepo 骨架与本地运行环境
+### [x] T1 · monorepo 骨架与本地运行环境
 - **范围**:`worker/`(wrangler 配置、Hono 入口、D1 迁移、KV 绑定)`schema/` 占位、站仓 `package.json` 加两条脚本(不引 workspaces,子包自装依赖)
 - **AC**:
   - AC1:Given 全新 checkout,When 按 README 三条命令,Then worker 本地起服(wrangler dev)且 D1 迁移建齐表(versions/audit/daily_* 9 表)。
   - AC2:Given vitest 环境,When `npm run test:worker`,Then 冒烟用例绿(含 D1/KV 本地 binding 可用)。
   - AC3:「跑不起来先造环境」:失败态可造——断掉 D1 binding 跑测须真红。
 - **测试指令**:`nexgrid-website/` 内 `npm run test:worker`;wrangler dev 端口写入 README(默认 8787)
-- **敏感度**:普通 · **tester 报告**: · **回源三问**:
+- **敏感度**:普通 · **tester 报告**:`2026-08-31-website-admin-t1-test.md`(AC 4/4 pass)· **回源三问**:①仍服务北极星(基建承载全部后续)②tester 三条观察项已裁决——红测为套件级红(可,后续补数据级红测)/dev 一条类型配置警告(纯噪音)/实现侧曾留孤儿 dev 进程(已清;教训:杀进程后必回读端口确认,已入本会话操作纪律)③T2 计划成立
 
-### [ ] T2 · 认证 + 会话 + 审计底座(API 层)
+### [x] T2 · 认证 + 会话 + 审计底座(API 层)
 - **AC**(继承 CON01-A1/E1/E2/E3/E4 + CON14-A1/E2):
   - AC1:正确口令 → 7 天滑动会话 cookie(HttpOnly+Secure+Lax),审计 `login.success`。
   - AC2:错误口令 → 通用报错不泄露字段;15 分钟 5 次失败 → 锁 15 分钟,期间正确口令也拒。
   - AC3:会话过期访问受保护 API → 401;/setup 在已初始化后 410。
   - AC4:审计表无修改/删除 API(404);敏感值(哈希/会话)不出现在任何审计行。
 - **范围**:`worker/src/auth.ts` `worker/src/audit.ts` + 迁移 + 测试
-- **敏感度**:🔴 权限(tester 外加 code-review agent)· **tester 报告**: · **回源三问**:
+- **敏感度**:🔴 权限(tester 外加 code-review agent)· **tester 报告**:`2026-08-31-website-admin-t2-test.md`(黑盒 AC 5/5 pass)
+- **安全评审裁决**(code-reviewer,0 CRITICAL / 1 HIGH / 3 MED / 3 LOW):
+  - 🔴 **HIGH 限速 check-then-act 竞态** → 回源核实成立,**已修**:重写 `registerAttempt` 原子 UPSERT+RETURNING「先占名额再验口令」,消除并发绕过。加回归门(并发爆破/解锁数据/setup 限速/密码上限/logout 属性)。诚实局限:本地 workerd 串行化,竞态修复信心来自**静态原子性论证**(单条 SQL+D1 单写者),非本地动态复现——收尾 nexion-audit 对抗复验。
+  - MED CSRF 双保险 / 纯 IP 键(IPv6 纵深)→ **留 T23**(系统性,涉全部写接口;CON04-13 上线前必补,已在 T23 强调)。
+  - MED setup 无限速 + LOW 密码无上限/并发 setup 500/logout cookie 属性 → **四条已修**。
+- **回源三问**:①仍服务北极星(登录+审计=全后台安全底座)②偏差=实现层安全欠账(HIGH),当轮修在更强层(原子 SQL+回归门),非规格错 ③T4/T10 计划成立
 
-### [ ] T3 · 静态产物伺服
+### [x] T3 · 静态产物伺服
 - **AC**:worker 伺服 `dist/` 与 `astro preview` 对同一构建产物抽样字节一致(≥10 路由);未知路径回站点 404 页;`/api/*` 不被静态层吞。
-- **敏感度**:普通 · **tester 报告**: · **回源三问**:
+- **敏感度**:普通 · **tester 报告**:`2026-08-31-website-admin-t3-test.md`(AC 3/3 pass;实测 36/36 路由字节全等+资产抽验全等)· **回源三问**:①仍服务北极星(屏蔽中间件的承载层就位)②两条 P2 观察项(测试脚本 shell 传参弃用警告/资产未入字节扫描面)采纳,解冻后随包①收尾一并修;tester 换端口避让并行验收属正确判断 ③T4 前置=包① 三报告齐+收包,计划成立
 
 ## 包② 埋点采集(pkg/w-beacon)
 

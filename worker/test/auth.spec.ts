@@ -149,3 +149,64 @@ describe('CON14 审计底座', () => {
     expect(dump).not.toContain(account!.password_hash);
   });
 });
+
+// 安全评审 HIGH/MEDIUM/LOW 回归(2026-08-31 修复的针对性门)
+describe('限速与硬化回归', () => {
+  it('HIGH 并发爆破:N 个并发错口令,放行验证的最多 5 次,其余 429', async () => {
+    // ⚠️ 诚实局限:本地 workerd 会把同进程并发近乎串行化,故此测试在本地对新旧实现都会绿;
+    // 竞态真正的防线是 registerAttempt 的原子 UPSERT(单条 SQL、D1 单写者串行,check-then-act 间隙不存在),
+    // 那是静态可验证的。此门的价值:①锁定计数正确性 ②在能真并发的环境(生产/CI)成为有效回归门。
+    await setup();
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => login('wrong-password-xxxx').then((r) => r.status)),
+    );
+    const n401 = results.filter((s) => s === 401).length;
+    const n429 = results.filter((s) => s === 429).length;
+    expect(n401).toBeLessThanOrEqual(5); // 绝不允许 >5 次口令校验被放行
+    expect(n401 + n429).toBe(20); // 每个请求都有确定结果,无异常
+    expect(n429).toBeGreaterThan(0); // 确实触发了锁定
+  });
+
+  it('429 带解锁倒计时数据(Retry-After 头 + retryAfterSec)', async () => {
+    await setup();
+    for (let i = 0; i < 5; i++) await login('wrong-password-xxxx');
+    const res = await login('wrong-password-xxxx');
+    expect(res.status).toBe(429);
+    expect(Number(res.headers.get('Retry-After'))).toBeGreaterThan(0);
+    const body = (await res.json()) as { retryAfterSec: number };
+    expect(body.retryAfterSec).toBeGreaterThan(0);
+    expect(body.retryAfterSec).toBeLessThanOrEqual(15 * 60);
+  });
+
+  it('MEDIUM setup 限速:错 token 5 次后第 6 次 429(未初始化态)', async () => {
+    const bad = () =>
+      app.request(
+        '/api/auth/setup',
+        { method: 'POST', headers: IP, body: JSON.stringify({ token: 'wrong-token', password: PW }) },
+        env,
+      );
+    for (let i = 0; i < 5; i++) expect((await bad()).status).toBe(403);
+    expect((await bad()).status).toBe(429);
+  });
+
+  it('LOW 密码超长(>256)被拒 400', async () => {
+    const res = await app.request(
+      '/api/auth/setup',
+      { method: 'POST', headers: IP, body: JSON.stringify({ token: env.SETUP_TOKEN, password: 'a'.repeat(257) }) },
+      env,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('LOW logout 清 cookie 镜像安全属性', async () => {
+    await setup();
+    const res = await login(PW);
+    const out = await app.request('/api/auth/logout', { method: 'POST', headers: { cookie: sidCookie(res) } }, env);
+    const sc = out.headers.get('set-cookie') ?? '';
+    expect(sc).toContain('nx_sid=');
+    expect(sc).toContain('HttpOnly');
+    expect(sc).toContain('Secure');
+    expect(sc.toLowerCase()).toContain('samesite=lax');
+    expect(sc).toContain('Max-Age=0');
+  });
+});
