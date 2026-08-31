@@ -50,10 +50,14 @@ function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText
      判据构造性:伺服目录必须 ≠ astro 的构建输出目录(astro.config 无 outDir 时默认 dist)。 */
   const served = cfg.assets?.directory ?? '';
   const outDir = /outDir\s*:\s*['"]([^'"]+)['"]/.exec(astroText)?.[1] ?? 'dist';
-  const norm = (p) => p.replace(/^\.\.\//, '').replace(/^\.\//, '').replace(/\/$/, '');
+  /* 🔴 按**解析后的真实路径**比,不按字符串比(2026-09-01 复验 P2):
+     `"../dist-live/../dist"` 字面上既不等于 `dist` 也含有 `dist-live`,字符串判据会放行,
+     而它 resolve 出来就是构建产物目录 —— P0-3 可原样复活且门全绿。 */
+  const norm = (p) => path.resolve(here, p).replace(/\\/g, '/');
   out.push([!!served, 'wrangler.jsonc 声明了 assets.directory']);
-  out.push([norm(served) !== norm(outDir), `伺服目录(${served})≠ 构建输出目录(${outDir})——门重建产物碰不到线上`]);
-  out.push([/dist-live/.test(served), `伺服目录是已发布快照(${served})`]);
+  const outAbs = path.resolve(here, '..', outDir).replace(/\\/g, '/');
+  out.push([norm(served) !== outAbs, `伺服目录(${served} → ${norm(served)})≠ 构建输出目录(${outAbs})——门重建产物碰不到线上`]);
+  out.push([norm(served).endsWith('/dist-live'), `伺服目录是已发布快照(${norm(served)})`]);
 
   /* 🔴 失败面的规则名映射必须与校验器的规则集**双向**相等。
      缺映射 → 用户看到机器规则名;多映射 → 死键(曾凭空多出一个校验器从不产出的 'all-hidden-sku')。 */
@@ -81,6 +85,9 @@ if (process.argv.includes('--self-test')) {
   // 伺服目录被改回构建产物 —— 这正是 P0-3 复活的形态
   const servedDist = cfgText.replace(/"directory":\s*"[^"]*"/, '"directory": "../dist"');
   say(check(servedDist, srcText, migFiles).some(([ok]) => !ok), 'self-test:伺服目录改回构建产物 → 变红');
+  // 绕过写法:字面上既不等于 dist、又含有 dist-live,但 resolve 出来就是构建产物
+  const sneaky = cfgText.replace(/"directory":\s*"[^"]*"/, '"directory": "../dist-live/../dist"');
+  say(check(sneaky, srcText, migFiles).some(([ok]) => !ok), 'self-test:伺服目录用 ../dist-live/../dist 绕 → 变红');
   // 失败面多一个校验器从不产出的死键
   const deadKey = LABEL_TEXT.replace(/const RULE_LABEL: Record<string, string> = \{/, "const RULE_LABEL: Record<string, string> = {\n  'no-such-rule': '不存在的规则',");
   say(check(cfgText, srcText, migFiles, ASTRO_TEXT, VALIDATOR_TEXT, deadKey).some(([ok]) => !ok), 'self-test:失败面多一个死键 → 变红');

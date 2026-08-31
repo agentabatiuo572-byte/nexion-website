@@ -2,6 +2,7 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
+import { SiteConfigSchema, materializeSiteJson } from '../../schema/src/index.js';
 
 const IP = { 'cf-connecting-ip': '203.0.113.90', 'content-type': 'application/json' };
 const PW = 'publish-suite-pass!';
@@ -29,7 +30,14 @@ const status = async (cookie: string) => (await (await app.request('/api/publish
    单测跑在沙箱里没有真文件系统,所以这里给一个假的资产源——它扮演的是「快照里有/没有这枚印记」。
    ⚠️ 这是给外部依赖做替身,不是在测试里放宽判据:不给替身(默认 env)时读不到印记,
    服务端必须拒绝上线,而下面第一条测试断言的正是这一点。 */
-const envWithStamp = (stamp: { versionId: number; stamp: string } | null) => ({
+/** 这一版配置该物化成什么样的摘要 —— 与服务端同一算法,测试不另造口径 */
+async function shaOfVersion(versionId: number): Promise<string> {
+  const row = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first<{ payload: string }>();
+  const json = materializeSiteJson(SiteConfigSchema.parse(JSON.parse(row!.payload)));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+const envWithStamp = (stamp: { versionId: number; stamp: string; configSha?: string } | null) => ({
   ...env,
   ASSETS: { fetch: async () => (stamp ? new Response(JSON.stringify(stamp), { status: 200 }) : new Response('not found', { status: 404 })) },
 });
@@ -38,7 +46,7 @@ const postAs = (e: unknown, cookie: string, p: string, body: unknown = {}) =>
 
 /** 领单拿到本次一次性口令(执行器的第一步) */
 async function claim(cookie: string): Promise<{ versionId: number; stamp: string }> {
-  const j = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: { versionId: number; stamp: string } | null };
+  const j = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: { versionId: number; stamp: string } | null };
   expect(j.job).not.toBeNull();
   return { versionId: j.job!.versionId, stamp: j.job!.stamp };
 }
@@ -47,10 +55,10 @@ async function claim(cookie: string): Promise<{ versionId: number; stamp: string
 async function runPipeline(cookie: string, versionId: number) {
   const job = await claim(cookie);
   expect(job.versionId).toBe(versionId);
-  const e = envWithStamp({ versionId, stamp: job.stamp });
+  const e = envWithStamp({ versionId, stamp: job.stamp, configSha: await shaOfVersion(versionId) });
   for (const step of ['materialize', 'gates', 'build', 'swap']) {
-    expect((await postAs(e, cookie, '/api/publish/step', { versionId, step, status: 'running' })).status).toBe(200);
-    expect((await postAs(e, cookie, '/api/publish/step', { versionId, step, status: 'ok' })).status).toBe(200);
+    expect((await postAs(e, cookie, '/api/publish/step', { versionId, stamp: job.stamp, step, status: 'running' })).status).toBe(200);
+    expect((await postAs(e, cookie, '/api/publish/step', { versionId, stamp: job.stamp, step, status: 'ok' })).status).toBe(200);
   }
 }
 
@@ -105,10 +113,11 @@ describe('CON13 发布流水线', () => {
     const liveBefore = await env.DB.prepare("SELECT id, payload FROM config_versions WHERE status='live'").first<{ id: number; payload: string }>();
     expect(liveBefore, '种子化后应有 live 版本').not.toBeNull();
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'running' });
-    const fail = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'failed', gate: 'render-fit', detail: 'x' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'gates', status: 'running' });
+    const fail = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'gates', status: 'failed', gate: 'render-fit', detail: 'x' });
     expect(fail.status).toBe(200);
     const st = await status(cookie);
     const v = (st.versions as Array<{ id: number; status: string; fail_reason: string }>).find((x) => x.id === r.versionId)!;
@@ -148,8 +157,9 @@ describe('CON13 发布流水线', () => {
     // 再发一版并让第一步跑完,此时不可取消
     await makeChange(cookie, '第二轮');
     const r2 = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r2.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r2.versionId, step: 'materialize', status: 'ok' });
+    const job2 = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r2.versionId, stamp: job2.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r2.versionId, stamp: job2.stamp, step: 'materialize', status: 'ok' });
     expect((await post(cookie, '/api/publish/cancel')).status).toBe(409);
   });
 
@@ -186,14 +196,14 @@ describe('CON13 发布流水线', () => {
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
     const liveBefore = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
-    await claim(cookie);
+    const job = await claim(cookie);
     // 完全合法的序列,一步不跳、每步先 running 再 ok
     for (const step of ['materialize', 'gates', 'build']) {
-      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'running' })).status).toBe(200);
-      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'ok' })).status).toBe(200);
+      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' })).status).toBe(200);
+      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' })).status).toBe(200);
     }
-    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' })).status).toBe(200);
-    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' })).status).toBe(200);
+    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
     expect(res.status).toBe(409);
     expect(((await res.json()) as any).error).toBe('live-verification-failed');
     // 线上指针纹丝不动,该版被判失败
@@ -215,11 +225,11 @@ describe('CON13 发布流水线', () => {
       const job = await claim(cookie);
       const e = envWithStamp(forge(job));
       for (const step of ['materialize', 'gates', 'build']) {
-        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'running' });
-        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'ok' });
+        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' });
       }
-      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' });
-      const res = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
+      const res = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
       expect(res.status, name).toBe(409);
       const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(r.versionId).first<{ status: string }>();
       expect(v!.status, name).toBe('failed');
@@ -230,10 +240,10 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await claim(cookie);
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
-    const again = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
+    const again = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
     expect(again.status).toBe(409);
     expect(((await again.json()) as any).error).toBe('step-already-started');
   });
@@ -242,13 +252,13 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await claim(cookie);
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
     const soon = await post(cookie, '/api/publish/cancel', { force: true, reason: '手滑' });
     expect(soon.status).toBe(409); // 刚有动静,不许中止
     expect(((await soon.json()) as any).error).toBe('runner-still-alive');
-    // 把最后动静推到 9 分钟前 = 执行器失联
-    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 9 * 60_000, r.versionId).run();
+    // 把最后动静推到 13 分钟前 = 执行器失联
+    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 13 * 60_000, r.versionId).run();
     expect((await post(cookie, '/api/publish/cancel', { force: true })).status).toBe(400); // 必须写理由
     const okRes = await post(cookie, '/api/publish/cancel', { force: true, reason: '执行器所在机器断电' });
     expect(okRes.status).toBe(200);
@@ -259,7 +269,7 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     await post(cookie, '/api/publish');
-    const next = async () => (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: unknown };
+    const next = async () => (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: unknown };
     const [a, b] = await Promise.all([next(), next()]);
     expect([a.job, b.job].filter(Boolean)).toHaveLength(1);
   });
@@ -268,16 +278,17 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
     // 形态①:一步不跑,直接收口最后一步
-    const jump = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+    const jump = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
     expect(jump.status).toBe(409);
     expect(((await jump.json()) as any).error).toBe('step-out-of-order');
     // 形态②:先声明 swap running 再 ok(绕开「必须先 running」那道)——前序缺失仍应拒
-    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' })).status).toBe(409);
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' })).status).toBe(409);
     // 形态③:跳过 gates(物化 ok 后直接 build)
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
-    const skipGates = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'build', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
+    const skipGates = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'build', status: 'running' });
     expect(skipGates.status).toBe(409);
     expect(((await skipGates.json()) as any).missing).toContain('gates');
     // 全程 live 未变
@@ -289,21 +300,23 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    const noRunning = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    const job = await claim(cookie);
+    const noRunning = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
     expect(noRunning.status).toBe(409);
     expect(((await noRunning.json()) as any).error).toContain('step-not-running');
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' })).status).toBe(200);
-    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' })).status).toBe(409); // 重复
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' })).status).toBe(200);
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' })).status).toBe(409); // 重复
   });
 
   it('🔴 P0-2 锁过期后 step 一律拒收(此前过期锁照收即可上线)', async () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
     await env.DB.prepare('UPDATE publish_lock SET expires_at = ?1').bind(Date.now() - 1000).run();
-    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
     expect(res.status).toBe(409);
     expect(((await res.json()) as any).error).toContain('lock-expired');
   });
@@ -312,10 +325,10 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    const first = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: { versionId: number } | null };
-    expect(first.job!.versionId).toBe(r.versionId);
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' }); // 第一个执行器开工
-    const second = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: unknown; note?: string };
+    const job = await claim(cookie); // 第一个执行器领到
+    expect(job.versionId).toBe(r.versionId);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' }); // 第一个执行器开工
+    const second = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: unknown; note?: string };
     expect(second.job).toBeNull();
     expect(second.note).toBe('already-claimed');
   });
@@ -324,10 +337,11 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'gates', status: 'failed', gate: 'render-fit', detail: '门日志尾部若干行' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'gates', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'gates', status: 'failed', gate: 'render-fit', detail: '门日志尾部若干行' });
     const s = await status(cookie);
     expect(s.activeVersion).toBeNull();
     expect(s.stepsOfVersion).toBe(r.versionId);
@@ -338,9 +352,75 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' }); // 仅 running,未完成
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' }); // 仅 running,未完成
     const res = await post(cookie, '/api/publish/cancel');
     expect(res.status).toBe(409);
+  });
+
+
+  it('🔴 P1-4 印记内容摘要对不上 → 拒绝上线(证明的不只是「有人落了个文件」)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
+    // 版本号、口令都对,只有内容摘要是别的东西 —— 即「快照不是照这一版构建的」
+    const e = envWithStamp({ versionId: r.versionId, stamp: job.stamp, configSha: 'f'.repeat(64) });
+    for (const step of ['materialize', 'gates', 'build']) {
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'running' });
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step, status: 'ok' });
+    }
+    await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
+    const res = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).why).toContain('内容摘要对不上');
+    const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(r.versionId).first<{ status: string }>();
+    expect(v!.status).toBe('failed');
+  });
+
+  it('🔴 P1-1 并发被拒不留垃圾版本行(否则会造出一条成功发布也清不掉的假红条)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    await post(cookie, '/api/publish');
+    const before = (await env.DB.prepare('SELECT COUNT(*) n FROM config_versions').first<{ n: number }>())!.n;
+    const rejected = await post(cookie, '/api/publish');
+    expect(rejected.status).toBe(409);
+    const after = (await env.DB.prepare('SELECT COUNT(*) n FROM config_versions').first<{ n: number }>())!.n;
+    expect(after, '被拒的发布不该留下任何版本行').toBe(before);
+    const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;
+    expect(o.lastPublishFailed, '也不该因此冒出一条假的失败红条').toBeNull();
+  });
+
+  it('🔴 P1-3 线上快照与系统记录劈叉时,状态里必须报出来', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await runPipeline(cookie, r.versionId); // v 已 live,快照印记 = v
+    const ok = envWithStamp({ versionId: r.versionId, stamp: 'x' });
+    const clean = (await (await app.request('/api/publish/status', { headers: { cookie } }, ok as unknown as typeof env)).json()) as any;
+    expect(clean.drift, '印记与记录一致时不该报警').toBeNull();
+    // 全新环境(种子版 + 快照无印记)也不该报——否则是永久噪音
+    await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE status='live'").run();
+    await env.DB.prepare("UPDATE config_versions SET status='live' WHERE created_by='system'").run();
+    const seeded = (await (await app.request('/api/publish/status', { headers: { cookie } }, env)).json()) as any;
+    expect(seeded.drift, '初始种子 + 无印记 = 全新环境,不报').toBeNull();
+    await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE created_by='system'").run();
+    await env.DB.prepare('UPDATE config_versions SET status=?2 WHERE id=?1').bind(r.versionId, 'live').run();
+    // 模拟「切换已落盘、回报没送到」:快照印记指向一个比记录更新的版本
+    const e = envWithStamp({ versionId: r.versionId + 7, stamp: 'x' });
+    const drifted = (await (await app.request('/api/publish/status', { headers: { cookie } }, e as unknown as typeof env)).json()) as any;
+    expect(drifted.drift).not.toBeNull();
+    expect(drifted.drift.dbLive).toBe(r.versionId);
+    expect(drifted.drift.snapshot).toBe(r.versionId + 7);
+  });
+
+  it('P2 上报必须来自领过单的执行器(不领单就上报应被拒)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).error).toContain('not-the-claimed-runner');
   });
 
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
@@ -362,8 +442,9 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
-    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'ok' });
     // 模拟执行器猝死:锁过期,版本仍挂 publishing
     await env.DB.prepare('UPDATE publish_lock SET expires_at = ?1').bind(Date.now() - 1000).run();
     const st = await status(cookie);

@@ -13,7 +13,11 @@ interface Preflight {
 }
 interface StepRow { step: string; status: string; detail: string | null; started_at: number; ended_at: number | null }
 interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }
-interface Status { activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[] }
+interface Status {
+  activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[];
+  /** 线上快照实际是哪一版 ≠ 系统记录的线上版本(切换已落盘、回报没送到时会这样) */
+  drift: { dbLive: number; snapshot: number | null } | null;
+}
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
 const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', validating: '校验中', publishing: '发布中' };
@@ -47,6 +51,8 @@ export default function PublishPage() {
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<{ reason: string; rollbackFrom?: number } | null>(null);
+  const [forcing, setForcing] = useState(false);
+  const [forceReason, setForceReason] = useState('');
   const [openLog, setOpenLog] = useState<string | null>(null);
   const timer = useRef<number | null>(null);
 
@@ -85,9 +91,26 @@ export default function PublishPage() {
     } finally { setBusy(false); }
   }
 
+  /* 取消两档:排队态直接取消;已开工则要执行器失联满 8 分钟 + 写明理由才允许强制中止。
+     🔴 上一轮只做了服务端、界面上没有入口,运营遇到执行器崩掉时依旧只能干等锁超时(复验 P1-2)。 */
   async function cancel() {
-    try { await api('/api/publish/cancel', { method: 'POST' }); toast('已取消'); load(); }
-    catch { toast('无法取消:已有步骤开始执行'); }
+    try {
+      await api('/api/publish/cancel', { method: 'POST', body: JSON.stringify({}) });
+      toast('已取消'); load();
+    } catch (e) {
+      const d = (e as ApiError).body as { canForce?: boolean; hint?: string };
+      if (d?.canForce) { setForcing(true); return; }
+      toast(d?.hint ?? '无法取消:执行器仍在工作');
+    }
+  }
+  async function forceCancel() {
+    if (forceReason.trim().length < 4) { toast('请写明中止理由(至少 4 个字)'); return; }
+    try {
+      await api('/api/publish/cancel', { method: 'POST', body: JSON.stringify({ force: true, reason: forceReason.trim() }) });
+      toast('已强制中止,可以重新发起'); setForcing(false); setForceReason(''); load();
+    } catch (e) {
+      toast(((e as ApiError).body as { hint?: string }).hint ?? '仍无法中止(执行器可能又有动静了)');
+    }
   }
 
   if (failed) return <section><h2>发布与版本</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={load}>重试</button></div></section>;
@@ -126,6 +149,36 @@ export default function PublishPage() {
               <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
             </div>
           )}
+          {/* 已开工但执行器可能已经死了:给出口。服务端只在失联满 8 分钟时才放行,理由必填、记审计。 */}
+          {st.steps.length > 0 && !forcing && (
+            <div className="note" style={{ marginTop: 8 }}>
+              执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
+              <span className="kv">执行器超过 8 分钟没有动静才允许中止;门链本身要跑约 6 分钟,属正常。</span>
+            </div>
+          )}
+          {forcing && (
+            <div className="note bad" style={{ marginTop: 8 }}>
+              <b>强制中止 v{active}</b>
+              <div className="kv">执行器已失联。中止后这一版记为失败、线上保持不变,可以重新发起。理由会记进审计。</div>
+              <div className="row" style={{ marginTop: 6, gap: 8 }}>
+                <input className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
+                <button className="btn" onClick={forceCancel}>确认中止</button>
+                <button className="btn ghost" onClick={() => { setForcing(false); setForceReason(''); }}>返回</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 线上快照与系统记录对不上:切换已落盘、回报没送到时会这样,必须让人看见而不是静默 */}
+      {st.drift && (
+        <div className="note bad">
+          <b>线上内容与系统记录对不上</b>
+          <div className="kv">
+            系统记录的线上版本是 v{st.drift.dbLive},而线上实际伺服的快照
+            {st.drift.snapshot ? `来自 v${st.drift.snapshot}` : '没有上线标记(可能是首次部署,或被手工替换过)'}。
+            多半是上一次发布的切换已经落盘、但回报没送达。重新发起一次发布即可让两边对齐。
+          </div>
         </div>
       )}
 

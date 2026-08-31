@@ -107,12 +107,22 @@ function syncInPlace() {
   cpSync(SRC, LIVE, { recursive: true, force: true });
 }
 
-/** 上线印记:服务端标 live 前会读它核实「线上快照确实是这一版」。见文件头注。 */
+/* 上线印记:服务端标 live 前会读它核实「线上快照确实是这一版」。见文件头注。
+   除版本号与一次性口令外,还带上**本次构建所用的物化配置的摘要**。
+   🔴 为什么要这一项(2026-09-01 复验 P1-4):只带版本号和口令,证明的是「有人落了个文件」,
+   不是「落下的内容就是这一版」。服务端手里有同一个物化器,能自己算出这一版该物化成什么样,
+   于是摘要一比就知道这份快照到底是不是照着这一版的配置构建的。 */
 function writeStamp(dir) {
   const versionId = Number(argOf('--version'));
   const stampToken = argOf('--stamp');
   if (!versionId || !stampToken) return null;
-  const body = JSON.stringify({ versionId, stamp: stampToken, at: new Date().toISOString() }) + '\n';
+  const cfgPath = path.join(here, '..', 'src', 'config', 'site.json');
+  if (!existsSync(cfgPath)) {
+    console.error('✗ 缺 src/config/site.json —— 物化步没跑过?拒绝写上线印记(没有印记服务端不会放行上线)');
+    process.exit(2);
+  }
+  const configSha = createHash('sha256').update(readFileSync(cfgPath)).digest('hex');
+  const body = JSON.stringify({ versionId, stamp: stampToken, configSha, at: new Date().toISOString() }) + '\n';
   writeFileSync(path.join(dir, STAMP), body);
   return versionId;
 }

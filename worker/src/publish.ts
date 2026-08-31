@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { SiteConfigSchema, diffPaths, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
+import { SiteConfigSchema, diffPaths, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
 import { writeAudit } from './audit';
@@ -31,6 +31,7 @@ export const GATE_REASONS: Record<string, string> = {
   'canvas-geometry': '画布几何在某些屏幕宽度下不成立',
   'render-fit': '新文案把版面挤破了(行压行 / 文字钻到导航底下 / 窄屏字号反向变大)',
   'deck-clearance': '设备叠卡的编舞几何侵入了左栏文字',
+  'config-consistency': '服务端配置与代码对不上(定时任务 / 伺服目录 / 失败面映射)',
 };
 export const explainGate = (name: string): string => GATE_REASONS[name] ?? name;
 
@@ -69,14 +70,37 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
 const releaseLock = (env: Env) => env.DB.prepare('DELETE FROM publish_lock WHERE id = 1').run();
 
 /** 读线上快照的上线印记。读不到 / 读不动都返回 null —— 由调用方判成「不许上线」(fail-closed)。 */
-async function readLiveStamp(env: Env): Promise<{ versionId?: number; stamp?: string } | null> {
+async function readLiveStamp(env: Env): Promise<{ versionId?: number; stamp?: string; configSha?: string } | null> {
   try {
-    const res = await env.ASSETS.fetch(new Request(`https://assets.internal${STAMP_PATH}`));
+    const res = await env.ASSETS.fetch(new Request(`https://assets.internal${STAMP_PATH}`, { method: 'GET' }));
     if (!res.ok) return null;
-    return (await res.json()) as { versionId?: number; stamp?: string };
+    return (await res.json()) as { versionId?: number; stamp?: string; configSha?: string };
   } catch {
     return null;
   }
+}
+
+/** 这一版的配置**该**物化成什么样 —— 服务端自己算,不问执行器(见 STAMP_WHY 第二段) */
+async function expectedConfigSha(payload: string): Promise<string> {
+  const json = materializeSiteJson(SiteConfigSchema.parse(JSON.parse(payload)));
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+  return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** 线上快照实际是哪一版(据印记);与数据库记的 live 不一致 = 劈叉,必须让人看见 */
+export async function liveSnapshotDrift(env: Env): Promise<{ dbLive: number; snapshot: number | null } | null> {
+  const [stamp, live] = await Promise.all([readLiveStamp(env), getLive(env)]);
+  if (!live) return null;
+  const snapVer = stamp?.versionId ?? null;
+  if (snapVer === live.id) return null;
+  /* 全新环境豁免:线上那一版是**初始种子**(= 上线前手工构建的站内容,从没走过流水线),
+     快照自然没有上线印记。此时报劈叉是永久噪音,而永久红条只会训练人忽略红条。
+     一旦真发布过一次,种子就不再是 live,这条豁免自动失效。 */
+  if (snapVer === null) {
+    const seed = await env.DB.prepare("SELECT created_by FROM config_versions WHERE id=?1").bind(live.id).first<{ created_by: string }>();
+    if (seed?.created_by === 'system') return null;
+  }
+  return { dbLive: live.id, snapshot: snapVer };
 }
 
 async function getDraft(env: Env) {
@@ -151,7 +175,12 @@ publishRoutes.post('/', async (c) => {
 
   const lock = await acquireLock(c.env, versionId, now);
   if (!lock.ok) {
-    await c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason='有发布正在进行' WHERE id=?1").bind(versionId).run();
+    /* 🔴 拿不到锁 = 这次发布**根本没开始过**,把刚建的行删掉,别留成 failed(2026-09-01 复验 P1-1)。
+       留成 failed 的后果不是多一行历史:壳顶红条判「有比线上更新的失败版本」,
+       而这行垃圾的 id 永远比线上大,于是运营多点一次「发布」,就会得到一条
+       **成功发布也清不掉**的假红条,写着一个从没发布过的版本号。
+       这一族的教训:**没发生过的事不要留痕迹**——留了就会被别处当成事实读。 */
+    await c.env.DB.prepare('DELETE FROM config_versions WHERE id=?1').bind(versionId).run();
     return c.json({ error: 'publish-in-progress', heldBy: lock.heldBy }, 409);
   }
   await writeAudit(c.env.DB, {
@@ -167,7 +196,9 @@ publishRoutes.post('/', async (c) => {
 /** 执行器领取任务(§5.4 契约;dev 本机 runner / Phase C CI runner 共用)。
     已有步骤开始的任务不再派发:防两个执行器领到同一单各干各的(验收 P1「/next 无租约」)。
     执行器崩溃后的续跑走「锁过期 → 自愈标 failed → 重新发起」,不靠二次派发同一单。 */
-publishRoutes.get('/next', async (c) => {
+/* 用 POST:领单会**写库**(原子占位),不该是 GET。
+   带副作用的 GET 在 SameSite=Lax 下是会被跨站顶层导航触发的那一类(复验 P2)。 */
+publishRoutes.post('/next', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
   const v = await c.env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string }>();
@@ -195,14 +226,21 @@ publishRoutes.get('/next', async (c) => {
       ② **前序步骤必须都已 ok**(顺序不可跳);
       ③ 报 ok/failed 前该步必须已 running(先声明再收口,防凭空落一步)。 */
 publishRoutes.post('/step', async (c) => {
-  const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string }>().catch(() => null);
+  const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string; stamp?: string }>().catch(() => null);
   if (!b?.versionId || !b.step || !PUBLISH_STEPS.includes(b.step) || !['running', 'ok', 'failed'].includes(b.status ?? '')) {
     return c.json({ error: 'bad-request' }, 400);
   }
   const now = Date.now();
-  const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
+  const lock = await c.env.DB
+    .prepare('SELECT version_id, expires_at, claim_nonce, claimed_at FROM publish_lock WHERE id = 1')
+    .first<{ version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }>();
   if (!lock || lock.version_id !== b.versionId) return c.json({ error: 'not-current-job' }, 409);
   if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409); // ①
+  /* 上报必须来自**领过单的那个执行器**。此前 /step 与领单完全不绑定:不调 /next 也能一路上报
+     (复验 P2)。虽然最后过不了上线核验,但足以占住锁、制造一堆假步骤记录。 */
+  if (!lock.claimed_at || !lock.claim_nonce || b.stamp !== lock.claim_nonce) {
+    return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
+  }
 
   // ② 前序步骤必须全部 ok —— 这是「不存在绕门上线」的实际承载点
   const idx = PUBLISH_STEPS.indexOf(b.step);
@@ -253,13 +291,18 @@ publishRoutes.post('/step', async (c) => {
        也不能让一次没搬运过的发布被记成 live —— 那会让数据库说的和线上伺服的静默劈叉。 */
     const stamp = await readLiveStamp(c.env);
     const nonceRow = await c.env.DB.prepare('SELECT claim_nonce FROM publish_lock WHERE id = 1').first<{ claim_nonce: string | null }>();
-    const good = stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce;
+    const ver = await c.env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(b.versionId).first<{ payload: string }>();
+    const wantSha = ver ? await expectedConfigSha(ver.payload).catch(() => null) : null;
+    const good =
+      stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha;
     if (!good) {
       const why = !stamp
         ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
         : stamp.versionId !== b.versionId
           ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${b.versionId}`
-          : '线上快照的印记口令与本次发布不符';
+          : stamp.stamp !== nonceRow?.claim_nonce
+            ? '线上快照的印记口令与本次发布不符'
+            : `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`;
       await c.env.DB.batch([
         c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(b.versionId, `上线核验未通过:${why}`),
         c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(b.versionId, 'swap', why),
@@ -308,11 +351,18 @@ publishRoutes.get('/status', async (c) => {
       .prepare('SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions ORDER BY id DESC LIMIT 30')
       .all<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>()
   ).results;
-  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, stepNames: PUBLISH_STEPS });
+  /* 🔴 劈叉自查(2026-09-01 复验 P1-3):切换脚本先落盘、再回报,所以「盘上已经换了、回报没送到」
+     是一个不需要攻击者就会发生的形态(执行器死在这一拍即可)。此前没有任何一处会发现它——
+     界面说「线上保持旧版」,而站上早就是新内容了。现在每次读状态都拿线上快照的印记与
+     数据库记的 live 对一次,不一致就明说,让人能看见并重发一次把两边对齐。 */
+  const drift = await liveSnapshotDrift(c.env).catch(() => null);
+  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, stepNames: PUBLISH_STEPS, drift });
 });
 
-/** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了(门里最长的一步约 6 分钟)。 */
-const RUNNER_SILENT_MS = 8 * 60_000;
+/** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了。
+    实测门链单步最长 343-361 秒,原定 8 分钟只剩两分钟余量——过线后会在执行器健康时劝人掐掉正在跑的发布(复验 P2)。
+    改 12 分钟:仍小于 15 分钟的锁 TTL,不会出现「劝不动又等不到」的空档。 */
+const RUNNER_SILENT_MS = 12 * 60_000;
 
 /* 取消发布(CON13-E4:执行器不在线时不吊死)。两档:
    ① 排队态(一步都没开始)—— 直接取消,任何时候都行;

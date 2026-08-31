@@ -41,9 +41,14 @@ const api = async (p, init = {}, attempt = 1) => {
     return api(p, init, attempt + 1);
   }
 };
-const report = (versionId, step, status, extra = {}) => api('/api/publish/step', { method: 'POST', body: JSON.stringify({ versionId, step, status, ...extra }) });
+/** 上报要带本次领单口令:服务端据此确认是「领过单的那个执行器」在说话 */
+const report = (versionId, step, status, stamp, extra = {}) => api('/api/publish/step', { method: 'POST', body: JSON.stringify({ versionId, step, status, stamp, ...extra }) });
 
-/** 站上 13 门:退出码读 .verify-exit.code 文件(站规矩:不读管道) */
+/* 门 = 站上 13 门 + worker 自己的一致性门。
+   🔴 后半截是 2026-09-01 复验 P1-C/P1-5 补的:伺服目录那道断言写对了,却**不在任何自动链里**——
+   只有人手敲 `npm run gate:config` 才跑,发布流水线一次都不会碰它。
+   门不在链上 = 门不存在。而它守的恰恰是「线上伺服的是已发布快照」这条 P0 修法的唯一支点,
+   所以必须在每次发布时都真跑一遍。 */
 function runGates() {
   const r = spawnSync('npm', ['run', 'verify'], { cwd: SITE, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   let code = r.status ?? 1;
@@ -52,16 +57,24 @@ function runGates() {
   } catch {
     /* 文件读不到就用进程码,但要在 detail 里说明 */
   }
-  const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  // 从汇总里抓第一条红门名(UI 用它做大白话映射)
-  const gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
+  let out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+  let gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
+
+  if (code === 0) {
+    const w = spawnSync('node', ['gate-config-consistency.mjs'], { cwd: here, shell: true, encoding: 'utf8' });
+    out += `\n---- worker 一致性门 ----\n${w.stdout ?? ''}${w.stderr ?? ''}`;
+    if (w.status !== 0) {
+      code = w.status ?? 1;
+      gate = 'config-consistency';
+    }
+  }
   return { ok: code === 0, gate, tail: out.split('\n').slice(-25).join('\n') };
 }
 
 async function runJob(job) {
   const { versionId, config, stamp } = job;
   // ① 物化:配置 → 站消费物(与种子同一物化器,零第二实现)
-  await report(versionId, 'materialize', 'running');
+  await report(versionId, 'materialize', 'running', stamp);
   try {
     const { materializeI18n, materializeSiteJson } = await import('../schema/src/materialize.ts');
     const manifest = JSON.parse(readFileSync(path.join(here, 'seed/copy-manifest.json'), 'utf8'));
@@ -70,29 +83,29 @@ async function runJob(job) {
     }
     mkdirSync(path.join(SITE, 'src/config'), { recursive: true });
     writeFileSync(path.join(SITE, 'src/config/site.json'), materializeSiteJson(config));
-    await report(versionId, 'materialize', 'ok');
+    await report(versionId, 'materialize', 'ok', stamp);
   } catch (e) {
-    await report(versionId, 'materialize', 'failed', { detail: String(e).slice(0, 500) });
+    await report(versionId, 'materialize', 'failed', stamp, { detail: String(e).slice(0, 500) });
     return;
   }
 
   // ② 站上全部机器门(必须在物化后的产物上跑)
-  await report(versionId, 'gates', 'running');
+  await report(versionId, 'gates', 'running', stamp);
   const gates = runGates();
   if (!gates.ok) {
-    await report(versionId, 'gates', 'failed', { gate: gates.gate, detail: gates.tail });
+    await report(versionId, 'gates', 'failed', stamp, { gate: gates.gate, detail: gates.tail });
     console.log(`✗ 门红(${gates.gate ?? '见日志'}),线上保持旧版;工作树已物化的内容请按需 git checkout`);
     return;
   }
-  await report(versionId, 'gates', 'ok');
+  await report(versionId, 'gates', 'ok', stamp);
 
   // ③ 生产构建(verify 内含构建,这里做控制台组装与产物就位)
-  await report(versionId, 'build', 'running');
+  await report(versionId, 'build', 'running', stamp);
   try {
     execFileSync('npm', ['run', 'build:console'], { cwd: SITE, shell: true, stdio: 'pipe' });
-    await report(versionId, 'build', 'ok');
+    await report(versionId, 'build', 'ok', stamp);
   } catch (e) {
-    await report(versionId, 'build', 'failed', { detail: String(e).slice(0, 500) });
+    await report(versionId, 'build', 'failed', stamp, { detail: String(e).slice(0, 500) });
     return;
   }
 
@@ -101,20 +114,20 @@ async function runJob(job) {
      🔴 一次性口令原样透传给 promote,由它写进快照里的上线印记;服务端标 live 前会回读核实
         (复验 P0-A:光有序列校验挡不住「照合法顺序全报一遍」,必须让上线依赖一件
          纯 HTTP 调用者做不到的事——往文件系统里落一个文件)。 */
-  await report(versionId, 'swap', 'running');
+  await report(versionId, 'swap', 'running', stamp);
   try {
     execFileSync('node', ['promote.mjs', '--version', String(versionId), '--stamp', String(stamp ?? '')], { cwd: here, stdio: 'pipe' });
-    await report(versionId, 'swap', 'ok');
+    await report(versionId, 'swap', 'ok', stamp);
     console.log(`✓ v${versionId} 已上线(dist-live 已更新)`);
   } catch (e) {
-    await report(versionId, 'swap', 'failed', { detail: `快照提升失败:${String(e).slice(0, 400)}` });
+    await report(versionId, 'swap', 'failed', stamp, { detail: `快照提升失败:${String(e).slice(0, 400)}` });
     console.log('✗ 快照提升失败,线上保持旧版');
   }
 }
 
 async function loop() {
   for (;;) {
-    const { job } = await api('/api/publish/next');
+    const { job } = await api('/api/publish/next', { method: 'POST', body: '{}' });
     if (job) {
       console.log(`▶ 领到发布任务 v${job.versionId}`);
       await runJob(job);
