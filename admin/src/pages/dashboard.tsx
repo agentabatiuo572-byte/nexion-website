@@ -16,10 +16,15 @@ interface Dash {
   funnel: Maybe<{ uv: number; download: number; trust: number; cta: number }>;
   locales: Maybe<Array<{ locale: string; uv: number; pv: number; share: number; rate: number | null }>>;
   dims: Maybe<{ sources: Array<{ k: string; uv: number }>; countries: Array<{ k: string; uv: number }>; devices: Array<{ k: string; uv: number }> }>;
-  content: Maybe<{ pages: Array<{ path: string; locale: string; pv: number; uv: number }>; faq: Array<{ faq_id: string; opens: number }>; learn: Array<{ slug: string; reads: number }>; sections: Array<{ section_id: string; uniq: number }> }>;
-  quality: Maybe<{ latest: { date: string; lcp_p75: number; cls_p75: number; n: number } | null; errors: number; notFound: Array<{ path: string; hits: number }>; notFoundTotal: number }>;
+  content: {
+    pages: Maybe<Array<{ path: string; locale: string; pv: number; uv: number }>>;
+    faq: Maybe<Array<{ faq_id: string; opens: number }>>;
+    learn: Maybe<Array<{ slug: string; reads: number }>>;
+    sections: Maybe<Array<{ section_id: string; uniq: number }>>;
+  };
+  quality: Maybe<{ latest: { date: string; lcp_p75: number; cls_p75: number; n: number } | null; errors: number | null; notFound: Array<{ path: string; hits: number }>; notFoundTotal: number | null }>;
   health: Maybe<{
-    botShare: number | null; botLegacy: boolean; blocked: number; blockedShare: number | null;
+    botShare: number | null; botLegacy: boolean; botDays: { covered: number; total: number }; blocked: number; blockedShare: number | null;
     blockedTop: Array<{ country: string; hits: number }>;
     geo: { enabled: boolean; countries: number; degraded: boolean } | null;
     lastPublish: { id: number; status: string; fail_reason: string | null } | null;
@@ -184,13 +189,9 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* 内容榜:四张卡各自独立(验收 P2:此前四卡共用一个失败分组,一张表挂了四张一起黑) */}
-      {isErr(d.content) ? (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
-          {['页面 PV 榜', '板块曝光', 'FAQ 展开榜', '学习中心阅读榜'].map((t) => <ErrCard key={t} title={t} onRetry={() => load(range)} />)}
-        </div>
-      ) : (
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
+      {/* 内容四榜:服务端已各自独立成组(复测 R2-P2),前端逐卡判失败——一张表挂了只黑它自己 */}
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>
+        {isErr(d.content.pages) ? <ErrCard title="页面 PV 榜" onRetry={() => load(range)} /> : (
           <Card title="页面 PV 榜">
             {d.content.pages.length === 0 ? <p className="kv">暂无数据</p> : (
               <table><tbody>{d.content.pages.slice(0, 8).map((p) => (
@@ -198,6 +199,8 @@ export default function Dashboard() {
               ))}</tbody></table>
             )}
           </Card>
+        )}
+        {isErr(d.content.sections) ? <ErrCard title="板块曝光" onRetry={() => load(range)} /> : (
           <Card title="板块曝光(访客数)" note="哪些板块真的被看到">
             {d.content.sections.length === 0 ? <p className="kv">暂无数据</p> : (
               <table><tbody>{d.content.sections.slice(0, 8).map((s) => (
@@ -205,6 +208,8 @@ export default function Dashboard() {
               ))}</tbody></table>
             )}
           </Card>
+        )}
+        {isErr(d.content.faq) ? <ErrCard title="FAQ 展开榜" onRetry={() => load(range)} /> : (
           <Card title="FAQ 展开榜" note="客服热点问题的真实排序">
             {d.content.faq.length === 0 ? <p className="kv">暂无数据</p> : (
               <table><tbody>{d.content.faq.slice(0, 8).map((f) => (
@@ -212,6 +217,8 @@ export default function Dashboard() {
               ))}</tbody></table>
             )}
           </Card>
+        )}
+        {isErr(d.content.learn) ? <ErrCard title="学习中心阅读榜" onRetry={() => load(range)} /> : (
           <Card title="学习中心阅读榜">
             {d.content.learn.length === 0 ? <p className="kv">暂无数据</p> : (
               <table><tbody>{d.content.learn.slice(0, 8).map((l) => (
@@ -219,8 +226,8 @@ export default function Dashboard() {
               ))}</tbody></table>
             )}
           </Card>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* 质量 + 运营健康 */}
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: 12 }}>
@@ -231,9 +238,10 @@ export default function Dashboard() {
                 {d.quality.latest ? `${(d.quality.latest.lcp_p75 / 1000).toFixed(2)}s` : '—'}</div><div className="kv">LCP p75(红线 2.5s)</div></div>
               <div><div className="mono" style={{ fontSize: 18, fontWeight: 600, color: d.quality.latest && d.quality.latest.cls_p75 > 0.1 ? 'var(--bad)' : undefined }}>
                 {d.quality.latest ? d.quality.latest.cls_p75.toFixed(3) : '—'}</div><div className="kv">CLS p75(红线 0.1)</div></div>
-              {/* 空库时统一显「—」而不是 0(验收 P2:0 与「—」混用会让「没数据」和「真的是零」分不清) */}
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.quality.latest ? num(d.quality.errors) : '—'}</div><div className="kv">JS 报错</div></div>
-              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.quality.latest || d.quality.notFoundTotal > 0 ? num(d.quality.notFoundTotal) : '—'}</div>
+              {/* 每个指标只看自己的数据(复测 R2-P3:此前绑在性能样本上,导致「有报错没性能样本」时
+                  真实告警被藏成「—」);null=该区间无记录 → num() 显「—」,有记录则显真值(含 0) */}
+              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600, color: (d.quality.errors ?? 0) > 0 ? 'var(--warn)' : undefined }}>{num(d.quality.errors)}</div><div className="kv">JS 报错</div></div>
+              <div><div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{num(d.quality.notFoundTotal)}</div>
                 <div className="kv">404 命中<span title="单来源每分钟超 120 次的部分不落库,此时为下限">*</span></div></div>
             </div>
             {d.quality.notFound.length > 0 && (
@@ -257,7 +265,14 @@ export default function Dashboard() {
             <div className="row" style={{ gap: 20 }}>
               <div>
                 <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{pct(d.health.botShare)}</div>
-                <div className="kv">爬虫占比{d.health.botLegacy ? '(该区间为口径升级前数据,无法回算)' : '(按请求加权;已排除出流量指标)'}</div>
+                <div className="kv">
+                  爬虫占比
+                  {d.health.botLegacy
+                    ? '(该区间为口径升级前数据,无法回算)'
+                    : d.health.botDays.covered < d.health.botDays.total
+                      ? `(按请求加权;仅覆盖 ${d.health.botDays.covered}/${d.health.botDays.total} 天,其余为口径升级前数据)`
+                      : '(按请求加权;已排除出流量指标)'}
+                </div>
               </div>
               <div>
                 <div className="mono" style={{ fontSize: 18, fontWeight: 600 }}>{d.health.blocked > 0 || d.health.geo?.enabled ? num(d.health.blocked) : '—'}</div>

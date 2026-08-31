@@ -130,25 +130,26 @@ dashRoutes.get('/', async (c) => {
     return { sources, countries, devices };
   });
 
-  // ---- 内容榜:页面 / FAQ / learn / 板块曝光 ----
-  const content = await section(async () => {
-    const pages = (
-      await db
+  /* ---- 内容四榜:各自独立成组(复测 R2-P2「没真拆」:此前四榜同在一个 section 里,
+     任一张表出问题四张卡一起黑,而其余三张表是健康的)。隔离粒度必须与展示粒度一致。 ---- */
+  const [pages, faq, learn, sections] = await Promise.all([
+    section(async () =>
+      (await db
         .prepare('SELECT path, locale, COALESCE(SUM(pv),0) pv, COALESCE(SUM(uv),0) uv FROM daily_page WHERE date BETWEEN ?1 AND ?2 GROUP BY path, locale ORDER BY pv DESC LIMIT 15')
         .bind(from, today)
-        .all<{ path: string; locale: string; pv: number; uv: number }>()
-    ).results;
-    const faq = (
-      await db.prepare('SELECT faq_id, COALESCE(SUM(opens),0) opens FROM daily_faq WHERE date BETWEEN ?1 AND ?2 GROUP BY faq_id ORDER BY opens DESC LIMIT 15').bind(from, today).all<{ faq_id: string; opens: number }>()
-    ).results;
-    const learn = (
-      await db.prepare('SELECT slug, COALESCE(SUM(reads),0) reads FROM daily_learn WHERE date BETWEEN ?1 AND ?2 GROUP BY slug ORDER BY reads DESC LIMIT 15').bind(from, today).all<{ slug: string; reads: number }>()
-    ).results;
-    const sections = (
-      await db.prepare('SELECT section_id, COALESCE(SUM(uniq),0) uniq FROM daily_section WHERE date BETWEEN ?1 AND ?2 GROUP BY section_id ORDER BY uniq DESC').bind(from, today).all<{ section_id: string; uniq: number }>()
-    ).results;
-    return { pages, faq, learn, sections };
-  });
+        .all<{ path: string; locale: string; pv: number; uv: number }>()).results,
+    ),
+    section(async () =>
+      (await db.prepare('SELECT faq_id, COALESCE(SUM(opens),0) opens FROM daily_faq WHERE date BETWEEN ?1 AND ?2 GROUP BY faq_id ORDER BY opens DESC LIMIT 15').bind(from, today).all<{ faq_id: string; opens: number }>()).results,
+    ),
+    section(async () =>
+      (await db.prepare('SELECT slug, COALESCE(SUM(reads),0) reads FROM daily_learn WHERE date BETWEEN ?1 AND ?2 GROUP BY slug ORDER BY reads DESC LIMIT 15').bind(from, today).all<{ slug: string; reads: number }>()).results,
+    ),
+    section(async () =>
+      (await db.prepare('SELECT section_id, COALESCE(SUM(uniq),0) uniq FROM daily_section WHERE date BETWEEN ?1 AND ?2 GROUP BY section_id ORDER BY uniq DESC').bind(from, today).all<{ section_id: string; uniq: number }>()).results,
+    ),
+  ]);
+  const content = { pages, faq, learn, sections };
 
   // ---- 质量:LCP/CLS p75(按天取样本加权近似)+ JS 错误 + 404 ----
   const quality = await section(async () => {
@@ -157,13 +158,21 @@ dashRoutes.get('/', async (c) => {
     ).results;
     // 🔴 p75 不能跨天再求平均得到真 p75;取「最近一天的 p75」为展示值,并回样本量供前端标注口径
     const latest = v[0] ?? null;
-    const errs = (
-      await db.prepare('SELECT COALESCE(SUM(count),0) n FROM daily_errors WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number }>()
-    )!.n;
+    /* 🔴 每个指标只由**自己的表**决定有无数据(复测 R2-P3):此前前端把「JS 报错」的显示
+       绑在 daily_vitals 上,导致「有报错、没性能样本」时真实告警被显示成「—」——
+       而那恰恰是脚本早崩、最该看到报错的那天。API 直接回 null/数值,前端不再做跨表推断。 */
+    const errRow = (
+      await db.prepare('SELECT COALESCE(SUM(count),0) n, COUNT(*) rows FROM daily_errors WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number; rows: number }>()
+    )!;
     const nf = (
       await db.prepare('SELECT path, COALESCE(SUM(hits),0) hits FROM daily_notfound WHERE date BETWEEN ?1 AND ?2 GROUP BY path ORDER BY hits DESC LIMIT 10').bind(from, today).all<{ path: string; hits: number }>()
     ).results;
-    return { latest, errors: errs, notFound: nf, notFoundTotal: nf.reduce((s, r) => s + r.hits, 0) };
+    return {
+      latest,
+      errors: errRow.rows > 0 ? errRow.n : null,
+      notFound: nf,
+      notFoundTotal: nf.length > 0 ? nf.reduce((s, r) => s + r.hits, 0) : null,
+    };
   });
 
   // ---- 运营健康:Bot 占比 + 屏蔽 + 下载探活状态(探活由前端按需触发,这里给规则/统计)----
@@ -172,12 +181,21 @@ dashRoutes.get('/', async (c) => {
        实测与真实占比差近 2 倍还印成精确小数)。0004 迁移前的旧行没有分子分母 → 该期间回 null,
        前端显「—」并标注「口径升级前的历史区间无法回算」,不拿旧口径的数冒充。 */
     const botRow = await db
-      .prepare('SELECT COALESCE(SUM(bot_pv),0) b, COALESCE(SUM(human_pv),0) h, COUNT(*) n FROM daily_bot WHERE date BETWEEN ?1 AND ?2')
+      .prepare(
+        `SELECT COALESCE(SUM(bot_pv),0) b, COALESCE(SUM(human_pv),0) h, COUNT(*) n,
+                SUM(CASE WHEN bot_pv + human_pv > 0 THEN 1 ELSE 0 END) covered
+         FROM daily_bot WHERE date BETWEEN ?1 AND ?2`,
+      )
       .bind(from, today)
-      .first<{ b: number; h: number; n: number }>();
+      .first<{ b: number; h: number; n: number; covered: number | null }>();
     const denom = (botRow?.b ?? 0) + (botRow?.h ?? 0);
     const bot = denom > 0 ? botRow!.b / denom : null;
-    const botLegacy = (botRow?.n ?? 0) > 0 && denom === 0; // 有行但没分母 = 旧口径数据
+    /* 覆盖度(复测 R2-P2):混合窗(部分日期是 0004 迁移前的旧行、无分子分母)时,
+       只按有分母的那几天算却宣称「全期加权」= 冒充。回传覆盖天数,由前端标注
+       「仅覆盖 N/M 天」;全窗无分母时 bot=null 并标 legacy。0004 上线后 30/90 天档必然混合,
+       这不是极端场景。 */
+    const botDays = { covered: botRow?.covered ?? 0, total: botRow?.n ?? 0 };
+    const botLegacy = botDays.total > 0 && botDays.covered === 0;
     const blocked = (await db.prepare('SELECT COALESCE(SUM(hits),0) n FROM daily_blocked WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number }>())!.n;
     const blockedTop = (
       await db.prepare('SELECT country, COALESCE(SUM(hits),0) hits FROM daily_blocked WHERE date BETWEEN ?1 AND ?2 GROUP BY country ORDER BY hits DESC LIMIT 5').bind(from, today).all<{ country: string; hits: number }>()
@@ -194,7 +212,7 @@ dashRoutes.get('/', async (c) => {
     // 被屏蔽占比(P2:面板缺占比):口径同 geo 面板 = 拦截数 ÷(拦截 + 人类 pv)
     const pvForShare = (await db.prepare('SELECT COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ pv: number }>())!.pv;
     return {
-      botShare: bot, botLegacy, blocked, blockedTop,
+      botShare: bot, botLegacy, botDays, blocked, blockedTop,
       blockedShare: blocked + pvForShare > 0 ? blocked / (blocked + pvForShare) : null,
       geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
       lastPublish,

@@ -190,13 +190,39 @@ describe('CON03 驾驶舱聚合', () => {
     expect(d.health.lastPublish).toBeNull(); // 只有种子行时不谎报「最近发布成功」
   });
 
-  it('E3 单卡失败互不拖垮:某表损坏时该组回 error,其余组照常', async () => {
+  it('E3/R2-P2 隔离粒度=展示粒度:弄坏页面榜的表,只有那一榜 error,另三榜照常出数', async () => {
     const cookie = await login();
     await seed();
-    await env.DB.prepare('DROP TABLE daily_page').run(); // 只弄坏内容榜依赖的表
+    await env.DB.prepare('DROP TABLE daily_page').run(); // 只弄坏「页面 PV 榜」依赖的表
     const d = await dash(cookie);
-    expect(d.content).toEqual({ error: true });
+    expect(d.content.pages).toEqual({ error: true });
+    expect(d.content.faq).not.toEqual({ error: true }); // 另三榜的表是健康的,不该跟着黑
+    expect(d.content.learn).not.toEqual({ error: true });
+    expect(d.content.sections.find((s: any) => s.section_id === 'download').uniq).toBe(50);
     expect(d.overview.pv).toBe(160); // 其余组不受影响
     expect(d.funnel.uv).toBe(70);
+    // 还表:否则后续用例的 beforeEach 清表会炸(测试之间不许互相污染)
+    await env.DB.prepare('CREATE TABLE daily_page (date TEXT NOT NULL, path TEXT NOT NULL, locale TEXT NOT NULL, pv INTEGER NOT NULL DEFAULT 0, uv INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (date, path, locale))').run();
+  });
+
+  it('R2-P2 爬虫占比混合窗:标注覆盖天数,不把半个窗口冒充全期', async () => {
+    const cookie = await login();
+    await env.DB.batch([
+      env.DB.prepare('INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.9,90,10)').bind(today), // 新口径行
+      env.DB.prepare('INSERT INTO daily_bot (date,bot_share,bot_pv,human_pv) VALUES (?1,0.42,0,0)').bind(yesterday), // 旧口径行(无分母)
+    ]);
+    const d = await dash(cookie);
+    expect(d.health.botShare).toBeCloseTo(0.9, 4); // 有分母的那天
+    expect(d.health.botDays).toEqual({ covered: 1, total: 2 }); // 覆盖度如实回传 → 前端标注
+    expect(d.health.botLegacy).toBe(false); // 不是「全窗无分母」
+  });
+
+  it('R2-P3 质量指标各看各的表:有报错但无性能样本时,报错数照样出(不被藏成「—」)', async () => {
+    const cookie = await login();
+    await env.DB.prepare("INSERT INTO daily_errors (date,msg_hash,count) VALUES (?1,'boom',14)").bind(today).run();
+    const d = await dash(cookie); // daily_vitals 空
+    expect(d.quality.latest).toBeNull();
+    expect(d.quality.errors).toBe(14); // 关键:不因另一张表没数据而变 null
+    expect(d.quality.notFoundTotal).toBeNull(); // 自己的表没数据才是 null
   });
 });

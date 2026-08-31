@@ -24,8 +24,9 @@
     { "binding": "KV", "id": "local-dev-placeholder" }
   ],
   "triggers": {
-    // 每日 00:10 UTC:日汇总 + 90 天原始事件滚动清理(PRD §5.3;T6 实现)
-    "crons": ["10 0 * * *"]
+    // 每日 00:10 UTC:日汇总 + 90 天原始事件滚动清理(PRD §5.3)
+    // 每 6 小时:下载链接探活巡检(PRD CON03-③;连续 2 次失败 → 驾驶舱红条)
+    "crons": ["10 0 * * *", "0 */6 * * *"]
   },
   "vars": {
     "ENVIRONMENT": "dev",
