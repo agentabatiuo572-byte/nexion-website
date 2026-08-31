@@ -166,7 +166,8 @@ describe('CON04/CON13 配置模型', () => {
     await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p3, baseRevision: o3.draft.draftRev }) }, env);
     const o4 = await getOverview(cookie);
     expect(o4.draft.payload.announcement.id).toBe(liveId);
-    expect(o4.changedPaths.some((p) => p.startsWith('announcement'))).toBe(false); // 幽灵清零
+    const changed = (o4 as unknown as { changedPaths: string[] }).changedPaths;
+    expect(changed.some((p) => p.startsWith('announcement'))).toBe(false); // 幽灵清零
   });
 
   it('CON11-E3 Legal 保存剥危险节点并回显计数', async () => {
