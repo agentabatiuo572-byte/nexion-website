@@ -5,7 +5,7 @@
    「已修」在干净 checkout 上等于没修,只有 git 层能发现)。
    ⚠️ 必须是独立 node 脚本:worker 测试跑在 workerd 沙箱里读不到仓内任意文件。
    用法:node gate-config-consistency.mjs   自检:--self-test(注入不一致必须变红) */
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, realpathSync, existsSync, symlinkSync, rmSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +28,15 @@ const say = (ok, msg) => {
 };
 
 function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText = VALIDATOR_TEXT, labelText = LABEL_TEXT) {
-  const cfg = JSON.parse(stripJsonc(cfgText));
+  /* 读不动就明说是哪种写法读不动,别只抛一段栈(第四轮 P2-12)。
+     剥注释仍不处理**行尾** `//`——要正确处理必须字符串感知,否则会误伤 URL 里的 `//`,那条留在 T23;
+     但至少要让人一眼看出「是配置里有本门看不懂的写法」,而不是对着一段 SyntaxError 猜。 */
+  let cfg;
+  try {
+    cfg = JSON.parse(stripJsonc(cfgText));
+  } catch (e) {
+    return [[false, `wrangler.jsonc 读不动(本门的 JSONC 剥注释不处理行尾 // 注释):${String(e).slice(0, 120)}`]];
+  }
   const declared = cfg.triggers?.crons ?? [];
   /* 从 CRON_JOBS 登记表取「代码处理的 cron」——通用判据,不再硬编码具体表达式(复测 O11)。
      取块内的字符串键;块以 `const CRON_JOBS` 起、到首个单独 `};` 止。 */
@@ -53,9 +61,15 @@ function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText
   /* 🔴 按**解析后的真实路径**比,不按字符串比(2026-09-01 复验 P2):
      `"../dist-live/../dist"` 字面上既不等于 `dist` 也含有 `dist-live`,字符串判据会放行,
      而它 resolve 出来就是构建产物目录 —— P0-3 可原样复活且门全绿。 */
-  const norm = (p) => path.resolve(here, p).replace(/\\/g, '/');
+  /* 🔴 还要解开**目录链接**(junction / symlink):把 dist-live 做成指向 dist 的 junction,
+     resolve 后的字符串仍然不同,而它实际指向的就是构建产物目录——实测门照样判绿(第四轮 P2)。
+     路径不存在时退回 resolve(全新 checkout 还没造出 dist-live,不该因此崩)。 */
+  const norm = (p) => {
+    const abs = path.resolve(here, p);
+    return (existsSync(abs) ? realpathSync(abs) : abs).replace(/\\/g, '/');
+  };
   out.push([!!served, 'wrangler.jsonc 声明了 assets.directory']);
-  const outAbs = path.resolve(here, '..', outDir).replace(/\\/g, '/');
+  const outAbs = norm(path.join('..', outDir));
   out.push([norm(served) !== outAbs, `伺服目录(${served} → ${norm(served)})≠ 构建输出目录(${outAbs})——门重建产物碰不到线上`]);
   out.push([norm(served).endsWith('/dist-live'), `伺服目录是已发布快照(${norm(served)})`]);
 
@@ -88,12 +102,36 @@ if (process.argv.includes('--self-test')) {
   // 绕过写法:字面上既不等于 dist、又含有 dist-live,但 resolve 出来就是构建产物
   const sneaky = cfgText.replace(/"directory":\s*"[^"]*"/, '"directory": "../dist-live/../dist"');
   say(check(sneaky, srcText, migFiles).some(([ok]) => !ok), 'self-test:伺服目录用 ../dist-live/../dist 绕 → 变红');
+  /* 目录链接绕过:把伺服目录做成指向构建产物的 junction。
+     用临时链接实测,不是拿字符串假装——realpath 解不开链接的话这条会漏(第四轮 P2 实录)。 */
+  {
+    const linkPath = path.join(here, '..', '.gate-selftest-link');
+    let made = false;
+    try {
+      symlinkSync(path.join(here, '..', 'dist'), linkPath, 'junction');
+      made = true;
+    } catch { /* 无权限建链接的环境(如受限 CI)跳过,但要说明,不静默 */ }
+    if (made) {
+      const linked = cfgText.replace(/"directory":\s*"[^"]*"/, '"directory": "../.gate-selftest-link"');
+      say(check(linked, srcText, migFiles).some(([ok]) => !ok), 'self-test:伺服目录做成指向构建产物的链接 → 变红');
+      rmSync(linkPath, { recursive: false, force: true });
+    } else {
+      console.log('· self-test:本环境建不了目录链接,该形态未验(不是通过)');
+    }
+  }
   // 失败面多一个校验器从不产出的死键
   const deadKey = LABEL_TEXT.replace(/const RULE_LABEL: Record<string, string> = \{/, "const RULE_LABEL: Record<string, string> = {\n  'no-such-rule': '不存在的规则',");
   say(check(cfgText, srcText, migFiles, ASTRO_TEXT, VALIDATOR_TEXT, deadKey).some(([ok]) => !ok), 'self-test:失败面多一个死键 → 变红');
   // 校验器新增规则但失败面没跟上
   const newRule = VALIDATOR_TEXT.replace(/rule: 'structure'/, "rule: 'brand-new-rule'");
   say(check(cfgText, srcText, migFiles, ASTRO_TEXT, newRule).some(([ok]) => !ok), 'self-test:校验器新增规则而失败面缺映射 → 变红');
+  // 行尾注释:必须给出人话诊断而不是抛栈
+  const trailing = cfgText.replace('"directory":', '"directory": // 说明\n    ');
+  const r = check(trailing, srcText, migFiles);
+  say(r.some(([ok, m]) => !ok && String(m).includes('行尾')), 'self-test:配置含行尾注释 → 给人话诊断而不是抛栈');
+  // 规则名含数字必须被本门看见
+  const numRule = VALIDATOR_TEXT.replace("rule: 'structure'", "rule: 'h1-count'");
+  say(check(cfgText, srcText, migFiles, ASTRO_TEXT, numRule).some(([ok]) => !ok), 'self-test:带数字的规则名(h1-count)也要被双向断言看见');
   say(check(cfgText, srcText, migFiles).every(([ok]) => ok), 'self-test:真实配置全绿(不误报)');
   process.exit(fails ? 1 : 0);
 }

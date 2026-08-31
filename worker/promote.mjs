@@ -98,13 +98,23 @@ function listFiles(dir, base = '') {
 /* 就地同步:逐文件覆盖 + 删除已不存在的旧文件。
    原子性弱于换名(访客可能读到新旧混排的一瞬),但两边都是**已过门**的内容,
    而换名换来的强原子性在服务运行时根本拿不到(见下)。 */
+/* 🔴 每次搬运都先把旧印记抹掉(2026-09-01 第四轮 P1-4)。
+   此前就地同步分支会把上一版的印记原样留着,于是「内容换了、印记还是旧的」——
+   而劈叉自查正是靠印记判断线上是哪一版,这一留就让它**永远报不出来**;
+   报不报还取决于当时目录有没有被占用(走哪个分支),这种"看运气"的判据比没有更坏。
+   规则:印记只在本次真的写了才存在;写不了(手工提升、没给版本号)就让它缺席——
+   缺席会被判成劈叉,那是诚实的结果。 */
+function dropStamp(dir) {
+  rmSync(path.join(dir, STAMP), { force: true });
+}
+
 function syncInPlace() {
   const want = new Set(listFiles(SRC));
-  want.add(STAMP); // 印记是搬运的产物,不在 dist 里,别把它当「已不存在的旧文件」删掉
   for (const rel of listFiles(LIVE)) {
     if (!want.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
   }
   cpSync(SRC, LIVE, { recursive: true, force: true });
+  dropStamp(LIVE); // 内容已换 → 旧印记一定不再有效
 }
 
 /* 上线印记:服务端标 live 前会读它核实「线上快照确实是这一版」。见文件头注。
@@ -112,16 +122,24 @@ function syncInPlace() {
    🔴 为什么要这一项(2026-09-01 复验 P1-4):只带版本号和口令,证明的是「有人落了个文件」,
    不是「落下的内容就是这一版」。服务端手里有同一个物化器,能自己算出这一版该物化成什么样,
    于是摘要一比就知道这份快照到底是不是照着这一版的配置构建的。 */
+/* 摘要覆盖**全部物化产物**(三语文案 + 站点配置),不只是 site.json。
+   🔴 只哈希 site.json 时,「只改文案」这个最常见的改动摘要完全不变,核验形同虚设(第四轮 P1-3)。
+   拼接口径必须与服务端 expectedConfigSha 逐字节一致:路径 + NUL + 内容,以 NUL 相连,顺序固定。 */
+const MATERIALIZED_FILES = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'];
 function writeStamp(dir) {
   const versionId = Number(argOf('--version'));
   const stampToken = argOf('--stamp');
   if (!versionId || !stampToken) return null;
-  const cfgPath = path.join(here, '..', 'src', 'config', 'site.json');
-  if (!existsSync(cfgPath)) {
-    console.error('✗ 缺 src/config/site.json —— 物化步没跑过?拒绝写上线印记(没有印记服务端不会放行上线)');
-    process.exit(2);
+  const parts = [];
+  for (const rel of MATERIALIZED_FILES) {
+    const p = path.join(here, '..', rel);
+    if (!existsSync(p)) {
+      console.error(`✗ 缺 ${rel} —— 物化步没跑过?拒绝写上线印记(没有印记服务端不会放行上线)`);
+      process.exit(2);
+    }
+    parts.push(`${rel}\0${readFileSync(p, 'utf8')}`);
   }
-  const configSha = createHash('sha256').update(readFileSync(cfgPath)).digest('hex');
+  const configSha = createHash('sha256').update(parts.join('\0'), 'utf8').digest('hex');
   const body = JSON.stringify({ versionId, stamp: stampToken, configSha, at: new Date().toISOString() }) + '\n';
   writeFileSync(path.join(dir, STAMP), body);
   return versionId;

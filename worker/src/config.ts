@@ -4,6 +4,7 @@ import seedJson from '../seed/site-config.seed.json';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
 import { writeAudit } from './audit';
+import { liveSnapshotDrift } from './publish';
 import { loadRules } from './geo';
 
 /* 配置模型(CON04-A1/E3 + CON13-③ 版本表底座)。
@@ -78,6 +79,8 @@ configRoutes.get('/', async (c) => {
   return c.json({
     liveVersion: live!.id,
     livePublishedAt: live!.published_at,
+    /* 劈叉也要出现在壳的状态条上:只挂在发布页,运营在别的页面看到的仍是「与线上一致」(第四轮 P1-6) */
+    drift: await liveSnapshotDrift(c.env).catch(() => null),
     lastPublishFailed: lastFail ? { id: lastFail.id, reason: lastFail.fail_reason ?? '原因未记录', at: lastFail.created_at } : null,
     geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
     live: { payload: livePayload }, // 编辑器「查看线上值/行级撤销」的对照源(CON04-⑥)

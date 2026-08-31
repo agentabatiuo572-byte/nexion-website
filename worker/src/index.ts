@@ -72,9 +72,9 @@ app.all('/api/*', (c) => c.json({ error: 'not-found' }, 404));
 // ⚠️ 区域屏蔽(T15)必须豁免本段(CON12-E1 自锁保护)
 app.get('/admin', (c) => c.redirect('/admin/'));
 app.get('/admin/*', async (c) => {
-  const res = await c.env.ASSETS.fetch(assetRequest(c.req.url));
+  const res = await c.env.ASSETS.fetch(assetRequest(c.req.url, c.req.raw.headers));
   if (res.status !== 404) return res;
-  return c.env.ASSETS.fetch(assetRequest(new URL('/admin/index.html', c.req.url).toString()));
+  return c.env.ASSETS.fetch(assetRequest(new URL('/admin/index.html', c.req.url).toString(), c.req.raw.headers));
 });
 
 /* 交给资产层的请求一律**重新构造成裸 GET**,不转发原始 Request。
@@ -83,7 +83,11 @@ app.get('/admin/*', async (c) => {
    **打死整个 worker 进程**(验收方路由审计时无意触发,当场掐断了一次正在跑的发布);
    生产上虽不至于拖垮 isolate,但所有带 body 的非 GET 静态请求都会变 5xx。
    静态资产本来就只该响应 GET/HEAD,所以下面对其余方法直接回 405,连碰都不碰资产层。 */
-const assetRequest = (url: string) => new Request(url, { method: 'GET' });
+/* 🔴 只丢 body 和方法,**请求头必须原样带上**(2026-09-01 第四轮 P1-1)。
+   第一版图省事写成「裸 GET」,连一个头都不带,于是 `If-None-Match` / `If-Modified-Since` / `Range`
+   全部丢失:站上每个文件都是 must-revalidate,304 这条路被封死 → 回访用户每次导航都全站重下
+   (光非指纹资产就 74 个文件 / 3.4 MB)。修一个崩溃顺手造一个性能回归,是「改窄一点」没做到位。 */
+const assetRequest = (url: string, headers?: Headers) => new Request(url, { method: 'GET', headers });
 
 // 静态产物兜底(T3;区域屏蔽中间件 T15 已插在一切之前)
 // 404 命中计数(CON03-③ 质量卡):服务端侧记,比页内埋点准(无 JS/爬虫的 404 也算);按 IP 节流
@@ -91,7 +95,7 @@ app.all('*', async (c) => {
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
     return c.json({ error: 'method-not-allowed' }, 405, { Allow: 'GET, HEAD' });
   }
-  const res = await c.env.ASSETS.fetch(assetRequest(c.req.url));
+  const res = await c.env.ASSETS.fetch(assetRequest(c.req.url, c.req.raw.headers));
   if (res.status === 404 && (c.req.header('accept') ?? '').includes('text/html')) {
     const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
     if (!notFoundLimiter.hit(ip)) {

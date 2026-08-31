@@ -85,6 +85,16 @@ export default function Shell() {
           <button className="nav" onClick={logout}>↩︎ <span className="lbl">退出</span></button>
         </aside>
         <main className="content">
+          {/* 线上内容与系统记录对不上:此前只在发布页显示,别的页面仍写「与线上一致」(第四轮 P1-6) */}
+          {overview?.drift && (
+            <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>
+                线上内容与系统记录对不上:记录里线上是 v{overview.liveVersion},线上实际伺服的快照
+                {overview.drift.snapshot ? `来自 v${overview.drift.snapshot}` : '没有上线标记'}。
+              </span>
+              <NavLink to="/publish" className="btn ghost sm">去处理</NavLink>
+            </div>
+          )}
           {/* CON02-E2:上次发布失败的红条,常驻壳顶直到有一次成功发布把它顶掉 */}
           {overview?.lastPublishFailed && (
             <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>

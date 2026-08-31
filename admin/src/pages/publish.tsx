@@ -20,7 +20,7 @@ interface Status {
 }
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
-const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', validating: '校验中', publishing: '发布中' };
+const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '校验中', publishing: '发布中' };
 /** 把校验规则译成人话;缺映射显规则名原文,不隐藏 */
 const RULE_LABEL: Record<string, string> = {
   'forbidden-word': '合规禁用词', placeholder: '占位符缺失', untranslated: '缺译', 'unknown-key': '非法 key',
@@ -91,7 +91,7 @@ export default function PublishPage() {
     } finally { setBusy(false); }
   }
 
-  /* 取消两档:排队态直接取消;已开工则要执行器失联满 8 分钟 + 写明理由才允许强制中止。
+  /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
      🔴 上一轮只做了服务端、界面上没有入口,运营遇到执行器崩掉时依旧只能干等锁超时(复验 P1-2)。 */
   async function cancel() {
     try {
@@ -149,11 +149,11 @@ export default function PublishPage() {
               <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
             </div>
           )}
-          {/* 已开工但执行器可能已经死了:给出口。服务端只在失联满 8 分钟时才放行,理由必填、记审计。 */}
+          {/* 已开工但执行器可能已经死了:给出口。服务端只在失联满 12 分钟时才放行,理由必填、记审计。 */}
           {st.steps.length > 0 && !forcing && (
             <div className="note" style={{ marginTop: 8 }}>
               执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
-              <span className="kv">执行器超过 8 分钟没有动静才允许中止;门链本身要跑约 6 分钟,属正常。</span>
+              <span className="kv">执行器超过 12 分钟没有动静才允许中止;门链本身要跑约 6 分钟,属正常。</span>
             </div>
           )}
           {forcing && (
@@ -177,7 +177,15 @@ export default function PublishPage() {
           <div className="kv">
             系统记录的线上版本是 v{st.drift.dbLive},而线上实际伺服的快照
             {st.drift.snapshot ? `来自 v${st.drift.snapshot}` : '没有上线标记(可能是首次部署,或被手工替换过)'}。
-            多半是上一次发布的切换已经落盘、但回报没送达。重新发起一次发布即可让两边对齐。
+            多半是上一次发布的切换已经落盘、但回报没送达。
+          </div>
+          {/* 🔴 出路必须是**当下真能点的**:草稿零改动时「发布」按钮是灰的,劝人「重新发起」等于没说(第四轮 P1-6)。
+              回滚到当前记录的线上版本会走完整门链并重新搬运快照,正好把两边对齐。 */}
+          <div className="row" style={{ marginTop: 6, gap: 8 }}>
+            <button className="btn" disabled={!!active} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
+              重新发布 v{st.drift.dbLive} 以对齐
+            </button>
+            <span className="kv">会走完整门链,门红则线上保持现状。</span>
           </div>
         </div>
       )}

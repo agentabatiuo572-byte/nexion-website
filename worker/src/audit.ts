@@ -15,6 +15,9 @@ export const AUDIT_ACTIONS = [
   'config.publish.live',
   'config.publish.failed',
   'config.publish.cancel',
+  /* 被并发挡下的发起。不建版本行(否则会造出清不掉的假红条),但要留一行审计——
+     否则「谁在什么时候试图发布过、被谁挡了」在系统里彻底查不到(第四轮 P2-4)。 */
+  'config.publish.rejected',
   'config.rollback',
 ] as const;
 export type AuditAction = (typeof AUDIT_ACTIONS)[number];

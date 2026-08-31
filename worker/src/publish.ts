@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { SiteConfigSchema, diffPaths, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
+import { LOCALES, SiteConfigSchema, diffPaths, materializeI18n, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
 import { writeAudit } from './audit';
@@ -80,10 +80,22 @@ async function readLiveStamp(env: Env): Promise<{ versionId?: number; stamp?: st
   }
 }
 
-/** 这一版的配置**该**物化成什么样 —— 服务端自己算,不问执行器(见 STAMP_WHY 第二段) */
+/* 这一版的配置**该**物化成什么样 —— 服务端自己算,不问执行器(见 STAMP_WHY 第二段)。
+   🔴 必须覆盖**全部消费物**,不只是 site.json(2026-09-01 第四轮 P1-3):
+   第一版只哈希了 site.json,而文案 / FAQ / Legal 全部物化进 i18n 三份文件、根本不进 site.json——
+   于是「只改文案」这个**后台最常见的改动**摘要完全不变,那道核验对它等于不存在(实测可零门上线)。
+   一个只覆盖了少数字段的「内容核验」比没有更糟:它让人以为已经验过了。
+   物化面 = i18n 三语 + site.json,与执行器写盘的那四个文件一一对应。 */
+const MATERIALIZED_FILES = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'] as const;
 async function expectedConfigSha(payload: string): Promise<string> {
-  const json = materializeSiteJson(SiteConfigSchema.parse(JSON.parse(payload)));
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(json));
+  const cfg = SiteConfigSchema.parse(JSON.parse(payload));
+  const parts = [
+    ...LOCALES.map((loc) => materializeI18n(cfg, MANIFEST, loc)),
+    materializeSiteJson(cfg),
+  ];
+  // 与 promote.mjs 同一拼接口径:路径 + NUL + 内容,顺序即 MATERIALIZED_FILES
+  const joined = MATERIALIZED_FILES.map((f, i) => `${f}\0${parts[i]}`).join('\0');
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(joined));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
@@ -147,8 +159,13 @@ publishRoutes.post('/', async (c) => {
   let payload: string;
   let rollbackFrom: number | null = null;
   if (body?.fromVersion) {
-    const src = await c.env.DB.prepare('SELECT id, payload FROM config_versions WHERE id = ?1').bind(body.fromVersion).first<{ id: number; payload: string }>();
-    if (!src) return c.json({ error: 'version-not-found' }, 404);
+    /* 只能回滚到**真上线过**的版本(live / archived)。此前不限状态,于是一个门红过、从未上线的版本
+       也能当回滚源——它仍走完整门链所以不算绕门,但「回滚」这个词在说假话:回到一个从没存在过的线上态。 */
+    const src = await c.env.DB
+      .prepare("SELECT id, payload, status FROM config_versions WHERE id = ?1 AND status IN ('live','archived')")
+      .bind(body.fromVersion)
+      .first<{ id: number; payload: string }>();
+    if (!src) return c.json({ error: 'version-not-rollbackable(只能回滚到曾经上线过的版本)' }, 404);
     payload = src.payload;
     rollbackFrom = src.id;
   } else {
@@ -181,6 +198,8 @@ publishRoutes.post('/', async (c) => {
        **成功发布也清不掉**的假红条,写着一个从没发布过的版本号。
        这一族的教训:**没发生过的事不要留痕迹**——留了就会被别处当成事实读。 */
     await c.env.DB.prepare('DELETE FROM config_versions WHERE id=?1').bind(versionId).run();
+    // 不留版本行,但要留审计:否则「谁在什么时候试图发布过、被并发挡了」在系统里查不到(第四轮 P2-4)
+    await writeAudit(c.env.DB, { action: 'config.publish.rejected', target: `v${lock.heldBy} 正在发布`, after: '并发发布被拒,未建版本', reason: body?.reason?.trim() });
     return c.json({ error: 'publish-in-progress', heldBy: lock.heldBy }, 409);
   }
   await writeAudit(c.env.DB, {
@@ -251,11 +270,20 @@ publishRoutes.post('/step', async (c) => {
   if (missing.length) {
     return c.json({ error: 'step-out-of-order', missing, expected: PUBLISH_STEPS[done.length] ?? null }, 409);
   }
-  /* 每一步只许声明一次。此前只挡「重复收口」,于是对已经 ok 的步骤反复报 running 会返 200,
-     每报一次还顺手把锁续 15 分钟 —— 一个只会读写自己那一格的调用方就能无限期占住发布位(复验 P2)。 */
+  /* 重复上报的处理:**同样的结果再报一次 = 幂等成功**,不同的结果才是非法。
+     🔴 为什么必须幂等(2026-09-01 第四轮 P1-2,也是「两个各自正确的修法合起来造新故障」的第三次):
+     ① 我把「重复上报」一律判成 409;② 执行器有网络重试(为的是门链重建 dist 时开发服务器重启掐断连接);
+     ③ 执行器把 409 当作服务端拒绝、抛错退出。
+     三条各自都对,合起来是:**一次「回报其实送到了、只是响应在回程丢了」的重发**,
+     会拿到 409 → 执行器当场死掉 → 已经跑完的 5 分半钟门链全作废、发布挂死到锁超时,
+     而服务端那段时间还在对运营说「执行器仍在工作」。
+     重试本来就是为了对付「不知道到没到」,那就必须允许「到了再来一次」。 */
   const existing = await c.env.DB.prepare('SELECT status FROM publish_steps WHERE version_id=?1 AND step=?2').bind(b.versionId, b.step).first<{ status: string }>();
+  if (existing?.status === b.status) {
+    return c.json({ ok: true, idempotent: true }); // 同一步、同一结果:当作已受理
+  }
   if (b.status === 'running' && existing) return c.json({ error: 'step-already-started', at: existing.status }, 409);
-  if (b.status !== 'running' && done.includes(b.step)) return c.json({ error: 'step-already-done' }, 409); // 重复收口
+  if (b.status !== 'running' && done.includes(b.step)) return c.json({ error: 'step-already-done' }, 409); // 已收口后改口
 
   if (b.status === 'running') {
     await c.env.DB.batch([
@@ -331,14 +359,32 @@ publishRoutes.get('/status', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   const now = Date.now();
   const active = lock && lock.expires_at > now ? lock.version_id : null;
-  await c.env.DB
-    .prepare(
-      `UPDATE config_versions SET status='failed',
-         fail_reason=COALESCE(fail_reason,'发布中断(执行器无响应或超时),线上保持旧版')
-       WHERE status IN ('validating','publishing') AND id <> COALESCE(?1, -1)`,
-    )
-    .bind(active)
-    .run();
+  /* 自愈也要留痕、也要收口(第四轮 P2-5)。此前:标了 failed 却**不写审计**,
+     且把步骤永远留在 running —— 版本说「失败」、步骤说「进行中」,两边自相矛盾,
+     事后翻记录的人无从判断到底发生了什么。取消那条路径是会收口步骤的,自愈这条不会,
+     同一件事两条路径两种处理,就是漏的来源。 */
+  const stale = (
+    await c.env.DB
+      .prepare("SELECT id FROM config_versions WHERE status IN ('validating','publishing') AND id <> COALESCE(?1, -1)")
+      .bind(active)
+      .all<{ id: number }>()
+  ).results;
+  if (stale.length) {
+    const reason = '发布中断(执行器无响应或超时),线上保持旧版';
+    await c.env.DB.batch([
+      c.env.DB.prepare(
+        `UPDATE config_versions SET status='failed', fail_reason=COALESCE(fail_reason, ?1)
+           WHERE status IN ('validating','publishing') AND id <> COALESCE(?2, -1)`,
+      ).bind(reason, active),
+      c.env.DB.prepare(
+        `UPDATE publish_steps SET status='failed', detail=COALESCE(detail, ?1), ended_at=?2
+           WHERE status='running' AND version_id IN (SELECT id FROM config_versions WHERE status='failed' AND fail_reason=?1)`,
+      ).bind(reason, now),
+    ]);
+    for (const v of stale) {
+      await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${v.id}`, after: reason });
+    }
+  }
   if (!active && lock) await releaseLock(c.env); // 顺手清掉过期锁
   /* 步骤日志:进行中看当前版本;没有进行中时回**最近一次**的步骤日志——
      否则失败态下「查看原始日志」永远没有数据可渲染(验收 P1:日志存了却取不回)。 */
@@ -393,7 +439,7 @@ publishRoutes.post('/cancel', async (c) => {
           silentMs,
           hint:
             silentMs >= RUNNER_SILENT_MS
-              ? '执行器已超过 8 分钟没有动静,可带 force 与理由强制中止'
+              ? '执行器已超过 12 分钟没有动静,可带 force 与理由强制中止'
               : '执行器仍在工作(最近有步骤动静),中止会留下没人收口的中间态',
         },
         409,
@@ -405,7 +451,10 @@ publishRoutes.post('/cancel', async (c) => {
 
   const why = started ? `强制中止(执行器失联 ${Math.round(silentMs / 60_000)} 分钟):${body!.reason!.trim()}` : '已取消(执行器未上线)';
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(lock.version_id, why),
+    /* 🔴 取消记 'cancelled' 不记 'failed'(2026-09-01 第四轮 P1-5):按 PRD E4 正常取消一次,
+       就会换来一条「上次发布失败」的红条常驻全站、只有下一次成功发布能清掉。
+       取消是运营的主动决定,不是故障——把它记成故障,红条就在说假话。 */
+    c.env.DB.prepare("UPDATE config_versions SET status='cancelled', fail_reason=?2 WHERE id=?1").bind(lock.version_id, why),
     c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?2, ended_at=?3 WHERE version_id=?1 AND status='running'").bind(lock.version_id, why, Date.now()),
     c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
   ]);
