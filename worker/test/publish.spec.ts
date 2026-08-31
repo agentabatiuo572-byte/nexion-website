@@ -24,11 +24,33 @@ async function makeChange(cookie: string, value = '改动一下') {
 const post = (cookie: string, p: string, body: unknown = {}) => app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify(body) }, env);
 const status = async (cookie: string) => (await (await app.request('/api/publish/status', { headers: { cookie } }, env)).json()) as any;
 
-/** 走完整一轮成功发布(模拟执行器逐步回报) */
+/* 🔴 上线核验的测试替身(2026-09-01 复验 P0-A)。
+   服务端标 live 前要读**自己伺服的**线上快照里的上线印记,那枚印记只有真跑过 promote.mjs 才会存在。
+   单测跑在沙箱里没有真文件系统,所以这里给一个假的资产源——它扮演的是「快照里有/没有这枚印记」。
+   ⚠️ 这是给外部依赖做替身,不是在测试里放宽判据:不给替身(默认 env)时读不到印记,
+   服务端必须拒绝上线,而下面第一条测试断言的正是这一点。 */
+const envWithStamp = (stamp: { versionId: number; stamp: string } | null) => ({
+  ...env,
+  ASSETS: { fetch: async () => (stamp ? new Response(JSON.stringify(stamp), { status: 200 }) : new Response('not found', { status: 404 })) },
+});
+const postAs = (e: unknown, cookie: string, p: string, body: unknown = {}) =>
+  app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify(body) }, e as typeof env);
+
+/** 领单拿到本次一次性口令(执行器的第一步) */
+async function claim(cookie: string): Promise<{ versionId: number; stamp: string }> {
+  const j = (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: { versionId: number; stamp: string } | null };
+  expect(j.job).not.toBeNull();
+  return { versionId: j.job!.versionId, stamp: j.job!.stamp };
+}
+
+/** 走完整一轮**成功**发布:领单 → 逐步回报 → 切换步带着真印记(模拟 promote 真搬运过) */
 async function runPipeline(cookie: string, versionId: number) {
+  const job = await claim(cookie);
+  expect(job.versionId).toBe(versionId);
+  const e = envWithStamp({ versionId, stamp: job.stamp });
   for (const step of ['materialize', 'gates', 'build', 'swap']) {
-    expect((await post(cookie, '/api/publish/step', { versionId, step, status: 'running' })).status).toBe(200);
-    expect((await post(cookie, '/api/publish/step', { versionId, step, status: 'ok' })).status).toBe(200);
+    expect((await postAs(e, cookie, '/api/publish/step', { versionId, step, status: 'running' })).status).toBe(200);
+    expect((await postAs(e, cookie, '/api/publish/step', { versionId, step, status: 'ok' })).status).toBe(200);
   }
 }
 
@@ -151,6 +173,95 @@ describe('CON13 发布流水线', () => {
     expect(live!.payload).toContain('第一版文案'); // 内容回到 r1
     const acts = (await env.DB.prepare("SELECT action FROM audit WHERE action='config.rollback'").all()).results;
     expect(acts.length).toBe(1);
+  });
+
+  /* ══ 不变量:不跑门就上不了线 ══
+     🔴 这一组断言的是**那条承诺本身**,不是某个修法的错误码。
+     上一轮我写的三条回归测试全在验「跳步返 409」「不先报 running 返 409」「过期锁返 409」——
+     即三种**畸形**序列。但伪造者根本不必畸形:老老实实按顺序把四步各报一遍就行,
+     而那条路径当时一路 200,版本变 live,步骤记录与真发布完全同形。
+     教训:**回归测试要钉承诺,不要钉修法**。钉修法的测试,在修法改一次形状后就什么也保不住。 */
+  it('🔴🔴 不变量:把四步按合法顺序全报一遍,没有真搬运过产物就上不了线', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const liveBefore = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    await claim(cookie);
+    // 完全合法的序列,一步不跳、每步先 running 再 ok
+    for (const step of ['materialize', 'gates', 'build']) {
+      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'running' })).status).toBe(200);
+      expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'ok' })).status).toBe(200);
+    }
+    expect((await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' })).status).toBe(200);
+    const res = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+    expect(res.status).toBe(409);
+    expect(((await res.json()) as any).error).toBe('live-verification-failed');
+    // 线上指针纹丝不动,该版被判失败
+    const liveAfter = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    expect(liveAfter?.id).toBe(liveBefore?.id);
+    const v = await env.DB.prepare('SELECT status, fail_reason FROM config_versions WHERE id=?1').bind(r.versionId).first<{ status: string; fail_reason: string }>();
+    expect(v!.status).toBe('failed');
+    expect(v!.fail_reason).toContain('上线核验未通过');
+  });
+
+  it('🔴🔴 不变量:印记指向别的版本 / 口令不对,一律上不了线', async () => {
+    const cookie = await login();
+    for (const [name, forge] of [
+      ['版本号不符', (j: { versionId: number; stamp: string }) => ({ versionId: j.versionId + 999, stamp: j.stamp })],
+      ['口令不符', (j: { versionId: number; stamp: string }) => ({ versionId: j.versionId, stamp: 'deadbeef'.repeat(4) })],
+    ] as const) {
+      await makeChange(cookie, `改动-${name}`);
+      const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+      const job = await claim(cookie);
+      const e = envWithStamp(forge(job));
+      for (const step of ['materialize', 'gates', 'build']) {
+        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'running' });
+        await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step, status: 'ok' });
+      }
+      await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'running' });
+      const res = await postAs(e, cookie, '/api/publish/step', { versionId: r.versionId, step: 'swap', status: 'ok' });
+      expect(res.status, name).toBe(409);
+      const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(r.versionId).first<{ status: string }>();
+      expect(v!.status, name).toBe('failed');
+    }
+  });
+
+  it('P1 每一步只许声明一次:对已 ok 的步骤重复报 running 必须被拒(否则可无限续锁)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'ok' });
+    const again = await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    expect(again.status).toBe(409);
+    expect(((await again.json()) as any).error).toBe('step-already-started');
+  });
+
+  it('P1 执行器失联有出口:未失联不许强制中止,失联后带理由可中止', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r.versionId, step: 'materialize', status: 'running' });
+    const soon = await post(cookie, '/api/publish/cancel', { force: true, reason: '手滑' });
+    expect(soon.status).toBe(409); // 刚有动静,不许中止
+    expect(((await soon.json()) as any).error).toBe('runner-still-alive');
+    // 把最后动静推到 9 分钟前 = 执行器失联
+    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 9 * 60_000, r.versionId).run();
+    expect((await post(cookie, '/api/publish/cancel', { force: true })).status).toBe(400); // 必须写理由
+    const okRes = await post(cookie, '/api/publish/cancel', { force: true, reason: '执行器所在机器断电' });
+    expect(okRes.status).toBe(200);
+    expect((await env.DB.prepare('SELECT COUNT(*) n FROM publish_lock').first<{ n: number }>())!.n).toBe(0); // 锁已释放,可以重发
+  });
+
+  it('P1 两个执行器同时领单只有一个拿到(原子占位,不是先后判定)', async () => {
+    const cookie = await login();
+    await makeChange(cookie);
+    await post(cookie, '/api/publish');
+    const next = async () => (await (await app.request('/api/publish/next', { headers: { cookie } }, env)).json()) as { job: unknown };
+    const [a, b] = await Promise.all([next(), next()]);
+    expect([a.job, b.job].filter(Boolean)).toHaveLength(1);
   });
 
   it('🔴 P0-1 步骤顺序不可跳:发起后直接报 swap ok 必须被拒,版本不得 live', async () => {

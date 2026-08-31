@@ -59,7 +59,7 @@ function runGates() {
 }
 
 async function runJob(job) {
-  const { versionId, config } = job;
+  const { versionId, config, stamp } = job;
   // ① 物化:配置 → 站消费物(与种子同一物化器,零第二实现)
   await report(versionId, 'materialize', 'running');
   try {
@@ -97,10 +97,13 @@ async function runJob(job) {
   }
 
   /* ④ 原子切换:把已过门的 dist 提升为线上快照 dist-live(worker 伺服的是后者)。
-     🔴 这一步之前,线上一直是上一版——门跑到一半时未过门的内容不会对外(验收 P0-3 的修法本体)。 */
+     🔴 这一步之前,线上一直是上一版——门跑到一半时未过门的内容不会对外(验收 P0-3 的修法本体)。
+     🔴 一次性口令原样透传给 promote,由它写进快照里的上线印记;服务端标 live 前会回读核实
+        (复验 P0-A:光有序列校验挡不住「照合法顺序全报一遍」,必须让上线依赖一件
+         纯 HTTP 调用者做不到的事——往文件系统里落一个文件)。 */
   await report(versionId, 'swap', 'running');
   try {
-    execFileSync('node', ['promote.mjs'], { cwd: here, stdio: 'pipe' });
+    execFileSync('node', ['promote.mjs', '--version', String(versionId), '--stamp', String(stamp ?? '')], { cwd: here, stdio: 'pipe' });
     await report(versionId, 'swap', 'ok');
     console.log(`✓ v${versionId} 已上线(dist-live 已更新)`);
   } catch (e) {

@@ -3,8 +3,18 @@
    🔴 为什么要两个目录(2026-09-01 验收 P0-3):质检门内部会重建 dist,若线上直接伺服 dist,
    门还在跑时未过门的内容就已经对外了。分开后 dist=待验、dist-live=已上线,只有本脚本搬运。
    写法:先写入同级临时目录再整体改名替换,避免拷到一半被访客读到半成品。
-   用法:node promote.mjs [--check](--check 只报告两者是否一致,不搬运) */
-import { cpSync, existsSync, renameSync, rmSync, readdirSync, statSync, readFileSync } from 'node:fs';
+
+   🔴 上线印记(2026-09-01 复验 P0-A):本脚本会往快照里写一枚 `.publish-stamp.json`。
+   服务端在把版本标 live **之前**,会通过自己的资产绑定去读这枚印记来核实——
+   为什么需要它:上一版的修法只封了三种畸形上报序列,而「老老实实把四步按顺序各报一遍」
+   依然能让版本上线且一道门没跑,伪造出的痕迹与真发布完全同形。根因是**服务端信了汇报**。
+   现在改成**服务端核实结果**:印记只有真跑过本脚本才会存在,纯 HTTP 调用者写不进文件系统。
+
+   用法:node promote.mjs [--check] [--version <id> --stamp <token>]
+     --check                只报告快照与产物是否一致,不搬运
+     --version/--stamp      写上线印记(执行器从 /api/publish/next 拿到后原样透传) */
+import { cpSync, existsSync, renameSync, rmSync, readdirSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -13,21 +23,34 @@ const SRC = path.join(here, '..', 'dist');
 const LIVE = path.join(here, '..', 'dist-live');
 const TMP = path.join(here, '..', 'dist-live.staging');
 const OLD = path.join(here, '..', 'dist-live.prev');
+const STAMP = '.publish-stamp.json';
+const argOf = (k) => {
+  const i = process.argv.indexOf(k);
+  return i >= 0 ? process.argv[i + 1] : null;
+};
 
+/* 指纹 = 路径 + **内容摘要**。
+   🔴 早先只算「路径 + 字节数」,对**等长改写**是瞎的(复验 P2:改掉同样长度的内容后
+   `--check` 仍然报「✓ 一致」)。一个看不出内容变化的指纹,在「核实线上是不是这一版」
+   这件事上等于没有。上线印记本身不参与指纹——它是搬运的产物,不是被搬运的内容。 */
 function fingerprint(dir) {
   if (!existsSync(dir)) return null;
-  const files = [];
+  const h = createHash('sha256');
+  let count = 0;
   const walk = (d, base = '') => {
     for (const n of readdirSync(d).sort()) {
+      if (base === '' && n === STAMP) continue;
       const p = path.join(d, n);
       if (statSync(p).isDirectory()) walk(p, `${base}/${n}`);
-      else files.push(`${base}/${n}:${statSync(p).size}`);
+      else {
+        h.update(`${base}/${n}\0`);
+        h.update(readFileSync(p));
+        count++;
+      }
     }
   };
   walk(dir);
-  let h = 5381;
-  for (const s of files) for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
-  return { count: files.length, hash: (h >>> 0).toString(16) };
+  return { count, hash: h.digest('hex').slice(0, 16) };
 }
 
 if (!existsSync(SRC)) {
@@ -77,10 +100,21 @@ function listFiles(dir, base = '') {
    而换名换来的强原子性在服务运行时根本拿不到(见下)。 */
 function syncInPlace() {
   const want = new Set(listFiles(SRC));
+  want.add(STAMP); // 印记是搬运的产物,不在 dist 里,别把它当「已不存在的旧文件」删掉
   for (const rel of listFiles(LIVE)) {
     if (!want.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
   }
   cpSync(SRC, LIVE, { recursive: true, force: true });
+}
+
+/** 上线印记:服务端标 live 前会读它核实「线上快照确实是这一版」。见文件头注。 */
+function writeStamp(dir) {
+  const versionId = Number(argOf('--version'));
+  const stampToken = argOf('--stamp');
+  if (!versionId || !stampToken) return null;
+  const body = JSON.stringify({ versionId, stamp: stampToken, at: new Date().toISOString() }) + '\n';
+  writeFileSync(path.join(dir, STAMP), body);
+  return versionId;
 }
 
 /* 换名换位:拷到 staging → 旧快照让路 → staging 上位 → 删旧。
@@ -92,6 +126,7 @@ try {
   rmSync(TMP, { recursive: true, force: true });
   rmSync(OLD, { recursive: true, force: true });
   cpSync(SRC, TMP, { recursive: true });
+  writeStamp(TMP); // 印记随 staging 一起上位,和内容同一瞬间可见
   if (existsSync(LIVE)) renameSync(LIVE, OLD);
   renameSync(TMP, LIVE);
   rmSync(OLD, { recursive: true, force: true });
@@ -100,6 +135,7 @@ try {
   // 换名失败后 LIVE 可能已被改名到 OLD,先把它放回去,再就地同步
   if (!existsSync(LIVE) && existsSync(OLD)) renameSync(OLD, LIVE);
   syncInPlace();
+  writeStamp(LIVE); // 内容同步完再落印记:印记在,就意味着内容已经就位
   rmSync(TMP, { recursive: true, force: true });
   rmSync(OLD, { recursive: true, force: true });
   console.log(`· 目录被占用(${e.code}),已改用就地同步(内容一致,少了换名那一瞬的原子性)`);

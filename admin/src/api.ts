@@ -30,6 +30,8 @@ export interface Overview {
   livePublishedAt: number;
   /** 区域屏蔽只读状态(CON02-③;来自 CON12 的 KV 规则) */
   geo: { enabled: boolean; countries: number; degraded: boolean } | null;
+  /** CON02-E2:上次发布失败(且线上之后没再成功发布过)→ 壳顶红条 */
+  lastPublishFailed: { id: number; reason: string; at: number } | null;
   draft: { payload: Record<string, unknown>; draftRev: number; updatedAt: number };
   dirty: number;
   changedPaths: string[];

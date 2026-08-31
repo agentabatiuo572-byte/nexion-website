@@ -22,9 +22,24 @@ interface DraftRow {
     🔴 发布/驾驶舱等一切读配置的入口都必须先调它——否则全新安装上直接调用会读到 null 而 500
     (T21 测试实证:发布接口漏调,空库发起发布即崩)。 */
 export async function ensureInit(db: D1Database): Promise<void> {
-  const has = await db.prepare('SELECT id FROM config_versions LIMIT 1').first();
-  if (has) return;
+  /* 两张表都要在。此前只看版本表,于是「版本表有行、草稿行没了」这种半初始化状态会被判成
+     「已初始化」直接返回,概览接口随后在 draft.payload 上 500(2026-09-01 写 CON02-E2 测试时撞到)。
+     下面两条 INSERT 各自带 OR IGNORE / 条件,补哪张都安全。 */
+  const [hasVer, hasDraft] = await Promise.all([
+    db.prepare('SELECT id FROM config_versions LIMIT 1').first(),
+    db.prepare('SELECT id FROM config_draft WHERE id = 1').first(),
+  ]);
+  if (hasVer && hasDraft) return;
   const now = Date.now();
+  if (hasVer) {
+    // 版本在、草稿丢了:用当前线上内容补一份草稿,别去动版本历史
+    const live = await db.prepare("SELECT payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ payload: string }>();
+    await db
+      .prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev) VALUES (1, ?1, 1, ?2, 1)')
+      .bind(live?.payload ?? JSON.stringify(SEED), now)
+      .run();
+    return;
+  }
   await db.batch([
     db
       .prepare("INSERT INTO config_versions (status, payload, reason, created_by, created_at, published_at) VALUES ('live', ?1, '初始种子(=上线前站内容)', 'system', ?2, ?2)")
@@ -53,9 +68,17 @@ configRoutes.get('/', async (c) => {
   const changed = diffPaths(livePayload, JSON.parse(draft.payload));
   // CON02-③ geoEnabled:壳状态条第三 chip 的只读数据源(包④ 挂账「待 CON12 接真」,T17 交付后此处关账)
   const geo = await loadRules(c.env).catch(() => null);
+  /* CON02-E2:上次发布失败 → 壳顶红条。只在「失败的那一版比线上还新」时才报——
+     线上之后再没成功发布过,才说明有一次失败还没被人处理掉。
+     (2026-09-01 复验 P1-D:此条 AC 明写移交本包,但接口没返、壳也没渲染,整条缺席。) */
+  const lastFail = await c.env.DB
+    .prepare("SELECT id, fail_reason, created_at FROM config_versions WHERE status='failed' AND id > ?1 ORDER BY id DESC LIMIT 1")
+    .bind(live!.id)
+    .first<{ id: number; fail_reason: string | null; created_at: number }>();
   return c.json({
     liveVersion: live!.id,
     livePublishedAt: live!.published_at,
+    lastPublishFailed: lastFail ? { id: lastFail.id, reason: lastFail.fail_reason ?? '原因未记录', at: lastFail.created_at } : null,
     geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
     live: { payload: livePayload }, // 编辑器「查看线上值/行级撤销」的对照源(CON04-⑥)
     draft: { payload: JSON.parse(draft.payload) as SiteConfig, draftRev: draft.draft_rev, updatedAt: draft.updated_at },

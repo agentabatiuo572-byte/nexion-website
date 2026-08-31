@@ -17,13 +17,17 @@ const read = (p) => readFileSync(path.join(here, p), 'utf8');
    行注释仍只吃行首那种:URL 里的 `//` 不能误伤。 */
 const stripJsonc = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
+const ASTRO_TEXT = read('../astro.config.mjs');
+const VALIDATOR_TEXT = read('../schema/src/validators.ts');
+const LABEL_TEXT = read('../admin/src/pages/publish.tsx');
+
 let fails = 0;
 const say = (ok, msg) => {
   console.log(`${ok ? '✓' : '✗'} ${msg}`);
   if (!ok) fails++;
 };
 
-function check(cfgText, srcText, migFiles) {
+function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText = VALIDATOR_TEXT, labelText = LABEL_TEXT) {
   const cfg = JSON.parse(stripJsonc(cfgText));
   const declared = cfg.triggers?.crons ?? [];
   /* 从 CRON_JOBS 登记表取「代码处理的 cron」——通用判据,不再硬编码具体表达式(复测 O11)。
@@ -39,6 +43,26 @@ function check(cfgText, srcText, migFiles) {
   out.push([cfg.d1_databases?.[0]?.migrations_dir === 'migrations', 'D1 迁移目录声明正确']);
   const seqOk = migFiles.every((f, i) => f.startsWith(String(i + 1).padStart(4, '0')));
   out.push([seqOk, `迁移序号连续(${migFiles.length} 个:${migFiles.join(', ')})`]);
+
+  /* 🔴 线上伺服目录必须是**已发布快照**,不是构建产物(2026-09-01 复验 P1-C)。
+     P0-3 的整条修法就靠 wrangler.jsonc 里这一个 token,而全仓没有一处断言它——
+     把它改回 ../dist,门链依旧全绿、单测全绿,那条已修的 P0 就原样复活了。
+     判据构造性:伺服目录必须 ≠ astro 的构建输出目录(astro.config 无 outDir 时默认 dist)。 */
+  const served = cfg.assets?.directory ?? '';
+  const outDir = /outDir\s*:\s*['"]([^'"]+)['"]/.exec(astroText)?.[1] ?? 'dist';
+  const norm = (p) => p.replace(/^\.\.\//, '').replace(/^\.\//, '').replace(/\/$/, '');
+  out.push([!!served, 'wrangler.jsonc 声明了 assets.directory']);
+  out.push([norm(served) !== norm(outDir), `伺服目录(${served})≠ 构建输出目录(${outDir})——门重建产物碰不到线上`]);
+  out.push([/dist-live/.test(served), `伺服目录是已发布快照(${served})`]);
+
+  /* 🔴 失败面的规则名映射必须与校验器的规则集**双向**相等。
+     缺映射 → 用户看到机器规则名;多映射 → 死键(曾凭空多出一个校验器从不产出的 'all-hidden-sku')。 */
+  const rules = [...new Set([...validatorText.matchAll(/rule:\s*'([a-z-]+)'/g)].map((m) => m[1]))];
+  const labelBlock = /const RULE_LABEL[\s\S]*?\n};/.exec(labelText)?.[0] ?? '';
+  const labels = [...new Set([...labelBlock.matchAll(/(?:^|[{,]\s*)'?([a-z][a-z-]*)'?\s*:/gm)].map((m) => m[1]))].filter((k) => k !== 'RULE_LABEL');
+  out.push([rules.length > 5, `校验器里解析到 ${rules.length} 条规则`]);
+  for (const r of rules) out.push([labels.includes(r), `校验规则 "${r}" 在失败面有大白话映射`]);
+  for (const l of labels) out.push([rules.includes(l), `失败面映射的 "${l}" 是校验器真会产出的规则(非死键)`]);
   return out;
 }
 
@@ -54,6 +78,15 @@ if (process.argv.includes('--self-test')) {
   say(check(extraDecl, srcText, migFiles).some(([ok]) => !ok), 'self-test:配置声明了但没人处理 → 变红');
   const noTable = srcText.replace(/const CRON_JOBS[\s\S]*?\n};/, 'const CRON_JOBS = {};');
   say(check(cfgText, noTable, migFiles).some(([ok]) => !ok), 'self-test:登记表被清空 → 变红');
+  // 伺服目录被改回构建产物 —— 这正是 P0-3 复活的形态
+  const servedDist = cfgText.replace(/"directory":\s*"[^"]*"/, '"directory": "../dist"');
+  say(check(servedDist, srcText, migFiles).some(([ok]) => !ok), 'self-test:伺服目录改回构建产物 → 变红');
+  // 失败面多一个校验器从不产出的死键
+  const deadKey = LABEL_TEXT.replace(/const RULE_LABEL: Record<string, string> = \{/, "const RULE_LABEL: Record<string, string> = {\n  'no-such-rule': '不存在的规则',");
+  say(check(cfgText, srcText, migFiles, ASTRO_TEXT, VALIDATOR_TEXT, deadKey).some(([ok]) => !ok), 'self-test:失败面多一个死键 → 变红');
+  // 校验器新增规则但失败面没跟上
+  const newRule = VALIDATOR_TEXT.replace(/rule: 'structure'/, "rule: 'brand-new-rule'");
+  say(check(cfgText, srcText, migFiles, ASTRO_TEXT, newRule).some(([ok]) => !ok), 'self-test:校验器新增规则而失败面缺映射 → 变红');
   say(check(cfgText, srcText, migFiles).every(([ok]) => ok), 'self-test:真实配置全绿(不误报)');
   process.exit(fails ? 1 : 0);
 }

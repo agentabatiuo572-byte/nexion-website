@@ -85,6 +85,13 @@ export default function Shell() {
           <button className="nav" onClick={logout}>↩︎ <span className="lbl">退出</span></button>
         </aside>
         <main className="content">
+          {/* CON02-E2:上次发布失败的红条,常驻壳顶直到有一次成功发布把它顶掉 */}
+          {overview?.lastPublishFailed && (
+            <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span>上次发布失败(v{overview.lastPublishFailed.id}):{overview.lastPublishFailed.reason}　线上仍是 v{overview.liveVersion},未受影响。</span>
+              <NavLink to="/publish" className="btn ghost sm">去看详情</NavLink>
+            </div>
+          )}
           <div className="statusbar">
             {overview ? (
               <>

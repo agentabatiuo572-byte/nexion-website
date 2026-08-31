@@ -34,11 +34,26 @@ export const GATE_REASONS: Record<string, string> = {
 };
 export const explainGate = (name: string): string => GATE_REASONS[name] ?? name;
 
-interface LockRow { id: number; version_id: number; expires_at: number }
+interface LockRow { id: number; version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }
 
-/** 取锁:并发发布只允许一个(E3);过期锁自动释放并把那一版标 failed */
-async function acquireLock(env: Env, versionId: number, now: number): Promise<{ ok: true } | { ok: false; heldBy: number }> {
-  const cur = await env.DB.prepare('SELECT id, version_id, expires_at FROM publish_lock WHERE id = 1').first<LockRow>();
+/** 线上快照里的上线印记,由 promote.mjs 写入;服务端标 live 前回读核实(见 STAMP_WHY) */
+const STAMP_PATH = '/.publish-stamp.json';
+
+/* 🔴 STAMP_WHY(2026-09-01 复验 P0-A)——为什么标 live 之前要去读文件:
+   上一版修法只封了三种**畸形上报序列**(跳步 / 不先报 running / 过期锁)。
+   但「老老实实把四步按顺序各报一遍」根本不畸形,于是纯 HTTP 调用者依然能让版本上线而一道门没跑,
+   且伪造出的步骤记录与真发布**完全同形**(唯一差别是 gates 只花了几十毫秒,而没有任何东西在看这个)。
+   根因不是序列校验不够严,是**服务端信了汇报**——它把「执行器说做完了」当成「确实做完了」。
+   序列校验再加几条也堵不住,因为伪造者只要照着合法序列走。
+   改成**服务端核实结果**:上线要求线上快照里存在一枚带本次一次性口令的印记,
+   而那枚印记只有真跑过 promote.mjs(即真搬运过已过门产物)才会落到文件系统里。
+   HTTP 面上无论发多少个请求都写不出这个文件,于是「不存在绕门发布 API」从口号变成了机器事实。 */
+
+const randomHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('');
+
+/** 取锁:并发发布只允许一个(E3);过期锁自动释放并把那一版标 failed。同时生成本次的一次性口令。 */
+async function acquireLock(env: Env, versionId: number, now: number): Promise<{ ok: true; nonce: string } | { ok: false; heldBy: number }> {
+  const cur = await env.DB.prepare('SELECT id, version_id, expires_at, claim_nonce, claimed_at FROM publish_lock WHERE id = 1').first<LockRow>();
   if (cur && cur.expires_at > now) return { ok: false, heldBy: cur.version_id };
   if (cur) {
     // 过期锁:上一次发布崩在半路 → 标 failed,别让它永远挂着 publishing
@@ -47,10 +62,22 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
       env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
     ]);
   }
-  await env.DB.prepare('INSERT INTO publish_lock (id, version_id, acquired_at, expires_at) VALUES (1, ?1, ?2, ?3)').bind(versionId, now, now + LOCK_TTL_MS).run();
-  return { ok: true };
+  const nonce = randomHex(16);
+  await env.DB.prepare('INSERT INTO publish_lock (id, version_id, acquired_at, expires_at, claim_nonce) VALUES (1, ?1, ?2, ?3, ?4)').bind(versionId, now, now + LOCK_TTL_MS, nonce).run();
+  return { ok: true, nonce };
 }
 const releaseLock = (env: Env) => env.DB.prepare('DELETE FROM publish_lock WHERE id = 1').run();
+
+/** 读线上快照的上线印记。读不到 / 读不动都返回 null —— 由调用方判成「不许上线」(fail-closed)。 */
+async function readLiveStamp(env: Env): Promise<{ versionId?: number; stamp?: string } | null> {
+  try {
+    const res = await env.ASSETS.fetch(new Request(`https://assets.internal${STAMP_PATH}`));
+    if (!res.ok) return null;
+    return (await res.json()) as { versionId?: number; stamp?: string };
+  } catch {
+    return null;
+  }
+}
 
 async function getDraft(env: Env) {
   return (await env.DB.prepare('SELECT payload, draft_rev FROM config_draft WHERE id = 1').first<{ payload: string; draft_rev: number }>())!;
@@ -145,9 +172,19 @@ publishRoutes.get('/next', async (c) => {
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
   const v = await c.env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string }>();
   if (!v || !['validating', 'publishing'].includes(v.status)) return c.json({ job: null });
-  const taken = await c.env.DB.prepare('SELECT COUNT(*) n FROM publish_steps WHERE version_id=?1').bind(v.id).first<{ n: number }>();
-  if ((taken?.n ?? 0) > 0) return c.json({ job: null, note: 'already-claimed' });
-  return c.json({ job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS } });
+
+  /* 🔴 原子占位(2026-09-01 复验 P1-B):此前判「已有步骤记录就不再派发」只挡得住**先后**——
+     两个执行器一起启动就是同一个 3 秒节拍,实测两次并发 /next 领到同一单,各干各的。
+     改成条件更新:claimed_at 为空才能写进去,同时到达也只有一个能拿到(单语句,不存在读后写的窗口)。 */
+  const claim = await c.env.DB
+    .prepare('UPDATE publish_lock SET claimed_at=?1, claimed_by=?2 WHERE id=1 AND version_id=?3 AND claimed_at IS NULL RETURNING claim_nonce')
+    .bind(Date.now(), c.req.header('user-agent')?.slice(0, 64) ?? 'runner', v.id)
+    .first<{ claim_nonce: string | null }>();
+  if (!claim) return c.json({ job: null, note: 'already-claimed' });
+
+  return c.json({
+    job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS, stamp: claim.claim_nonce },
+  });
 });
 
 /** 执行器回报步骤(running/ok/failed);任一步 failed → 版本 failed + 释放锁,线上保持旧版。
@@ -176,6 +213,10 @@ publishRoutes.post('/step', async (c) => {
   if (missing.length) {
     return c.json({ error: 'step-out-of-order', missing, expected: PUBLISH_STEPS[done.length] ?? null }, 409);
   }
+  /* 每一步只许声明一次。此前只挡「重复收口」,于是对已经 ok 的步骤反复报 running 会返 200,
+     每报一次还顺手把锁续 15 分钟 —— 一个只会读写自己那一格的调用方就能无限期占住发布位(复验 P2)。 */
+  const existing = await c.env.DB.prepare('SELECT status FROM publish_steps WHERE version_id=?1 AND step=?2').bind(b.versionId, b.step).first<{ status: string }>();
+  if (b.status === 'running' && existing) return c.json({ error: 'step-already-started', at: existing.status }, 409);
   if (b.status !== 'running' && done.includes(b.step)) return c.json({ error: 'step-already-done' }, 409); // 重复收口
 
   if (b.status === 'running') {
@@ -206,6 +247,27 @@ publishRoutes.post('/step', async (c) => {
 
   // 最后一步成功 = 原子切换:旧 live 退历史,新版本上线
   if (b.step === 'swap') {
+    /* 🔴 标 live 之前先核实线上快照(见文件上方 STAMP_WHY)。
+       印记缺失 / 版本对不上 / 口令对不上 —— 一律拒绝上线并把这一版标 failed。
+       fail-closed:读不到也算不通过。宁可让一次真发布因为环境异常而失败(重发即可),
+       也不能让一次没搬运过的发布被记成 live —— 那会让数据库说的和线上伺服的静默劈叉。 */
+    const stamp = await readLiveStamp(c.env);
+    const nonceRow = await c.env.DB.prepare('SELECT claim_nonce FROM publish_lock WHERE id = 1').first<{ claim_nonce: string | null }>();
+    const good = stamp && stamp.versionId === b.versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce;
+    if (!good) {
+      const why = !stamp
+        ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
+        : stamp.versionId !== b.versionId
+          ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${b.versionId}`
+          : '线上快照的印记口令与本次发布不符';
+      await c.env.DB.batch([
+        c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(b.versionId, `上线核验未通过:${why}`),
+        c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(b.versionId, 'swap', why),
+        c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+      ]);
+      await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${b.versionId}`, after: `上线核验未通过:${why}` });
+      return c.json({ error: 'live-verification-failed', why }, 409);
+    }
     const live = await getLive(c.env);
     const stmts = [
       c.env.DB.prepare("UPDATE config_versions SET status='live', published_at=?2 WHERE id=?1").bind(b.versionId, now),
@@ -249,18 +311,54 @@ publishRoutes.get('/status', async (c) => {
   return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, stepNames: PUBLISH_STEPS });
 });
 
-/** 取消排队中的发布(CON13-E4:执行器不在线时不吊死) */
+/** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了(门里最长的一步约 6 分钟)。 */
+const RUNNER_SILENT_MS = 8 * 60_000;
+
+/* 取消发布(CON13-E4:执行器不在线时不吊死)。两档:
+   ① 排队态(一步都没开始)—— 直接取消,任何时候都行;
+   ② 已开工但执行器失联 —— 需要显式 `force:true` + 理由,记审计。
+
+   🔴 为什么要加第二档(2026-09-01 复验 P1-A):上一轮我把「/next 不再派发已领取的单」和
+   「任何步骤开始即不可取消」两条**分别**改对了,合起来却造出一个新故障:执行器崩在半路时,
+   领不到、取消不了、重发也 409,只能干等 15 分钟锁超时,期间每试一次还多留一行垃圾失败版本;
+   而 README 上写着「执行器重启会自动接管」——那句话被这两条修法一起变成了假话。
+   两个各自正确的修法合起来造出新缺陷,是「只看单条修法」看不出来的,必须留出人工出口。 */
 publishRoutes.post('/cancel', async (c) => {
+  const body = await c.req.json<{ force?: boolean; reason?: string }>().catch(() => null);
   const lock = await c.env.DB.prepare('SELECT version_id FROM publish_lock WHERE id = 1').first<{ version_id: number }>();
   if (!lock) return c.json({ error: 'no-active-publish' }, 409);
-  // 仅「排队态」可取消(PRD E4 字面):任何步骤已开始(含 running)即不可取消——
-  // 执行器正在写文件时抽掉锁,会留下一个没人收口的中间态(验收 P1)
-  const started = await c.env.DB.prepare('SELECT COUNT(*) n FROM publish_steps WHERE version_id=?1').bind(lock.version_id).first<{ n: number }>();
-  if ((started?.n ?? 0) > 0) return c.json({ error: 'already-running(已有步骤开始,不可取消)' }, 409);
+  const last = await c.env.DB
+    .prepare('SELECT MAX(COALESCE(ended_at, started_at)) AS t, COUNT(*) AS n FROM publish_steps WHERE version_id=?1')
+    .bind(lock.version_id)
+    .first<{ t: number | null; n: number }>();
+  const started = (last?.n ?? 0) > 0;
+  const silentMs = last?.t ? Date.now() - last.t : 0;
+
+  if (started) {
+    if (!body?.force) {
+      return c.json(
+        {
+          error: 'already-running',
+          canForce: silentMs >= RUNNER_SILENT_MS,
+          silentMs,
+          hint:
+            silentMs >= RUNNER_SILENT_MS
+              ? '执行器已超过 8 分钟没有动静,可带 force 与理由强制中止'
+              : '执行器仍在工作(最近有步骤动静),中止会留下没人收口的中间态',
+        },
+        409,
+      );
+    }
+    if (silentMs < RUNNER_SILENT_MS) return c.json({ error: 'runner-still-alive', silentMs }, 409);
+    if (!body.reason?.trim()) return c.json({ error: 'reason-required(强制中止必须写明理由)' }, 400);
+  }
+
+  const why = started ? `强制中止(执行器失联 ${Math.round(silentMs / 60_000)} 分钟):${body!.reason!.trim()}` : '已取消(执行器未上线)';
   await c.env.DB.batch([
-    c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason='已取消(执行器未上线)' WHERE id=?1").bind(lock.version_id),
+    c.env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(lock.version_id, why),
+    c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?2, ended_at=?3 WHERE version_id=?1 AND status='running'").bind(lock.version_id, why, Date.now()),
     c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
   ]);
-  await writeAudit(c.env.DB, { action: 'config.publish.cancel', target: `v${lock.version_id}` });
-  return c.json({ ok: true });
+  await writeAudit(c.env.DB, { action: 'config.publish.cancel', target: `v${lock.version_id}`, after: why, reason: body?.reason?.trim() });
+  return c.json({ ok: true, forced: !!started });
 });

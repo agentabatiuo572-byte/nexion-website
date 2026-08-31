@@ -208,3 +208,39 @@ describe('CON04/CON13 配置模型', () => {
     }
   });
 });
+
+/* CON02-E2(2026-09-01 复验 P1-D 补):上次发布失败 → 概览要返回红条数据源。
+   此前接口不返、壳也不渲染,整条 AC 缺席而包已打勾。 */
+describe('CON02-E2 上次发布失败红条', () => {
+  it('无失败版本时为 null;有比线上更新的失败版本时返回原因', async () => {
+    const cookie = await login();
+    const before = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;
+    expect(before.lastPublishFailed).toBeNull();
+
+    const live = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>();
+    await env.DB
+      .prepare("INSERT INTO config_versions (status, payload, fail_reason, created_by, created_at) VALUES ('failed', '{}', ?1, 'admin', ?2)")
+      .bind('文案里有合规禁用词(门:forbidden-words)', Date.now())
+      .run();
+    const after = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;
+    expect(after.lastPublishFailed).not.toBeNull();
+    expect(after.lastPublishFailed.reason).toContain('禁用词');
+    expect(after.lastPublishFailed.id).toBeGreaterThan(live!.id);
+  });
+
+  it('失败版本比线上旧(之后已成功发布过)→ 不再报红条', async () => {
+    const cookie = await login();
+    await env.DB
+      .prepare("INSERT INTO config_versions (status, payload, fail_reason, created_by, created_at) VALUES ('failed', '{}', '旧的失败', 'admin', ?1)")
+      .bind(Date.now())
+      .run();
+    // 之后又成功发布了一版:把 live 指针移到更后面
+    await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE status='live'").run();
+    await env.DB
+      .prepare("INSERT INTO config_versions (status, payload, created_by, created_at, published_at) VALUES ('live', '{}', 'admin', ?1, ?1)")
+      .bind(Date.now())
+      .run();
+    const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as any;
+    expect(o.lastPublishFailed).toBeNull();
+  });
+});
