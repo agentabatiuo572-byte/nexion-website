@@ -747,7 +747,14 @@ describe('CON13 发布流水线', () => {
     await makeChange(cookie);
     const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
     const spoof = await post(cookie, '/api/publish/step', { versionId: r.versionId + 999, step: 'swap', status: 'ok' });
-    expect(spoof.status).toBe(409);
+    /* 🔴 断言从「等于 409」改成「被拒绝且没留下任何痕迹」(2026-09-01 第十轮)。
+       承诺是**冒名顶替不被受理**,不是某一个具体状态码 —— 身份校验前移之后,
+       对一个根本不存在的版本回 404 比回 409 更准确(409 是冲突,404 是不存在)。
+       钉错误码的写法会把这种行为改进误报成回归,而真正该守的那件事反而没测
+       (教训 [[feedback_regression_tests_pin_the_promise]])。 */
+    expect(spoof.status, '冒名顶替应被拒绝').toBeGreaterThanOrEqual(400);
+    const ghost = await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_steps WHERE version_id=?1').bind(r.versionId + 999).first<{ n: number }>();
+    expect(ghost!.n, '冒名顶替不该留下步骤记录').toBe(0);
   });
 
   it('状态读时自愈:执行器死掉后「发布中」不会永远挂着(实景实测的假状态)', async () => {
@@ -903,4 +910,76 @@ describe('CON13 上报转移表(192 格穷举)', () => {
     }
     expect(bad, `\n${bad.join('\n')}`).toEqual([]);
   }, 60_000);
+});
+
+/* 🔴 第十轮独立验收 P0(我回源核实后从 P1 上抬)。
+   实录攻击:任一**已登录**用户,对着一个早已归档的旧版本报 `swap ok` + 垃圾口令,
+   就能走进幂等分支触发有副作用的事务 —— 把那个旧版本翻成 failed、写下不实审计、
+   **并删掉当时属于另一次进行中发布的锁**,把别人的发布打断。
+
+   🔴 这几条钉的是**承诺**,不是我这次修法的错误码
+   (教训 [[feedback_regression_tests_pin_the_promise]]:上一轮三条测试断言的全是修法的返回码,
+   下一轮一句「按合法顺序全报一遍」就打穿了)。所以断言写成
+   「别人的发布还在」「归档版本还是归档」「审计里没有凭空多出的失败记录」,
+   而不是「返回 409 且 error 等于某个字符串」—— 换一种绕法只要造成同样后果,这里照样红。 */
+describe('CON13 第三方回报不得殃及他人(第十轮 P0)', () => {
+  it('拿垃圾口令对归档版本报 swap ok:打不断进行中的发布,也改不了那个归档版本', async () => {
+    const cookie = await login();
+
+    // 先造一版并真正发上线,它随后会被下一版顶成 archived
+    await makeChange(cookie, '第一版');
+    const v1 = ((await post(cookie, '/api/publish', { reason: '走查:第一版上线用于制造归档版本' })).status, (await status(cookie)).activeVersion) as number;
+    await runPipeline(cookie, v1);
+    await makeChange(cookie, '第二版');
+    await post(cookie, '/api/publish', { reason: '走查:第二版上线把第一版顶成归档' });
+    const v2 = (await status(cookie)).activeVersion as number;
+    await runPipeline(cookie, v2);
+    expect((await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(v1).first<{ status: string }>())!.status).toBe('archived');
+
+    // 现在开一次新发布(v3)占住锁,模拟「正有人在发布」
+    await makeChange(cookie, '第三版');
+    await post(cookie, '/api/publish', { reason: '走查:第三版发布中,验证它不会被外人打断' });
+    const v3 = (await status(cookie)).activeVersion as number;
+    const job = await claim(cookie);
+    expect(job.versionId).toBe(v3);
+
+    const auditBefore = (await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='config.publish.failed'").first<{ n: number }>())!.n;
+
+    // 攻击:对归档的 v1 报 swap ok,带垃圾口令
+    const res = await post(cookie, '/api/publish/step', { versionId: v1, step: 'swap', status: 'ok', stamp: 'GARBAGE-NONCE' });
+    expect(res.status).toBeGreaterThanOrEqual(400);
+
+    // ① 别人的发布还在:锁没被删,而且仍属于 v3
+    const lock = await env.DB.prepare('SELECT version_id FROM publish_lock WHERE id=1').first<{ version_id: number }>();
+    expect(lock, '进行中发布的锁被外人删掉了').not.toBeNull();
+    expect(lock!.version_id).toBe(v3);
+    /* ② v3 没被打断。这里钉的是「仍在进行中」而不是某一个具体状态词:
+       领过单但还没上报第一步时是 `validating`,上报后才转 `publishing`(publish.ts:481),
+       两者都算「没被打断」;被打断的形态是 failed / cancelled。 */
+    const v3now = (await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(v3).first<{ status: string }>())!.status;
+    expect(['validating', 'publishing'], `进行中的发布被外人打断成 ${v3now}`).toContain(v3now);
+    // ③ 归档版本还是归档
+    expect((await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(v1).first<{ status: string }>())!.status).toBe('archived');
+    // ④ 审计里没有凭空多出的失败记录(审计只增不改,写进去就撤不回)
+    const auditAfter = (await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='config.publish.failed'").first<{ n: number }>())!.n;
+    expect(auditAfter, '往只增不改的审计里写了不实的失败记录').toBe(auditBefore);
+  }, 30_000);
+
+  it('迟到的正常重发(锁已释放)仍被受理 —— 修法不能把真执行器一起挡在外面', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '正常一版');
+    await post(cookie, '/api/publish', { reason: '走查:验证重发路径未被身份校验误伤' });
+    const v = (await status(cookie)).activeVersion as number;
+    const job = await claim(cookie);
+    const e = envWithStamp({ versionId: v, stamp: job.stamp, configSha: await shaOfVersion(v) });
+    for (const step of ['materialize', 'gates', 'build', 'swap']) {
+      await postAs(e, cookie, '/api/publish/step', { versionId: v, stamp: job.stamp, step, status: 'running' });
+      await postAs(e, cookie, '/api/publish/step', { versionId: v, stamp: job.stamp, step, status: 'ok' });
+    }
+    // 此刻已上线、锁已释放。执行器没收到响应,重发最后一条 —— 必须被受理(幂等),不能因为锁不在就拒
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first<{ n: number }>())!.n).toBe(0);
+    const again = await postAs(e, cookie, '/api/publish/step', { versionId: v, stamp: job.stamp, step: 'swap', status: 'ok' });
+    expect(again.status, '重发被拒 —— 身份改从版本行读之后,重放路径必须仍然通').toBe(200);
+    expect((await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(v).first<{ status: string }>())!.status).toBe('live');
+  }, 30_000);
 });

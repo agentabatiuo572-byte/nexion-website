@@ -91,12 +91,19 @@ async function waitReady(tries = 40) {
 let fails = 0;
 const say = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails++; };
 
+/* 🔴 退出码外置(2026-09-01 第十轮):`process.exit()` 跳过 finally,
+   而这里的 finally 是 `killTree()` —— 起服超时那条路径原本会**留下孤儿 wrangler 进程占着 8788**,
+   下一次跑门时端口被占,症状看起来像别的问题。同族第二处,由 lib/test-exit-skips-finally.mjs 扫出。 */
+let earlyExit = null;
 try {
   if (!(await waitReady())) {
     console.error('✗ wrangler dev 起服超时;日志尾部:\n' + devLog.split('\n').slice(-15).join('\n'));
-    process.exit(2);
+    earlyExit = 2;
   }
 
+  /* 服务没起来就别往下跑:后面每一条都会因为连不上而红,把「环境没起来」
+     报成十几条「路由内容不一致」,人得反过来猜真因(先证起点,再证结果)。 */
+  if (earlyExit === null) {
   // 1) API 直通
   const health = await fetch(`${BASE}/api/health`);
   say(health.status === 200, 'API 直通:/api/health 200');
@@ -117,9 +124,11 @@ try {
   // 3) 404 托底
   const nf = await fetch(`${BASE}/definitely-not-a-page-xyz`);
   say(nf.status === 404, `未知路径 404(实测 ${nf.status})`);
+  }
 } finally {
   killTree();
 }
 
+if (earlyExit !== null) process.exit(earlyExit);
 console.log(fails === 0 ? `PASS test-static(${routes.length} 路由)` : `FAIL test-static(${fails} 项)`);
 process.exit(fails === 0 ? 0 : 1);

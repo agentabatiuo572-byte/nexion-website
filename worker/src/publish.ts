@@ -61,7 +61,7 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
     // 过期锁:上一次发布崩在半路 → 标 failed,别让它永远挂着 publishing
     await env.DB.batch([
       env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1 AND status IN ('validating','publishing')").bind(cur.version_id, '发布超时(执行器无响应),锁已自动释放'),
-      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(cur.version_id),
     ]);
   }
   const nonce = randomHex(16);
@@ -72,7 +72,12 @@ async function acquireLock(env: Env, versionId: number, now: number): Promise<{ 
   ]);
   return { ok: true, nonce };
 }
-const releaseLock = (env: Env) => env.DB.prepare('DELETE FROM publish_lock WHERE id = 1').run();
+/* 🔴 释放锁一律**按版本限定**(第十轮 P0 的同族排查):`publish_lock` 是单例表(id=1),
+   无条件 `DELETE WHERE id=1` 的语义是「把当下那把锁删掉,不管它属于谁」。
+   在并发下这就是「我以为我在清自己那把过期锁,实际清掉了别人刚建的新锁」。
+   调用方手上都拿着 version_id,不传是白白丢掉一层保护。 */
+const releaseLock = (env: Env, versionId: number) =>
+  env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId).run();
 
 interface LiveStamp {
   versionId?: number;
@@ -222,10 +227,17 @@ async function ensureTerminalEffect(
           : stamp.configSha !== wantSha
             ? `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`
             : `线上快照里这些文件已被改动过,与搬运时不符:${(badAnchors ?? []).join('、')}`;
+    /* 🔴 两条纵深(第十轮 P0):即使身份校验将来又被谁绕开,这两句也不该殃及别人。
+       ① 只把**还在跑的**版本判失败 —— 已经 live/archived/failed 的版本不该被一条回报改写
+          (实测:归档版本被翻成 failed 并写下不实审计,而审计只增不改);
+       ② 删锁**按 version_id 限定** —— `publish_lock` 是单例表(id=1),无条件删就是
+          「谁来都能把当前那把锁删掉」,哪怕那把锁属于另一次进行中的发布。 */
     await env.DB.batch([
-      env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1").bind(versionId, `上线核验未通过:${why}`),
+      env.DB
+        .prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1 AND status IN ('validating','publishing')")
+        .bind(versionId, `上线核验未通过:${why}`),
       env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(versionId, 'swap', why),
-      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
     ]);
     await writeAudit(env.DB, { action: 'config.publish.failed', target: `v${versionId}`, after: `上线核验未通过:${why}` });
     return { ok: false, error: 'live-verification-failed', why };
@@ -234,7 +246,7 @@ async function ensureTerminalEffect(
   const live = await getLive(env);
   const stmts = [
     env.DB.prepare("UPDATE config_versions SET status='live', published_at=?2 WHERE id=?1").bind(versionId, now),
-    env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+    env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
   ];
   if (live) stmts.unshift(env.DB.prepare("UPDATE config_versions SET status='archived' WHERE id=?1").bind(live.id));
   await env.DB.batch(stmts);
@@ -378,6 +390,30 @@ publishRoutes.post('/step', async (c) => {
   }
   const now = Date.now();
 
+  /* ══════════ 第零层:身份 —— 这条回报是不是这一版的执行器发的 ══════════
+     🔴 2026-09-01 第十轮(独立验收 P1-1,我回源核实后上抬为 P0)。第六次「两个各自正确的修法
+     合起来造出新故障」:
+       修法 A(第五轮):把幂等挪到锁检查**之前** —— 因为终态回报会删锁,从锁后面判会永远判错;
+       修法 B(第六轮):重放不能只跳过记录、还要把该做的副作用补上 —— 否则响应一丢整个上线被跳过。
+     合起来:**一个不检查授权的分支,调用了一个有副作用的事务**。实测攻击序列:
+     任一已登录用户对着一个**早已归档**的旧版本报 `swap ok` + 垃圾口令 → 走进幂等分支 →
+     `ensureTerminalEffect` 核验线上印记(当然对不上)→ 把那个旧版本改成 failed、写下不实审计、
+     **并删掉当时属于另一次进行中发布的锁**。非攻击也会中招:一条迟到的正常重发若在该版本被取代后到达,
+     同样误删别人的锁。
+
+     根治不是再往幂等分支里补一个 if,是把**身份**从「锁」上摘下来:
+     口令的载体本来就是版本行(`config_versions.claim_nonce`,`ensureTerminalEffect` 第 204 行
+     早就是这么读的),而锁只是「谁在跑」的临时凭据。身份先验、且与锁无关,于是
+     **重放(锁已删但口令仍在)与冒充(口令对不上)第一次被分开**,幂等分支不必再自带授权。 */
+  const versionNonce = await c.env.DB
+    .prepare('SELECT claim_nonce, status FROM config_versions WHERE id=?1')
+    .bind(b.versionId)
+    .first<{ claim_nonce: string | null; status: string }>();
+  if (!versionNonce) return c.json({ error: 'no-such-version' }, 404);
+  if (!versionNonce.claim_nonce || b.stamp !== versionNonce.claim_nonce) {
+    return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
+  }
+
   /* ══════════ 第一层:幂等与转移合法性(与锁无关) ══════════
      🔴 结构性改动(2026-09-01 第五轮后,见 `docs/changes/2026-09-01-publish-step-structural-reflection.md`)。
      此前六道校验是四轮里一条条累加出来的**否决清单**,按固定顺序求值,而「幂等」排在最后一条——
@@ -419,8 +455,11 @@ publishRoutes.post('/step', async (c) => {
     .first<{ version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }>();
   if (!lock || lock.version_id !== b.versionId) return c.json({ error: 'not-current-job' }, 409);
   if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409);
-  /* 上报必须来自**领过单的那个执行器**:不领单也能一路上报的话,足以占住锁、制造一堆假步骤记录。 */
-  if (!lock.claimed_at || !lock.claim_nonce || b.stamp !== lock.claim_nonce) {
+  /* 口令已在第零层按**版本行**验过(与锁无关,重放时锁可能已经不在)。这里只需确认这把锁
+     确实被领取过 —— 未领取的锁不该有人在上报进度。口令本身不再重复比对:
+     锁上那份与版本行那份同源(`claimJob` 一次写两处),再比一次不增加保证,却会让
+     「重放」在锁已删时无从通过(第五轮踩过的那个洞)。 */
+  if (!lock.claimed_at || !lock.claim_nonce) {
     return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
   }
   // 前序步骤必须全部 ok —— 这是「不存在绕门上线」的实际承载点
@@ -491,7 +530,7 @@ publishRoutes.get('/status', async (c) => {
       await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${v.id}`, after: reason });
     }
   }
-  if (!active && lock) await releaseLock(c.env); // 顺手清掉过期锁
+  if (!active && lock) await releaseLock(c.env, lock.version_id); // 顺手清掉过期锁(只清这一把)
   /* 步骤日志:进行中看当前版本;没有进行中时回**最近一次**的步骤日志——
      否则失败态下「查看原始日志」永远没有数据可渲染(验收 P1:日志存了却取不回)。 */
   const stepsOf = active ?? (await c.env.DB.prepare('SELECT version_id FROM publish_steps ORDER BY id DESC LIMIT 1').first<{ version_id: number }>())?.version_id ?? null;
@@ -612,7 +651,7 @@ publishRoutes.post('/cancel', async (c) => {
        取消是运营的主动决定,不是故障——把它记成故障,红条就在说假话。 */
     c.env.DB.prepare("UPDATE config_versions SET status='cancelled', fail_reason=?2 WHERE id=?1").bind(lock.version_id, why),
     c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?2, ended_at=?3 WHERE version_id=?1 AND status='running'").bind(lock.version_id, why, Date.now()),
-    c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1'),
+    c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(lock.version_id),
   ]);
   await writeAudit(c.env.DB, { action: 'config.publish.cancel', target: `v${lock.version_id}`, after: why, reason: body?.reason?.trim() });
   return c.json({ ok: true, forced: !!started });

@@ -34,6 +34,9 @@ const saved = had ? readFileSync(STAMP) : null;
    第一版给 vitest 传了 `--reporter=basic`,而 vitest 4 已经移除该选项 → 两次运行都因为
    同一个参数错误而崩,门于是欢快地宣布「两种状态下结论一致」并打印 PASS。
    **「两边一样」在两边都没真正跑起来时毫无意义**——所以先证起点:计数必须抓得到。 */
+/** 门自己坏了 —— 与「门判被守物有问题」区分开,前者必须让人先去修门 */
+class GateBroken extends Error {}
+
 function runTests(label) {
   const r = spawnSync('npx', ['vitest', 'run'], { cwd: here, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
   const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
@@ -41,13 +44,22 @@ function runTests(label) {
   if (!m) {
     console.error(`✗ ${label}:抓不到测试计数 —— 单测根本没跑起来,本门无法给出结论`);
     console.error(out.split('\n').slice(-15).join('\n'));
-    process.exit(3);
+    throw new GateBroken('抓不到测试计数');
   }
   const failed = [...out.matchAll(/[×✗]\s+(.+?)\s+\d+ms/g)].map((x) => x[1].trim());
   console.log(`· ${label}:退出码 ${r.status} · ${m[1].trim()}`);
   return { code: r.status ?? 1, summary: m[1].trim(), failed };
 }
 
+/* 🔴 退出码**必须外置**(2026-09-01 第十轮独立验收 P0-2)。
+   上一版每条出口都是 `try` 块里的 `process.exit(n)` —— 而 `process.exit()` 立即终止进程、
+   **不执行 finally**。于是下面那段「还原磁盘原状」从来没有跑过哪怕一次:
+   每跑一次本门,线上快照的上线印记就被永久替换成 `{versionId: 999999, stamp: 'gate-probe'}`。
+   被覆盖的正是 `publish.ts` STAMP_WHY 那道「标 live 前回读实物」的控制凭证 ——
+   **一道用来保证「门不骗人」的门,自己把另一道门的凭证毁了。**
+   (我自己也被它骗过:走查时看到那个 999999,判断成「早前测试的残留值,不是代码问题」。)
+   现在:算出退出码 → finally 还原 → 在 try/finally **之外**退出。 */
+let exitCode = 0;
 try {
   // ① 无印记
   if (existsSync(STAMP)) rmSync(STAMP, { force: true });
@@ -65,17 +77,29 @@ try {
     const diff = [...new Set([...a.failed, ...b.failed])].filter((t) => a.failed.includes(t) !== b.failed.includes(t));
     if (diff.length) console.error(`  只在其中一种状态下红的用例:\n    ${diff.join('\n    ')}`);
     console.error('  修法:那些用例要用资产层替身,把「有没有印记」这个前提显式写进测试,而不是继承磁盘现状。');
-    process.exit(1);
-  }
-  if (a.code !== 0) {
+    exitCode = 1;
+  } else if (a.code !== 0) {
     // 两边一致但都红:产物无关性成立,但单测本身是红的——别用「一致」把红盖过去
     console.error(`✗ 两种产物状态下结论一致,但单测本身是红的(${a.summary});先修单测`);
-    process.exit(1);
+    exitCode = 1;
+  } else {
+    console.log(`PASS gate-artifact-independence(两种产物状态下同为:${a.summary})`);
   }
-  console.log(`PASS gate-artifact-independence(两种产物状态下同为:${a.summary})`);
-  process.exit(0);
+} catch (e) {
+  exitCode = e instanceof GateBroken ? 3 : 1;
+  if (!(e instanceof GateBroken)) console.error(`✗ 本门自身出错:${String(e).slice(0, 200)}`);
 } finally {
   // 还原磁盘原状:门不该改变它检查的环境
   rmSync(STAMP, { force: true });
   if (had && saved) writeFileSync(STAMP, saved);
+  /* 还原完当场**回读核实**,不只是「执行了还原语句」。
+     写不回去(权限/占用)时必须喊出来 —— 悄悄留下伪造凭证正是上一版的事故形态。 */
+  const nowHas = existsSync(STAMP);
+  const ok = had ? nowHas && readFileSync(STAMP).equals(saved) : !nowHas;
+  console.log(ok ? `· 印记已还原(${had ? '与跑前逐字节一致' : '跑前本就没有,已确认未留下'})` : '');
+  if (!ok) {
+    console.error('✗ 印记还原失败 —— 本门刚刚破坏了线上快照的上线凭证,请手工核对 dist-live/.publish-stamp.json');
+    exitCode = 3;
+  }
 }
+process.exit(exitCode);

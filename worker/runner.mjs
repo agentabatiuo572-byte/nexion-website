@@ -68,29 +68,46 @@ const report = (versionId, step, status, stamp, extra = {}) => api('/api/publish
    所以必须在每次发布时都真跑一遍。 */
 function runGates() {
   const r = spawnSync('npm', ['run', 'verify'], { cwd: SITE, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-  let code = r.status ?? 1;
-  try {
-    code = Number(readFileSync(path.join(SITE, '.verify-exit.code'), 'utf8').trim());
-  } catch {
-    /* 文件读不到就用进程码,但要在 detail 里说明 */
-  }
   let out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
+  /* 🔴 退出码文件读不到 = **门没跑起来**,不是「用进程码兜一下」就完事(第十轮独立验收 P1)。
+     上一版无条件回读该文件,而它是上一次运行留下的:verify 崩在启动阶段时文件还在、值还是 0,
+     于是「门根本没跑」被报成「门全绿」。verify-preamble 每次开跑先把它置 2,
+     所以读不到只有一个解释:那一步压根没执行到。 */
+  let code;
+  const codePath = path.join(SITE, '.verify-exit.code');
+  try {
+    code = Number(readFileSync(codePath, 'utf8').trim());
+    if (!Number.isFinite(code)) throw new Error('内容不是数字');
+  } catch (e) {
+    out += `\n---- 门链判据缺席 ----\n读不到 ${codePath}(${String(e).slice(0, 80)})——门没跑起来,一律判红`;
+    return { ok: false, gate: 'verify-not-run', tail: out.split('\n').slice(-25).join('\n') };
+  }
   let gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
 
   if (code === 0) {
-    /* 🔴 先跑门的**自检**再跑门本体(2026-09-01 补):
-       这两道门各有二十多条自检,而它们此前**不在任何一条链里** —— 只在「我记得跑」的时候才跑,
-       正是 memory 里那条「新建测试天然成孤儿」的形态。门坏了却报绿是最贵的一种错,
-       而自检只花几百毫秒。read-jsonc 是两道门共用的配置读取器,同理。 */
-    for (const [name, script, ...args] of [
-      ['jsonc-reader-自检', 'lib/test-read-jsonc.mjs'],
-      ['config-consistency-自检', 'gate-config-consistency.mjs', '--self-test'],
-      ['console-copy-自检', 'gate-console-copy.mjs', '--self-test'],
-      ['config-consistency', 'gate-config-consistency.mjs'],
-      ['console-copy', 'gate-console-copy.mjs'],
+    /* 🔴 门与测试**必须在链上**(第十轮独立验收 P1:实测八处孤儿)。
+       「门不在链上 = 门不存在」——只在「我记得跑」的时候才跑的检查,等于没有。
+       上一版这里只有两道门 + 两条自检,而下面这些当时全是孤儿:
+       **worker 的全套单元测试**(发布流水线自己的正确性,一次都没在发布时跑过)、
+       产物无关性门、字节级静态对照、埋点体积、种子等价、以及各门的红测套件。
+       ⚠️ 只列**真实存在**的入口:上一版我在 `test:gates` 里对两个根本没有 `--self-test`
+       实现的脚本传了该参数,它们把未知参数忽略、跑的是主门,而我把输出条数当成了自检条数
+       ——「55 条自检全绿」里有 5 条是假的。凡加一行到这张表,先确认那个入口真的存在。 */
+    for (const [name, cmd, args, cwd] of [
+      ['jsonc-reader-红测', 'node', ['lib/test-read-jsonc.mjs'], here],
+      ['exit-finally-红测', 'node', ['lib/test-exit-skips-finally.mjs'], here],
+      ['config-consistency-自检', 'node', ['gate-config-consistency.mjs', '--self-test'], here],
+      ['console-copy-自检', 'node', ['gate-console-copy.mjs', '--self-test'], here],
+      ['css-shadowed-红测', 'node', ['scripts/test-css-shadowed.mjs'], SITE],
+      ['render-fit-自检', 'node', ['scripts/gate-render-fit.mjs', '--self-test'], SITE],
+      ['worker-单测', 'npx', ['vitest', 'run'], here],
+      ['config-consistency', 'node', ['gate-config-consistency.mjs'], here],
+      ['console-copy', 'node', ['gate-console-copy.mjs'], here],
+      ['equivalence', 'node', ['--import', './register-ts-ext.mjs', 'gate-equivalence.mjs'], here],
+      ['beacon-size', 'node', ['gate-beacon-size.mjs'], here],
     ]) {
-      const w = spawnSync('node', [script, ...args], { cwd: here, shell: true, encoding: 'utf8' });
-      out += `\n---- ${name} ----\n${w.stdout ?? ''}${w.stderr ?? ''}`;
+      const w = spawnSync(cmd, args, { cwd, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
+      out += `\n---- ${name} ----\n${(w.stdout ?? '').split('\n').slice(-8).join('\n')}${w.stderr ?? ''}`;
       if (w.status !== 0) {
         code = w.status ?? 1;
         gate = name;
