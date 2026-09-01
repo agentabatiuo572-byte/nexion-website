@@ -51,7 +51,7 @@ const GLYPH_EXEMPT = /glyph-unit-ok/;
       CSS 里 `-` 后面直接跟数字不构成合法标识符,所以放行一元负号不会引入误伤。
    数字部分带科学计数法 `(?:[eE][+-]?\d+)?`:`5e1ch` 是合法 CSS 且等于 50ch。
    不覆盖(已知残余,写明免得下次误以为查过了):JS 模板串 `` `${n}ch` ``、CSS 转义 `50\63 h`。 */
-const GLYPH_UNIT = /(?<![\w#])(?<!(?<=[\w-])-)(-?\d[\d.]*(?:[eE][+-]?\d+)?)(r?(?:ch|ex|ic|cap))\b/i;
+const GLYPH_UNIT = /(?<![\w#])(?<!(?<=[\w-])-)(-?\d[\d.]*(?:[eE][+-]?\d+)?)(r?(?:ch|ex|ic|cap|lh))\b/i;
 
 /* 导出成纯函数,好让 --self-test 用表驱动红绿两向验它(判据是正则,正则必须有红测) */
 export const glyphUnitHit = (decl) => {
@@ -231,6 +231,10 @@ if (process.argv[1] && process.argv[1].endsWith('gate-canvas-unit.mjs') && proce
     'text-indent: -2ch', 'margin-left: -1ch', 'margin: 0 -3ch',
     'transform: translateX(-4cap)', '--foo: -10ic', 'letter-spacing: -0.5ex',
     'max-width: 5e1ch', 'max-width: 5E1ch', 'width: 1.2e+2ch', // 科学计数法也是合法长度
+    // lh/rlh 同族:line-height:normal 时行高由字体度量算,与 ch 同一个失效面。
+    // 本仓 html/body 都没设 line-height,没挂型类的元素继承的就是 normal;当前零使用,
+    // 但这道门的立意是「按单位整族封,不按元素点名」—— 族缺一个就是留门。
+    'height: 3lh', 'margin-block: 1.5lh', 'padding-top: -2lh', 'height: 2rlh',
   ];
   const GREEN = [ // 必须放过
     'max-width: calc(50 * var(--x-ch-mono))', 'max-width: calc(22 * var(--x-ch-display-vi))',
