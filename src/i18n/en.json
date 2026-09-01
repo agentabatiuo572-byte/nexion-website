@@ -99,6 +99,31 @@
     "certClose": "Close",
     "openOriginal": "Open original"
   },
+  "why": {
+    "kicker": "Why now",
+    "title": "The world is running out of compute.",
+    "p1": "AI training compute has doubled roughly every six months since 2010. NVIDIA sold $89 billion of data-center compute in a single quarter — up 117% in a year — and its CEO says demand is running far ahead of what the company can supply.",
+    "p2": "The bottleneck is no longer just chips. U.S. data-center vacancy sits at a record-low 1.4%, and Microsoft's CEO says chips are waiting in inventory with no power to plug them into. Centralized compute is hitting physical walls: land, grid, cooling.",
+    "p3": "Distributed networks route around those walls. Not every AI job needs a flagship GPU — image, language and speech inference run on hardware people already own. Volunteers' idle devices once outran the world's top 500 supercomputers combined (Folding@home, 2020). Today there are 8.8 billion mobile connections on Earth. NexGrid puts that pool to work.",
+    "quote1": "“NVIDIA compute is fully utilized across every cloud we serve.”",
+    "attr1": "Colette Kress, CFO, NVIDIA — Q2 FY2027 earnings call, Aug 2026",
+    "quote2": "“You may actually have a bunch of chips sitting in inventory that I can't plug in.”",
+    "attr2": "Satya Nadella, CEO, Microsoft — Nov 2025",
+    "stat1": "$89B",
+    "stat1Cap": "NVIDIA data-center revenue in a single quarter (Q2 FY2027)",
+    "stat2": "1.4%",
+    "stat2Cap": "U.S. data-center vacancy, record low (CBRE, H1 2026)",
+    "stat3": "8.8B",
+    "stat3Cap": "Mobile connections worldwide (GSMA, 2026)",
+    "sourcesTitle": "Sources & citations",
+    "src1": "NVIDIA Investor Relations — Q2 FY2027 financial results & earnings call, Aug 26, 2026",
+    "src2": "CBRE — North America Data Center Trends H1 2026, Aug 2026",
+    "src3": "Satya Nadella on the BG2 Pod, Nov 2025 (as reported by Tom's Hardware)",
+    "src4": "Epoch AI — training compute of notable AI models, data updated Nov 2025",
+    "src5": "GSMA Intelligence — The Mobile Economy 2026, Mar 2026",
+    "src6": "Folding@home network statistics, Apr 2020 (as reported by TechSpot)",
+    "disclaim": "Company names and figures are cited for industry context only. NexGrid is not affiliated with, sponsored by, or endorsed by any company or organization named above."
+  },
   "social": {
     "kicker": "Network scale",
     "scaleLine": "{devices}+ devices earning across {countries} countries",
@@ -107,7 +132,7 @@
   "mission": {
     "kicker": "Where compute goes",
     "title": "What the network computes",
-    "lead": "Clients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
+    "lead": "AI demand now outruns datacenter supply.\nClients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
     "f1": "AI inference",
     "f2": "Scientific computing",
     "f3": "Climate modeling",
@@ -216,7 +241,9 @@
     "q8": "Which countries is NexGrid available in?",
     "a8": "The sign-up flow in the app decides availability — it is the authoritative check for your region.",
     "q9": "Are there any fees?",
-    "a9": "Starting is free. USDT withdrawals carry a network confirmation fee, shown on the withdrawal screen before you confirm; you can burn NEX to offset it."
+    "a9": "Starting is free. USDT withdrawals carry a network confirmation fee, shown on the withdrawal screen before you confirm; you can burn NEX to offset it.",
+    "q10": "Why would AI companies pay for compute on everyday devices?",
+    "a10": "Not every AI job needs a flagship data-center GPU. Image, language and speech inference run well on consumer hardware — and top-tier compute is booked out (NVIDIA says its compute is fully utilized across every cloud it serves), so demand spills into every layer. Distributed networks of everyday devices have reached supercomputer scale before: Folding@home hit 2.4 exaFLOPS in 2020, more than the top 500 supercomputers combined at the time."
   },
   "final": {
     "title": "Put your idle devices to work."
