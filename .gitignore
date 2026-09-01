@@ -11,3 +11,6 @@ dist/
 .opencode/
 .pi/
 .verify-cache/
+
+# 删除暂存垃圾桶(PreToolUse 守卫的 Move 目标),永不入库
+.trash/
