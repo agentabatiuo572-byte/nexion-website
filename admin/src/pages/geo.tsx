@@ -2,6 +2,7 @@
    即时生效通道:应用=确认(理由 ≥8 字)→ 写 KV → 回读确认;失败态不装成功。 */
 import { useEffect, useState } from 'react';
 import { ApiError, api, toast } from '../api';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { ISO_COUNTRIES, countryName } from '../lib/iso-countries';
 
 interface Rules {
@@ -136,7 +137,7 @@ export default function GeoPage() {
               <div className="field" style={{ margin: 0 }}><label>{l} 标题</label>
                 <input value={r.blockPage.title[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, title: { ...r.blockPage.title, [l]: e.target.value } } })} /></div>
               <div className="field"><label>{l} 正文(≤300)</label>
-                <textarea rows={2} value={r.blockPage.body[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, body: { ...r.blockPage.body, [l]: e.target.value } } })} /></div>
+                <AutoTextarea value={r.blockPage.body[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, body: { ...r.blockPage.body, [l]: e.target.value } } })} /></div>
             </div>
           ))}
         </div>

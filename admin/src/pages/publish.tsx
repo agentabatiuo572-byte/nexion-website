@@ -118,6 +118,8 @@ export default function PublishPage() {
   const [forcing, setForcing] = useState(false);
   const [forceReason, setForceReason] = useState('');
   const [openLog, setOpenLog] = useState<string | null>(null);
+  const [showAllPaths, setShowAllPaths] = useState(false);
+  const [showAllErrors, setShowAllErrors] = useState(false);
   const timer = useRef<number | null>(null);
 
   const load = useCallback(() => {
@@ -325,13 +327,20 @@ export default function PublishPage() {
             <table>
               <thead><tr><th>改动位置</th><th>说明</th></tr></thead>
               <tbody>
-                {pre.changedPaths.slice(0, 30).map((p) => (
+                {(showAllPaths ? pre.changedPaths : pre.changedPaths.slice(0, 30)).map((p) => (
                   <tr key={p}>
                     <td>{humanPath(p)}<div className="kv mono" style={{ fontSize: 11 }}>{p}</div></td>
                     <td>{pre.sensitiveChanged.includes(p) ? <span className="pill warn">高敏</span> : <span className="kv">普通</span>}</td>
                   </tr>
                 ))}
-                {pre.changedPaths.length > 30 && <tr><td colSpan={2} className="kv">…另有 {pre.changedPaths.length - 30} 处</td></tr>}
+                {/* 截断必须给出口:「…另有 N 处」而没有展开按钮 = 那 N 处既看不到也点不了 */}
+                {pre.changedPaths.length > 30 && (
+                  <tr><td colSpan={2}>
+                    <button className="btn ghost sm" onClick={() => setShowAllPaths((v) => !v)}>
+                      {showAllPaths ? '只看前 30 处' : `展开全部 ${pre.changedPaths.length} 处`}
+                    </button>
+                  </td></tr>
+                )}
               </tbody>
             </table>
           )}
@@ -339,7 +348,7 @@ export default function PublishPage() {
             <div className="note bad" style={{ marginTop: 10 }}>
               <b>前置校验未通过({pre.errors.length} 项),不会进入发布流程:</b>
               <table><tbody>
-                {pre.errors.slice(0, 15).map((e, i) => (
+                {(showAllErrors ? pre.errors : pre.errors.slice(0, 15)).map((e, i) => (
                   <tr key={i}>
                     <td>{RULE_LABEL[e.rule] ?? e.rule}</td>
                     <td>{humanPath(e.path)}<div className="kv mono" style={{ fontSize: 11 }}>{e.path}</div></td>
@@ -349,7 +358,15 @@ export default function PublishPage() {
                   </tr>
                 ))}
               </tbody></table>
-              {pre.errors.length > 15 && <div className="kv">…另有 {pre.errors.length - 15} 项</div>}
+              {/* 🔴 CON13-E1 逐字要求「列出**全部**红项(每项带去修复跳转)」。
+                  上一版只列 15 条、剩下的既看不到内容也拿不到跳转 —— 运营只能修 15 条、
+                  刷新、再看下 15 条,而且永远不知道总共要修几轮(第十轮独立验收 P1-3)。
+                  三语缺译很容易上百条,截断在这一页尤其伤人。 */}
+              {pre.errors.length > 15 && (
+                <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllErrors((v) => !v)}>
+                  {showAllErrors ? '只看前 15 项' : `展开全部 ${pre.errors.length} 项(每项都能点「去修复」)`}
+                </button>
+              )}
             </div>
           )}
           {pre.warnings.length > 0 && (

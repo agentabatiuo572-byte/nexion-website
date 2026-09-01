@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 // @ts-expect-error 禁用词单源(站上门同文件)
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { tokensOf, useDraft, type SiteConfigView } from '../lib/use-draft';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { useFocusField } from '../lib/use-focus-field';
 
 const GROUPS: Array<[string, string]> = [
@@ -148,8 +149,7 @@ export default function ContentPage() {
                     return (
                       <div className="field" key={loc} style={{ margin: 0 }}>
                         <label>{loc}{loc === 'en' && '(源)'}{missing && <span className="pill warn" style={{ marginLeft: 6 }}>缺译</span>}</label>
-                        <textarea
-                          rows={Math.min(6, Math.max(2, Math.ceil(v.length / 46)))}
+                        <AutoTextarea
                           value={v}
                           style={hits.length || missTokens.length ? { borderColor: 'var(--bad)' } : {}}
                           onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], [loc]: e.target.value } }))}

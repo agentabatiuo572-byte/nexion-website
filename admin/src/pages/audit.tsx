@@ -17,8 +17,12 @@ const ACTION_LABEL: Record<string, string> = {
   'config.publish.cancel': '取消发布', 'config.publish.rejected': '发布被拒(已有发布进行中)', 'config.rollback': '发起回滚',
 };
 
+/* 类别与服务端的 AUDIT_GROUPS 一一对应(前端只传类别名,归类规则单源在服务端)。
+   🔴 上一版按前缀分,于是「发布」这一类建不出来 —— 发布/回滚/取消全被塞进「内容」,
+   而 CON14-② 写死的四类里就有「发布」(第十轮独立验收 P1-5)。
+   另:退出登录曾归「账号」、登录归「登录」,查一次会话进出要点两个页签,现在合成「登录与账号」。 */
 const FILTERS = [
-  ['', '全部'], ['config.', '内容'], ['geo.', '规则'], ['login.', '登录'], ['auth.', '账号'], ['admin.', '运维'],
+  ['', '全部'], ['content', '内容改动'], ['publish', '发布与回滚'], ['geo', '区域规则'], ['session', '登录与账号'], ['ops', '运维'],
 ] as const;
 
 export default function AuditPage() {
@@ -31,13 +35,25 @@ export default function AuditPage() {
   const [lastExport, setLastExport] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  /** 把当前筛选(类别 + 时间窗)拼成查询串;导出与列表共用,两处不会各自演化 */
+  function queryOf(extra: Record<string, string> = {}): URLSearchParams {
+    const q = new URLSearchParams({ limit: '50', ...extra });
+    if (filter) q.set('group', filter);
+    if (from) q.set('from', String(Date.parse(from)));
+    // 「到」这一天要**含当天**:输入 2026-09-01 意思是截到那天 23:59:59,不是 00:00
+    if (to) q.set('to', String(Date.parse(to) + 86_399_999));
+    return q;
+  }
 
   async function load(action: string, before: number | null, append: boolean) {
     try {
       setErr(false);
       if (!append) setRows(null);
-      const q = new URLSearchParams({ limit: '50' });
-      if (action) q.set('action', action);
+      const q = queryOf();
+      if (action) q.set('group', action);
       if (before) q.set('before', String(before));
       const r = await api<{ items: Row[]; nextBefore: number | null }>(`/api/audit?${q}`);
       setRows((prev) => (append && prev ? [...prev, ...r.items] : r.items));
@@ -51,7 +67,8 @@ export default function AuditPage() {
       if (!append) setRows(null);
     }
   }
-  useEffect(() => { void load(filter, null, false); }, [filter]);
+  // 类别或时间窗一变就重查(时间窗也参与,否则改了日期没反应)
+  useEffect(() => { void load(filter, null, false); }, [filter, from, to]);
 
   /* 🔴 导出必须是**当前筛选下的全部记录**,不是屏幕上已加载的那 50 行
      (2026-09-01 第十轮独立验收 P1:库里 95 行、导出文件只有 50 行,
@@ -67,8 +84,7 @@ export default function AuditPage() {
     let truncated = false;
     try {
       for (;;) {
-        const q = new URLSearchParams({ limit: '200' });
-        if (filter) q.set('action', filter);
+        const q = queryOf({ limit: '200' });
         if (cursor) q.set('before', String(cursor));
         const r: { items: Row[]; nextBefore: number | null } = await api(`/api/audit?${q}`);
         all = all.concat(r.items);
@@ -110,6 +126,15 @@ export default function AuditPage() {
           <button key={v} className={`pill ${filter === v ? 'brand' : ''}`} onClick={() => setFilter(v)} style={{ cursor: 'pointer' }}>{label}</button>
         ))}
         <span className="spacer" />
+        {/* 时间过滤(CON14-② A1 与 ⑤ 两处明写)。出事后最常问的是「昨天下午发生了什么」,
+            上一版一个日期输入都没有,只能靠底部「加载更早」一次 50 条往回按。 */}
+        <label className="kv" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          从 <input type="date" value={from} max={to || undefined} onChange={(e) => setFrom(e.target.value)} style={{ width: 150 }} />
+        </label>
+        <label className="kv" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          到 <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} style={{ width: 150 }} />
+        </label>
+        {(from || to) && <button className="btn ghost sm" onClick={() => { setFrom(''); setTo(''); }}>清除时间</button>}
         <button className="btn sm" disabled={busyExport} onClick={() => void exportCsv()} title="导出当前筛选下的全部记录,不只是屏幕上已加载的">
           {busyExport ? '导出中…' : '导出 CSV'}
         </button>
@@ -126,13 +151,18 @@ export default function AuditPage() {
           /* 空态要说清「为什么空」并给出口:光写「没有匹配记录」时,人分不出是这个筛选下没有、
              还是系统压根没记(审计是追责面,这两件事的分量完全不同)。 */
           <div style={{ padding: '18px 8px' }}>
+            {/* 空态要说清是**哪个**筛选造成的:类别、时间窗,还是真的一条都没有 */}
             <p className="kv" style={{ margin: 0 }}>
-              {filter ? `「${FILTERS.find(([v]) => v === filter)?.[1] ?? filter}」这一类目前没有记录。` : '还没有任何操作记录。'}
+              {filter || from || to
+                ? `当前筛选下没有记录${filter ? `(类别:${FILTERS.find(([v]) => v === filter)?.[1] ?? filter})` : ''}${from || to ? `(时间:${from || '最早'} 至 ${to || '现在'})` : ''}。`
+                : '还没有任何操作记录。'}
             </p>
             <p className="kv" style={{ margin: '6px 0 0' }}>
-              {filter ? '换个类别或看全部,已发生的动作都会在这里留痕。' : '登录、改内容、改规则、发布,任一动作发生后即刻在此留痕。'}
+              {filter || from || to ? '放宽筛选再看一次,已发生的动作都会在这里留痕。' : '登录、改内容、改规则、发布,任一动作发生后即刻在此留痕。'}
             </p>
-            {filter && <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setFilter(''); load('', null, false); }}>看全部记录</button>}
+            {(filter || from || to) && (
+              <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setFilter(''); setFrom(''); setTo(''); }}>清空筛选,看全部</button>
+            )}
           </div>
         ) : (
           <table>

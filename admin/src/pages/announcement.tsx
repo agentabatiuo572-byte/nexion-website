@@ -3,6 +3,7 @@ import { useState } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { useDraft, type Tri } from '../lib/use-draft';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
@@ -52,7 +53,7 @@ export default function AnnouncementPage() {
           <div className="card" key={l} data-field={`announcement.text.${l}`}>
             <div className="field" style={{ margin: 0 }}>
               <label>{l} 文案(≤120)<span className="kv" style={{ marginLeft: 6, color: a.text[l].length > 120 ? 'var(--bad)' : undefined }}>{a.text[l].length}/120</span></label>
-              <textarea rows={3} value={a.text[l]} onChange={(ev) => setTextE((s) => ({ ...s, [l]: ev.target.value }))} />
+              <AutoTextarea value={a.text[l]} onChange={(ev) => setTextE((s) => ({ ...s, [l]: ev.target.value }))} />
             </div>
           </div>
         ))}

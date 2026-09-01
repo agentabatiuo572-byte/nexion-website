@@ -3,6 +3,7 @@ import { useState, type DragEvent } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { api } from '../api';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { useDraft, type Tri } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -86,9 +87,9 @@ export default function FaqPage() {
                 {(['en', 'vi', 'zh'] as const).map((l) => (
                   <div key={l}>
                     <div className="field" style={{ margin: 0 }}><label>问 {l}</label>
-                      <textarea rows={2} value={it.q[l]} onChange={(e) => upd(it.id, (c) => { c.q[l] = e.target.value; })} /></div>
+                      <AutoTextarea value={it.q[l]} onChange={(e) => upd(it.id, (c) => { c.q[l] = e.target.value; })} /></div>
                     <div className="field"><label>答 {l}</label>
-                      <textarea rows={4} value={it.a[l]} onChange={(e) => upd(it.id, (c) => { c.a[l] = e.target.value; })} /></div>
+                      <AutoTextarea value={it.a[l]} onChange={(e) => upd(it.id, (c) => { c.a[l] = e.target.value; })} /></div>
                   </div>
                 ))}
               </div>

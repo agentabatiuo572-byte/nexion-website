@@ -2,6 +2,7 @@
 import { useState, type DragEvent } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -88,7 +89,7 @@ export default function SkusPage() {
                   {(['en', 'vi', 'zh'] as const).map((l) => (
                     <div className="field" key={l} style={{ margin: 0 }}>
                       <label>标语 {l}</label>
-                      <textarea rows={2} value={s.tagline[l] ?? ''} style={scan(s.tagline[l] ?? '').length ? { borderColor: 'var(--bad)' } : {}}
+                      <AutoTextarea value={s.tagline[l] ?? ''} style={scan(s.tagline[l] ?? '').length ? { borderColor: 'var(--bad)' } : {}}
                         onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], tagline: { ...(st[id]?.tagline as object), [l]: e.target.value } } }))} />
                     </div>
                   ))}

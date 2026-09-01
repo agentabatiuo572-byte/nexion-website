@@ -2,6 +2,7 @@
    页脚披露句/导航文案归文案树(⑦ 不双源);社媒清单=现网集(当前为空,站上落地后接入)。 */
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { AutoTextarea } from '../lib/auto-textarea';
 import { useDraft, type Tri } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -49,7 +50,7 @@ export default function SeoPage() {
               return (
                 <div className="field" key={l} style={{ margin: 0 }}>
                   <label>{l}<span className="kv" style={{ marginLeft: 6, color: v.length > limit ? 'var(--warn)' : undefined }}>{v.length}/{limit}</span></label>
-                  <textarea rows={field === 'title' ? 2 : 3} value={v}
+                  <AutoTextarea value={v}
                     onChange={(ev) => setEdits((s) => ({ ...s, [pid]: { ...s[pid], [field]: { ...s[pid]?.[field], [l]: ev.target.value } } }))} />
                   {v.length > limit && <div className="kv" style={{ color: 'var(--warn)' }}>超长——搜索结果可能截断(软警,可发布)</div>}
                 </div>

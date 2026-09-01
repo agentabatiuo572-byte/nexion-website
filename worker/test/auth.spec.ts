@@ -218,3 +218,50 @@ describe('限速与硬化回归', () => {
     expect(sc).toContain('Max-Age=0');
   });
 });
+
+/* CON14-② A1「按类型**与时间**过滤」——第十轮独立验收 P1-5/P1-6:
+   「发布」这一类根本建不出来(单前缀过滤的限制),时间过滤一个输入都没有。
+   钉的是**契约里那四类各自能查出自己的记录**,不是某个具体前缀写法。 */
+describe('CON14 审计过滤(类别 + 时间)', () => {
+  it('「发布」是独立一类,不再混进「内容改动」', async () => {
+    await setup();
+    const cookie = sidCookie(await login(PW));
+    const now = Date.now();
+    for (const [action, ts] of [
+      ['config.save', now - 3000],
+      ['config.publish', now - 2000],
+      ['config.publish.live', now - 1000],
+      ['config.rollback', now - 500],
+      ['geo.update', now - 400],
+    ] as const) {
+      await env.DB.prepare('INSERT INTO audit (ts, actor, action) VALUES (?1, ?2, ?3)').bind(ts, 'admin', action).run();
+    }
+    const get = async (q: string) =>
+      ((await (await app.request(`/api/audit?${q}`, { headers: { cookie } }, env)).json()) as { items: Array<{ action: string }> }).items;
+
+    const pub = await get('group=publish');
+    expect(pub.map((r) => r.action).sort()).toEqual(['config.publish', 'config.publish.live', 'config.rollback']);
+    // 「内容改动」里不该再混进发布类
+    const content = await get('group=content');
+    expect(content.every((r) => r.action === 'config.save')).toBe(true);
+    expect(content.some((r) => r.action.startsWith('config.publish')), '发布记录混进了内容类').toBe(false);
+    // 登录与账号合成一类(查一次会话进出不必点两个页签)
+    const session = await get('group=session');
+    expect(session.every((r) => /^(login|auth)\./.test(r.action))).toBe(true);
+    // 不认识的类别要明确拒绝,不能当成「无过滤」把全部记录倒出来
+    expect((await app.request('/api/audit?group=nope', { headers: { cookie } }, env)).status).toBe(400);
+  });
+
+  it('时间窗过滤:只返回窗内记录,两端都含', async () => {
+    await setup();
+    const cookie = sidCookie(await login(PW));
+    const base = 1_780_000_000_000;
+    for (const ts of [base - 1000, base, base + 500, base + 1000, base + 2000]) {
+      await env.DB.prepare('INSERT INTO audit (ts, actor, action) VALUES (?1, ?2, ?3)').bind(ts, 'admin', 'config.save').run();
+    }
+    const inWin = ((await (await app.request(`/api/audit?from=${base}&to=${base + 1000}`, { headers: { cookie } }, env)).json()) as {
+      items: Array<{ ts: number }>;
+    }).items.filter((r) => r.ts >= base - 1000 && r.ts <= base + 2000);
+    expect(inWin.map((r) => r.ts).sort((a, b) => a - b)).toEqual([base, base + 500, base + 1000]);
+  });
+});
