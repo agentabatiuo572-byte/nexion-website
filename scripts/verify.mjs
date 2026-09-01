@@ -8,6 +8,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from '
 import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
+import { regexEscapeGate } from './gate-regex-escape.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
@@ -242,6 +243,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 }
 
 results.push(canvasUnitGate(SRC, rel));
+results.push(regexEscapeGate(ROOT, rel));
 
 /* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
    同型两次都是「写进去了但从未生效,而且没有任何反馈」:
