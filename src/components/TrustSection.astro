@@ -15,16 +15,17 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-/* 版面顺序:事实(公司/MSB)→ 核验步骤(Colorado/FinCEN)→ 制度解释;卡 key 不变,只重排。
-   R48.7 令②:每卡配语义线性图标(按卡内容不按版面序):注册实体/盾勾/查册/清单查询/天平。
-   R49b(主人 2026-08-31 改令):查册两卡**只留官网真外链**——复制编号按钮撤除,
-   卡文由 step-by-step 详述改一句话模糊化(查询细节交给官网自己)。链接仍指检索入口页。 */
-const order = [
-  { card: 1, span: 's7', icon: 'registry' },
-  { card: 3, span: 's7', icon: 'shield' },
-  { card: 2, span: 's6', icon: 'verify-search', verify: { url: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do', label: 'coloradosos.gov' } },
-  { card: 5, span: 's6', icon: 'lookup', verify: { url: 'https://www.fincen.gov/msb-state-selector', label: 'fincen.gov/msb-state-selector' } },
-  { card: 4, span: 's12', icon: 'scale' },
+/* R3 卡片排版重构(主人 2026-09-01 拍板 ABC 混合定稿):五张整段卡 → 三张分层卡。
+   每卡三层:**结论**(19 档标题,一句话说清是什么)→ **细节**(12 档小字)→ **锚**
+   (可核验值 chip + 实心查册按钮)。信息零删减 —— 旧 card1..card5 逐句拆进
+   t1/t2/t3(实体/州/公司类型/Entity ID/股本/平台/MSB 编号/BSA 框架/登记≠背书/两处查册说明),
+   守恒由改写脚本的断言逐条核过(8/8)。查册链接从下划线小字升级为按钮:它是本板块希望
+   访客真正去做的动作(「Verify it yourself」),满饱和柠檬只给可点转化件的分层纪律成立。
+   R48.7 令②的语义图标保留,升为 44 档卡首图标:注册实体 / 盾勾 / 天平。 */
+const CARDS = [
+  { k: 't1', span: 's7', icon: 'registry', verify: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do' },
+  { k: 't2', span: 's7', icon: 'shield', verify: 'https://www.fincen.gov/msb-state-selector' },
+  { k: 't3', span: 's12', icon: 'scale' },
 ] as const;
 ---
 
@@ -66,20 +67,22 @@ const order = [
     </div>
 
     {
-      order.map(({ card, span, icon, ...rest }, i) => (
+      CARDS.map(({ k, span, icon, ...rest }, i) => (
         <article class:list={['card', 'x-tile', span]} data-rv style={`--d:${i * 0.08}s`}>
-          <span class="crow">
+          <Icon name={icon} class="cic" />
+          <div class="cbody">
             <span class="idx x-mono">0{i + 1}</span>
-            <Icon name={icon} class="cic" />
-          </span>
-          <p class="x-mono">{t(`trust.card${card}`)}</p>
-          {'verify' in rest && rest.verify && (
-            <p class="vrow">
-              <a class="vout x-mono" href={rest.verify.url} target="_blank" rel="noopener noreferrer">
-                {rest.verify.label} <span aria-hidden="true">↗</span>
-              </a>
-            </p>
-          )}
+            <h3 class="ctitle">{t(`trust.${k}Title`)}</h3>
+            <p class="cdesc x-mono">{t(`trust.${k}Body`)}</p>
+            {'verify' in rest && rest.verify && (
+              <p class="vrow">
+                <span class="vchip x-label">{t(`trust.${k}Chip`)}</span>
+                <a class="vcta x-label" href={rest.verify} target="_blank" rel="noopener noreferrer">
+                  {t(`trust.${k}Cta`)} <span aria-hidden="true">↗</span>
+                </a>
+              </p>
+            )}
+          </div>
         </article>
       ))
     }
@@ -145,71 +148,101 @@ const order = [
     padding: calc(20 * var(--uc));
     align-items: flex-start;
   }
+  /* R3 分层卡:大图标 ←→ 三层正文(编号+结论+细节+锚) */
   .card {
-    display: grid;
-    gap: calc(18 * var(--uc));
-    align-content: start;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
+    display: flex;
+    gap: calc(22 * var(--uc));
+    align-items: flex-start;
+    padding: calc(28 * var(--uc)) calc(32 * var(--uc));
   }
   .s7 {
     grid-column: span 7;
   }
-  .s6 {
-    grid-column: span 6;
-  }
   .s12 {
     grid-column: span 12;
   }
-  /* 两端行:编号 ←→ 语义图标(与瓷砖章 metarow 同构;图标退 dim 档,不与编号争柠檬) */
-  .crow {
+  /* 图标升 44 档并转柠檬:它现在是卡的视觉入口,不再是编号旁的小配件 */
+  .card :global(.cic) {
+    width: max(34px, calc(44 * var(--u)));
+    height: max(34px, calc(44 * var(--u)));
+    color: var(--x-accent);
+    flex: 0 0 auto;
+    margin-top: calc(2 * var(--uc));
+  }
+  .cbody {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: calc(10 * var(--uc));
+    min-width: 0;
+    flex: 1;
   }
   .idx {
     color: var(--x-accent-hot);
     font-weight: 400;
   }
-  .crow :global(.cic) {
-    width: max(18px, calc(24 * var(--u)));
-    height: max(18px, calc(24 * var(--u)));
-    color: var(--x-ink-dim);
-    flex: 0 0 auto;
-  }
-  .card p {
+  /* 结论层 19 档:一句话说清这张卡是什么,读者不必读完细节 */
+  .ctitle {
+    font-family: var(--x-font-display);
+    font-size: max(17px, calc(19 * var(--u)));
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--x-ink);
     margin: 0;
-    color: var(--x-ink-cap);
+    text-wrap: balance;
+    max-width: calc(760 * var(--uc));
+  }
+  .ctitle:lang(zh),
+  .ctitle:lang(vi) {
+    line-height: 1.45;
+  }
+  /* 细节层 12 档:量宽上限 640(≈89ch,R49 收线 D2 判例) */
+  .cdesc {
+    margin: 0;
+    color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-    /* 量宽上限(R49 收线 D2):s12 卡曾 1290px≈179 字符/行,s7 卡 ≈100 字符/行——
-       全大写 12px mono 超舒适带一倍以上;封 640(≈89ch),zh 3 字孤行随之消失。 */
     max-width: calc(640 * var(--uc));
   }
-  .card p:lang(zh) {
+  .cdesc:lang(zh) {
     line-height: 1.6; /* 全站 CJK 行高不变量 */
-    text-wrap: balance; /* CJK 短段孤行控制:pretty 对 CJK 几乎不管孤行(R49 收线 D1) */
+    text-wrap: balance; /* CJK 短段孤行控制(R49 收线 D1) */
   }
-  /* R49b 核验行:官方外链(复制按钮已按主人令撤除) */
+  /* 锚层:可核验值 chip(描边)+ 查册按钮(实心柠檬 = 可点转化件,分层纪律成立) */
   .vrow {
     display: flex;
     flex-wrap: wrap;
-    gap: calc(10 * var(--uc)) calc(14 * var(--uc));
+    gap: calc(10 * var(--uc)) calc(12 * var(--uc));
     align-items: center;
+    margin: calc(4 * var(--uc)) 0 0;
   }
-  .vout {
-    color: var(--x-ink);
-    text-decoration: underline;
-    text-underline-offset: calc(3 * var(--uc));
+  .vchip {
+    color: var(--x-accent);
+    border: 1px solid color-mix(in srgb, var(--x-accent) 35%, transparent);
+    border-radius: 999px;
+    padding: calc(5 * var(--uc)) calc(12 * var(--uc));
+  }
+  .vchip:lang(zh) {
+    line-height: 1.6;
+  }
+  .vcta {
+    color: var(--x-on-accent);
+    background: var(--x-accent);
+    border-radius: 999px;
+    padding: calc(7 * var(--uc)) calc(16 * var(--uc));
+    font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
     min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
+    gap: calc(6 * var(--uc));
+    text-decoration: none;
     transition: opacity 0.2s;
   }
-  .vout:hover {
-    opacity: 0.7;
+  .vcta:hover {
+    opacity: 0.85;
   }
-  .vout:active {
-    opacity: 0.6;
+  .vcta:active {
+    opacity: 0.75;
   }
   /* 灯箱内「查看原件」出口(R49-D6):dialog 是亮底,走纸面墨色 */
   .cert-orig {
@@ -225,10 +258,13 @@ const order = [
   @media (max-width: 900px) {
     .certs,
     .s7,
-    .s6,
     .s12 {
       grid-column: 1 / -1;
       grid-row: auto;
+    }
+    .card {
+      gap: calc(18 * var(--uc));
+      padding: calc(24 * var(--uc)) calc(22 * var(--uc));
     }
   }
 

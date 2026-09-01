@@ -1,13 +1,17 @@
 ---
-/* [FEAT-WEB13] Why now 行业叙事板块(2026-09-01 主人拍板:全套 + 署名引用)。
-   叙事之桥:紧缺在最高端 → 集中式撞物理墙(电力/机房)→ 分布式绕墙 → F@h 先例 → 8.8B 连接普惠收束。
-   合规姿势(PRD §1.4-2):第三方公司名只以**文字**出现(正文/引用卡/来源块),零 logo;
-   每条数字自带 as-of 日期戳;Sources 折叠块列「机构+报告名+日期+外链」;尾行非关联免责声明。
-   ⚠️ 与 social/mission 的定高体例**有意偏差**:本板块含可展开 <details>,
+/* [FEAT-WEB13] Why now 行业叙事板块 — R3 卡片排版重构(主人 2026-09-01 拍板 ABC 混合定稿)。
+   叙事之桥不变(紧缺在最高端 → 集中式撞物理墙 → 分布式绕墙 → F@h 先例 → 8.8B 连接普惠收束),
+   变的是版式:整段连排 → **三幕**,每幕 = 线绘插画 + 幕号 + 标题 + 带批注的短文 + 数字锚。
+   三处取材:A 三幕骨架与数字锚 · B 批注墨水([[硬数据]] 柠檬底块 / __关键短语__ 柠檬下划线 /
+   ^N^ 引注上标,六条来源全部被逐条引用)· C 线绘插画(与粒子地球同族的 stroke 语言)。
+   引用卡上真人头像(NVIDIA Newsroom / Microsoft-Brian Smale CC BY-SA 4.0,署名在 photoCredit)。
+
+   合规姿势不变(PRD §1.4-2):公司名只以文字出现,零 logo;每数字带 as-of 日期戳;
+   Sources 折叠块列「机构+报告名+日期+外链」;非关联免责声明常驻于板块尾、所有具名内容之后。
+   ⚠️ 与 social/mission 的定高体例仍是有意偏差:本板块含可展开 <details>,
    定高 + overflow:hidden 会把展开内容静默截掉(竖向裁切无机器门可见)→ min-height、不写 hidden。
    ⚠️ 'why' 不加入 fx.ts ANCHOR_IDS(需新姿态定义并重排四段混合链,属编舞重设计);
-   本区段地球停 poseHome(中央大球),故密集正文/来源小字全部进玻璃 tile 护字(StatsBar 同解法),
-   大标题裸排压球(hero 先例)。 */
+   本区段地球停 poseHome(中央大球),故正文与小字全部进玻璃 tile 护字,大标题裸排压球(hero 先例)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -15,7 +19,61 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-/* 来源外链:URL 不进 i18n(TrustSection order 数组同体例)。序号与 i18n why.src{n} 一一对应。 */
+
+/* 批注标记解析:[[硬数据]] / __关键短语__ / ^N^ 引注上标 → 片段流。
+   ponytail:标记只此一处消费,就地解析不建工具模块;文案里存标记而非 HTML —— 译者
+   移动整块即可(三语语序差异大),且 JSON 永不含标签,杜绝 set:html 注入面。 */
+type Frag = { k: 'plain' | 'data' | 'em' | 'ref'; s: string };
+const marks = (src: string): Frag[] => {
+  const out: Frag[] = [];
+  const re = /\[\[(.+?)\]\]|__(.+?)__|\^(\d)\^/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) out.push({ k: 'plain', s: src.slice(last, m.index) });
+    if (m[1] !== undefined) out.push({ k: 'data', s: m[1] });
+    else if (m[2] !== undefined) out.push({ k: 'em', s: m[2] });
+    else out.push({ k: 'ref', s: m[3] });
+    last = re.lastIndex;
+  }
+  if (last < src.length) out.push({ k: 'plain', s: src.slice(last) });
+  return out;
+};
+
+/* 三幕插画:与背景粒子网络同族的 stroke 线绘(无填充、无文字标签 —— 标签会绕过 i18n)。
+   幕一 = 指数曲线;幕二 = 满载机房撞上断电的墙;幕三 = 中心节点辐射的设备网络。 */
+const ART: Record<number, string> = {
+  1: `<svg class="art" viewBox="0 0 320 112" fill="none" role="img" aria-hidden="true" focusable="false">
+        <path d="M16 10v88h288" stroke="var(--x-line)" stroke-width="1"/>
+        <path d="M16 74h288M16 44h288" stroke="var(--x-line-soft)" stroke-width="1"/>
+        <path d="M16 94 C 116 90, 186 78, 226 52 C 252 34, 272 22, 294 8" stroke="var(--x-accent)" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="226" cy="52" r="3.5" fill="var(--x-bg)" stroke="var(--x-accent-hot)" stroke-width="2"/>
+        <circle cx="294" cy="8" r="3.5" fill="var(--x-bg)" stroke="var(--x-accent-hot)" stroke-width="2"/>
+      </svg>`,
+  2: `<svg class="art" viewBox="0 0 320 112" fill="none" role="img" aria-hidden="true" focusable="false">
+        <rect x="18" y="38" width="38" height="60" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="66" y="22" width="38" height="76" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="114" y="50" width="38" height="48" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M25 50h24M25 62h24M73 34h24M73 46h24M121 62h24M121 74h24" stroke="var(--x-line)" stroke-width="1.5"/>
+        <path d="M186 6v92" stroke="var(--x-accent)" stroke-width="2" stroke-dasharray="6 5"/>
+        <path d="M228 28l-13 24h15l-13 24" stroke="var(--x-accent-hot)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+  3: `<svg class="art" viewBox="0 0 320 112" fill="none" role="img" aria-hidden="true" focusable="false">
+        <circle cx="160" cy="56" r="24" stroke="var(--x-accent)" stroke-width="1" stroke-dasharray="2 4" opacity="0.45"/>
+        <path d="M152 53 L79 29M154 61 L63 80M156 49 L131 17M168 52 L229 25M169 59 L257 72M164 64 L190 95M154 62 L105 98" stroke="var(--x-accent)" stroke-width="1" opacity="0.5"/>
+        <circle cx="160" cy="56" r="8" stroke="var(--x-accent-hot)" stroke-width="2"/>
+        <circle cx="74" cy="26" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="58" cy="82" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="128" cy="14" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="234" cy="22" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="262" cy="74" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="192" cy="98" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="100" cy="100" r="4.5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+      </svg>`,
+};
+const ACTS = [1, 2, 3] as const;
+
+/* 来源外链:URL 不进 i18n(TrustSection order 数组同体例)。序号与 why.src{n} 及正文 ^N^ 引注一一对应。 */
 const SOURCES = [
   { n: 1, url: 'https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-Financial-Results-for-Second-Quarter-Fiscal-2027/default.aspx' },
   { n: 2, url: 'https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026' },
@@ -24,8 +82,12 @@ const SOURCES = [
   { n: 5, url: 'https://www.gsmaintelligence.com/research/the-mobile-economy-2026' },
   { n: 6, url: 'https://www.techspot.com/news/84832-foldinghome-project-passes-24-exaflops-more-than-top.html' },
 ] as const;
-const stats = [1, 2, 3] as const;
-const quotes = [1, 2] as const;
+
+/* 引用人:头像文件与姓名同源(public/people/<file>.webp,160 见方,官方新闻室件)。 */
+const VOICES = [
+  { n: 1, file: 'kress' },
+  { n: 2, file: 'nadella' },
+] as const;
 ---
 
 <section class="why" id="why">
@@ -37,59 +99,94 @@ const quotes = [1, 2] as const;
     <h2 class="state x-display" data-lr>{t('why.title')}</h2>
   </div>
 
-  <div class="grid">
-    <div class="narr x-tile x-tile-calm" data-rv>
-      <p>{t('why.p1')}</p>
-      <p>{t('why.p2')}</p>
-      <p>{t('why.p3')}</p>
-
-      <details class="sources">
-        <summary>
-          <span class="q x-q">{t('why.sourcesTitle')}</span>
-          <span class="mark x-mono" aria-hidden="true">+</span>
-        </summary>
-        <ol class="srclist" role="list">
-          {
-            SOURCES.map(({ n, url }) => (
-              <li>
-                <a class="srcline x-mono" href={url} target="_blank" rel="noopener noreferrer">
-                  {t(`why.src${n}`)} <span aria-hidden="true">↗</span>
-                </a>
-              </li>
-            ))
-          }
-        </ol>
-      </details>
-    </div>
-
-    <aside class="qcol">
-      {
-        quotes.map((n, i) => (
-          <figure class="qcard x-tile" data-rv style={`--d:${i * 0.08}s`}>
-            <blockquote class="x-q">{t(`why.quote${n}`)}</blockquote>
-            <figcaption class="x-mono">{t(`why.attr${n}`)}</figcaption>
-          </figure>
-        ))
-      }
-    </aside>
-
-    {/* R2(评审整改):① 顶行「行业数据」出处眉——平台自数(WEB03)与第三方行业数用同一
-        套大数字语法,快扫会混出处,眉标把这条 tile 显式标成引用态;② 尾行非关联免责声明从
-        Sources 折叠块移出常驻——免责必须与触发它的署名引用/大数字同视区不可回避(FTC
-        clear-and-conspicuous 口径),折叠态不可见即失职。 */}
-    <div class="wstats x-tile" data-rv>
-      <span class="wtag x-label">{t('why.statsTag')}</span>
-      {
-        stats.map((n, i) => (
-          <div class="wcell">
-            <span class="widx x-mono">{String(i + 1).padStart(2, '0')}</span>
-            <span class="wnum">{t(`why.stat${n}`)}</span>
-            <span class="wcap x-label">{t(`why.stat${n}Cap`)}</span>
+  <ol class="acts x-tile x-tile-calm" role="list" data-rv>
+    {
+      ACTS.map((n) => (
+        <li class="act">
+          <Fragment set:html={ART[n]} />
+          <span class="anum x-mono">{`0${n}`}</span>
+          <h3 class="atitle x-h24">{t(`why.act${n}Title`)}</h3>
+          <p class="abody">
+            {marks(t(`why.act${n}Body`)).map((f) =>
+              f.k === 'data' ? (
+                <span class="ink-data">{f.s}</span>
+              ) : f.k === 'em' ? (
+                <span class="ink-em">{f.s}</span>
+              ) : f.k === 'ref' ? (
+                <sup class="ink-ref x-mono">[{f.s}]</sup>
+              ) : (
+                f.s
+              ),
+            )}
+          </p>
+          <div class="anchor">
+            <span class="anum-big">{t(`why.act${n}Num`)}</span>
+            <span class="acap x-label">{t(`why.act${n}Cap`)}</span>
           </div>
-        ))
-      }
-      <p class="disclaim x-mono"><span class="dtext">{t('why.disclaim')}</span></p>
-    </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="quotes">
+    {
+      VOICES.map(({ n, file }, i) => (
+        <figure class="qcard x-tile" data-rv style={`--d:${i * 0.08}s`}>
+          <div class="person">
+            <img
+              class="face"
+              src={`/people/${file}.webp`}
+              alt={t('why.portraitAlt', { name: t(`why.name${n}`) })}
+              width="160"
+              height="160"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="pnames">
+              <span class="pname x-mono">{t(`why.name${n}`)}</span>
+              <span class="prole x-label">{t(`why.role${n}`)}</span>
+            </span>
+          </div>
+          <blockquote class="quote">{t(`why.quote${n}`)}</blockquote>
+          <figcaption class="qmeta">
+            <span class="qsrc x-label">
+              <span class="qdot" aria-hidden="true" />
+              {t(`why.meta${n}`)}
+            </span>
+            <span class="qdate x-label">{t(`why.date${n}`)}</span>
+          </figcaption>
+        </figure>
+      ))
+    }
+  </div>
+
+  {/* 板块尾:完整来源(可折叠)+ 常驻小字。免责与照片署名在所有具名内容之后,
+      不可回避(FTC clear-and-conspicuous 口径;折叠态不可见即失职 —— R2 判例)。 */}
+  <div class="foot x-tile x-tile-calm">
+    <details class="sources">
+      <summary>
+        <span class="q x-q">{t('why.sourcesTitle')}</span>
+        <span class="mark x-mono" aria-hidden="true">+</span>
+      </summary>
+      <ol class="srclist" role="list">
+        {
+          SOURCES.map(({ n, url }) => (
+            <li>
+              <a class="srcline x-mono" href={url} target="_blank" rel="noopener noreferrer">
+                <span class="srcnum">[{n}]</span>
+                <span class="srctxt">
+                  {t(`why.src${n}`)} <span aria-hidden="true">↗</span>
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </details>
+    <p class="disclaim x-mono">
+      <span class="dtext">{t('why.disclaim')}</span>
+      <span class="dtext dcredit">{t('why.photoCredit')}</span>
+    </p>
   </div>
 </section>
 
@@ -103,7 +200,7 @@ const quotes = [1, 2] as const;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: max(28px, calc(48 * var(--u)));
+    gap: max(24px, calc(36 * var(--u)));
   }
   .head {
     display: flex;
@@ -134,52 +231,200 @@ const quotes = [1, 2] as const;
     max-width: calc(835.2 * var(--u));
   }
 
-  /* 瓷砖阵:叙事 7 + 引用 5,数字条通栏(trust 12 列同族) */
-  .grid {
+  /* ── 三幕:等宽三列,列间细线(mission 六宫格同族的线即区界) ── */
+  .acts {
+    list-style: none;
+    margin: 0;
+    padding: calc(34 * var(--uc)) calc(38 * var(--uc));
     display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: calc(18 * var(--uc));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(34 * var(--uc));
   }
-  .narr {
-    grid-column: span 7;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
+  .act {
     display: flex;
     flex-direction: column;
-    gap: calc(16 * var(--uc));
+    gap: calc(12 * var(--uc));
+    min-width: 0;
   }
-  /* 叙事正文:16 档大写 mono(mission.body 同尺;多行长文行距取 trust 卡文的 1.45)。
-     手写不挂 .x-mono —— 型类 :lang 分支特异度(0,2,1)会把 zh 字号盖回 12.5
-     (SocialSection .roles 同型注释),语言分支在本容器自带。
-     🔴 只用子代组合器 `>`:后代 `.narr p` 会泄进 <details> 内部,把免责/来源小注放大成
-     16 档正文(R2 评审 −0.7 实锤,特异度 0,1,1 盖过全局 .x-mono)。 */
-  .narr > p {
+  .act + .act {
+    border-left: 1px solid var(--x-line-soft);
+    padding-left: calc(34 * var(--uc));
+  }
+  .act :global(.art) {
+    width: 100%;
+    height: calc(104 * var(--uc));
+    display: block;
+    margin-bottom: calc(4 * var(--uc));
+  }
+  .anum {
+    color: var(--x-accent-hot);
+  }
+  .atitle {
+    font-size: max(18px, calc(22 * var(--u)));
+    color: var(--x-white);
+    margin: 0;
+  }
+  /* 幕正文:13 档 sentence-case —— 长文可读性优先于全站 uppercase 体例
+     (R2 工艺评审 P2 观察项「叙事段建议弃 uppercase」的采纳)。手写不挂 .x-mono:
+     型类的 :lang 分支特异度会把字号盖回 12.5(SocialSection .roles 同型注释)。 */
+  .abody {
     font-family: var(--x-font-mono);
-    font-size: calc(16 * var(--uc));
+    font-size: calc(13 * var(--uc));
     letter-spacing: 0;
-    text-transform: uppercase;
-    line-height: 1.45;
+    line-height: 1.65;
     color: var(--x-ink-cap);
     margin: 0;
     text-wrap: pretty;
-    max-width: calc(640 * var(--uc)); /* 行长上限(R49 收线 D2 同款,≈89ch) */
   }
-  .narr > p:lang(zh) {
-    font-size: max(16.5px, calc(16.56 * var(--u)));
-    line-height: 1.6; /* 全站 CJK 行高不变量 */
-    /* R2:多行正文禁 balance(trust 卡的 balance 是 2-4 行短卡文场景)——balance 把
-       p2 压成 66% 宽窄块右缘参差;孤行控制交给 pretty + 文内 NBSP。 */
+  .abody:lang(zh) {
+    font-size: calc(13.5 * var(--uc));
+    line-height: 1.75; /* CJK 密排不变量之上再放一档:本段是全站最小的正文 */
+    word-spacing: -0.36em; /* mission.body zh 同款:收中西混排空洞 */
+  }
+  .abody:lang(vi) {
+    line-height: 1.7; /* 叠音符 + 下点:比拉丁再放一档 */
+  }
+  /* 批注墨水:硬数据 = 柠檬底黑字(全站唯一的实心柠檬文字块,只给可核验数字);
+     关键短语 = 白字 + 柠檬下划线;引注 = 柠檬上标,指向下方 Sources 同号条目。 */
+  .ink-data {
+    color: var(--x-on-accent);
+    background: var(--x-accent);
+    border-radius: calc(4 * var(--uc));
+    padding: 0 calc(6 * var(--uc));
+    white-space: nowrap;
+  }
+  .ink-em {
+    color: var(--x-white);
+    border-bottom: 1px solid var(--x-accent);
+  }
+  /* 引注上标:字号不得低于 12 档 —— 9 档在 1440 带经典滚动条时实测 8.91px,
+     跌破 canvas-geometry 判据 E 的 11px 可读线(门当轮抓到)。上标形态由 <sup>
+     自带的 vertical-align:super 承担,不靠更小的字号。 */
+  .ink-ref {
+    font-size: calc(12 * var(--uc));
+    color: var(--x-accent-hot);
+    line-height: 0; /* 上标不撑行盒:否则每有引注的一行都比邻行高(render-fit A 判据面) */
+    margin-left: calc(2 * var(--uc));
+  }
+  /* 数字锚:幕的收束,54 档太重(三列并置会与首屏大字争),取 34 档 */
+  .anchor {
+    margin-top: auto;
+    padding-top: calc(16 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--uc));
+  }
+  .anum-big {
+    font-family: var(--x-font-display);
+    font-size: max(26px, calc(34 * var(--u)));
+    font-weight: 500;
+    color: var(--x-white);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .acap {
+    color: var(--x-ink-dim);
     text-wrap: pretty;
-    word-spacing: -0.36em; /* mission.body zh 同款:等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
   }
-  .narr > p:lang(vi) {
-    line-height: 1.45;
+  .acap:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量(x-label 型类缺 zh 分支,组件侧补) */
   }
 
-  /* Sources 折叠:细线行式(.poc/FAQ 同规格),住在 calm tile 内部尾段 */
-  .sources {
-    margin-top: calc(10 * var(--uc));
-    border-top: 1px solid var(--x-line-soft);
+  /* ── 署名引用卡:头像 + 引语 + 机构徽记 ── */
+  .quotes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(18 * var(--uc));
   }
+  .qcard {
+    margin: 0;
+    padding: calc(28 * var(--uc)) calc(32 * var(--uc));
+    display: flex;
+    flex-direction: column;
+    gap: calc(20 * var(--uc));
+  }
+  .person {
+    display: flex;
+    align-items: center;
+    gap: calc(14 * var(--uc));
+  }
+  /* 真人头像(官方新闻室件):圆形裁切 + 细亮环,浅底照片在深玻璃上自成视觉锚 */
+  .face {
+    width: calc(52 * var(--uc));
+    height: calc(52 * var(--uc));
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--x-glass-border);
+    flex: 0 0 auto;
+    background: var(--x-glass);
+  }
+  .pnames {
+    display: flex;
+    flex-direction: column;
+    gap: calc(3 * var(--uc));
+    min-width: 0;
+  }
+  .pname {
+    color: var(--x-white);
+    text-transform: none; /* 专名照原样:全大写会把 Kress / Nadella 读成缩写 */
+  }
+  .prole {
+    color: var(--x-ink-dim);
+  }
+  .prole:lang(zh) {
+    line-height: 1.6;
+  }
+  .quote {
+    margin: 0;
+    font-family: var(--x-font-display);
+    font-size: max(20px, calc(26 * var(--u)));
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--x-white);
+    text-wrap: balance;
+  }
+  .quote:lang(zh),
+  .quote:lang(vi) {
+    line-height: 1.45; /* CJK 方块字与 vi 叠音符容不下 1.3 */
+  }
+  .qmeta {
+    margin-top: auto;
+    padding-top: calc(14 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
+    gap: calc(8 * var(--uc)) calc(14 * var(--uc));
+  }
+  .qsrc {
+    color: var(--x-ink-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: calc(8 * var(--uc));
+  }
+  .qsrc:lang(zh) {
+    line-height: 1.6;
+  }
+  .qdot {
+    width: calc(6 * var(--uc));
+    height: calc(6 * var(--uc));
+    border-radius: 50%;
+    background: var(--x-accent);
+    flex: 0 0 auto;
+  }
+  .qdate {
+    color: var(--x-accent);
+  }
+
+  /* ── 板块尾:来源折叠 + 常驻小字 ── */
+  .foot {
+    padding: calc(6 * var(--uc)) calc(30 * var(--uc)) calc(24 * var(--uc));
+  }
+  /* 细线行式(.poc / FAQ 同规格) */
   .sources summary {
     cursor: pointer;
     min-height: calc(60 * var(--uc));
@@ -224,22 +469,24 @@ const quotes = [1, 2] as const;
   .srclist li {
     border-top: 1px solid var(--x-line-soft);
   }
-  .srclist li:first-child {
-    border-top: 0;
-  }
-  /* 来源外链行:.vout 同体例(下划线 + ↗ + 触达高)。
-     align-items 走 flex-end 不走 center:390 下链接折 3-4 行时 center 会把 ↗ 悬到
-     行块右侧中部(R2 评审),flex-end 让箭头落在末行 = 行尾内联语法,单行时两者无差。 */
+  /* 来源行:序号列与正文列分开 —— 折行时正文不钻到序号下方(悬挂缩进) */
   .srcline {
     color: var(--x-ink);
+    text-decoration: none;
+    min-height: var(--x-touch);
+    display: flex;
+    align-items: baseline;
+    gap: calc(10 * var(--uc));
+    padding: calc(10 * var(--uc)) 0;
+    transition: opacity 0.2s;
+  }
+  .srcnum {
+    color: var(--x-accent-hot);
+    flex: 0 0 auto;
+  }
+  .srctxt {
     text-decoration: underline;
     text-underline-offset: calc(3 * var(--uc));
-    min-height: var(--x-touch);
-    display: inline-flex;
-    align-items: flex-end;
-    gap: calc(4 * var(--uc));
-    padding: calc(6 * var(--uc)) 0;
-    transition: opacity 0.2s;
   }
   .srcline:hover {
     opacity: 0.7;
@@ -247,124 +494,49 @@ const quotes = [1, 2] as const;
   .srcline:active {
     opacity: 0.6;
   }
-  /* 非关联免责行:常驻于数字条 tile 尾行(R2 移位:署名引用的合规配对件必须不可回避)。
-     分线通栏、文本限宽分开挂:max-width 若压在盒上会把 border-top 截停在半空(R2-D2)。 */
+  /* 非关联免责 + 照片署名:常驻,分线通栏、文本限宽分开挂
+     (max-width 若压在盒上会把 border-top 截停在半空 —— R2-D2 判例) */
   .disclaim {
-    grid-column: 1 / -1;
-    color: var(--x-ink-dim);
-    margin: calc(6 * var(--uc)) 0 0;
+    margin: calc(10 * var(--uc)) 0 0;
     padding-top: calc(16 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
+    color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-  }
-  .disclaim .dtext {
-    display: block;
-    max-width: calc(640 * var(--uc));
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--uc));
   }
   .disclaim:lang(zh) {
     line-height: 1.6;
   }
-
-  /* 署名引用卡:x-q 问句体承载原话,attr 退 12 档 dim */
-  .qcol {
-    grid-column: span 5;
-    display: flex;
-    flex-direction: column;
-    gap: calc(18 * var(--uc));
+  .dtext {
+    display: block;
+    max-width: calc(640 * var(--uc));
   }
-  .qcard {
-    margin: 0;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* R2:引语顶、署名底——卡内空隙分布成呼吸,不堆成下坠空腔 */
-    gap: calc(16 * var(--uc));
-    flex: 1;
-  }
-  .qcard blockquote {
-    margin: 0;
-    color: var(--x-white);
-  }
-  .qcard figcaption {
+  .dcredit {
     color: var(--x-ink-dim);
-    line-height: 1.45;
-    text-wrap: pretty; /* R2:zh 署名曾以单字「月」收尾成孤行 */
-  }
-  .qcard figcaption:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量——本地 1.45 曾把型类的 zh 分支盖掉(R2) */
-  }
-
-  /* 大数字条:StatsBar .num 同规格(display 54 档 / tabular),通栏三格细线分区。
-     横衬走 30(瓷砖通用衬)不走 StatsBar 的 14+24 两段算法——那是独立通栏板块的内衬,
-     这里上下与 narr/qcard(衬 30)同列,左轨必须合线(R2 实测错位 8px/−16px)。 */
-  .wstats {
-    grid-column: span 12;
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: calc(16 * var(--uc)) calc(24 * var(--uc));
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
-  }
-  .wtag {
-    grid-column: 1 / -1;
-    color: var(--x-ink-dim);
-  }
-  .wtag:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量(与 .wcap 同补;x-label 型类缺口另有挂账任务) */
-  }
-  .wcell {
-    display: grid;
-    gap: calc(8 * var(--uc));
-    justify-items: start;
-    border-left: 1px solid var(--x-line-soft);
-    padding-left: calc(24 * var(--uc));
-  }
-  .wcell:first-of-type {
-    /* first-of-type 不是 first-child:tile 首子元素是 .wtag 眉标(span),
-       first-child 在这里永不命中(R2 探针实锤) */
-    border-left: 0;
-    padding-left: 0; /* 首列文字对齐瓷砖衬(30),分线间距只给后续列 */
-  }
-  .widx {
-    color: var(--x-accent-hot);
-  }
-  .wnum {
-    font-family: var(--x-font-display);
-    font-size: max(30px, calc(54 * var(--u)));
-    font-weight: 500;
-    color: var(--x-white);
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
-    line-height: 1;
-  }
-  .wcap {
-    color: var(--x-ink-dim);
-    text-wrap: pretty;
-    max-width: calc(340 * var(--uc));
-  }
-  .wcap:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量:.x-label 型类无 zh 分支,组件侧补(R2) */
+    opacity: 0.75;
   }
 
   @media (max-width: 900px) {
-    .narr,
-    .qcol,
-    .wstats {
-      grid-column: 1 / -1;
-    }
-    .wstats {
+    .acts {
       grid-template-columns: 1fr;
-      row-gap: calc(20 * var(--uc));
+      gap: calc(28 * var(--uc));
+      padding: calc(26 * var(--uc)) calc(24 * var(--uc));
     }
-    .wcell {
+    /* 单列后区界只剩横线:纵线退场,第 2 幕起吃顶线 */
+    .act + .act {
       border-left: 0;
       border-top: 1px solid var(--x-line-soft);
       padding-left: 0;
-      padding-top: calc(20 * var(--uc));
+      padding-top: calc(28 * var(--uc));
     }
-    .wcell:first-of-type {
-      border-top: 0;
-      padding-top: 0;
+    .quotes {
+      grid-template-columns: 1fr;
+    }
+    .foot {
+      padding: calc(6 * var(--uc)) calc(22 * var(--uc)) calc(22 * var(--uc));
     }
     .state {
       max-width: 100%;
