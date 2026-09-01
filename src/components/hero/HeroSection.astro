@@ -68,7 +68,7 @@ const t = useT(locale);
     display: flex;
     flex-direction: column;
     gap: calc(18 * var(--uc));
-    flex: 0 1 auto; /* 上限交给子元素各自的 max-width(hint 129 画布 / note 50ch) */
+    flex: 0 1 auto; /* 上限交给子元素各自的 max-width(hint 129 画布 / note 50 字身) */
   }
   /* 刻度式指示器:竖线 + 两行小字(保留 a 壳与 44px 热区) */
   /* 画布制小字(R13):原版 12px @1440,随视口 ×1.333 上限 */
@@ -98,7 +98,9 @@ const t = useT(locale);
   .note {
     color: var(--x-ink); /* R49b:第一套首句(主张)提亮,组内分层 */
     margin: 0;
-    max-width: 50ch; /* 容住首段(09-01 对调后装 toB 首句:en/vi 自然折两行、zh 单行) */
+    /* 50 字身宽 = 原 50ch 的确定性写法(见 tokens.css --x-ch-*:ch 会非确定性地锁在兜底 0.5em)。
+       容住首段(09-01 对调后装 toB 首句:en/vi 自然折两行、zh 单行) */
+    max-width: calc(50 * var(--x-ch-mono));
     text-wrap: pretty;
     line-height: 1.5;
     white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
@@ -168,7 +170,7 @@ const t = useT(locale);
   .note2 {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: 50ch;
+    max-width: calc(50 * var(--x-ch-mono)); /* 同 .note:50 字身,禁 ch(见 tokens.css) */
     text-wrap: pretty;
     line-height: 1.5;
     white-space: pre-line;

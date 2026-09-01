@@ -320,6 +320,28 @@ results.push(canvasUnitGate(SRC, rel));
   }
 }
 
+/* ── 门自检:各门自带的红绿表必须真在跑 ──
+   三道门(canvas-hazard / render-fit / css-shadowed)各自写了红测,头注里也写着「判据必须有红测」,
+   但此前**没有任何东西保证那些红测还过得了**——它们只在人想起来手跑时才执行,等于文档不是门。
+   一道判据被悄悄改松(如 canvas-hazard 的字身正则曾漏判全部负值)时,门本体照样报绿,
+   只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
+{
+  const SUITES = [
+    ['canvas-hazard', ['scripts/gate-canvas-unit.mjs', '--self-test']],
+    ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
+    ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
+  ];
+  const detail = [];
+  for (const [name, argv] of SUITES) {
+    const r = spawnSync(process.execPath, [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)], { cwd: ROOT, encoding: 'utf8' });
+    if (r.status !== 0) {
+      const tail = (r.stdout || '').trim().split('\n').filter((l) => /❌|FAIL|失败/.test(l)).slice(0, 4);
+      detail.push(`${name} 的红测没过(exit ${r.status})——该门的判据已失去红测保护`, ...tail.map((l) => '  ' + l.trim()));
+    }
+  }
+  results.push({ gate: `gate-self-tests(${SUITES.length} 套红测)`, pass: detail.length === 0, detail });
+}
+
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {
