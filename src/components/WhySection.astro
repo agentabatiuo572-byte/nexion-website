@@ -88,7 +88,7 @@ const quotes = [1, 2] as const;
           </div>
         ))
       }
-      <p class="disclaim x-mono">{t('why.disclaim')}</p>
+      <p class="disclaim x-mono"><span class="dtext">{t('why.disclaim')}</span></p>
     </div>
   </div>
 </section>
@@ -247,16 +247,20 @@ const quotes = [1, 2] as const;
   .srcline:active {
     opacity: 0.6;
   }
-  /* 非关联免责行:常驻于数字条 tile 尾行(R2 移位:署名引用的合规配对件必须不可回避) */
+  /* 非关联免责行:常驻于数字条 tile 尾行(R2 移位:署名引用的合规配对件必须不可回避)。
+     分线通栏、文本限宽分开挂:max-width 若压在盒上会把 border-top 截停在半空(R2-D2)。 */
   .disclaim {
     grid-column: 1 / -1;
     color: var(--x-ink-dim);
     margin: calc(6 * var(--uc)) 0 0;
     padding-top: calc(16 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
-    max-width: calc(640 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
+  }
+  .disclaim .dtext {
+    display: block;
+    max-width: calc(640 * var(--uc));
   }
   .disclaim:lang(zh) {
     line-height: 1.6;
@@ -304,6 +308,9 @@ const quotes = [1, 2] as const;
   .wtag {
     grid-column: 1 / -1;
     color: var(--x-ink-dim);
+  }
+  .wtag:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量(与 .wcap 同补;x-label 型类缺口另有挂账任务) */
   }
   .wcell {
     display: grid;
