@@ -266,19 +266,25 @@ const VOICES = [
 
   /* ── 三幕:等宽三列。分隔线走伪元素画在 gap 正中 ——
      用 `.act + .act { padding-left }` 会只缩后两幕,实测首幕正文宽 9.5%(R3 评审 P1-2)。 ── */
+  /* 🔴 三幕走 subgrid 横向锁行(R3c 结构性反思):插画/幕号/标题/正文/锚 五层各自
+     在三列间取同一行高,锚线与大数字**天然共线**。此前用 `.anchor{margin-top:auto}`
+     底对齐 + `.acap{min-height:2lh}` 兜底,那是「定行数」不是「取同高」——说明折到
+     3 行就又断线(en 901-1023 差 14.4px / vi 901-1139 差 17.4px,含 1024 主流笔电宽,
+     修好又复发过一轮)。行距由父级 row-gap 供给,子项不再自带 gap。 */
   .acts {
     list-style: none;
     margin: 0;
     padding: calc(30 * var(--uc));
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: calc(68 * var(--uc));
+    grid-template-rows: auto auto auto 1fr auto;
+    gap: calc(12 * var(--uc)) calc(68 * var(--uc));
   }
   .act {
     position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: calc(12 * var(--uc));
+    display: grid;
+    grid-row: span 5;
+    grid-template-rows: subgrid;
     min-width: 0;
   }
   .act + .act::before {
@@ -329,18 +335,26 @@ const VOICES = [
   }
   /* 批注墨水:硬数据 = 柠檬底黑字(全站唯一的实心柠檬文字块,只给可核验数字);
      关键短语 = 白字 + 柠檬下划线;引注 = 柠檬上标,指向下方 Sources 同号条目。 */
+  /* 底块只向**左右**外扩,不向上下:四向 spread(3.5)把漆带撑到 26px 而行距只有
+     21.45px,结构上必然侵入相邻行 —— 实测与上一行墨的净空 en 0.20px / vi 0.59px,
+     且与上一行的下划线记号纵向重叠 0.88-3.06px,两个柠檬记号读成连体(R3c 工艺 P1-1)。
+     水平外扩保留呼吸、垂直归零消碰撞;padding 方案则会把起行的整行右推 6px。 */
   .ink-data {
     color: var(--x-on-accent);
     background: var(--x-accent);
-    /* 底块靠 spread 外扩而非 padding:padding 会把「以底块起头的那一行」整行右推 6px
-       (R3 评审 P2-4 实测),spread 不参与行内布局,文字守左轨。 */
-    box-shadow: 0 0 0 calc(3.5 * var(--uc)) var(--x-accent);
-    border-radius: calc(2 * var(--uc));
+    box-shadow:
+      calc(3.5 * var(--uc)) 0 0 var(--x-accent),
+      calc(-3.5 * var(--uc)) 0 0 var(--x-accent);
     white-space: nowrap;
   }
+  /* 下划线走 text-decoration 不走 border-bottom:后者贴在行盒底、无法控偏移,
+     与下一行的底块漆带重叠;text-decoration 自带 skip-ink 与偏移控制。 */
   .ink-em {
     color: var(--x-white);
-    border-bottom: 1px solid var(--x-accent);
+    text-decoration: underline;
+    text-decoration-color: var(--x-accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: calc(3 * var(--uc));
   }
   /* 数据块与它的引注共处一格,折行点不会落在两者之间 */
   .nb {
@@ -376,7 +390,6 @@ const VOICES = [
      说明槽定高 2 行 —— 否则说明折几行、细线与大数字就跨列浮几行
      (R3 评审 P1-1 实测 en 差 14.25px / vi 差 17.21px,而 zh 恰好共线,静态门看不见)。 */
   .anchor {
-    margin-top: auto;
     padding-top: calc(16 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
     display: flex;
@@ -395,7 +408,6 @@ const VOICES = [
   .acap {
     color: var(--x-ink-dim);
     text-wrap: pretty;
-    min-height: 2lh;
   }
   /* .x-label 与 .x-mono 基座逐字节相同(mono / 12 / 400 / 零字距 / uppercase / 1.2),
      同基座取同一 zh 档;型类只有 :lang(vi) 分支没有 zh,组件侧补。
@@ -601,9 +613,11 @@ const VOICES = [
     line-height: 1.6;
     word-spacing: -0.36em;
   }
+  /* 62ch:12 档全大写等宽的舒适带上沿(实测 640uc = 82 字符/行)。
+     与 #trust .cdesc 同族同值 —— 那一处收了、这一处没收,是同族漏修(R3c 工艺 P2-4)。 */
   .dtext {
     display: block;
-    max-width: calc(640 * var(--uc));
+    max-width: 62ch;
   }
 
   /* 🔴 断点留在 900,不是 1280。R3b 评审 P0-2 提出把三列断点上移以消除
@@ -611,11 +625,33 @@ const VOICES = [
      1279→1280 页面总高跳变 5.7%(门限 2%)—— 三列变单列会凭空长出两幕的高度,
      断点越靠上,那段高度差占整页比重越大。行长悬崖与高度硬缝二选一,门优先;
      单列侧的过长(101 字符)由下方 max-width 收住,三列侧的偏短是三列布局的固有代价。 */
+  /* 901-1200 的三列窄:每列只剩 21-26 字符/行(R3c 工艺 P2-3)。断点不能上移
+     (会在桌面段留下页高硬缝,判据 G 红),只能在这一段把列距与内衬收一半换回字符。 */
+  @media (min-width: 901px) and (max-width: 1200px) {
+    .acts {
+      gap: calc(12 * var(--uc)) calc(34 * var(--uc));
+      padding: calc(24 * var(--uc));
+    }
+    /* 同族:两张引用卡的 meta 行在这一段也会一卡折一卡不折(vi 901-1200 实测),
+       与 #trust .vrow 的 1200 竖排取同一构造 —— 那处修了这处没修,是同族漏修 */
+    .qmeta {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
   @media (max-width: 900px) {
     .acts {
       grid-template-columns: 1fr;
+      grid-template-rows: none;
       gap: calc(28 * var(--uc));
       padding: calc(26 * var(--uc)) calc(22 * var(--uc));
+    }
+    /* 单列后 subgrid 无对象:回 flex,行距自带 */
+    .act {
+      display: flex;
+      flex-direction: column;
+      grid-row: auto;
+      gap: calc(12 * var(--uc));
     }
     /* 单列后区界只剩横线:纵线伪元素退场,第 2 幕起吃顶线 */
     .act + .act::before {

@@ -22,12 +22,18 @@ const t = useT(locale);
    守恒由改写脚本的断言逐条核过(8/8)。查册链接从下划线小字升级为按钮:它是本板块希望
    访客真正去做的动作(「Verify it yourself」),满饱和柠檬只给可点转化件的分层纪律成立。
    R48.7 令②的语义图标保留,升为 44 档卡首图标:注册实体 / 盾勾 / 天平。 */
+/* 🔴 栅格结构(R3c 结构性反思):证书列不再 `grid-row: span 2`。
+   竖版证书按宽度缩放 → 高度随之定死,物理上填不满两卡的高度;三轮里「拉伸 / 居中 /
+   收到内容高」三种修法只是把同一块空洞在容器内外挪位置(内部 30% → 外部 61%)。
+   根因是网格假设与内容特性不符,不是「怎么摆」。改为两行各自配对:
+   行一 证书(5)+ 实体卡(7),两者自然高天然接近;行二 MSB(5)+ 制度卡(7),后者内容多吃宽栏。
+   不变量:容器高度由自己的内容决定,不由兄弟元素决定。 */
 const CARDS = [
   { k: 't1', span: 's7', icon: 'registry', verify: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do' },
   /* FinCEN 规范路径带 /resources —— 不带的那条在官方站索引里不存在(R3 评审观察项;
      本机对 .gov 出站被阻断,无法直连确认,取规范侧 = 风险更低的一侧)。 */
-  { k: 't2', span: 's7', icon: 'shield', verify: 'https://www.fincen.gov/resources/msb-state-selector' },
-  { k: 't3', span: 's12', icon: 'scale' },
+  { k: 't2', span: 's5', icon: 'shield', verify: 'https://www.fincen.gov/resources/msb-state-selector' },
+  { k: 't3', span: 's7', icon: 'scale' },
 ] as const;
 /* 卡 03 的「意味着」三条(拆自旧 card4 第二句,逐条守恒) */
 const MEANS = [1, 2, 3] as const;
@@ -173,8 +179,6 @@ const MEANS = [1, 2, 3] as const;
      居中只是把空区挪到上下,真正的修法是让盒子别长那么高。 */
   .certs {
     grid-column: span 5;
-    grid-row: span 2;
-    align-self: start;
     display: flex;
     gap: calc(14 * var(--uc));
     padding: calc(20 * var(--uc));
@@ -187,11 +191,11 @@ const MEANS = [1, 2, 3] as const;
     align-items: flex-start;
     padding: calc(28 * var(--uc)) calc(32 * var(--uc));
   }
+  .s5 {
+    grid-column: span 5;
+  }
   .s7 {
     grid-column: span 7;
-  }
-  .s12 {
-    grid-column: span 12;
   }
   /* 图标升 44 档并转柠檬:它现在是卡的视觉入口,不再是编号旁的小配件 */
   .card :global(.cic) {
@@ -232,15 +236,19 @@ const MEANS = [1, 2, 3] as const;
   }
   /* 通栏卡的标题不吃 46ch:1345px 宽的卡里标题止于 x635,右上角空出 580×70
      的死区,而下一行又满宽(R3b 评审 P1-2) */
-  .s12 .ctitle {
-    max-width: 68ch;
-  }
-  .s12 .cdesc {
-    max-width: 78ch;
+  /* 制度卡(7 栏)的双栏内容比其它卡宽,标题放宽一档免得右上角留死区 */
+  .s7 .ctitle {
+    max-width: 56ch;
   }
   .ctitle:lang(zh),
   .ctitle:lang(vi) {
     line-height: 1.45;
+  }
+  /* 46ch 是按拉丁字身算的量宽;CJK 无空格断行,盒缘落哪断哪 —— zh 卡 01 末行只占首行
+     15.4%,且把专名「科罗拉多州」劈成两行(R3c 工艺 P2-2)。按 CJK 字身单独给。 */
+  .ctitle:lang(zh) {
+    max-width: 26em;
+    line-break: strict;
   }
   /* 细节层 12 档:量宽 62ch —— 640px 在 12 档等宽下实测 88 字符/行,
      全大写超舒适带一倍(R3 评审 P1-5 的行长面) */
@@ -559,10 +567,11 @@ const MEANS = [1, 2, 3] as const;
     left: 0;
     color: var(--x-accent-hot);
   }
+  /* 62ch:与 .cdesc / #why .disclaim 同族同值(760uc 实测 93 字符/行,R3c 工艺 P2-4) */
   .poc p {
     color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc));
-    max-width: calc(760 * var(--uc));
+    max-width: 62ch;
     text-wrap: pretty;
     line-height: 1.45;
   }
