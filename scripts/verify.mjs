@@ -337,6 +337,20 @@ results.push(canvasUnitGate(SRC, rel));
     if (r.status !== 0) {
       const tail = (r.stdout || '').trim().split('\n').filter((l) => /❌|FAIL|失败/.test(l)).slice(0, 4);
       detail.push(`${name} 的红测没过(exit ${r.status})——该门的判据已失去红测保护`, ...tail.map((l) => '  ' + l.trim()));
+      continue;
+    }
+    /* 🔴 exit 0 不等于「跑过了」——三层都能让一套红测**一条没跑却报成功**:
+         ① 自检守卫失配(gate-canvas-unit 曾用文件名匹配,复制/改名后静默 exit 0、零输出);
+         ② 红测本体用例集为空(表被清空 / 过滤条件写错);
+         ③ 本门自己只看退出码,于是①②都看不见。
+       所以再要一条正数用例计数:三套的成功行都自带(「26 红 + 15 绿」/「22 pass」/「13 pass」),
+       读不到就判红。这一条同时封住上面三层——无论哪层坏,表现都是「输出里没有正数用例数」。 */
+    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)/g)].reduce((s, m) => s + +m[1], 0);
+    if (ran === 0) {
+      detail.push(
+        `${name} 的红测 exit 0 但读不到用例数——「没跑」不算「通过」,不许静默降级成绿`,
+        `  实际输出:${((r.stdout || '').trim().split('\n')[0] || '(空)').slice(0, 90)}`,
+      );
     }
   }
   results.push({ gate: `gate-self-tests(${SUITES.length} 套红测)`, pass: detail.length === 0, detail });

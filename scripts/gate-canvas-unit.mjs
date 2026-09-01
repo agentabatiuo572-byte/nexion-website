@@ -218,7 +218,11 @@ export function canvasUnitGate(srcDir, rel) {
      A 纯函数层 —— 判据本身的字符级行为;
      B 接线层(fixture)—— 注释剥离 / 按 `;` 切声明 / 逃生阀查找 这条真实链路。
        表驱动的 A 层**原理上测不到 B 层**:它喂的是完整声明字符串,不经过「整行切碎再判定」那一步。 */
-if (process.argv[1] && process.argv[1].endsWith('gate-canvas-unit.mjs') && process.argv.includes('--self-test')) {
+/* 🔴 守卫判「我是不是入口模块」,不判文件名 —— 原来写的是 `argv[1].endsWith('gate-canvas-unit.mjs')`,
+   把这个文件复制/改名/软链后跑 `--self-test`,整块自检**静默不执行且 exit 0**(实测:零输出、退出码 0),
+   看上去与「26 红 15 绿全过」无法区分。生产路径没事(verify 按真实路径 spawn),但这正是本门自己
+   要治的病:靠名字匹配的判据,换个写法就绕过去了。入口模块判断改名后依然正确,才是原本的意图。 */
+if (process.argv.includes('--self-test') && import.meta.filename === process.argv[1]) {
   let bad = 0;
 
   /* A 层:纯函数 */
