@@ -24,9 +24,13 @@ const t = useT(locale);
    R48.7 令②的语义图标保留,升为 44 档卡首图标:注册实体 / 盾勾 / 天平。 */
 const CARDS = [
   { k: 't1', span: 's7', icon: 'registry', verify: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do' },
-  { k: 't2', span: 's7', icon: 'shield', verify: 'https://www.fincen.gov/msb-state-selector' },
+  /* FinCEN 规范路径带 /resources —— 不带的那条在官方站索引里不存在(R3 评审观察项;
+     本机对 .gov 出站被阻断,无法直连确认,取规范侧 = 风险更低的一侧)。 */
+  { k: 't2', span: 's7', icon: 'shield', verify: 'https://www.fincen.gov/resources/msb-state-selector' },
   { k: 't3', span: 's12', icon: 'scale' },
 ] as const;
+/* 卡 03 的「意味着」三条(拆自旧 card4 第二句,逐条守恒) */
+const MEANS = [1, 2, 3] as const;
 ---
 
 <section class="trust" id="trust">
@@ -73,12 +77,36 @@ const CARDS = [
           <div class="cbody">
             <span class="idx x-mono">0{i + 1}</span>
             <h3 class="ctitle">{t(`trust.${k}Title`)}</h3>
-            <p class="cdesc x-mono">{t(`trust.${k}Body`)}</p>
+            {k === 't3' ? (
+              /* 卡 03 拆层(R3 评审 D1/P1-4):旧 card4 是本板块最长的一段整段大写文字,
+                 上一轮只在它头上焊了标题、底下 408 字原样 —— 主人点名的那种墙留在了原地。
+                 现在拆成「定义 → 意味着三条 → 不意味着一条」,双栏并置把 12 栏的宽度用起来;
+                 首末两句逐字保留,中间一句拆成三条要点(守恒断言逐条核过)。 */
+              <Fragment>
+                <p class="cdesc x-mono">{t('trust.t3Lead')}</p>
+                <div class="t3grid">
+                  <div class="t3col">
+                    <span class="t3h x-label">{t('trust.t3MeansTitle')}</span>
+                    <ul class="t3list" role="list">
+                      {MEANS.map((m) => (
+                        <li class="x-mono">{t(`trust.t3Means${m}`)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                  <div class="t3col t3not">
+                    <span class="t3h x-label">{t('trust.t3NotTitle')}</span>
+                    <p class="t3notbody x-mono">{t('trust.t3Not')}</p>
+                  </div>
+                </div>
+              </Fragment>
+            ) : (
+              <p class="cdesc x-mono">{t(`trust.${k}Body`)}</p>
+            )}
             {'verify' in rest && rest.verify && (
               <p class="vrow">
                 <span class="vchip x-label">{t(`trust.${k}Chip`)}</span>
                 <a class="vcta x-label" href={rest.verify} target="_blank" rel="noopener noreferrer">
-                  {t(`trust.${k}Cta`)} <span aria-hidden="true">↗</span>
+                  {t(`trust.${k}Cta`)}&nbsp;<span aria-hidden="true">↗</span>
                 </a>
               </p>
             )}
@@ -140,13 +168,15 @@ const CARDS = [
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: calc(18 * var(--uc));
   }
+  /* 证书瓷砖:row-span 2 让它跟着右侧两卡拉高,flex-start 把富余全堆在底部
+     (实测底部 150.58px 空 = 30.3%,R3 评审 P1-4)→ 居中让空区上下均分。 */
   .certs {
     grid-column: span 5;
     grid-row: span 2;
     display: flex;
     gap: calc(14 * var(--uc));
     padding: calc(20 * var(--uc));
-    align-items: flex-start;
+    align-items: center;
   }
   /* R3 分层卡:大图标 ←→ 三层正文(编号+结论+细节+锚) */
   .card {
@@ -169,10 +199,12 @@ const CARDS = [
     flex: 0 0 auto;
     margin-top: calc(2 * var(--uc));
   }
+  /* 三层间距有层级:结论贴编号(6)、细节稍离(10)、锚层拉开(22)——
+     等距一摞会让「结论 → 细节 → 锚」的分层只存在于设计意图里(R3 评审 P2-11)。 */
   .cbody {
     display: flex;
     flex-direction: column;
-    gap: calc(10 * var(--uc));
+    gap: calc(6 * var(--uc));
     min-width: 0;
     flex: 1;
   }
@@ -180,7 +212,9 @@ const CARDS = [
     color: var(--x-accent-hot);
     font-weight: 400;
   }
-  /* 结论层 19 档:一句话说清这张卡是什么,读者不必读完细节 */
+  /* 结论层 19 档:一句话说清这张卡是什么,读者不必读完细节。
+     量宽 46ch 给 balance 更合理的解空间 —— 647 宽容器里两行标题曾出现「下行比上行长」
+     的倒参差(R3 评审 P2-12)。 */
   .ctitle {
     font-family: var(--x-font-display);
     font-size: max(17px, calc(19 * var(--u)));
@@ -190,53 +224,127 @@ const CARDS = [
     color: var(--x-ink);
     margin: 0;
     text-wrap: balance;
-    max-width: calc(760 * var(--uc));
+    max-width: 46ch;
   }
   .ctitle:lang(zh),
   .ctitle:lang(vi) {
     line-height: 1.45;
   }
-  /* 细节层 12 档:量宽上限 640(≈89ch,R49 收线 D2 判例) */
+  /* 细节层 12 档:量宽 62ch —— 640px 在 12 档等宽下实测 88 字符/行,
+     全大写超舒适带一倍(R3 评审 P1-5 的行长面) */
   .cdesc {
-    margin: 0;
+    margin: calc(4 * var(--uc)) 0 0;
     color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-    max-width: calc(640 * var(--uc));
+    max-width: 62ch;
   }
   .cdesc:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量 */
+    /* .x-mono 型类的 zh 档就是 1.6,本地 1.45 会盖掉它,补回同值 */
+    line-height: 1.6;
     text-wrap: balance; /* CJK 短段孤行控制(R49 收线 D1) */
   }
-  /* 锚层:可核验值 chip(描边)+ 查册按钮(实心柠檬 = 可点转化件,分层纪律成立) */
+
+  /* 卡 03 双栏:意味着(要点列表)| 不意味着(柠檬左界强调) */
+  .t3grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+    gap: calc(28 * var(--uc));
+    margin-top: calc(18 * var(--uc));
+    padding-top: calc(18 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+  }
+  .t3col {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--uc));
+    min-width: 0;
+  }
+  .t3h {
+    color: var(--x-accent);
+  }
+  .t3h:lang(zh) {
+    line-height: 1.6; /* x-label 与 x-mono 同基座,取同一 zh 档;型类只有 vi 分支 */
+  }
+  .t3list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(8 * var(--uc));
+  }
+  .t3list li {
+    color: var(--x-ink-cap);
+    line-height: 1.45;
+    display: flex;
+    gap: calc(10 * var(--uc));
+    text-wrap: pretty;
+  }
+  .t3list li:lang(zh) {
+    line-height: 1.6;
+  }
+  .t3list li::before {
+    content: '';
+    width: calc(6 * var(--uc));
+    height: calc(6 * var(--uc));
+    margin-top: 0.42em;
+    border-radius: 1px;
+    background: var(--x-accent);
+    flex: 0 0 auto;
+  }
+  /* 「不意味着」= 本板块最关键的一句(登记≠背书),给柠檬左界与白墨,
+     从原先埋在整段第 4-5 行的暗灰里提出来 */
+  .t3not {
+    border-left: 2px solid var(--x-accent);
+    padding-left: calc(18 * var(--uc));
+  }
+  .t3notbody {
+    margin: 0;
+    color: var(--x-ink);
+    line-height: 1.45;
+    text-wrap: pretty;
+  }
+  .t3notbody:lang(zh) {
+    line-height: 1.6;
+  }
+
+  /* 锚层:可核验值 chip(方角标签)+ 查册按钮(实心柠檬胶囊 = 可点转化件)。
+     chip 曾与按钮同为 999 胶囊 + 同色族 + 同字档 = 标准 ghost button 长相,
+     而它并不可点(R3 评审 P2-7):改方角、抬高度,与实心键在形上拉开。 */
   .vrow {
     display: flex;
     flex-wrap: wrap;
     gap: calc(10 * var(--uc)) calc(12 * var(--uc));
     align-items: center;
-    margin: calc(4 * var(--uc)) 0 0;
+    margin: calc(22 * var(--uc)) 0 0;
   }
   .vchip {
     color: var(--x-accent);
     border: 1px solid color-mix(in srgb, var(--x-accent) 35%, transparent);
-    border-radius: 999px;
-    padding: calc(5 * var(--uc)) calc(12 * var(--uc));
+    border-radius: calc(4 * var(--uc));
+    padding: calc(9 * var(--uc)) calc(12 * var(--uc));
   }
   .vchip:lang(zh) {
     line-height: 1.6;
   }
+  /* 查册按钮:唯一的实心柠檬件(可点转化件分层纪律)。
+     行内块而非 flex —— vi@390 文案折两行时,flex 会把 ↗ 甩到按钮最右侧垂直居中、与文字
+     脱开一大段,读作坏掉的按钮(R3 评审 D4);行内块下箭头随文本流,由 NBSP 绑住末词。 */
   .vcta {
     color: var(--x-on-accent);
     background: var(--x-accent);
     border-radius: 999px;
-    padding: calc(7 * var(--uc)) calc(16 * var(--uc));
+    padding: calc(12 * var(--uc)) calc(16 * var(--uc));
     font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
     min-height: var(--x-touch);
-    display: inline-flex;
-    align-items: center;
-    gap: calc(6 * var(--uc));
+    display: inline-block;
+    text-align: center;
     text-decoration: none;
     transition: opacity 0.2s;
+  }
+  .vcta:lang(zh) {
+    line-height: 1.6; /* x-label 与 x-mono 同基座,取同一 zh 档(型类只有 vi 分支) */
   }
   .vcta:hover {
     opacity: 0.85;
@@ -262,9 +370,22 @@ const CARDS = [
       grid-column: 1 / -1;
       grid-row: auto;
     }
+    /* 窄档图标转上方:横排时图标列把正文挤到 237px,标题折到 4-5 行
+       且 balance 在多行下给出「最长行落在最后」的倒参差(R3 评审 P1-6) */
     .card {
-      gap: calc(18 * var(--uc));
+      flex-direction: column;
+      gap: calc(14 * var(--uc));
       padding: calc(24 * var(--uc)) calc(22 * var(--uc));
+    }
+    .card :global(.cic) {
+      margin-top: 0;
+    }
+    .ctitle {
+      text-wrap: pretty; /* 窄档多行:balance 的解空间不够,pretty 收尾更稳 */
+    }
+    .t3grid {
+      grid-template-columns: 1fr;
+      gap: calc(20 * var(--uc));
     }
   }
 
