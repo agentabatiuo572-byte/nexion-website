@@ -25,6 +25,10 @@ export default function AuditPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const [filter, setFilter] = useState('');
   const [next, setNext] = useState<number | null>(null);
+  const [busyExport, setBusyExport] = useState(false);
+  /* 导出结果**常驻**而不是浮层:那句话是「这份文件里到底有多少条、含不含筛选」的唯一交代,
+     而浮层 2.6 秒就没了。人往往是先点导出、再去开文件,回头已经无从确认(第十轮 P1)。 */
+  const [lastExport, setLastExport] = useState<string | null>(null);
   const [err, setErr] = useState(false);
   const [open, setOpen] = useState<number | null>(null);
 
@@ -49,8 +53,37 @@ export default function AuditPage() {
   }
   useEffect(() => { void load(filter, null, false); }, [filter]);
 
-  function exportCsv() {
-    if (!rows?.length) return toast('当前无可导出记录');
+  /* 🔴 导出必须是**当前筛选下的全部记录**,不是屏幕上已加载的那 50 行
+     (2026-09-01 第十轮独立验收 P1:库里 95 行、导出文件只有 50 行,
+      事前无提示、事后只有一条 2.6 秒就消失的浮层写着「当前已加载范围」)。
+     审计是追责面,一份**静悄悄少了一半**的存档比没有存档更危险 ——
+     拿到它的人不会知道自己看的是残缺的。
+     所以这里自己翻页拉全,拉不完就明说拉到哪儿为止,绝不默默截断。 */
+  async function exportCsv() {
+    if (busyExport) return;
+    setBusyExport(true);
+    let all: Row[] = [];
+    let cursor: number | null = null;
+    let truncated = false;
+    try {
+      for (;;) {
+        const q = new URLSearchParams({ limit: '200' });
+        if (filter) q.set('action', filter);
+        if (cursor) q.set('before', String(cursor));
+        const r: { items: Row[]; nextBefore: number | null } = await api(`/api/audit?${q}`);
+        all = all.concat(r.items);
+        cursor = r.items.length === 200 ? r.nextBefore : null;
+        if (!cursor) break;
+        // 上限只为防跑飞;真撞上要**说出来**,不能让人以为导全了
+        if (all.length >= 20000) { truncated = true; break; }
+      }
+    } catch {
+      setBusyExport(false);
+      return toast('导出失败:记录没取全,已取消(不会给出残缺文件)');
+    }
+    setBusyExport(false);
+    if (!all.length) return toast('当前筛选下没有记录可导出');
+    const rows = all;
     const esc = (s: unknown) => `"${String(s ?? '').replaceAll('"', '""')}"`;
     /* 机器码与人话**都要**:机器码是给 Excel 筛选/比对的稳定键(不能翻),
        人话是给读这份存档的人的。只给一边,另一边就得自己翻——而审计存档常常是
@@ -64,9 +97,9 @@ export default function AuditPage() {
       ].map(esc).join(','))].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
-    a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `audit-${new Date().toISOString().slice(0, 10)}${filter ? `-${filter.replace(/\W+/g, '')}` : ''}.csv`;
     a.click();
-    toast(`已导出 ${rows.length} 行(当前已加载范围)`);
+    setLastExport(`已导出 ${rows.length} 行${filter ? `(筛选:${FILTERS.find(([v]) => v === filter)?.[1] ?? filter})` : '(全部记录)'}${truncated ? ' —— 已达 20000 行上限,更早的记录未包含' : ''}`);
   }
 
   return (
@@ -77,8 +110,11 @@ export default function AuditPage() {
           <button key={v} className={`pill ${filter === v ? 'brand' : ''}`} onClick={() => setFilter(v)} style={{ cursor: 'pointer' }}>{label}</button>
         ))}
         <span className="spacer" />
-        <button className="btn sm" onClick={exportCsv}>导出 CSV</button>
+        <button className="btn sm" disabled={busyExport} onClick={() => void exportCsv()} title="导出当前筛选下的全部记录,不只是屏幕上已加载的">
+          {busyExport ? '导出中…' : '导出 CSV'}
+        </button>
       </div>
+      {lastExport && <div className="note" style={{ marginBottom: 10 }}>{lastExport}</div>}
       {err && <div className="note bad">加载失败 <button className="btn ghost sm" onClick={() => load(filter, null, false)}>重试</button></div>}
       <div className="card">
         {rows === null && err ? (

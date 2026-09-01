@@ -58,7 +58,10 @@ export default function FaqPage() {
         const missing = (['en', 'vi', 'zh'] as const).some((l) => !it.q[l].trim() || !it.a[l].trim());
         const hits = (['en', 'vi', 'zh'] as const).flatMap((l) => [...scan(it.q[l]), ...scan(it.a[l])]);
         return (
+          /* 「去修复」落点。两种记法都标:校验器发 `faq.items.<id>.…`(稳定 id),
+             改动 diff 发 `faq.items[N].…`(下标)。同一处产出两个属性,不会各自演化。 */
           <div className="card" key={it.id} style={{ marginBottom: 8, opacity: dragId === it.id ? 0.5 : 1 }}
+            data-field={`faq.items.${it.id}`} data-field-alt={`faq.items[${idx}]`}
             draggable onDragStart={() => setDragId(it.id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, it.id)}>
             <div className="row">
               <span className="kv mono" style={{ cursor: 'grab' }}>⠿</span>

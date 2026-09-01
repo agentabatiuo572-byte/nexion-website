@@ -30,12 +30,17 @@ export default function SeoPage() {
       <h2>SEO 与页脚</h2>
       {conflict && <div className="note bad">草稿已在别处更新,保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); setEmail(null); clearConflict(); reload(); }}>刷新后重试</button></div>}
       <div className="row" style={{ marginBottom: 10 }}>
+        {/* 红项可能指向**当前没选中**的那一页,而这一页只渲染选中的那个。
+            所以选择器按钮也是落点:定位会停在这里,人一眼看到该切到哪一页去改。
+            (真正的根治是钩子能驱动页面切换,那要求路径带结构而不是一串点号——
+             见 docs/changes/2026-09-01-cross-surface-string-structural-reflection.md) */}
         {PAGES.map(([id, label]) => (
-          <button key={id} className={`pill ${pid === id ? 'brand' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setPid(id)}>{label}</button>
+          <button key={id} className={`pill ${pid === id ? 'brand' : ''}`} style={{ cursor: 'pointer' }} data-field={`seo.pages.${id}`} onClick={() => setPid(id)}>{label}</button>
         ))}
       </div>
       {(['title', 'description'] as const).map((field) => (
-        <div className="card" key={field} style={{ marginBottom: 10 }}>
+        // 「去修复」落点:红项路径形如 seo.pages.home.title.zh,逐级剥尾会停在这一级
+        <div className="card" key={field} style={{ marginBottom: 10 }} data-field={`seo.pages.${pid}.${field}`}>
           <h3>{field === 'title' ? '标题 title(建议 ≤60 字符)' : '描述 description(建议 ≤160 字符)'}</h3>
           <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
             {(['en', 'vi', 'zh'] as const).map((l) => {

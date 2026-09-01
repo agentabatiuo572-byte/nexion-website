@@ -97,7 +97,9 @@ export default function ContentPage() {
             const sensitive = SENSITIVE_GROUPS.has(group) || SENSITIVE_KEYS.includes(k);
             const liveDiff = live && ['en', 'vi', 'zh'].some((l) => (draft.copy[l as 'en'][k] ?? '') !== (live.copy[l as 'en'][k] ?? ''));
             return (
-              <div className="card" key={k} style={{ marginBottom: 10 }}>
+              /* 「去修复」落点。文案红项形如 `copy.zh.hero.title`,而这一页按**组**渲染,
+                 组内才有 key。三语共用同一条 key,所以三种语言都标到同一张卡上。 */
+              <div className="card" key={k} style={{ marginBottom: 10 }} data-field={`copy.${k}`}>
                 <div className="row" style={{ marginBottom: 6 }}>
                   <b className="mono" style={{ fontSize: 12.5 }}>{k}</b>
                   {sensitive && <span className="pill warn">高敏 · 发布须理由</span>}

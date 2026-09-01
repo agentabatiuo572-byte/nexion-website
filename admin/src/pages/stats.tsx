@@ -46,7 +46,8 @@ export default function StatsPage() {
       {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试</button></div>}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {FIELDS.map(([k, label]) => (
-          <div className="card" key={k}>
+          // data-field:「去修复」的落点(useFocusField 逐级剥尾匹配到这一级)
+          <div className="card" key={k} data-field={`stats.${k}`}>
             <div className="field" style={{ margin: 0 }}>
               <label>{label}</label>
               <input className="mono" value={String(cur(k))} onChange={(e) => setEdits((s) => ({ ...s, [k]: e.target.value.trim() }))} />

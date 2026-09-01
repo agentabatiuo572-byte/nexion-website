@@ -69,7 +69,9 @@ export default function LegalPage() {
       <div className="note info">粘贴法务供稿的 Markdown;en 为法律约束文本,vi/zh 缺文时站上回退英文并提示(既有 EN-prevails 策略)。保存时服务端自动剥离脚本类危险内容并提示。</div>
       {conflict && <div className="note bad">草稿已在别处更新,保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); clearConflict(); reload(); }}>刷新后重试</button></div>}
       <div className="row" style={{ marginBottom: 10 }}>
-        {DOCS.map(([d, label]) => <button key={d} className={`pill ${doc === d ? 'brand' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setDoc(d)}>{label}{edits[`${d}.en`] || edits[`${d}.vi`] || edits[`${d}.zh`] ? ' ·改' : ''}</button>)}
+        {/* 「去修复」落点:红项形如 legal.privacy.md.en,一页只渲染选中的那一份文档,
+            所以定位停在选择器上,让人看到该切到哪一份(同 seo 页) */}
+        {DOCS.map(([d, label]) => <button key={d} className={`pill ${doc === d ? 'brand' : ''}`} style={{ cursor: 'pointer' }} data-field={`legal.${d}`} onClick={() => setDoc(d)}>{label}{edits[`${d}.en`] || edits[`${d}.vi`] || edits[`${d}.zh`] ? ' ·改' : ''}</button>)}
         <span className="kv">|</span>
         {(['en', 'vi', 'zh'] as const).map((l) => <button key={l} className={`pill ${loc === l ? 'brand' : ''}`} style={{ cursor: 'pointer' }} onClick={() => setLoc(l)}>{l}{l === 'en' && '(法律文本)'}</button>)}
         <span className="spacer" />

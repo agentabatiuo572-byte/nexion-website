@@ -40,7 +40,7 @@ export default function AnnouncementPage() {
       <h2>公告条</h2>
       <div className="note info">站顶限时公告:到窗自动出现、过窗自动消失(站侧按 UTC 判,零重建);访客点关同一条不再弹(内容改动=新公告,自动重新展示);零 cookie。</div>
       {conflict && <div className="note bad">草稿已在别处更新,保存被拒 <button className="btn ghost sm" onClick={() => { setE({}); setTextE({}); clearConflict(); reload(); }}>刷新后重试</button></div>}
-      <div className="card" style={{ marginBottom: 10 }}>
+      <div className="card" style={{ marginBottom: 10 }} data-field="announcement.enabled" data-field-alt="announcement">
         <div className="row">
           <b>总开关</b>
           <input type="checkbox" style={{ width: 18, height: 18 }} checked={a.enabled} onChange={(ev) => setE((s) => ({ ...s, enabled: ev.target.checked }))} />
@@ -49,7 +49,7 @@ export default function AnnouncementPage() {
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {(['en', 'vi', 'zh'] as const).map((l) => (
-          <div className="card" key={l}>
+          <div className="card" key={l} data-field={`announcement.text.${l}`}>
             <div className="field" style={{ margin: 0 }}>
               <label>{l} 文案(≤120)<span className="kv" style={{ marginLeft: 6, color: a.text[l].length > 120 ? 'var(--bad)' : undefined }}>{a.text[l].length}/120</span></label>
               <textarea rows={3} value={a.text[l]} onChange={(ev) => setTextE((s) => ({ ...s, [l]: ev.target.value }))} />
@@ -58,11 +58,11 @@ export default function AnnouncementPage() {
         ))}
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 10 }}>
-        <div className="card"><div className="field" style={{ margin: 0 }}><label>链接(可选,https 或 / 站内)</label>
+        <div className="card" data-field="announcement.href"><div className="field" style={{ margin: 0 }}><label>链接(可选,https 或 / 站内)</label>
           <input value={a.href ?? ''} onChange={(ev) => setE((s) => ({ ...s, href: ev.target.value.trim() || undefined }))} /></div></div>
-        <div className="card"><div className="field" style={{ margin: 0 }}><label>开始(本地输入,存 UTC;当前 {toLocal(a.startsAt)})</label>
+        <div className="card" data-field="announcement.startsAt"><div className="field" style={{ margin: 0 }}><label>开始(本地输入,存 UTC;当前 {toLocal(a.startsAt)})</label>
           <input type="datetime-local" value={toInput(a.startsAt)} onChange={(ev) => setE((s) => ({ ...s, startsAt: fromInput(ev.target.value) }))} /></div></div>
-        <div className="card"><div className="field" style={{ margin: 0 }}><label>结束(本地输入,存 UTC;当前 {toLocal(a.endsAt)})</label>
+        <div className="card" data-field="announcement.endsAt"><div className="field" style={{ margin: 0 }}><label>结束(本地输入,存 UTC;当前 {toLocal(a.endsAt)})</label>
           <input type="datetime-local" value={toInput(a.endsAt)} onChange={(ev) => setE((s) => ({ ...s, endsAt: fromInput(ev.target.value) }))} /></div></div>
       </div>
       {a.enabled && (

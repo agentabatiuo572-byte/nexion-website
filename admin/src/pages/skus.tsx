@@ -50,7 +50,10 @@ export default function SkusPage() {
         const tagHits = (['en', 'vi', 'zh'] as const).flatMap((l) => scan(s.tagline[l] ?? '').map((h) => `${l}:${h.match}`));
         return (
           <div
-            className="card" key={id} data-field={`skus[${ids.indexOf(id)}]`} style={{ marginBottom: 8, opacity: dragId === id ? 0.5 : 1 }}
+            /* 两种记法都标:校验器发 `skus.<id>.tagline.en`(点号+稳定 id),
+               改动 diff 发 `skus[N].priceUSD`(方括号+下标)。只标一种就有一半的红项落空
+               —— 第十轮独立验收实测:九条红项八条定位不到,这里是其中之一。 */
+            className="card" key={id} data-field={`skus.${id}`} data-field-alt={`skus[${ids.indexOf(id)}]`} style={{ marginBottom: 8, opacity: dragId === id ? 0.5 : 1 }}
             draggable onDragStart={() => setDragId(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, id)}
           >
             <div className="row">

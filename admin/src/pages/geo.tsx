@@ -17,11 +17,20 @@ interface GeoState {
   stats: { last7: Array<{ country: string; hits: number }>; todayLive: number; blocked7: number; shareOfRequests: number };
 }
 
+/* 写入失败的原因 → 人话。服务端的错误码不该出现在运营的屏幕上;
+   缺映射时显示一句通用说明,而不是吐原始码(gate-console-copy 判据②同源)。 */
+const WRITE_FAIL_REASON: Record<string, string> = {
+  'kv-readback-mismatch(线上仍为旧规则)': '写进去之后回读对不上,规则没有真正生效',
+  'bad-request': '这份规则本身不合法(国家代码或拦截页文案有问题)',
+  network: '网络异常,请求没送到服务端',
+};
+
 export default function GeoPage() {
   const [st, setSt] = useState<GeoState | null>(null);
   const [failed, setFailed] = useState(false);
   const [draft, setDraft] = useState<Rules | null>(null); // 待应用改动(未写 KV)
   const [applying, setApplying] = useState(false);
+  const [writeFail, setWriteFail] = useState<{ why: string; code: string } | null>(null);
   const [confirmBox, setConfirmBox] = useState<{ reason: string; hot: Array<{ country: string; share: number }> | null; ack: boolean } | null>(null);
   const [addSel, setAddSel] = useState('');
 
@@ -48,6 +57,7 @@ export default function GeoPage() {
         body: JSON.stringify({ enabled: r.enabled, countries: r.countries, blockPage: r.blockPage, reason: confirmBox.reason, confirmHighTraffic }),
       });
       toast('已写入并回读确认 · 约 1 分钟内全球生效');
+      setWriteFail(null); // 成功了就把上一次的失败条收掉,否则它会一直挂在那儿说假话
       setConfirmBox(null);
       load();
     } catch (ex) {
@@ -55,7 +65,14 @@ export default function GeoPage() {
         const hot = (ex.body as { hot?: Array<{ country: string; share: number }> }).hot ?? [];
         setConfirmBox({ ...confirmBox, hot, ack: false }); // E2 二次确认
       } else {
-        toast(`未生效,线上仍为旧规则:${ex instanceof ApiError ? ex.body.error : '网络异常'}`);
+        /* 🔴 写入失败必须**留在屏幕上 + 给重试**(CON12-⑤ 逐字要求「+重试」;第十轮独立验收 P1)。
+           上一版只有一条 2.6 秒就消失的浮层,而且把服务端的错误码原样印给运营。
+           这是合规开关:「以为已经生效、其实没有」的代价是屏蔽规则形同虚设,
+           而人一转头那句提示就没了,连自己看到过什么都记不住。 */
+        setWriteFail({
+          why: ex instanceof ApiError ? WRITE_FAIL_REASON[String(ex.body.error)] ?? '服务端拒绝了这次写入' : '网络异常,请求没送到',
+          code: ex instanceof ApiError ? String(ex.body.error ?? '') : 'network',
+        });
       }
     } finally {
       setApplying(false);
@@ -131,6 +148,20 @@ export default function GeoPage() {
         <button className="btn primary" disabled={!dirty || applying || st.degraded} title={st.degraded ? '规则存储读取异常,页面显示的是兜底名单;请先重试加载再改' : ''} onClick={() => setConfirmBox({ reason: '', hot: null, ack: false })}>应用变更(确认+理由)</button>
         {dirty && <button className="btn ghost" onClick={() => setDraft(null)}>放弃改动</button>}
       </div>
+
+      {/* 写入失败:常驻红条 + 重试(CON12-⑤)。改动仍在草稿里,重试就是再发一次同一份规则。 */}
+      {writeFail && (
+        <div className="note bad" style={{ marginBottom: 16 }}>
+          <b>规则没有生效,线上仍是旧规则。</b>
+          <div className="kv" style={{ marginTop: 4 }}>{writeFail.why}。你的改动还在这一页上,没有丢。</div>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button className="btn sm" disabled={applying} onClick={() => { setWriteFail(null); void apply(false); }}>{applying ? '重试中…' : '重试写入'}</button>
+            <button className="btn ghost sm" onClick={() => { setWriteFail(null); load(); }}>放弃并重新读取线上规则</button>
+            <span className="spacer" />
+            <span className="kv mono" title="排查用的原始错误码">{writeFail.code}</span>
+          </div>
+        </div>
+      )}
 
       {confirmBox && (
         <div className="card" style={{ marginBottom: 16, outline: '2px solid var(--warn)' }}>

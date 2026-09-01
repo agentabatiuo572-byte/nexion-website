@@ -164,6 +164,12 @@ if (process.argv.includes('--self-test')) {
   say(checkAuditLabels('（改名了）', L('a.x')).some((h) => h.why.includes('门已失效')), 'self-test:抽不出枚举 → 报门失效,不静默放行');
   say(checkAuditLabels().length === 0, 'self-test:真实的动作码与人话表全对得上');
   for (const [ok, msg] of checkPublishHelpers()) say(ok, msg);
+  // 判据⑤ 红绿两向(注入走真判据,不复制它的逻辑)
+  const fake = (text) => [{ file: 'probe.tsx', text }];
+  say(checkFocusTargets(fake('useFocusField();\n<div>x</div>')).length === 1, 'self-test:装了定位钩子却零落点 → 被抓');
+  say(checkFocusTargets(fake('useFocusField();\n<div data-field="a.b">x</div>')).length === 0, 'self-test:装了钩子且有落点 → 不误报');
+  say(checkFocusTargets(fake('<div>x</div>')).length === 0, 'self-test:没装钩子的页面 → 不要求落点');
+  say(checkFocusTargets().length === 0, `self-test:真实代码里每页都有落点(缺:${JSON.stringify(checkFocusTargets().map((h) => h.file))})`);
   say(scan(files).length === 0, `self-test:真实代码零命中(实际 ${scan(files).length} 处)`);
   process.exit(fails ? 1 : 0);
 }
@@ -340,7 +346,24 @@ function checkAuditLabels(enumOverride, labelOverride) {
   return out;
 }
 
-const hits = [...scan(files), ...checkQueryConsumers(files, allSources()), ...checkAuditLabels()];
+/* 判据⑤:装了定位钩子的页面**必须有落点**(2026-09-01 第十轮独立验收 P1)。
+   判据③ 只验「这个链接参数有没有人读」——而实测八个页面都读了(都调了 `useFocusField`),
+   却只有两个页面标了 `data-field`,于是九条红项里八条点过去停在页顶。
+   **「有消费者」不等于「消费者找得到东西」**:门守到了调用点,没守到那件事真的发生
+   (同族 [[feedback_gate_guards_callee_not_caller]])。
+   判据构造性:凡 import 了钩子的页面,同文件里必须至少出现一次落点属性。 */
+function checkFocusTargets(sources) {
+  const out = [];
+  // 注入的 sources 必须真被用上(参数带了没人读 = 判据③ 抓的那种病,我在同一个文件里犯过)
+  for (const { file, text } of sources ?? allSources()) {
+    if (!/useFocusField\s*\(\s*\)/.test(text)) continue; // 没装钩子的页面不要求
+    if (/data-field(-alt)?=/.test(text)) continue;
+    out.push({ file, line: 0, why: '这一页装了「去修复」定位钩子,却没有任何 data-field 落点 —— 点过去只会停在页顶', code: '' });
+  }
+  return out;
+}
+
+const hits = [...scan(files), ...checkQueryConsumers(files, allSources()), ...checkAuditLabels(), ...checkFocusTargets()];
 if (hits.length) {
   console.error(`✗ 控制台文案门:${hits.length} 处会把 markdown 记号原样印到界面上`);
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.why}\n     ${h.code}`);
