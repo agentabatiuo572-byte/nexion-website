@@ -12,7 +12,7 @@ interface Preflight {
   changedPaths: string[]; changed: number; sensitiveChanged: string[]; reasonRequired: boolean;
 }
 interface StepRow { step: string; status: string; detail: string | null; started_at: number; ended_at: number | null }
-interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }
+interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null; changed?: number }
 interface Status {
   activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[];
   /** 线上快照对不上:版本号不符,或版本号对但内容被直接改过(tampered 列出对不上的文件) */
@@ -36,6 +36,33 @@ const RULE_LABEL: Record<string, string> = {
 };
 // 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)
+/* 字段路径 → 人话。
+   🔴 实景走查 P2-11/12/13:diff 摘要、提醒行、红项表三处都在直印
+   `announcement.text.en` / `downloads.ios.enabled` 这类内部路径。
+   运营认不出这是「公告条的英文正文」还是别的什么,而 PRD 明写页面文案禁出现字段名。
+   一处映射三处共用:再多一处直印,就是这张表该补而不是再写一遍。 */
+const AREA: Array<[RegExp, string]> = [
+  [/^copy\.(en|vi|zh)\./, '文案'],
+  [/^downloads\./, '下载入口'],
+  [/^stats\./, '平台数字'],
+  [/^skus\b/, '产品卡'],
+  [/^faq\b/, '常见问题'],
+  [/^announcement\./, '公告条'],
+  [/^seo\./, 'SEO'],
+  [/^footer\./, '页脚'],
+  [/^legal\./, 'Legal 文本'],
+];
+const LOCALE_NAME: Record<string, string> = { en: '英文', vi: '越南语', zh: '中文' };
+/** 例:`announcement.text.en` → 「公告条 · 英文 · text」;认不出就原样显示,不隐藏 */
+export function humanPath(path: string): string {
+  const area = AREA.find(([re]) => re.test(path))?.[1];
+  if (!area) return path;
+  const rest = path.replace(/^[a-z]+\./i, '');
+  const loc = Object.keys(LOCALE_NAME).find((l) => path.startsWith(`copy.${l}.`) || path.endsWith(`.${l}`));
+  const tail = rest.replace(/^(en|vi|zh)\./, '').replace(/\.(en|vi|zh)$/, '');
+  return [area, loc && LOCALE_NAME[loc], tail].filter(Boolean).join(' · ');
+}
+
 /** 红项 → 该去哪个页面修 */
 function fixLink(path: string): string {
   if (path.startsWith('copy.')) return '/content';
@@ -260,7 +287,7 @@ export default function PublishPage() {
               <tbody>
                 {pre.changedPaths.slice(0, 30).map((p) => (
                   <tr key={p}>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{p}</td>
+                    <td>{humanPath(p)}<div className="kv mono" style={{ fontSize: 11 }}>{p}</div></td>
                     <td>{pre.sensitiveChanged.includes(p) ? <span className="pill warn">高敏</span> : <span className="kv">普通</span>}</td>
                   </tr>
                 ))}
@@ -275,9 +302,10 @@ export default function PublishPage() {
                 {pre.errors.slice(0, 15).map((e, i) => (
                   <tr key={i}>
                     <td>{RULE_LABEL[e.rule] ?? e.rule}</td>
-                    <td className="mono" style={{ fontSize: 11.5 }}>{e.path}</td>
+                    <td>{humanPath(e.path)}<div className="kv mono" style={{ fontSize: 11 }}>{e.path}</div></td>
                     <td>{e.message}</td>
-                    <td><NavLink className="btn ghost sm" to={fixLink(e.path)}>去修复</NavLink></td>
+                    {/* 「去修复」带上要定位的字段:目标页据此高亮/滚动到那一处(PRD ⑥「定位到红字段」) */}
+                    <td><NavLink className="btn ghost sm" to={`${fixLink(e.path)}?focus=${encodeURIComponent(e.path)}`}>去修复</NavLink></td>
                   </tr>
                 ))}
               </tbody></table>
@@ -286,7 +314,7 @@ export default function PublishPage() {
           )}
           {pre.warnings.length > 0 && (
             <div className="note warn" style={{ marginTop: 8 }}>
-              提醒({pre.warnings.length} 项,不阻断发布):{pre.warnings.slice(0, 4).map((w) => `${RULE_LABEL[w.rule] ?? w.rule}@${w.path}`).join(' · ')}
+              提醒({pre.warnings.length} 项,不阻断发布):{pre.warnings.slice(0, 4).map((w) => `${RULE_LABEL[w.rule] ?? w.rule}(${humanPath(w.path)})`).join(' · ')}
               {pre.warnings.length > 4 && ' …'}
             </div>
           )}
@@ -330,13 +358,15 @@ export default function PublishPage() {
           </div>
         )}
         <table>
-          <thead><tr><th>版本</th><th>时间</th><th>状态</th><th>理由 / 失败原因</th><th></th></tr></thead>
+          <thead><tr><th>版本</th><th>时间</th><th>状态</th><th>改动数</th><th>理由 / 失败原因</th><th>操作</th></tr></thead>
           <tbody>
             {st.versions.map((v) => (
               <tr key={v.id}>
                 <td className="mono"><b>v{v.id}</b></td>
                 <td className="kv">{new Date(v.published_at ?? v.created_at).toLocaleString('zh-CN', { hour12: false })}</td>
                 <td><span className={`pill ${v.status === 'live' ? 'brand' : v.status === 'failed' ? 'bad' : ''}`}>{STATUS_LABEL[v.status] ?? v.status}</span></td>
+                {/* 改动数:算不出来就留空,不编一个数(PRD ⑤;实景走查 P2-1) */}
+                <td className="mono kv">{typeof v.changed === 'number' ? `${v.changed} 处` : '—'}</td>
                 <td>{v.fail_reason ?? v.reason ?? (v.created_by === 'system' ? <span className="kv">初始种子(非发布)</span> : '—')}</td>
                 <td>
                   {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,

@@ -89,8 +89,19 @@ export default function AuditPage() {
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
                   <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
                   <td>{r.target ?? '—'}</td>
+                  {/* PRD CON14-E3 要「摘要 + 字节数」:折叠时先告诉人这条有多长,他才知道值不值得展开(实景走查 P2-8) */}
                   <td style={open === r.id ? {} : { maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {[r.before_summary, r.after_summary].filter(Boolean).join(' → ') || '—'}
+                    {(() => {
+                      const text = [r.before_summary, r.after_summary].filter(Boolean).join(' → ');
+                      if (!text) return '—';
+                      const bytes = new TextEncoder().encode(text).length;
+                      return (
+                        <>
+                          {text}
+                          {bytes > 200 && !(open === r.id) && <span className="kv mono"> · {bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} 字节`},点击展开</span>}
+                        </>
+                      );
+                    })()}
                   </td>
                   <td>{r.reason ?? '—'}</td>
                 </tr>

@@ -686,6 +686,28 @@ describe('CON13 发布流水线', () => {
     expect(r1.versionId).not.toBe(r2.versionId);
   });
 
+
+  it('版本列表的「改动数」要算得对,算不出来就留空(不编一个数)', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '改动数-第一版');
+    const r1 = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await runPipeline(cookie, r1.versionId);
+
+    // 相对上一版只改一处文案 → 改动数应为 1
+    await makeChange(cookie, '改动数-第二版');
+    const r2 = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await runPipeline(cookie, r2.versionId);
+
+    const rows = (await status(cookie)).versions as Array<{ id: number; changed?: number }>;
+    expect(rows.find((v) => v.id === r2.versionId)?.changed, '只改一处文案 → 1 处').toBe(1);
+
+    // 空壳版本(payload='{}')算不出来 → 必须留空,而不是给 0 或别的数
+    await env.DB.prepare("INSERT INTO config_versions (status, payload, created_by, created_at) VALUES ('failed', '{}', 'admin', ?1)").bind(Date.now() + 1000).run();
+    const rows2 = (await status(cookie)).versions as Array<{ id: number; changed?: number; status: string }>;
+    const shell = rows2.find((v) => v.status === 'failed' && v.changed === undefined);
+    expect(shell, '算不出来的版本必须留空(undefined),不许编数').toBeDefined();
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

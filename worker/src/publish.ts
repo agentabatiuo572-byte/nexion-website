@@ -508,12 +508,30 @@ publishRoutes.get('/status', async (c) => {
       .all<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>()
   ).results;
   const truncated = rowsRaw.length > PAGE;
-  const versions = rowsRaw.slice(0, PAGE);
+  const versions: Array<(typeof rowsRaw)[number] & { changed?: number }> = rowsRaw.slice(0, PAGE);
   // 线上那一版不在这一页里就单独捞回来:它是这张表最不能缺的一行
   const liveRow = await c.env.DB
     .prepare("SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1")
     .first<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>();
   if (liveRow && !versions.some((v) => v.id === liveRow.id)) versions.push(liveRow);
+
+  /* PRD ⑤ 的「改动数」列(实景走查 P2-1,六轮同条)。
+     每一版相对**它上线时的前一版**改了多少处——这是运营翻历史时最想知道的一个数。
+     只对有内容的版本算(种子行与空壳行跳过);算不出来就留空,不编。 */
+  {
+    const payloads = new Map<number, string>(
+      (await c.env.DB.prepare(`SELECT id, payload FROM config_versions WHERE id IN (${versions.map((v) => v.id).join(',') || '-1'})`).all<{ id: number; payload: string }>()).results.map((r) => [r.id, r.payload]),
+    );
+    const ordered = [...versions].sort((a, b) => a.id - b.id);
+    for (let i = 1; i < ordered.length; i++) {
+      const prev = payloads.get(ordered[i - 1]!.id);
+      const cur = payloads.get(ordered[i]!.id);
+      if (!prev || !cur || prev === '{}' || cur === '{}') continue;
+      try {
+        ordered[i]!.changed = diffPaths(JSON.parse(prev) as never, JSON.parse(cur) as never).length;
+      } catch { /* 结构对不上就留空,不编一个数出来 */ }
+    }
+  }
 
   /* 🔴 劈叉自查(2026-09-01 复验 P1-3):切换脚本先落盘、再回报,所以「盘上已经换了、回报没送到」
      是一个不需要攻击者就会发生的形态(执行器死在这一拍即可)。此前没有任何一处会发现它——
