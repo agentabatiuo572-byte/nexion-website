@@ -879,6 +879,58 @@ for (const r of HOME) {
     }
   }
 }
+
+/* ── H:字符宽比值 --x-ch-* 必须等于配对字体真实的「0」前进宽 ──
+   R50 背景:行长上限原本写 Nch,而 ch 会双稳(「0」量不到时规范要求回落 0.5em,同一构建连拍两次
+   版面在两态之间翻)。改写成 calc(N * var(--x-ch-*)) 治好了双稳,代价是比值从「自动跟着字体走」
+   变成「一个写死的数」—— 换字体就静默失真(Funnel ↔ Be Vietnam Pro 差 17.6%)。这条判据把代价买回来:
+   在真浏览器里量首选字体的「0」前进宽,与 tokens 里声明的值逐条对,漂了就红。
+   名单从产物 CSS 枚举(不是手写清单),语言档取三个首页路由 —— :root / :lang(vi) / :lang(en) 三个声明块
+   各覆盖一次;将来新增语言块若只换字体不换比值,那门语言的首页会立刻红。
+   ⚠️ 已知天花板:按 400 字重量(当前 consumer 全是 400,已逐个核过)。同族不同字重的「0」宽差约 1%,
+      若将来有 consumer 改字重,这条判据看不见那 1%,得回来把字重也纳进条件。
+   来源:claude/inspiring-hamilton-6fde54 的 7bc8c13 —— 该线与 f1e0fc9 独立收敛出同一套修法,
+   本条是其差集,单独摘取(其余整份丢弃,因与 f1e0fc9 重复)。 */
+const SCAN_CH = (names) => {
+  const root = document.documentElement;
+  const cs = getComputedStyle(root);
+  const out = [];
+  for (const n of names) {
+    const declared = cs.getPropertyValue(n).trim();
+    const fontVar = n.replace('--x-ch-', '--x-font-');
+    const stack = cs.getPropertyValue(fontVar).trim();
+    if (!declared) { out.push({ n, err: '声明缺席(被谁删了?)' }); continue; }
+    if (!stack) { out.push({ n, err: '配对的 ' + fontVar + ' 未定义 —— 比值失去归属' }); continue; }
+    const m = declared.match(/^([0-9.]+)em$/);
+    if (!m) { out.push({ n, err: '值「' + declared + '」不是 N em 形式,无法与字体度量比对' }); continue; }
+    const d = document.createElement('div');
+    d.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;width:1000ch;font-weight:400;font-size:100px';
+    d.style.fontFamily = stack;
+    document.body.appendChild(d);
+    const measured = d.getBoundingClientRect().width / 100000;
+    d.remove();
+    out.push({ n, declared: +m[1], measured: Math.round(measured * 1e5) / 1e5,
+      font: stack.split(',')[0].replace(/["']/g, ''), lang: root.lang });
+  }
+  return out;
+};
+const CH_NAMES = [...new Set(readdirSync(join(DIST, '_astro'))
+  .filter((f) => f.endsWith('.css'))
+  .map((f) => readFileSync(join(DIST, '_astro', f), 'utf8'))
+  .join(' ')
+  .match(/--x-ch-[a-z-]+/g) || [])];
+const hitsH = [];
+for (const r of HOME) {
+  await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
+  await page.evaluate(() => document.fonts.ready);
+  for (const g of await page.evaluate(SCAN_CH, CH_NAMES)) {
+    if (g.err) { hitsH.push(r + '  ' + g.n + ':' + g.err); continue; }
+    const off = Math.abs(g.declared - g.measured) / g.measured;
+    if (off > 0.005)
+      hitsH.push(r + ' (lang=' + g.lang + ')  ' + g.n + ' 声明 ' + g.declared + 'em,而 ' + g.font +
+        ' 实测每 ch = ' + g.measured + 'em(差 ' + (off * 100).toFixed(1) + '%)');
+  }
+}
 await browser.close();
 if (server) await server.close();
 
@@ -893,6 +945,7 @@ const F = [...hitsF.values()];
 const G = [...hitsG.values()].sort((a, b) => b.delta - a.delta);
 console.log(`             判据 A 实扫 ${scansA} 次(${heightSensitive}/${ROUTES.length} 条路由对视口高敏感,按高度分档加扫)`);
 console.log(`             判据 E 覆盖 ${dialogRoutes} 条带弹层的路由 × ${widths.length * heights.length} 档视口;判据 F 同路由载入即测+开关一轮后再测`);
+console.log(`             判据 H 核 ${CH_NAMES.length} 个字符宽比值 × ${HOME.length} 个语言档(名单从产物 CSS 枚举)`);
 
 /* 🔴 观测面缺口 = NOT-RUN,不是「没问题」。
    判据再对,取样时刻不对就是假绿:曾有 60 次扫描里 33 次看不到首屏标题,而那里真有 4.4px 墨相接。 */
@@ -904,9 +957,13 @@ if (blindSpots.size) {
   process.exit(3);
 }
 
-if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length && !G.length) {
-  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 同类兄弟顶齐 · 无观测面缺口');
+if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length && !G.length && !hitsH.length) {
+  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 同类兄弟顶齐 · 字符宽比值=真字体度量 · 无观测面缺口');
   process.exit(0);
+}
+if (hitsH.length) {
+  console.log(`[render-fit] ✘ H 字符宽比值失真:${hitsH.length} 处 --x-ch-* 与配对字体的实测度量对不上`);
+  for (const g of hitsH) console.log('  - ' + g);
 }
 if (hitsC.length) {
   console.log(`[render-fit] ✘ C 导航高:${hitsC.length} 处声明值与实测值对不上(派生常数已漂)`);
@@ -947,6 +1004,7 @@ console.log('        D 把窄档的上限接到断点另一侧的实算值(取�
 console.log('        E 让弹层内容按剩余空间收缩(竖向 flex + min-height:0 + object-fit:contain),别写死关闭行高度;');
 console.log('        F 弹层的 display/弹性只挂 [open] 态,别写进基类。');
 console.log('        G 容器别吃轨拉伸(grid 加 align-content:start / flex 加 align-content:flex-start),别去逐个补空白。');
+console.log('        H 改字体必须同改 tokens.css 里配对的 --x-ch-*(值 = 实测每 ch 的 em 比),别改回 Nch。');
 console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok;常显 dialog 加 class closed-dialog-ok;');
 console.log('           同类兄弟有意错位给容器加 class sibling-align-ok。');
 process.exit(1);
