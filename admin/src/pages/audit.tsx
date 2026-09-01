@@ -52,8 +52,16 @@ export default function AuditPage() {
   function exportCsv() {
     if (!rows?.length) return toast('当前无可导出记录');
     const esc = (s: unknown) => `"${String(s ?? '').replaceAll('"', '""')}"`;
-    const csv = ['id,time,actor,action,target,before,after,reason',
-      ...rows.map((r) => [r.id, new Date(r.ts).toISOString(), r.actor, r.action, r.target, r.before_summary, r.after_summary, r.reason].map(esc).join(','))].join('\n');
+    /* 机器码与人话**都要**:机器码是给 Excel 筛选/比对的稳定键(不能翻),
+       人话是给读这份存档的人的。只给一边,另一边就得自己翻——而审计存档常常是
+       出事之后给不熟悉本系统的人看的(实景走查 P1-3 的延伸)。 */
+    const csv = ['id,time,actor,action,action_label,target,target_label,before,after,reason',
+      ...rows.map((r) => [
+        r.id, new Date(r.ts).toISOString(), r.actor,
+        r.action, ACTION_LABEL[r.action] ?? '',
+        r.target, !r.target || r.target === 'unknown' ? '来源不详' : r.target,
+        r.before_summary, r.after_summary, r.reason,
+      ].map(esc).join(','))].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
     a.download = `audit-${new Date().toISOString().slice(0, 10)}.csv`;
@@ -79,7 +87,17 @@ export default function AuditPage() {
         ) : rows === null ? (
           <div className="grid"><div className="skl" /><div className="skl" /><div className="skl" style={{ width: '60%' }} /></div>
         ) : rows.length === 0 ? (
-          <p className="kv" style={{ padding: 8 }}>没有匹配记录</p>
+          /* 空态要说清「为什么空」并给出口:光写「没有匹配记录」时,人分不出是这个筛选下没有、
+             还是系统压根没记(审计是追责面,这两件事的分量完全不同)。 */
+          <div style={{ padding: '18px 8px' }}>
+            <p className="kv" style={{ margin: 0 }}>
+              {filter ? `「${FILTERS.find(([v]) => v === filter)?.[1] ?? filter}」这一类目前没有记录。` : '还没有任何操作记录。'}
+            </p>
+            <p className="kv" style={{ margin: '6px 0 0' }}>
+              {filter ? '换个类别或看全部,已发生的动作都会在这里留痕。' : '登录、改内容、改规则、发布,任一动作发生后即刻在此留痕。'}
+            </p>
+            {filter && <button className="btn ghost" style={{ marginTop: 10 }} onClick={() => { setFilter(''); load('', null, false); }}>看全部记录</button>}
+          </div>
         ) : (
           <table>
             <thead><tr><th>时间</th><th>动作</th><th>对象</th><th>变更</th><th>理由</th></tr></thead>

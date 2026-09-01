@@ -125,7 +125,10 @@ export default function GeoPage() {
         </div>
       </div>
       <div className="row" style={{ marginBottom: 16 }}>
-        <button className="btn primary" disabled={!dirty || applying} onClick={() => setConfirmBox({ reason: '', hot: null, ack: false })}>应用变更(确认+理由)</button>
+        {/* 🔴 降级态下必须禁止应用:此时页面上显示的是**内置兜底名单**(仅 CN),不是真规则。
+            KV 短暂故障后恢复,运营在这个页面上改一处再应用,写回去的是「基线 + 这一处改动」,
+            真名单被静默覆盖且没有任何报错。先刷新拿到真规则,再改。 */}
+        <button className="btn primary" disabled={!dirty || applying || st.degraded} title={st.degraded ? '规则存储读取异常,页面显示的是兜底名单;请先重试加载再改' : ''} onClick={() => setConfirmBox({ reason: '', hot: null, ack: false })}>应用变更(确认+理由)</button>
         {dirty && <button className="btn ghost" onClick={() => setDraft(null)}>放弃改动</button>}
       </div>
 

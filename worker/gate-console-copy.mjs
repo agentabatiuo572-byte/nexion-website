@@ -163,6 +163,7 @@ if (process.argv.includes('--self-test')) {
   say(checkAuditLabels(E('a.x'), L('a.x', 'a.z')).some((h) => h.why.includes('死键')), 'self-test:人话表留着已删的动作码 → 被抓');
   say(checkAuditLabels('（改名了）', L('a.x')).some((h) => h.why.includes('门已失效')), 'self-test:抽不出枚举 → 报门失效,不静默放行');
   say(checkAuditLabels().length === 0, 'self-test:真实的动作码与人话表全对得上');
+  for (const [ok, msg] of checkPublishHelpers()) say(ok, msg);
   say(scan(files).length === 0, `self-test:真实代码零命中(实际 ${scan(files).length} 处)`);
   process.exit(fails ? 1 : 0);
 }
@@ -201,6 +202,111 @@ function checkQueryConsumers(files, sources) {
       code: '',
     });
   }
+  return out;
+}
+
+/* 发布页那两个把机器串翻成人话的纯函数,检查焊在这里而不是另起一个测试文件——
+   admin 没有测试运行器,单独新建的测试**没有任何一条链会跑它**(天然孤儿)。
+   这道门已在链里、已在读 publish.tsx 的源码,顺手把函数抽出来跑断言,成本几乎为零。
+   抽法:从源码里截出函数体,剥掉 TS 标注后 new Function 求值。源码改名/挪走时抽不出来 → 报门失效。 */
+function checkPublishHelpers() {
+  const src = readFileSync(path.join(ROOT, 'pages', 'publish.tsx'), 'utf8');
+  const grab = (head, end) => {
+    const i = src.indexOf(head);
+    if (i < 0) return null;
+    const j = src.indexOf(end, i);
+    return j < 0 ? null : src.slice(i, j + end.length);
+  };
+  const failSrc = readFileSync(path.join(ROOT, 'lib', 'fail-reason.ts'), 'utf8');
+  const grabIn = (text, head, end) => {
+    const i = text.indexOf(head);
+    if (i < 0) return null;
+    const j = text.indexOf(end, i);
+    return j < 0 ? null : text.slice(i, j + end.length);
+  };
+  const pieces = [
+    grab('const AREA: Array<[RegExp, string]> = [', '];'),
+    grab('const LOCALE_NAME: Record<string, string> = {', '};'),
+    grab('const FIELD_NAME: Record<string, string> = {', '};'),
+    grab('export function humanPath(path: string): string {', '\n}'),
+    grabIn(failSrc, 'export function splitFailReason(raw: string): FailReason {', '\n}'),
+  ];
+  if (pieces.some((p) => !p)) return [[false, 'self-test:抽不出 humanPath/splitFailReason(改名或挪走了?)——检查已失效,先修门']];
+  const js = pieces
+    .join('\n')
+    .replace(/: Array<\[RegExp, string\]>/g, '')
+    .replace(/: Record<string, string>/g, '')
+    .replace(/export function humanPath\(path: string\): string/, 'function humanPath(path)')
+    .replace(/export function splitFailReason\(raw: string\): FailReason/, 'function splitFailReason(raw)')
+    .replace(/ as string\[\]/g, '');
+  let humanPath, splitFailReason;
+  try {
+    ({ humanPath, splitFailReason } = new Function(`${js}; return { humanPath, splitFailReason };`)());
+  } catch (e) {
+    return [[false, `self-test:抽出的函数跑不起来(${String(e).slice(0, 60)})`]];
+  }
+  const out = [];
+  /* 🔴 humanPath 的判据必须是**构造性**的,路径从真种子枚举,不手写样例。
+     第一版我手写了六条样例,而它抓不到 `平台数字 · nodes` 这种**半翻**
+     ——恰恰是第八轮走查点名的「不均匀」。手写样例天然照着实现的形状写,
+     两边一起漏掉同一个字段(同 [[feedback_predicate_shape_must_match_producer]])。
+     判据:除 copy 树(自由文案 key,本就不该强求映射)外,配置的字段集是封闭的,
+     种子里出现的每一个字段名都必须在 FIELD_NAME 里有人话。 */
+  const seed = JSON.parse(readFileSync(path.join(here, 'seed', 'site-config.seed.json'), 'utf8'));
+  /* 判据看的是**映射表有没有盖住封闭字段集**,不是输出字符串长什么样。
+     试过后者:`下载入口 · iOS 版` 里的 iOS 是品牌名却被当成机器名报红 ——
+     一旦开始为它加排除表,就退回了词法层那条死路(见本文件判据② 的四问)。
+     这里与判据④ 同形:一侧是产出方(种子里真实存在的字段),一侧是消费方(人话表)。
+     copy 树是自由文案 key,不在封闭集里;域名由 AREA 自己消费,从 AREA 源码里抽,不另写一份。 */
+  const areaKeys = new Set([...(grab('const AREA: Array<[RegExp, string]> = [', '];') ?? '').matchAll(/\/\^([a-zA-Z]+)/g)].map((m) => m[1]));
+  if (!areaKeys.size) return [[false, 'self-test:从 AREA 抽不出域名 —— 判据失效,先修门']];
+  const fieldKeys = new Set(
+    [...(grab('const FIELD_NAME: Record<string, string> = {', '};') ?? '').matchAll(/(?:^|[{,\s])'?([a-zA-Z_$][\w$-]*)'?\s*:/gm)].map((m) => m[1]),
+  );
+  const LOCALES = new Set(['en', 'vi', 'zh']);
+  const segs = new Map(); // 字段名 → 它第一次出现的位置(报错时能直接说清是哪儿的字段)
+  const walkCfg = (v, prefix) => {
+    if (v === null || typeof v !== 'object') return;
+    if (Array.isArray(v)) { v.forEach((x) => walkCfg(x, `${prefix}[]`)); return; }
+    for (const [k, x] of Object.entries(v)) {
+      if (prefix && !prefix.startsWith('copy') && !segs.has(k)) segs.set(k, `${prefix}.${k}`);
+      walkCfg(x, prefix ? `${prefix}.${k}` : k);
+    }
+  };
+  walkCfg(seed, '');
+  if (segs.size < 20) return [[false, `self-test:从种子只枚举出 ${segs.size} 个字段 —— 判据失效(种子改形状了?)`]];
+  const missing = [...segs].filter(([k]) => !fieldKeys.has(k) && !areaKeys.has(k) && !LOCALES.has(k));
+  out.push([
+    missing.length === 0,
+    `self-test:种子里 ${segs.size} 个配置字段在人话表里都有译名(缺:${JSON.stringify(missing.map(([k, p]) => `${k} @ ${p}`).slice(0, 8))})`,
+  ]);
+  out.push([humanPath('skus[0].priceUSD') === '产品卡 · 第 1 项 · 价格', 'self-test:humanPath 数组路径 → 「产品卡 · 第 1 项 · 价格」']);
+  // splitFailReason:门红把门名剥进小字;原始 Node 报错折叠;正常中文人话原样
+  const a = splitFailReason('文案里有合规禁用词(门:forbidden-words)');
+  out.push([a.human === '文案里有合规禁用词' && a.tech === 'forbidden-words', 'self-test:门红原因 → 人话与门名分开']);
+  const b2 = splitFailReason("Error [ERR_MODULE_NOT_FOUND]: Cannot find module 'D:\\WORKS\\x\\y.js'");
+  out.push([b2.raw === true && b2.tech !== null && !/[A-Za-z]:\\/.test(b2.human), 'self-test:原始 Node 报错 → 主视线不含本机路径']);
+  const c2 = splitFailReason('发布中断(执行器无响应或超时),线上保持旧版');
+  out.push([c2.human === '发布中断(执行器无响应或超时),线上保持旧版' && c2.tech === null, 'self-test:本就是人话的原因 → 原样保留']);
+  /* 🔴 每个读 fail_reason 的地方都必须过这两个函数之一。
+     实录:我先只改了发布页那两处,壳顶红条当场还印着 `(门:forbidden-words)` ——
+     修一处不等于修全部,而「还有几处」只有穷举才知道。判据构造性:
+     全仓找出 `fail_reason` / `lastPublishFailed.reason` 的**渲染点**,逐个要求同一行(或紧邻)出现译名函数。 */
+  const consumers = [];
+  for (const { file, text } of allSources()) {
+    const lines = text.split('\n');
+    lines.forEach((line, i) => {
+      const t = line.trim();
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') || t.startsWith('{/*')) return;
+      if (!/fail_reason|lastPublishFailed\.reason/.test(line)) return;
+      if (/interface |: string \| null|type /.test(line)) return; // 类型声明不是渲染点
+      /* 窗口 ±3 行:`{v.fail_reason ? (() => {` 这种条件判断会把取值与译名调用分到两行,
+         判据卡在同一行就会对**正确写法**报红(本文件判据② 栽过两次的同一个坑)。 */
+      const near = lines.slice(Math.max(0, i - 3), i + 4).join('\n');
+      if (!/splitFailReason|failReasonLine/.test(near)) consumers.push(`${file}:${i + 1}`);
+    });
+  }
+  out.push([consumers.length === 0, `self-test:每个 fail_reason 渲染点都过了译名函数(直出的:${JSON.stringify(consumers)})`]);
   return out;
 }
 

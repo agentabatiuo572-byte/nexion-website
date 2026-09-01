@@ -78,6 +78,14 @@ table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th { text-align: left; color: var(--ink4); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--ink2); vertical-align: top; }
 td b { color: var(--ink); font-weight: 600; }
+/* 窄屏:表格自己横滚,而不是把整页撑宽。
+   实测手机上审计页布局视口被撑到 980px、发布页 411px —— 整页横滚意味着导航、
+   状态条、按钮全都跟着跑出屏幕,人得先横着滚回去才能点别的。
+   `display:block` 后 thead/tbody 由匿名表格盒兜住,表格布局不变;媒体块写在基础规则之后
+   (更窄的块写在前面就是死声明,css-shadowed 门守着这一条)。 */
+@media (max-width: 700px) {
+  table { display: block; overflow-x: auto; }
+}
 
 .skl { background: linear-gradient(90deg, var(--surface2), var(--surface3), var(--surface2)); background-size: 200% 100%; animation: skl 1.2s linear infinite; border-radius: 8px; min-height: 14px; }
 @keyframes skl { from { background-position: 200% 0; } to { background-position: -200% 0; } }

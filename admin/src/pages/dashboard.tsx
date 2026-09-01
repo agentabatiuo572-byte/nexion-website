@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { api } from '../api';
+import { failReasonLine } from '../lib/fail-reason';
 import { countryName } from '../lib/iso-countries';
 
 type Maybe<T> = T | { error: true };
@@ -317,7 +318,7 @@ export default function Dashboard() {
               <div className={`note ${d.health.lastPublish.status === 'failed' ? 'bad' : 'info'}`} style={{ marginBottom: 0 }}>
                 {/* 枚举值不许直出到页面上(实测印过「最近发布 v8:cancelled」)。缺映射时说「状态未知」而不是原样吐机器词。 */}
                 最近发布 v{d.health.lastPublish.id}:
-                {{ live: '成功', failed: `失败(${d.health.lastPublish.fail_reason ?? '原因见发布页'})`, cancelled: '已取消', validating: '校验中', publishing: '发布中', archived: '已被更新的版本取代' }[
+                {{ live: '成功', failed: `失败(${d.health.lastPublish.fail_reason ? failReasonLine(d.health.lastPublish.fail_reason) : '原因见发布页'})`, cancelled: '已取消', validating: '校验中', publishing: '发布中', archived: '已被更新的版本取代' }[
                   d.health.lastPublish.status
                 ] ?? '状态未知(见发布页)'}
                 {' '}<NavLink to="/publish" style={{ color: 'var(--brand)' }}>发布页 →</NavLink>

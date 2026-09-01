@@ -2,6 +2,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ApiError, api, toast, type Overview } from './api';
+import { failReasonLine } from './lib/fail-reason';
 
 interface ShellState {
   overview: Overview | null;
@@ -120,7 +121,8 @@ export default function Shell() {
           {/* CON02-E2:上次发布失败的红条,常驻壳顶直到有一次成功发布把它顶掉 */}
           {overview?.lastPublishFailed && (
             <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span>上次发布失败(v{overview.lastPublishFailed.id}):{overview.lastPublishFailed.reason}　线上仍是 v{overview.liveVersion},未受影响。</span>
+              {/* 只给人话:壳顶这行没有排查场景,门名/原始报错留在发布页详情(lib/fail-reason 单源) */}
+              <span>上次发布失败(v{overview.lastPublishFailed.id}):{failReasonLine(overview.lastPublishFailed.reason)}　线上仍是 v{overview.liveVersion},未受影响。</span>
               <NavLink to="/publish" className="btn ghost sm">去看详情</NavLink>
             </div>
           )}

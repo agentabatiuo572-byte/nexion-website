@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ApiError, api } from '../api';
+import { lockoutText, useLockout } from '../lib/use-lockout';
 
 export default function Login() {
   const nav = useNavigate();
@@ -9,21 +10,18 @@ export default function Login() {
   const [pw, setPw] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  const [lockSec, setLockSec] = useState(0);
+  const lock = useLockout();
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy || lockSec > 0) return;
+    if (busy || lock.sec > 0) return;
     setBusy(true);
     setErr('');
     try {
       await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ password: pw }) });
       nav(sp.get('back') || '/', { replace: true });
     } catch (ex) {
-      if (ex instanceof ApiError && ex.status === 429) {
-        const s = Number(ex.body.retryAfterSec ?? 0) || 900;
-        setLockSec(s);
-        const timer = setInterval(() => setLockSec((v) => (v <= 1 ? (clearInterval(timer), 0) : v - 1)), 1000);
+      if (lock.capture(ex)) {
         setErr('');
       } else if (ex instanceof ApiError && ex.status === 401) {
         setErr('用户名或口令不正确');
@@ -48,8 +46,8 @@ export default function Login() {
           <input id="pw" type="password" autoComplete="current-password" value={pw} onChange={(e) => setPw(e.target.value)} autoFocus />
         </div>
         {err && <div className="note bad">{err}</div>}
-        {lockSec > 0 && <div className="note bad">尝试过多,{Math.ceil(lockSec / 60)} 分钟后再试({lockSec}s)</div>}
-        <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy || lockSec > 0}>
+        {lock.sec > 0 && <div className="note bad">{lockoutText(lock.sec)}</div>}
+        <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy || lock.sec > 0}>
           {busy ? '登录中…' : '登录'}
         </button>
         <p className="kv" style={{ marginTop: 12 }}>首次使用?先完成初始化(部署时的 SETUP_TOKEN):<a href="/admin/setup" style={{ color: 'var(--ink2)' }}>去初始化 →</a></p>

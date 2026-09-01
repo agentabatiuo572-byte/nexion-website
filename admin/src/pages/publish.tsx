@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
+import { splitFailReason } from '../lib/fail-reason';
 import { useShell } from '../shell';
 
 interface Finding { path: string; rule: string; message: string }
@@ -61,15 +62,21 @@ const LOCALE_NAME: Record<string, string> = { en: '英文', vi: '越南语', zh:
 const FIELD_NAME: Record<string, string> = {
   // 产品卡
   name: '名称', priceUSD: '价格', multiplier: '算力倍数', status: '状态', tagline: '标语', visible: '是否展示', sort: '排序',
-  // 下载入口
-  url: '链接', enabled: '开关',
+  free: '是否免费档',
+  // 下载入口(平台键也要译:`下载入口 · ios · 链接` 里那个 ios 是配置键,不是给人看的写法)
+  url: '链接', enabled: '开关', ios: 'iOS 版', android: '安卓版', h5: '网页版',
   // 公告条 / SEO / 页脚
   text: '正文', startsAt: '开始时间', endsAt: '结束时间', title: '标题', description: '描述',
   social: '社媒链接', contactEmail: '联系邮箱', id: '编号',
-  // 平台数字(与各页面上的标签一致)
+  // 平台数字(与各页面上的标签一致)。走查实景抓到过「平台数字 · nodes」漏在这里
   activeDevices: '活跃设备', activeJobs: '运行中任务', countries: '覆盖国家', uptime: '在线率',
+  nodes: '节点数', asOf: '数据截至',
   // FAQ / Legal
-  items: '条目', q: '问题', a: '答案', md: '正文', updatedAt: '最后更新',
+  items: '条目', q: '问题', a: '答案', md: '正文', updatedAt: '最后更新', href: '跳转链接',
+  terms: '服务条款', privacy: '隐私政策', appPrivacy: 'App 隐私政策',
+  // SEO 的页面 id(seo.pages 下的键就是路由名,直接摆出来运营对不上是哪一页)
+  pages: '页面', home: '首页', learn: '学习页', nex: 'NEX 页',
+  'legal-privacy': '隐私政策页', 'legal-terms': '服务条款页', 'legal-app-privacy': 'App 隐私政策页',
 };
 /** 例:`skus[0].priceUSD` → 「产品卡 · 第 1 张 · 价格」;认不出的部分保留原样,不隐藏 */
 export function humanPath(path: string): string {
@@ -285,7 +292,15 @@ export default function PublishPage() {
           与服务端 lastPublishFailed 同口径:失败版本比线上新即显示。 */}
       {!active && lastFailed && lastFailed.id > (st.versions.find((v) => v.status === 'live')?.id ?? 0) && (
         <div className="note bad">
-          <b>上次发布失败(v{lastFailed.id}):{lastFailed.fail_reason ?? '原因未记录'}</b>
+          {(() => {
+            const f = splitFailReason(lastFailed.fail_reason ?? '原因未记录');
+            return (
+              <>
+                <b>上次发布失败(v{lastFailed.id}):{f.human}</b>
+                {f.tech && <div className="kv mono" style={{ marginTop: 2, wordBreak: 'break-all' }}>{f.tech}</div>}
+              </>
+            );
+          })()}
           <div className="kv" style={{ marginTop: 4 }}>线上仍是上一版,未受影响(线上伺服的是已发布快照,失败的构建产物不会对外);你的草稿改动也原样保留,修好后可再次发布。</div>
           {(() => {
             // 失败态下 steps 来自「最近一次」版本,需确认就是这一版的日志(验收 P1:此前失败态取不到日志)
@@ -392,7 +407,18 @@ export default function PublishPage() {
                 <td><span className={`pill ${v.status === 'live' ? 'brand' : v.status === 'failed' ? 'bad' : ''}`}>{STATUS_LABEL[v.status] ?? v.status}</span></td>
                 {/* 改动数:算不出来就留空,不编一个数(PRD ⑤;实景走查 P2-1) */}
                 <td className="mono kv">{typeof v.changed === 'number' ? `${v.changed} 处` : '—'}</td>
-                <td>{v.fail_reason ?? v.reason ?? (v.created_by === 'system' ? <span className="kv">初始种子(非发布)</span> : '—')}</td>
+                <td>
+                  {v.fail_reason ? (() => {
+                    const f = splitFailReason(v.fail_reason);
+                    return (
+                      <>
+                        {f.human}
+                        {/* 门名 / 原始报错留在小字里:历史表是排查入口,信息不能删,但也不该占主视线 */}
+                        {f.tech && <div className="kv mono" style={{ wordBreak: 'break-all', maxWidth: 360 }}>{f.raw ? f.tech.slice(0, 160) : `门:${f.tech}`}</div>}
+                      </>
+                    );
+                  })() : v.reason ?? (v.created_by === 'system' ? <span className="kv">初始种子(非发布)</span> : '—')}
+                </td>
                 <td>
                   {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,
                       于是 cancelled 行也长出按钮,点了必 404 —— 界面给的每个按钮都该是能点通的。 */}

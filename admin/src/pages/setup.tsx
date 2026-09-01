@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
+import { lockoutText, useLockout } from '../lib/use-lockout';
 
 export default function Setup() {
   const nav = useNavigate();
@@ -12,6 +13,7 @@ export default function Setup() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const [gone, setGone] = useState(false);
+  const lock = useLockout();
 
   useEffect(() => {
     api<{ initialized: boolean }>('/api/auth/state')
@@ -21,7 +23,7 @@ export default function Setup() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
+    if (busy || lock.sec > 0) return; // 锁定期内连回车提交也挡掉,不只是按钮置灰
     if (pw.length < 12) return setErr('口令至少 12 位');
     if (pw !== pw2) return setErr('两次口令不一致');
     setBusy(true);
@@ -33,7 +35,7 @@ export default function Setup() {
     } catch (ex) {
       if (ex instanceof ApiError && ex.status === 410) setGone(true);
       else if (ex instanceof ApiError && ex.status === 403) setErr('初始化令牌不正确');
-      else if (ex instanceof ApiError && ex.status === 429) setErr('尝试过多,稍后再试');
+      else if (lock.capture(ex)) setErr(''); // 秒数与禁用态交给 useLockout,与登录页同一份
       else setErr('网络异常,请重试');
     } finally {
       setBusy(false);
@@ -59,7 +61,8 @@ export default function Setup() {
         <div className="field"><label>设置口令(≥12 位)</label><input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></div>
         <div className="field"><label>重复口令</label><input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
         {err && <div className="note bad">{err}</div>}
-        <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy}>{busy ? '提交中…' : '设置口令'}</button>
+        {lock.sec > 0 && <div className="note bad">{lockoutText(lock.sec)}</div>}
+        <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy || lock.sec > 0}>{busy ? '提交中…' : '设置口令'}</button>
       </form>
     </div>
   );
