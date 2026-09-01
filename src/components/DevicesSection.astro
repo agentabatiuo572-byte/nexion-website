@@ -206,7 +206,8 @@ const shareArt = contour(77, 12, 640, 400);
        那是照参考站的另一类 12px 字距刻意保留的,不是漏改。 */
     line-height: 1.2;
     text-transform: uppercase;
-    min-width: calc(5ch + 20 * var(--uc)); /* 5ch 是文字最小宽;border-box 下要算上两侧内衬 */
+    /* 5 字身是文字最小宽(禁 ch,见 tokens.css);border-box 下要算上两侧内衬 */
+    min-width: calc(5 * var(--x-ch-mono) + 20 * var(--uc));
     padding: calc(10 * var(--uc));
     text-align: center;
   }

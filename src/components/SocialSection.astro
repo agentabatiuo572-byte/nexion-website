@@ -101,7 +101,7 @@ const TESTIMONIALS: Testimonial[] = [];
   .roles {
     color: var(--x-ink-dim);
     margin: 0;
-    max-width: min(46ch, 100%);
+    max-width: min(calc(46 * var(--x-ch-mono)), 100%); /* 46 字身行长上限,禁 ch(见 tokens.css) */
     text-wrap: pretty;
     line-height: 1.5;
   }

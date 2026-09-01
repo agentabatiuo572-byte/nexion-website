@@ -137,7 +137,10 @@ const faqs = [1, 2, 3, 4] as const;
     font-size: clamp(34px, 5.2vw, calc(54 * var(--uc)));
     color: var(--x-ink);
     margin: 0 0 calc(14 * var(--uc));
-    max-width: 22ch;
+    /* 22 字身宽 = 原 22ch 的确定性写法(禁 ch,见 tokens.css)。
+       不必在这里分语言:--x-ch-display 与 --x-font-display 成对定义在 tokens.css 的 :lang() 块里,
+       vi 自动拿到 Be Vietnam Pro 的字身(比 Funnel 宽 17.6%,上限 803px 而非 683px)。 */
+    max-width: calc(22 * var(--x-ch-display));
   }
   .lead {
     color: var(--x-ink-dim);
