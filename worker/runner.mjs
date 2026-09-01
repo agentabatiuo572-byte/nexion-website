@@ -78,11 +78,17 @@ function runGates() {
   let gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
 
   if (code === 0) {
-    const w = spawnSync('node', ['gate-config-consistency.mjs'], { cwd: here, shell: true, encoding: 'utf8' });
-    out += `\n---- worker 一致性门 ----\n${w.stdout ?? ''}${w.stderr ?? ''}`;
-    if (w.status !== 0) {
-      code = w.status ?? 1;
-      gate = 'config-consistency';
+    for (const [name, script] of [
+      ['config-consistency', 'gate-config-consistency.mjs'],
+      ['console-copy', 'gate-console-copy.mjs'],
+    ]) {
+      const w = spawnSync('node', [script], { cwd: here, shell: true, encoding: 'utf8' });
+      out += `\n---- ${name} ----\n${w.stdout ?? ''}${w.stderr ?? ''}`;
+      if (w.status !== 0) {
+        code = w.status ?? 1;
+        gate = name;
+        break;
+      }
     }
   }
   return { ok: code === 0, gate, tail: out.split('\n').slice(-25).join('\n') };

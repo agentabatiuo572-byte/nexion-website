@@ -18,7 +18,8 @@
     "gate:config": "node gate-config-consistency.mjs",
     "gate:artifact-independence": "node gate-artifact-independence.mjs",
     "publish:runner": "node --import ./register-ts-ext.mjs runner.mjs",
-    "publish:promote": "node promote.mjs"
+    "publish:promote": "node promote.mjs",
+    "gate:console-copy": "node gate-console-copy.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0",

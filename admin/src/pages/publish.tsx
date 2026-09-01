@@ -17,6 +17,8 @@ interface Status {
   activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[];
   /** 线上快照对不上:版本号不符,或版本号对但内容被直接改过(tampered 列出对不上的文件) */
   drift: { dbLive: number; snapshot: number | null; tampered?: string[] } | null;
+  /** 版本列表被截断了(只回最近若干条)——界面必须说出来,别让人以为这就是全部 */
+  versionsTruncated?: boolean;
 }
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
@@ -160,8 +162,9 @@ export default function PublishPage() {
             <div className="note bad" style={{ marginTop: 8 }}>
               <b>强制中止 v{active}</b>
               {/* 口径要与列表和审计一致:中止后列表显示「已取消」,这里就不能写「记为失败」(第五轮 P1-7) */}
-              <div className="kv">执行器已失联。中止后这一版记为**已取消**、线上保持不变,可以重新发起。理由会记进审计。</div>
-              <div className="kv">⚠️ 中止只在系统里放开这次发布,**并不会去停掉那个执行器进程**。若它其实还活着,请先把它关掉再重新发起。</div>
+              {/* JSX 里 `**…**` 就是两个星号,会原样印在界面上;要加重用 <b>(gate-console-copy 守) */}
+              <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
+              <div className="kv">⚠️ 中止只在系统里放开这次发布,<b>并不会去停掉那个执行器进程</b>。若它其实还活着,请先把它关掉再重新发起。</div>
               <div className="row" style={{ marginTop: 6, gap: 8 }}>
                 <input className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
                 <button className="btn" onClick={forceCancel}>确认中止</button>
@@ -178,7 +181,7 @@ export default function PublishPage() {
           <b>线上内容与系统记录对不上</b>
           {st.drift.tampered?.length ? (
             <div className="kv">
-              版本号对得上(v{st.drift.dbLive}),但线上这些文件的内容**与发布那一刻不一样**了:
+              版本号对得上(v{st.drift.dbLive}),但线上这些文件的内容<b>与发布那一刻不一样</b>了:
               <span className="mono"> {st.drift.tampered.join('、')}</span>。
               说明有人绕过发布流程直接改了线上文件。请重新发布一次把线上恢复成系统记录的版本。
               <br />
@@ -207,11 +210,11 @@ export default function PublishPage() {
       <div className="note" style={{ marginBottom: 12 }}>
         <b>线上内容核查的范围</b>
         <div className="kv">
-          每次发布会记下**全部网页文件**的指纹,系统在上线前和每次打开本页时回头核对一遍——
+          每次发布会记下<b>全部网页文件</b>的指纹,系统在上线前和每次打开本页时回头核对一遍——
           有人绕过发布流程改了网页,这里会报出来并点名文件。
           <br />
           范围之外:样式表、脚本、图片等资源不逐个核对(它们换内容通常会换文件名、从而带动网页本身变化,
-          但**直接覆盖同名资源文件**这一种查不到)。
+          但<b>直接覆盖同名资源文件</b>这一种查不到)。
         </div>
       </div>
 
@@ -310,6 +313,13 @@ export default function PublishPage() {
       {/* 版本历史 */}
       <div className="card">
         <h3>版本历史(只增不删;回滚也走全部机器门)</h3>
+        {/* 🔴 截断必须说出来:此前静默只渲染最近 30 条,46 个版本时线上那一行直接消失,
+            而标题写着「只增不删」——界面在说一句它自己正在违反的话(实景走查 P1)。 */}
+        {st.versionsTruncated && (
+          <div className="note info" style={{ marginBottom: 8 }}>
+            只显示最近 {st.versions.filter((v) => v.status !== 'live').length + 1} 条(更早的版本仍在,未删除)。当前线上那一版已单独固定显示在列表里。
+          </div>
+        )}
         <table>
           <thead><tr><th>版本</th><th>时间</th><th>状态</th><th>理由 / 失败原因</th><th></th></tr></thead>
           <tbody>

@@ -52,8 +52,8 @@ export default function DownloadsPage() {
           <div className="card" key={k} style={{ marginBottom: 10 }}>
             <div className="row">
               <b style={{ width: 88 }}>{label}</b>
-              <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : 'coming-soon'}</span>
-              {p && (p.skipped ? <span className="pill">未启用/未配置,不探</span> : p.ok ? <span className="pill ok">可达 {p.status}</span> : <span className="pill bad">不可达({p.status || '超时'})</span>)}
+              <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : '未配置(站上显示「即将推出」并禁用)'}</span>
+              {p && (p.skipped ? <span className="pill">未启用/未配置,不探</span> : p.ok ? <span className="pill ok">{/* enum-ok:这是 HTTP 状态码,原值就是要给人看的 */}可达 {p.status}</span> : <span className="pill bad">不可达({p.status || '超时'})</span>)}
               <span className="spacer" />
               <label className="row" style={{ gap: 6 }}>
                 <span className="kv">开启</span>

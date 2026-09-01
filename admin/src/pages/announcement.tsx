@@ -21,7 +21,8 @@ export default function AnnouncementPage() {
   const a: Ann = { ...draft.announcement, ...e, text: { ...draft.announcement.text, ...textE } };
   const dirty = Object.keys(e).length > 0 || Object.keys(textE).length > 0;
   const now = Date.now();
-  const winState = !a.enabled ? 'disabled' : !a.startsAt || !a.endsAt ? '缺时间' : now < Date.parse(a.startsAt) ? 'scheduled(未到窗)' : now > Date.parse(a.endsAt) ? 'expired(已过窗)' : 'live(窗内展示中)';
+  /* 窗口态一律人话:此前混着 disabled / scheduled / expired 这类机器词直出(实景走查 P1) */
+  const winState = !a.enabled ? '未启用' : !a.startsAt || !a.endsAt ? '缺起止时间' : now < Date.parse(a.startsAt) ? '已排期(还没到展示时间)' : now > Date.parse(a.endsAt) ? '已过期(展示时间已过)' : '展示中';
   const errs: string[] = [];
   if (a.enabled) {
     for (const l of ['en', 'vi', 'zh'] as const) if (!a.text[l].trim()) errs.push(`启用的公告 ${l} 文案必填`);
@@ -41,7 +42,7 @@ export default function AnnouncementPage() {
         <div className="row">
           <b>总开关</b>
           <input type="checkbox" style={{ width: 18, height: 18 }} checked={a.enabled} onChange={(ev) => setE((s) => ({ ...s, enabled: ev.target.checked }))} />
-          <span className={`pill ${winState.startsWith('live') ? 'ok' : winState === 'disabled' ? '' : 'warn'}`}>{winState}</span>
+          <span className={`pill ${winState === '展示中' ? 'ok' : winState === '未启用' ? '' : 'warn'}`}>{winState}</span>
         </div>
       </div>
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>

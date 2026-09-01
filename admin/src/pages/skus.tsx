@@ -5,6 +5,8 @@ import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { useDraft } from '../lib/use-draft';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
+/** 机器枚举 → 人话。缺映射时显示「状态未知(原值)」,不静默、也不吐裸枚举 */
+const SKU_STATUS: Record<string, string> = { active: '在售', legacy: '已停产', coming: '即将上市' };
 const FACTS = ['name', 'priceUSD', 'multiplier', 'status'] as const;
 
 export default function SkusPage() {
@@ -52,7 +54,7 @@ export default function SkusPage() {
             <div className="row">
               <span className="kv mono" style={{ cursor: 'grab' }} title="拖拽排序">⠿</span>
               <b>{s.name}</b>
-              <span className={`pill ${s.status === 'active' ? 'brand' : ''}`}>{s.status}</span>
+              <span className={`pill ${s.status === 'active' ? 'brand' : ''}`}>{SKU_STATUS[s.status] ?? `状态未知(${s.status})`}</span>
               <span className="mono kv">${s.priceUSD.toLocaleString('en-US')} · {s.multiplier}×</span>
               {factTouched(id) && <span className="pill warn">事实字段已改</span>}
               <span className="spacer" />
@@ -70,8 +72,9 @@ export default function SkusPage() {
                   <div className="field"><label>价格 USD(事实)</label><input className="mono" value={String(s.priceUSD)} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], priceUSD: Number(e.target.value) } }))} /></div>
                   <div className="field"><label>算力倍数(事实)</label><input className="mono" value={String(s.multiplier)} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], multiplier: Number(e.target.value) } }))} /></div>
                   <div className="field"><label>状态(事实)</label>
+                    {/* enum-ok:select 的 value 必须是机器值,人话在 option 文字里 */}
                     <select value={s.status} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], status: e.target.value } }))}>
-                      <option value="active">active</option><option value="legacy">legacy</option><option value="coming">coming</option>
+                      <option value="active">在售</option><option value="legacy">已停产</option><option value="coming">即将上市</option>
                     </select>
                   </div>
                 </div>

@@ -111,7 +111,11 @@ export default function Shell() {
             {overview ? (
               <>
                 <span className="chip">线上 <b>v{overview.liveVersion}</b></span>
-                <span className={`chip ${overview.dirty ? 'warnc' : ''}`}>{overview.dirty ? `草稿 · ${overview.dirty} 处未发布改动` : '与线上一致'}</span>
+                {/* 🔴 「与线上一致」说的是**草稿 vs 线上版本**,可劈叉时它会和上方红条同屏矛盾
+                    (红条:线上内容与系统记录对不上)。劈叉时把话说准:草稿没改动,但线上内容另有问题。 */}
+                <span className={`chip ${overview.dirty ? 'warnc' : overview.drift ? 'warnc' : ''}`}>
+                  {overview.dirty ? `草稿 · ${overview.dirty} 处未发布改动` : overview.drift ? '草稿无改动(线上内容另有问题,见上方红条)' : '与线上一致'}
+                </span>
                 <NavLink to="/geo" className={`chip ${overview.geo?.degraded ? 'warnc' : ''}`} title="区域屏蔽(只读状态;点击进入规则面板)">
                   屏蔽 <b>{overview.geo ? (overview.geo.enabled ? `开启 · ${overview.geo.countries} 个地区` : '未启用') : '状态未知'}</b>
                   {overview.geo?.degraded && ' ⚠ 兜底中'}

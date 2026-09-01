@@ -637,6 +637,27 @@ describe('CON13 发布流水线', () => {
     expect((await env.DB.prepare('SELECT COUNT(*) n FROM publish_lock').first<{ n: number }>())!.n, '锁不该被释放').toBe(1);
   });
 
+
+  it('🔴 版本列表截断时:必须说出来,且当前线上那一行不许消失', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '截断测试');
+    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    await runPipeline(cookie, r.versionId); // r 成为 live
+
+    // 造 40 条更新的版本行,把 live 挤出「最近 30 条」之外
+    for (let i = 0; i < 40; i++) {
+      await env.DB
+        .prepare("INSERT INTO config_versions (status, payload, created_by, created_at) VALUES ('failed', '{}', 'admin', ?1)")
+        .bind(Date.now() + i)
+        .run();
+    }
+    const s = await status(cookie);
+    const rows = s.versions as Array<{ id: number; status: string }>;
+    expect(s.versionsTruncated, '被截断了就要说出来').toBe(true);
+    expect(rows.some((v) => v.id === r.versionId), '当前线上那一行不许被截断吞掉').toBe(true);
+    expect(rows.filter((v) => v.status === 'live')).toHaveLength(1);
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

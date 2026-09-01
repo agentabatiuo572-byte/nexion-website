@@ -32,6 +32,7 @@ export const GATE_REASONS: Record<string, string> = {
   'render-fit': '新文案把版面挤破了(行压行 / 文字钻到导航底下 / 窄屏字号反向变大)',
   'deck-clearance': '设备叠卡的编舞几何侵入了左栏文字',
   'config-consistency': '服务端配置与代码对不上(定时任务 / 伺服目录 / 失败面映射)',
+  'console-copy': '控制台界面文案有问题(markdown 记号会原样印出 / 机器状态词直出给人看)',
 };
 export const explainGate = (name: string): string => GATE_REASONS[name] ?? name;
 
@@ -497,17 +498,29 @@ publishRoutes.get('/status', async (c) => {
   const steps = stepsOf
     ? (await c.env.DB.prepare('SELECT version_id, step, status, detail, started_at, ended_at FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(stepsOf).all()).results
     : [];
-  const versions = (
+  /* 🔴 截断要说出来,而且**当前线上那一版必须在**(2026-09-01 实景走查 P1)。
+     此前固定取最近 30 条,46 个版本时线上那一行直接消失,而表头写着「只增不删」——
+     界面在说一句它自己正在违反的话。现在:多取一条用来判断有没有截断,并单独把 live 行捞回来。 */
+  const PAGE = 30;
+  const rowsRaw = (
     await c.env.DB
-      .prepare('SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions ORDER BY id DESC LIMIT 30')
+      .prepare(`SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions ORDER BY id DESC LIMIT ${PAGE + 1}`)
       .all<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>()
   ).results;
+  const truncated = rowsRaw.length > PAGE;
+  const versions = rowsRaw.slice(0, PAGE);
+  // 线上那一版不在这一页里就单独捞回来:它是这张表最不能缺的一行
+  const liveRow = await c.env.DB
+    .prepare("SELECT id, status, reason, fail_reason, created_by, created_at, published_at FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1")
+    .first<{ id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null }>();
+  if (liveRow && !versions.some((v) => v.id === liveRow.id)) versions.push(liveRow);
+
   /* 🔴 劈叉自查(2026-09-01 复验 P1-3):切换脚本先落盘、再回报,所以「盘上已经换了、回报没送到」
      是一个不需要攻击者就会发生的形态(执行器死在这一拍即可)。此前没有任何一处会发现它——
      界面说「线上保持旧版」,而站上早就是新内容了。现在每次读状态都拿线上快照的印记与
      数据库记的 live 对一次,不一致就明说,让人能看见并重发一次把两边对齐。 */
   const drift = await liveSnapshotDrift(c.env).catch(() => null);
-  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, stepNames: PUBLISH_STEPS, drift });
+  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, versionsTruncated: truncated, stepNames: PUBLISH_STEPS, drift });
 });
 
 /** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了。
