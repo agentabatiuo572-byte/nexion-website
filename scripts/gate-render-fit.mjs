@@ -902,10 +902,12 @@ for (const r of HOME) {
       从 .x-display(w400)换成 .x-h24 / .x-display-mega(w500),本判据会判「相符」而实际偏 1.18%。
       锁文件挡得住换字体,挡不住换字重。这个前提每次跑门都打印出来(见下方 H 那行),不留隐形前提;
       真要封死得把 consumer 的实际字重解析进来,届时再做。
-   ⚠️ 自指(无害但要知道):本判据**用浏览器自己的 `ch`(width:1000ch)去量真实字身宽** —— 用那个不可靠的
-      单位来执法「禁用它」的规则。功能上安全:它在 networkidle + fonts.ready 之后**新建**元素才量,
-      新元素拿的是新鲜样式吃不到陈值;万一真吃到,方向是**误报红**(不会放过)。
-      所以 H 哪天报出一个巨大差值(比如恰好是 0.5em 那一档),先怀疑它自己撞上了陈值,别先怀疑常数。
+   ✅ 自指已拆除(2026-09-01):本判据一度用浏览器自己的 `ch`(width:1000ch)去量真实字身宽 ——
+      拿那个不可靠的单位来执法「禁用它」的规则。虽然方向安全(撞上兜底态是误报红、不会放过),
+      但「量尺本身可能就是被测的病」这层前提没有必要留着。现改用 canvas `measureText('0').width`
+      直接量「0」的前进宽,那正是 ch 的定义,且完全不经过 CSS 长度解算。
+      换法前做过等价实测:三语 × 两个 token,canvas 与 ch 两路读数**差 0%**(0.612 / 0.575 / 0.676 逐位相同)。
+      🔴 别改回 ch 量:这条判据是禁 ch 的执法者,执法者自己不能吃那口。
    来源:判据本体与 SCAN_CH 取自 claude/inspiring-hamilton-6fde54 的 7bc8c13,交叉验证段取自其 5a62518,
    字重缝与本条自指提醒由 claude/heuristic-bohr-68a3fb 复核指出;三条线独立收敛出同一套修法,
    本条是差集,单独摘取(其余整份丢弃,因与 f1e0fc9 重复)。 */
@@ -921,12 +923,11 @@ const SCAN_CH = (names) => {
     if (!stack) { out.push({ n, err: '配对的 ' + fontVar + ' 未定义 —— 比值失去归属' }); continue; }
     const m = declared.match(/^([0-9.]+)em$/);
     if (!m) { out.push({ n, err: '值「' + declared + '」不是 N em 形式,无法与字体度量比对' }); continue; }
-    const d = document.createElement('div');
-    d.style.cssText = 'position:absolute;visibility:hidden;top:-9999px;width:1000ch;font-weight:400;font-size:100px';
-    d.style.fontFamily = stack;
-    document.body.appendChild(d);
-    const measured = d.getBoundingClientRect().width / 100000;
-    d.remove();
+    // canvas 直接量「0」的前进宽(= ch 的定义),不经过 CSS 长度解算,故不吃 ch 的兜底态。
+    // 字重固定 400:与上面「已知天花板」那条对应,变了要连那条一起改。
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = '400 100px ' + stack;
+    const measured = ctx.measureText('0').width / 100;
     out.push({ n, declared: +m[1], measured: Math.round(measured * 1e5) / 1e5,
       font: stack.split(',')[0].replace(/["']/g, ''), lang: root.lang });
   }
