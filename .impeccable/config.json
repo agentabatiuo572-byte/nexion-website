@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-09-01T09:25:28.180Z",
         "reason": "cert-zoom 灯箱的 img 故意无 src:大图由开启脚本注入(懒加载,实测慢网首开 2521ms→179ms),既有设计非占位符;见同文件 95-97 行注释与 fx.ts 灯箱逻辑"
+      },
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          ".design-work/DataInk.dc.html"
+        ],
+        "createdAt": "2026-09-01T09:50:48.721Z",
+        "reason": "被否决的设计探索稿(方向 B 数据批注):扁平字号层级正是该方向的定义特征——保持全站 uppercase mono 体例,层次靠标注墨水而非字号;代价已在提案与画布便签中写明。落地实现走的是混合定稿(Main),不消费本稿;.design-work 已 gitignore 不入库"
       }
     ]
   }
