@@ -314,6 +314,9 @@ const quotes = [1, 2] as const;
   }
   .wcell {
     display: grid;
+    /* 与 StatsBar .cell 同型:三条 auto 轨吃 stretch,某格 .wcap 多折一行就把本格 .wnum
+       下推「行高 ÷ 3」,三列大数字顶不齐。start = 贴顶,不吃拉伸。 */
+    align-content: start;
     gap: calc(8 * var(--uc));
     justify-items: start;
     border-left: 1px solid var(--x-line-soft);

@@ -1,4 +1,4 @@
-/* 门:版面在真渲染下不能自相矛盾 —— 六条判据一起判。
+/* 门:版面在真渲染下不能自相矛盾 —— 七条判据一起判。
  *   A 行间:相邻两行的墨(含变音符与下点)不能相接;
  *   B 层间:首屏文字的墨不能钻进导航的磨砂蒙版底下;
  *   C 声明:`--x-nav-h` 的声明值必须等于导航的实测高;
@@ -7,6 +7,9 @@
  *   F 弹层:**关闭态**的 <dialog> 必须真隐藏(载入即测 + 开关一轮后再测)——
  *     基类写 display 会顶掉 UA 的 `dialog:not([open]){display:none}`,弹层自首帧常驻可见、
  *     吞掉底下内容的点击。这一族曾在 13 门全绿下溜进产物,靠两路独立终审肉眼抓回(R49 收线 P0)。
+ *   G 兄弟:同一行里同 class 的兄弟,其对应子元素必须顶齐 —— grid/flex 的轨拉伸会把多出来的高度
+ *     平摊给容器内各行,让本该齐平的大数字下沉「行高 ÷ 3」。判据只在「上游完全一致」时才判,
+ *     结构或前序高度一分叉就收手,所以正常文档流(上面标题折两行、下面正文自然更低)不会误报。
  *
  * 🔴 还有一条不叫判据、但比判据更要紧的东西:**观测面缺口一律判红(exit 3)**。
  *    判据写得再对,取样时刻 / 采样面 / 统计量不对,就是假绿。三次实证:
@@ -384,6 +387,99 @@ const MEASURE_CLOSED = () => {
   return out;
 };
 
+/* ── ③ G 判据:同类兄弟的对应子元素必须顶齐 ──
+   出处:数字条 `.cell` 与行业数据 `.wcell` 都是「三条 auto 轨 + 默认 align-content:stretch」。
+   同一行里某格的标签多折一行,那多出来的高度被**平摊给该格的三条轨**,于是这一格的大数字
+   被下推「行高 ÷ 3」。实测 en/vi/zh 三语 × 320~2560 共 85 处,其中行业数据那处在**桌面主视口
+   三语全中**、熬过四十多轮人工走查 —— 人眼对「两个大数字差 5px」天然不敏感,这是机器该接的活。
+
+   判据构造性(不列元素清单):从 DOM 自己枚举「同一父元素下、标签+class 完全相同、且盒顶相同
+   (= 同一视觉行)」的兄弟组,再把各成员的子元素按序并排比。同签名兄弟 = **作者明示的同类**,
+   这正是「它们该长得一样」的依据,不需要我去猜哪些容器算一族。
+
+   两条收敛规则(把误报面压到近乎为零,而不是靠加逃生阀):
+     ① 结构一分叉就停:第 k 个子元素签名对不上,后面全部不可比,立刻收手;
+     ② **内容高一分叉就停,且这一问必须问在「判顶」之前** —— 一个元素自己的内容本来就该不一样高时
+        (左格标题一行、右格两行),容器若是居中或末端对齐,它的顶天然错开,那是**作者点名要的**,
+        不是缺陷;它之后的兄弟也进入正常文档流,同样不可判。所以判的只有「上游与自身内容全一致、
+        它却偏了」这一种情形 —— 那只能是容器在分配空白。
+        量内容高必须用 Range,不能用盒高:拉伸恰恰会把盒撑大,用盒高会在抓到缺陷前就收手(自检 ⑯⑰)。
+
+   🔴 这条收敛换来的**已知覆盖缺口**,写在这里而不是让它静默存在:
+      若某一族错位恰好发生在「自身内容高也不一致」的元素上,G 判不了它。
+      代价是自愿付的 —— 六宫格 `li.cell` 的名称栏(1 行 vs 2 行、`align-items:center`)实景确认是
+      **有意居中**,上一版判据把它报成 17.84px 错位;宁可放过那个理论缺口,也不能让门天天报正当版式。
+   递归只在「顶齐且等高」的子元素上继续下钻,即上游完全对齐时才往深处看,不制造下游连锁误报。
+   逃生阀:容器加 class `sibling-align-ok`(有意让同类兄弟错位才加)。 */
+const SIB_TOL = 1.5; // 画布 zoom 会让 rect 带小数;真缺陷一向是 4.75px 起步,这条带子隔得开
+const SCAN_SIBS = () => {
+  const TOL = 1.5;
+  const out = [];
+  const sig = (el) => {
+    const cls = typeof el.className === 'string' ? el.className.trim().split(/\s+/).filter(Boolean).sort().join('.') : '';
+    return el.tagName.toLowerCase() + (cls ? '.' + cls : '');
+  };
+  const vis = (el) => {
+    if (/^(SCRIPT|STYLE|BR|HR|NOSCRIPT|TITLE|META|LINK)$/.test(el.tagName)) return false;
+    if (el.namespaceURI && el.namespaceURI.indexOf('svg') >= 0) return false;
+    const cs = getComputedStyle(el);
+    if (cs.display === 'none' || cs.visibility === 'hidden') return false;
+    const r = el.getBoundingClientRect();
+    return r.width > 1 && r.height > 1;
+  };
+  const txt = (el) => (el.textContent || '').split(/\s+/).join(' ').trim().slice(0, 24);
+  /* 🔴 内容高 ≠ 盒高。拉伸会把盒撑大(首子元素 40 vs 30),拿盒高当「内容分叉」的信号,
+     会在走到真正错位的那个子元素之前就收手 —— 判据自检 ⑯⑰ 当场量到这一点。
+     Range 量的是内容自己的排布范围,与容器给了多少空间无关,正是这里要的那把尺。 */
+  const contentH = (el) => {
+    const rg = document.createRange();
+    rg.selectNodeContents(el);
+    const h = rg.getBoundingClientRect().height;
+    return h > 0 ? h : el.getBoundingClientRect().height; // 替换元素/空元素退回盒高
+  };
+  const walk = (group, path, depth) => {
+    if (depth > 4) return;
+    const kids = group.map((g) => [...g.children].filter(vis));
+    const n = Math.min(...kids.map((k) => k.length));
+    for (let i = 0; i < n; i++) {
+      const row = kids.map((k) => k[i]);
+      const s0 = sig(row[0]);
+      if (!row.every((e) => sig(e) === s0)) return; // ① 结构分叉 → 不可比
+      /* ② 先问「它自己的内容本来就该一样高吗」,再判顶 —— 顺序不能反。
+         内容高一分叉,这个元素的顶就不可判了(容器若是居中/末端对齐,它天然错开),
+         它之后的兄弟也不可判(正常文档流)。所以分叉即收手。 */
+      const hs = row.map(contentH);
+      if (Math.max(...hs) - Math.min(...hs) > TOL) return;
+      const tops = row.map((e) => e.getBoundingClientRect().top);
+      const dTop = Math.round((Math.max(...tops) - Math.min(...tops)) * 100) / 100;
+      if (dTop > TOL) {
+        out.push({ path, sel: s0, delta: dTop, tops: tops.map((t) => Math.round(t * 10) / 10),
+          members: row.length, text: txt(row.find((e) => txt(e)) || row[0]) });
+        return; // 同一组只报最上游那一处,下游都是它的连锁
+      }
+      walk(row, path + '>' + s0, depth + 1);
+    }
+  };
+  for (const p of document.querySelectorAll('body *')) {
+    if (p.closest('.sibling-align-ok')) continue;
+    const kids = [...p.children].filter(vis);
+    if (kids.length < 2) continue;
+    const bySig = new Map();
+    for (const k of kids) { const s0 = sig(k); if (!bySig.has(s0)) bySig.set(s0, []); bySig.get(s0).push(k); }
+    for (const [s0, arr] of bySig) {
+      if (arr.length < 2) continue;
+      const rows = [];
+      for (const e of arr) {
+        const t = e.getBoundingClientRect().top;
+        const r = rows.find((r) => Math.abs(r.top - t) <= 1);
+        if (r) r.items.push(e); else rows.push({ top: t, items: [e] });
+      }
+      for (const r of rows) if (r.items.length >= 2) walk(r.items, s0, 1);
+    }
+  }
+  return out;
+};
+
 /* 1% 是 vw 制字号的亚像素噪声带(同一条 clamp 在相邻两档宽下本来就差零点几个百分点),
    不是给「小台阶」留的口子:这一族的成因是两套梯子各算各的,差距一向是两位数百分比。 */
 const SIZE_TOL = 0.01;
@@ -430,6 +526,51 @@ const FIXTURE_D = `<!doctype html><html lang="en"><head><meta charset="utf-8"><s
   @media (max-width: 500px) { h1 { font-size: 60px; } h2 { font-size: 7px; } }
 </style></head><body><h1>reverse</h1><h2>forward</h2><h3>flat</h3></body></html>`;
 
+/* G 的夹具:五种情形各一格。
+   .bug   同类兄弟 + 轨拉伸 → 第一个子元素被下推(该红)
+   .fixed 同一结构加了 align-content:start(不该红)
+   .flow  前序子元素高度先分叉,下游自然更低(不该红 —— 那是正常文档流,不是缺陷)
+   .esc   与 .bug 同病但容器挂了逃生阀(不该红)
+   .diff  两个兄弟 class 不同 = 不是同类,不参与比对(不该红)
+   .mid   有意居中:名称一行 vs 两行、align-items:center,顶天然错开(不该红)——
+          这一格是从**实景**里回灌的:上一版判据把六宫格名称栏报成 17.84px 错位,
+          看图确认那是作者点名要的居中版式。红测里钉死它,防止判据日后又放宽回去。 */
+const FIXTURE_G = `<!doctype html><html lang="en"><head><meta charset="utf-8"><style>
+  body { margin: 0; font-family: monospace; }
+  .wrap { display: grid; grid-template-columns: 1fr 1fr; width: 420px; }
+  .bug, .fixed, .esc, .diff1, .diff2 { display: grid; }
+  .fixed { align-content: start; }
+  .flow { display: block; }
+  .mid { display: flex; align-items: center; gap: 10px; }
+  .mid .th { width: 60px; height: 60px; background: #333; }
+  span { display: block; font-size: 16px; line-height: 30px; }
+</style></head><body>
+  <div class="wrap bugwrap">
+    <div class="bug"><span class="i">01</span><span class="n">111</span><span class="l">one</span></div>
+    <div class="bug"><span class="i">02</span><span class="n">222</span><span class="l">two<br>lines</span></div>
+  </div>
+  <div class="wrap fixedwrap">
+    <div class="fixed"><span class="i">01</span><span class="n">111</span><span class="l">one</span></div>
+    <div class="fixed"><span class="i">02</span><span class="n">222</span><span class="l">two<br>lines</span></div>
+  </div>
+  <div class="wrap flowwrap">
+    <div class="flow"><span class="t">head<br>wraps</span><span class="b">body</span></div>
+    <div class="flow"><span class="t">head</span><span class="b">body</span></div>
+  </div>
+  <div class="wrap escwrap sibling-align-ok">
+    <div class="esc"><span class="i">01</span><span class="n">111</span><span class="l">one</span></div>
+    <div class="esc"><span class="i">02</span><span class="n">222</span><span class="l">two<br>lines</span></div>
+  </div>
+  <div class="wrap diffwrap">
+    <div class="diff1"><span class="i">01</span><span class="n">111</span><span class="l">one</span></div>
+    <div class="diff2"><span class="i">02</span><span class="n">222</span><span class="l">two<br>lines</span></div>
+  </div>
+  <div class="wrap midwrap">
+    <div class="mid"><img class="th" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" width="60" height="60"><span class="nm">one line</span></div>
+    <div class="mid"><img class="th" src="data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==" width="60" height="60"><span class="nm">two<br>lines</span></div>
+  </div>
+</body></html>`;
+
 if (process.argv.includes('--self-test')) {
   const b = await chromium.launch();
   const c = await b.newContext({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 1 });
@@ -462,6 +603,12 @@ if (process.argv.includes('--self-test')) {
     { waitUntil: 'load' },
   );
   const fHit = (await p.evaluate(MEASURE_CLOSED)).map((x) => x.sel).join(' ');
+  // G:走的是主循环用的同一份 SCAN_SIBS
+  await p.setViewportSize({ width: 800, height: 700 });
+  await p.setContent(FIXTURE_G, { waitUntil: 'load' });
+  const gRaw = await p.evaluate(SCAN_SIBS);
+  const gHit = gRaw.map((x) => x.path + ' ' + x.sel).join(' | ');
+  const gDelta = gRaw.find((x) => x.path.indexOf('bug') >= 0)?.delta ?? 0;
   await b.close();
   const expect = [
     ['① 行距不足的多行文本 → 抓到', names.indexOf('bad') >= 0],
@@ -481,11 +628,19 @@ if (process.argv.includes('--self-test')) {
     ['⑬ F UA 默认隐藏的不抓', fHit.indexOf('ua-hidden') < 0],
     ['⑭ F 逃生阀 closed-dialog-ok 生效', fHit.indexOf('esc-dialog') < 0],
     ['⑮ F 打开态不归 F 管', fHit.indexOf('open-one') < 0],
+    // G:该红的四种边界各一条 —— 抓得到、量得准、三种正当情形一条都不许误报
+    ['⑯ G 轨拉伸把同类兄弟的首子元素推歪 → 抓到', gHit.indexOf('div.bug') >= 0],
+    ['⑰ G 推歪量 = 折行高度÷3(10px,±0.5)', Math.abs(gDelta - 10) < 0.5],
+    ['⑱ G 加了 align-content:start 的不抓', gHit.indexOf('div.fixed') < 0],
+    ['⑲ G 前序高度先分叉的下游错位不抓(正常文档流)', gHit.indexOf('div.flow') < 0],
+    ['⑳ G 逃生阀 sibling-align-ok 生效', gHit.indexOf('div.esc') < 0],
+    ['㉑ G class 不同 = 不是同类,不比对', gHit.indexOf('div.diff') < 0],
+    ['㉒ G 有意居中(自身内容就不等高)不报 —— 实景回灌的红测', gHit.indexOf('div.mid') < 0],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
   console.log(`gate-render-fit 自检: ${expect.length - bad} pass / ${bad} fail`);
-  if (bad) console.log('  A 实际抓到:', names || '(空)', '| D 实际抓到:', dHit || '(空)');
+  if (bad) console.log('  A 实际抓到:', names || '(空)', '| D 实际抓到:', dHit || '(空)', '| G 实际抓到:', gHit || '(空)');
   process.exit(bad ? 1 : 0);
 }
 
@@ -533,6 +688,7 @@ const page = await ctx.newPage();
 const hitsA = new Map();
 const hitsB = new Map();
 const hitsD = new Map();
+const hitsG = new Map();
 const blindSpots = new Map(); // 观测面缺口:本该量却量不到的元素
 let scansA = 0;
 let heightSensitive = 0;
@@ -580,6 +736,12 @@ const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.f
 const scanA = async (r, w, h) => {
   const { hits, blind } = await page.evaluate(SCAN_LINES);
   scansA++;
+  // G 蹭 A 的点位:同类兄弟对齐只随宽度变,A 已经把「路由 × 宽 × 敏感高度档」走全了
+  for (const g of await page.evaluate(SCAN_SIBS)) {
+    const k = `${r}|${g.path}|${g.sel}`;
+    const prev = hitsG.get(k);
+    if (!prev || g.delta > prev.delta) hitsG.set(k, { ...g, where: `${r} @${w}×${h}` });
+  }
   for (const x of hits) {
     const k = `${r}|${x.sel}`;
     const prev = hitsA.get(k);
@@ -728,6 +890,7 @@ console.log(`             高: ${SHORT_H.join(' ')}`);
 const D = [...hitsD.values()].sort((a, b) => b.pct - a.pct);
 const E = [...hitsE.values()].sort((a, b) => b.worst - a.worst);
 const F = [...hitsF.values()];
+const G = [...hitsG.values()].sort((a, b) => b.delta - a.delta);
 console.log(`             判据 A 实扫 ${scansA} 次(${heightSensitive}/${ROUTES.length} 条路由对视口高敏感,按高度分档加扫)`);
 console.log(`             判据 E 覆盖 ${dialogRoutes} 条带弹层的路由 × ${widths.length * heights.length} 档视口;判据 F 同路由载入即测+开关一轮后再测`);
 
@@ -741,8 +904,8 @@ if (blindSpots.size) {
   process.exit(3);
 }
 
-if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length) {
-  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 无观测面缺口');
+if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length && !G.length) {
+  console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 同类兄弟顶齐 · 无观测面缺口');
   process.exit(0);
 }
 if (hitsC.length) {
@@ -773,9 +936,17 @@ if (F.length) {
   console.log(`[render-fit] ✘ F 关闭态弹层可见:${F.length} 处(UA 的 dialog:not([open]) 隐藏被样式顶掉)`);
   for (const x of F) console.log(`  - ${x.where}  ${x.sel}  display=${x.display} ${x.w}×${x.h}`);
 }
+if (G.length) {
+  console.log(`[render-fit] ✘ G 同类兄弟错位:${G.length} 处「同一行、同 class 的兄弟,对应子元素顶不齐」`);
+  for (const x of G) {
+    console.log(`  - ${x.where}  ${x.path} 内的 ${x.sel}(${x.members} 个同类)顶差 ${x.delta}px  顶 [${x.tops.join(' ')}]  「${x.text}」`);
+  }
+}
 console.log('  修法:A 提行高到墨高之上(优先改 tokens.css 型类层);B 首屏上内衬按导航实高派生,别写死常数;');
 console.log('        D 把窄档的上限接到断点另一侧的实算值(取整下调留方向余量),不要另挑一个好看的数;');
 console.log('        E 让弹层内容按剩余空间收缩(竖向 flex + min-height:0 + object-fit:contain),别写死关闭行高度;');
 console.log('        F 弹层的 display/弹性只挂 [open] 态,别写进基类。');
-console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok;常显 dialog 加 class closed-dialog-ok。');
+console.log('        G 容器别吃轨拉伸(grid 加 align-content:start / flex 加 align-content:flex-start),别去逐个补空白。');
+console.log('  确系有意:A/B 给元素加 class line-fit-ok;D 加 class size-jump-ok;常显 dialog 加 class closed-dialog-ok;');
+console.log('           同类兄弟有意错位给容器加 class sibling-align-ok。');
 process.exit(1);
