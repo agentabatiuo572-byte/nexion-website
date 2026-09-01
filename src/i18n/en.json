@@ -102,7 +102,7 @@
   "why": {
     "kicker": "Why now",
     "title": "The world is running out of compute.",
-    "p1": "AI training compute has doubled roughly every six months since 2010. NVIDIA sold $89 billion of data-center compute in a single quarter — up 117% in a year — and its CEO says demand is running far ahead of what the company can supply.",
+    "p1": "AI training compute has doubled roughly every six months since 2010. NVIDIA posted $89 billion of data-center revenue in a single quarter — up 117% in a year — and its CEO says demand is running far ahead of what the company can supply.",
     "p2": "The bottleneck is no longer just chips. U.S. data-center vacancy sits at a record-low 1.4%, and Microsoft's CEO says chips are waiting in inventory with no power to plug them into. Centralized compute is hitting physical walls: land, grid, cooling.",
     "p3": "Distributed networks route around those walls. Not every AI job needs a flagship GPU — image, language and speech inference run on hardware people already own. Volunteers' idle devices once outran the world's top 500 supercomputers combined (Folding@home, 2020). Today there are 8.8 billion mobile connections on Earth. NexGrid puts that pool to work.",
     "quote1": "“NVIDIA compute is fully utilized across every cloud we serve.”",
@@ -115,6 +115,7 @@
     "stat2Cap": "U.S. data-center vacancy, record low (CBRE, H1 2026)",
     "stat3": "8.8B",
     "stat3Cap": "Mobile connections worldwide (GSMA, 2026)",
+    "statsTag": "Industry data",
     "sourcesTitle": "Sources & citations",
     "src1": "NVIDIA Investor Relations — Q2 FY2027 financial results & earnings call, Aug 26, 2026",
     "src2": "CBRE — North America Data Center Trends H1 2026, Aug 2026",
@@ -132,7 +133,7 @@
   "mission": {
     "kicker": "Where compute goes",
     "title": "What the network computes",
-    "lead": "AI demand now outruns datacenter supply.\nClients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
+    "lead": "That scarcity is the demand this network serves.\nClients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
     "f1": "AI inference",
     "f2": "Scientific computing",
     "f3": "Climate modeling",

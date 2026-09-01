@@ -102,7 +102,7 @@
   "why": {
     "kicker": "Vì sao là lúc này",
     "title": "Thế giới đang cạn dần sức mạnh tính toán.",
-    "p1": "Từ năm 2010, sức mạnh tính toán để huấn luyện AI cứ khoảng sáu tháng lại tăng gấp đôi. NVIDIA bán ra 89 tỷ USD sức mạnh trung tâm dữ liệu chỉ trong một quý — tăng 117% so với cùng kỳ — và CEO của họ cho biết nhu cầu đang vượt xa khả năng cung ứng của công ty.",
+    "p1": "Từ năm 2010, sức mạnh tính toán để huấn luyện AI cứ khoảng sáu tháng lại tăng gấp đôi. NVIDIA đạt 89 tỷ USD doanh thu trung tâm dữ liệu chỉ trong một quý — tăng 117% so với cùng kỳ — và CEO của họ cho biết nhu cầu đang vượt xa khả năng cung ứng của công ty.",
     "p2": "Nút thắt không còn chỉ là chip. Tỷ lệ trống của trung tâm dữ liệu tại Mỹ xuống mức thấp kỷ lục 1,4%, và CEO Microsoft thừa nhận: chip nằm trong kho mà không có điện để cắm vào. Hạ tầng tập trung đang chạm những bức tường vật lý: đất đai, lưới điện, làm mát.",
     "p3": "Mạng lưới phân tán đi vòng qua những bức tường đó. Không phải tác vụ AI nào cũng cần GPU cao cấp nhất — suy luận hình ảnh, ngôn ngữ và giọng nói chạy tốt trên thiết bị mọi người đã có. Thiết bị nhàn rỗi của các tình nguyện viên từng vượt tổng sức mạnh của 500 siêu máy tính mạnh nhất thế giới (Folding@home, 2020). Hôm nay, Trái Đất có 8,8 tỷ kết nối di động. NexGrid đưa nguồn lực đó vào việc.",
     "quote1": "“Sức mạnh tính toán của NVIDIA đã được dùng hết trên mọi đám mây mà chúng tôi phục vụ.”",
@@ -115,6 +115,7 @@
     "stat2Cap": "Tỷ lệ trống trung tâm dữ liệu tại Mỹ, thấp kỷ lục (CBRE, nửa đầu 2026)",
     "stat3": "8,8 tỷ",
     "stat3Cap": "Kết nối di động toàn cầu (GSMA, 2026)",
+    "statsTag": "Dữ liệu ngành",
     "sourcesTitle": "Nguồn & trích dẫn",
     "src1": "NVIDIA Investor Relations — kết quả tài chính & họp công bố quý 2 năm tài chính 2027, 26/08/2026",
     "src2": "CBRE — Xu hướng trung tâm dữ liệu Bắc Mỹ nửa đầu 2026, tháng 8/2026",
@@ -132,7 +133,7 @@
   "mission": {
     "kicker": "Hướng đi của sức mạnh tính toán",
     "title": "Mạng lưới tính toán những gì",
-    "lead": "Nhu cầu AI đã vượt nguồn cung của các trung tâm dữ liệu.\nKhách hàng trả tiền để chạy khối lượng công việc AI trên năng lực này.\nCác lĩnh vực dưới đây cho thấy công việc đó đi về đâu.",
+    "lead": "Chính sự khan hiếm đó là nhu cầu mà mạng lưới này phục vụ.\nKhách hàng trả tiền để chạy khối lượng công việc AI trên năng lực này.\nCác lĩnh vực dưới đây cho thấy công việc đó đi về đâu.",
     "f1": "Suy luận AI",
     "f2": "Tính toán khoa học",
     "f3": "Mô hình khí hậu",

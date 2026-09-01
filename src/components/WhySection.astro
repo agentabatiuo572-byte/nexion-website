@@ -59,7 +59,6 @@ const quotes = [1, 2] as const;
             ))
           }
         </ol>
-        <p class="disclaim x-mono">{t('why.disclaim')}</p>
       </details>
     </div>
 
@@ -74,7 +73,12 @@ const quotes = [1, 2] as const;
       }
     </aside>
 
+    {/* R2(评审整改):① 顶行「行业数据」出处眉——平台自数(WEB03)与第三方行业数用同一
+        套大数字语法,快扫会混出处,眉标把这条 tile 显式标成引用态;② 尾行非关联免责声明从
+        Sources 折叠块移出常驻——免责必须与触发它的署名引用/大数字同视区不可回避(FTC
+        clear-and-conspicuous 口径),折叠态不可见即失职。 */}
     <div class="wstats x-tile" data-rv>
+      <span class="wtag x-label">{t('why.statsTag')}</span>
       {
         stats.map((n, i) => (
           <div class="wcell">
@@ -84,6 +88,7 @@ const quotes = [1, 2] as const;
           </div>
         ))
       }
+      <p class="disclaim x-mono">{t('why.disclaim')}</p>
     </div>
   </div>
 </section>
@@ -144,8 +149,10 @@ const quotes = [1, 2] as const;
   }
   /* 叙事正文:16 档大写 mono(mission.body 同尺;多行长文行距取 trust 卡文的 1.45)。
      手写不挂 .x-mono —— 型类 :lang 分支特异度(0,2,1)会把 zh 字号盖回 12.5
-     (SocialSection .roles 同型注释),语言分支在本容器自带。 */
-  .narr p {
+     (SocialSection .roles 同型注释),语言分支在本容器自带。
+     🔴 只用子代组合器 `>`:后代 `.narr p` 会泄进 <details> 内部,把免责/来源小注放大成
+     16 档正文(R2 评审 −0.7 实锤,特异度 0,1,1 盖过全局 .x-mono)。 */
+  .narr > p {
     font-family: var(--x-font-mono);
     font-size: calc(16 * var(--uc));
     letter-spacing: 0;
@@ -156,12 +163,15 @@ const quotes = [1, 2] as const;
     text-wrap: pretty;
     max-width: calc(640 * var(--uc)); /* 行长上限(R49 收线 D2 同款,≈89ch) */
   }
-  .narr p:lang(zh) {
+  .narr > p:lang(zh) {
     font-size: max(16.5px, calc(16.56 * var(--u)));
     line-height: 1.6; /* 全站 CJK 行高不变量 */
-    text-wrap: balance;
+    /* R2:多行正文禁 balance(trust 卡的 balance 是 2-4 行短卡文场景)——balance 把
+       p2 压成 66% 宽窄块右缘参差;孤行控制交给 pretty + 文内 NBSP。 */
+    text-wrap: pretty;
+    word-spacing: -0.36em; /* mission.body zh 同款:等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
   }
-  .narr p:lang(vi) {
+  .narr > p:lang(vi) {
     line-height: 1.45;
   }
 
@@ -217,14 +227,16 @@ const quotes = [1, 2] as const;
   .srclist li:first-child {
     border-top: 0;
   }
-  /* 来源外链行:.vout 同体例(下划线 + ↗ + 触达高) */
+  /* 来源外链行:.vout 同体例(下划线 + ↗ + 触达高)。
+     align-items 走 flex-end 不走 center:390 下链接折 3-4 行时 center 会把 ↗ 悬到
+     行块右侧中部(R2 评审),flex-end 让箭头落在末行 = 行尾内联语法,单行时两者无差。 */
   .srcline {
     color: var(--x-ink);
     text-decoration: underline;
     text-underline-offset: calc(3 * var(--uc));
     min-height: var(--x-touch);
     display: inline-flex;
-    align-items: center;
+    align-items: flex-end;
     gap: calc(4 * var(--uc));
     padding: calc(6 * var(--uc)) 0;
     transition: opacity 0.2s;
@@ -235,10 +247,13 @@ const quotes = [1, 2] as const;
   .srcline:active {
     opacity: 0.6;
   }
-  /* 非关联免责行:常驻于来源块尾(署名引用的合规配对件) */
+  /* 非关联免责行:常驻于数字条 tile 尾行(R2 移位:署名引用的合规配对件必须不可回避) */
   .disclaim {
+    grid-column: 1 / -1;
     color: var(--x-ink-dim);
-    margin: calc(14 * var(--uc)) 0 calc(6 * var(--uc));
+    margin: calc(6 * var(--uc)) 0 0;
+    padding-top: calc(16 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
     max-width: calc(640 * var(--uc));
     text-wrap: pretty;
     line-height: 1.45;
@@ -259,6 +274,7 @@ const quotes = [1, 2] as const;
     padding: calc(26 * var(--uc)) calc(30 * var(--uc));
     display: flex;
     flex-direction: column;
+    justify-content: space-between; /* R2:引语顶、署名底——卡内空隙分布成呼吸,不堆成下坠空腔 */
     gap: calc(16 * var(--uc));
     flex: 1;
   }
@@ -269,15 +285,25 @@ const quotes = [1, 2] as const;
   .qcard figcaption {
     color: var(--x-ink-dim);
     line-height: 1.45;
+    text-wrap: pretty; /* R2:zh 署名曾以单字「月」收尾成孤行 */
+  }
+  .qcard figcaption:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量——本地 1.45 曾把型类的 zh 分支盖掉(R2) */
   }
 
-  /* 大数字条:StatsBar .num 同规格(display 54 档 / tabular),通栏三格细线分区 */
+  /* 大数字条:StatsBar .num 同规格(display 54 档 / tabular),通栏三格细线分区。
+     横衬走 30(瓷砖通用衬)不走 StatsBar 的 14+24 两段算法——那是独立通栏板块的内衬,
+     这里上下与 narr/qcard(衬 30)同列,左轨必须合线(R2 实测错位 8px/−16px)。 */
   .wstats {
     grid-column: span 12;
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: calc(24 * var(--uc));
-    padding: calc(30 * var(--uc)) calc(14 * var(--uc));
+    gap: calc(16 * var(--uc)) calc(24 * var(--uc));
+    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
+  }
+  .wtag {
+    grid-column: 1 / -1;
+    color: var(--x-ink-dim);
   }
   .wcell {
     display: grid;
@@ -286,8 +312,11 @@ const quotes = [1, 2] as const;
     border-left: 1px solid var(--x-line-soft);
     padding-left: calc(24 * var(--uc));
   }
-  .wcell:first-child {
+  .wcell:first-of-type {
+    /* first-of-type 不是 first-child:tile 首子元素是 .wtag 眉标(span),
+       first-child 在这里永不命中(R2 探针实锤) */
     border-left: 0;
+    padding-left: 0; /* 首列文字对齐瓷砖衬(30),分线间距只给后续列 */
   }
   .widx {
     color: var(--x-accent-hot);
@@ -306,6 +335,9 @@ const quotes = [1, 2] as const;
     text-wrap: pretty;
     max-width: calc(340 * var(--uc));
   }
+  .wcap:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量:.x-label 型类无 zh 分支,组件侧补(R2) */
+  }
 
   @media (max-width: 900px) {
     .narr,
@@ -315,7 +347,7 @@ const quotes = [1, 2] as const;
     }
     .wstats {
       grid-template-columns: 1fr;
-      row-gap: calc(28 * var(--uc));
+      row-gap: calc(20 * var(--uc));
     }
     .wcell {
       border-left: 0;
@@ -323,7 +355,7 @@ const quotes = [1, 2] as const;
       padding-left: 0;
       padding-top: calc(20 * var(--uc));
     }
-    .wcell:first-child {
+    .wcell:first-of-type {
       border-top: 0;
       padding-top: 0;
     }
