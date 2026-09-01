@@ -14,3 +14,6 @@ dist/
 
 # 删除暂存垃圾桶(PreToolUse 守卫的 Move 目标),永不入库
 .trash/
+
+# 设计画布工作目录(含 2MB+ 编辑器产物;设计稿已发布为 artifact 可回溯)
+.design-work/
