@@ -50,6 +50,27 @@ function scan(files) {
          第一版只看有没有出现 `{x.status}` 这个形状,于是把**已经修好的**三处也算成命中——
          一道会对正确写法报红的门,用不了两天就会被人加豁免绕过去,那时它就死了。
          同理 `<select value={x.status}>` 是表单值不是展示文本,天然合法。 */
+      /* 🔴 判据②的盲区,以及我补盲区时**第二次**造出的同一种废门(2026-09-01)。
+         盲区是真的:第八轮走查抓到的枚举泄漏,`{x.status}` 一个都没覆盖到——
+         ① `const winState = !a.enabled ? 'disabled' : 'live'` 然后 `{winState}`;
+         ② `{c.enabled ? '已上线' : 'coming-soon'}`。
+         但我补的第一版判据是「源码里出现形如 'kebab-word' 的字符串就报」,当场 26 处全是误报:
+         `import … from 'react-router-dom'` · `justifyContent: 'flex-end'` ·
+         **以及映射表的键 `'forbidden-word': '合规禁用词'`——那正是这道门想要的、修好之后的样子**。
+
+         四问(第二次同型,按铁律落盘):
+         ① 最小成因:字符串字面量在 TSX 里的**位置**决定它给谁看(import 说明符 / CSS 值 /
+            对象键 / JSX 文本),而我在**词法层**判一个**位置层**的问题——光看字符串本身,
+            构造上就分不出「印给人看的」和「给机器的」。
+         ② 上次修法为什么没挡住:上次(判据② 第一版对正确写法报红)我加的是 `mapped` 检查,
+            **仍然在词法层**。同层再修一次 = 没反思。
+         ③ 同族:判据① 靠「注释已排除 + 星号几乎只在文案里」侥幸没事;判据③ 是生产者-消费者
+            配对,本就是结构性的,没这毛病。所以同族只有判据②。
+         ④ 根治:换层——只认**结构上不可能误报**的形状,即「同一个三元表达式里,
+            人话和机器词并列」。中文旁边的 ASCII kebab 词,只可能是漏翻的那一半:
+            import 里没有中文、CSS 值旁没有中文、映射表键值是 `:` 不是 `?:`。
+         代价说清楚:形态① 只在「两分支都是机器词且变量被直接渲染」时抓得到,更绕的写法
+         (机器词来自函数返回、来自数组)这道门看不见——那部分仍归实景走查,不假装覆盖。 */
       if (!/enum-ok/.test(line)) {
         const mapped = /\[\s*[A-Za-z_$][\w.$]*\.(status|action|state|kind|type)\s*\]/.test(line); // 过了映射表
         const asFormValue = /value=\{\s*[A-Za-z_$][\w.$]*\.(status|action|state|kind|type)\s*\}/.test(line);
@@ -58,6 +79,18 @@ function scan(files) {
             out.push({ file, line: i + 1, why: `机器枚举值 {${m[1]}.${m[2]}} 直接渲染给人看;先过映射表(缺映射时也要说「状态未知」而不是吐原词)`, code: t.slice(0, 110) });
           }
         }
+        // 形态②:三元的两个分支,一边人话一边机器词 —— 作者在写文案,漏翻了一半
+        for (const m of line.matchAll(/\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) {
+          const human = (s) => /[一-鿿]/.test(s);
+          const machine = (s) => /^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)+$/.test(s);
+          const bad = (human(m[1]) && machine(m[2])) || (human(m[2]) && machine(m[1]));
+          if (bad) out.push({ file, line: i + 1, why: `三元里一边是人话一边是机器词('${human(m[1]) ? m[2] : m[1]}');两边都要写人话`, code: t.slice(0, 110) });
+        }
+      }
+      // 形态①:`const x = … ? '机器词' : '机器词'`,而 x 后来被直接渲染成 `{x}`
+      const decl = line.match(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=[^;]*\?\s*'([a-z][a-z0-9-]*)'\s*:\s*'([a-z][a-z0-9-]*)'/);
+      if (decl && !/enum-ok/.test(line) && new RegExp(`\\{\\s*${decl[1]}\\s*\\}`).test(text)) {
+        out.push({ file, line: i + 1, why: `变量 ${decl[1]} 存的是机器词('${decl[2]}'/'${decl[3]}'),却被直接渲染成 {${decl[1]}};存人话或过映射表`, code: t.slice(0, 110) });
       }
     });
   }
@@ -110,10 +143,26 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: '<td>{LABEL[r.status] ?? r.status}</td>' }]).length === 0, 'self-test:过了映射表的写法 → 不误报');
   say(scan([{ file: 'f.tsx', text: '<select value={s.status}>' }]).length === 0, 'self-test:表单 value → 不误报');
   say(scan([{ file: 'f.tsx', text: '<td>{r.status}</td> {/* enum-ok:这列就要看原值 */}' }]).length === 0, 'self-test:逃生阀 enum-ok → 放行');
+  /* 判据② 换层后的红绿两向。绿测这三条最要紧——它们是**上一版 26 处误报的原样标本**,
+     少一条,同一种废门就能再回来一次。 */
+  say(scan([{ file: 'f.tsx', text: "<b>{c.enabled ? '已上线' : 'coming-soon'}</b>" }]).length === 1, 'self-test:三元一边人话一边机器词 → 被抓');
+  say(scan([{ file: 'f.tsx', text: "import { Link } from 'react-router-dom';" }]).length === 0, 'self-test:import 说明符 → 不误报');
+  say(scan([{ file: 'f.tsx', text: "<div style={{ justifyContent: 'flex-end' }}>" }]).length === 0, 'self-test:CSS 属性值 → 不误报');
+  say(scan([{ file: 'f.tsx', text: "const L = { 'forbidden-word': '合规禁用词', 'dup-id': 'FAQ id 重复' };" }]).length === 0, 'self-test:映射表的键(正确写法本身)→ 不误报');
+  say(scan([{ file: 'f.tsx', text: "const win = a.enabled ? 'live' : 'disabled';\n<span>{win}</span>" }]).length === 1, 'self-test:变量存机器词又被直接渲染 → 被抓');
+  say(scan([{ file: 'f.tsx', text: "const win = a.enabled ? 'live' : 'disabled';\napi(win);" }]).length === 0, 'self-test:同样的变量只传给接口、不渲染 → 不误报');
   // 判据③:带了参数没人读 → 被抓;有人读 → 不误报
   const orphan = [{ file: 'a.tsx', text: 'to={`/x?focus=${p}`}' }];
   say(checkQueryConsumers(orphan).some((h) => h.why.includes('focus')), 'self-test:链接带了参数但没人读 → 被抓');
   say(checkQueryConsumers(files, allSources()).length === 0, 'self-test:真实代码里每个链接参数都有消费者(不误报)');
+  // 判据④ 红绿两向 + 「读不到就报错」那一支(门的沉默是最坏的绿)
+  const E = (...a) => `export const AUDIT_ACTIONS = [${a.map((x) => `'${x}'`).join(',')}] as const`;
+  const L = (...a) => `const ACTION_LABEL: Record<string, string> = {${a.map((x) => `'${x}': '人话'`).join(',')}};`;
+  say(checkAuditLabels(E('a.x', 'a.y'), L('a.x', 'a.y')).length === 0, 'self-test:动作码与人话表一一对上 → 不误报');
+  say(checkAuditLabels(E('a.x', 'a.y'), L('a.x')).some((h) => h.why.includes("'a.y'")), 'self-test:枚举加了动作码而人话表没跟上 → 被抓');
+  say(checkAuditLabels(E('a.x'), L('a.x', 'a.z')).some((h) => h.why.includes('死键')), 'self-test:人话表留着已删的动作码 → 被抓');
+  say(checkAuditLabels('（改名了）', L('a.x')).some((h) => h.why.includes('门已失效')), 'self-test:抽不出枚举 → 报门失效,不静默放行');
+  say(checkAuditLabels().length === 0, 'self-test:真实的动作码与人话表全对得上');
   say(scan(files).length === 0, `self-test:真实代码零命中(实际 ${scan(files).length} 处)`);
   process.exit(fails ? 1 : 0);
 }
@@ -155,7 +204,37 @@ function checkQueryConsumers(files, sources) {
   return out;
 }
 
-const hits = [...scan(files), ...checkQueryConsumers(files, allSources())];
+/* 判据④:审计动作码的**人话表必须盖住封闭枚举**(2026-09-01 第八轮 P2)。
+   `worker/src/audit.ts` 的 `AUDIT_ACTIONS` 是单一真理源,TS 的 `AuditAction` 类型已经守住了
+   「服务端写的动作码必须在枚举里」——那是**生产面**。消费面没人守:
+   加一个动作码而界面标签表没跟上,审计页就当场吐机器码给追责的人看,且不会有任何报错。
+   ⚠️ audit.tsx 的注释原本就写着「gate-console-copy 守这张表不许有死键」——
+   **而那道门当时并不存在**。这条判据是去把那句注释变成真的,不是新想出来的洁癖。
+   双向:枚举有表没有 = 会吐机器码;表有枚举没有 = 死键(动作码删了标签还留着)。 */
+function checkAuditLabels(enumOverride, labelOverride) {
+  // 注入参数必须真被读(不读 = 自检永远测不到东西,正是判据③ 抓的那种「带了没人读」)
+  const enumSrc = enumOverride ?? readFileSync(path.join(here, 'src', 'audit.ts'), 'utf8');
+  const labelSrc = labelOverride ?? readFileSync(path.join(ROOT, 'pages', 'audit.tsx'), 'utf8');
+  const block = (src, head) => {
+    const i = src.indexOf(head);
+    if (i < 0) return null;
+    const j = src.indexOf(head.includes('[') ? '] as const' : '};', i);
+    return j < 0 ? null : src.slice(i, j);
+  };
+  const eb = block(enumSrc, 'export const AUDIT_ACTIONS = [');
+  const lb = block(labelSrc, 'const ACTION_LABEL: Record<string, string> = {');
+  /* 抽不出来必须报错,不能当成「零差异」放行——**门读不到东西时的沉默是最坏的绿**。 */
+  if (!eb || !lb) return [{ file: 'worker/src/audit.ts', line: 0, why: '判据④ 读不到 AUDIT_ACTIONS 或 ACTION_LABEL(改名/挪走了?)——门已失效,先修门', code: '' }];
+  const pick = (s) => new Set([...s.matchAll(/'([a-z][a-z0-9.]*)'/g)].map((m) => m[1]));
+  const actions = pick(eb);
+  const labels = pick(lb);
+  const out = [];
+  for (const a of actions) if (!labels.has(a)) out.push({ file: 'admin/src/pages/audit.tsx', line: 0, why: `动作码 '${a}' 在封闭枚举里,但界面没有对应人话 —— 审计页会把机器码原样吐给追责的人`, code: '' });
+  for (const l of labels) if (!actions.has(l)) out.push({ file: 'admin/src/pages/audit.tsx', line: 0, why: `标签表里的 '${l}' 已不在 AUDIT_ACTIONS 里 —— 死键,删掉`, code: '' });
+  return out;
+}
+
+const hits = [...scan(files), ...checkQueryConsumers(files, allSources()), ...checkAuditLabels()];
 if (hits.length) {
   console.error(`✗ 控制台文案门:${hits.length} 处会把 markdown 记号原样印到界面上`);
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.why}\n     ${h.code}`);

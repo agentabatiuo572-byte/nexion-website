@@ -53,14 +53,39 @@ const AREA: Array<[RegExp, string]> = [
   [/^legal\./, 'Legal 文本'],
 ];
 const LOCALE_NAME: Record<string, string> = { en: '英文', vi: '越南语', zh: '中文' };
-/** 例:`announcement.text.en` → 「公告条 · 英文 · text」;认不出就原样显示,不隐藏 */
+/* 字段名 → 人话。
+   🔴 第一版只剥掉了区域前缀,尾巴原样保留,于是:
+   `产品卡 · skus[0].priceUSD` —— **人话行和下面的原文小字一模一样,等于没翻译**;
+   `平台数字 · activeDevices` 也和页面上写的「活跃设备」对不上(第八轮走查我点名请它判,它判「不够」)。
+   现在逐字段真映射;认不出的尾巴保留原样(不隐藏),但至少区域和已知字段是人话。 */
+const FIELD_NAME: Record<string, string> = {
+  // 产品卡
+  name: '名称', priceUSD: '价格', multiplier: '算力倍数', status: '状态', tagline: '标语', visible: '是否展示', sort: '排序',
+  // 下载入口
+  url: '链接', enabled: '开关',
+  // 公告条 / SEO / 页脚
+  text: '正文', startsAt: '开始时间', endsAt: '结束时间', title: '标题', description: '描述',
+  social: '社媒链接', contactEmail: '联系邮箱', id: '编号',
+  // 平台数字(与各页面上的标签一致)
+  activeDevices: '活跃设备', activeJobs: '运行中任务', countries: '覆盖国家', uptime: '在线率',
+  // FAQ / Legal
+  items: '条目', q: '问题', a: '答案', md: '正文', updatedAt: '最后更新',
+};
+/** 例:`skus[0].priceUSD` → 「产品卡 · 第 1 张 · 价格」;认不出的部分保留原样,不隐藏 */
 export function humanPath(path: string): string {
   const area = AREA.find(([re]) => re.test(path))?.[1];
   if (!area) return path;
-  const rest = path.replace(/^[a-z]+\./i, '');
   const loc = Object.keys(LOCALE_NAME).find((l) => path.startsWith(`copy.${l}.`) || path.endsWith(`.${l}`));
-  const tail = rest.replace(/^(en|vi|zh)\./, '').replace(/\.(en|vi|zh)$/, '');
-  return [area, loc && LOCALE_NAME[loc], tail].filter(Boolean).join(' · ');
+  const parts = path
+    .replace(/^(copy\.(en|vi|zh)|[a-z]+)\.?/i, '') // 去区域前缀(含 copy.<语言>)
+    .replace(/\.(en|vi|zh)$/, '') // 去尾部语言
+    .split('.')
+    .flatMap((seg) => {
+      const m = /^([a-zA-Z_$][\w$]*)?\[(\d+)\]$/.exec(seg);
+      if (m) return [m[1] ? (FIELD_NAME[m[1]] ?? m[1]) : null, `第 ${Number(m[2]) + 1} 项`].filter(Boolean) as string[];
+      return seg ? [FIELD_NAME[seg] ?? seg] : [];
+    });
+  return [area, loc && LOCALE_NAME[loc], ...parts].filter(Boolean).join(' · ');
 }
 
 /** 红项 → 该去哪个页面修 */
