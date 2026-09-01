@@ -13,7 +13,9 @@
    用法:node gate-console-copy.mjs   自检:--self-test */
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+// 直接 import .ts(node 24 原生剥类型),不再截源码求值 —— 见 checkPublishHelpers 里的说明
+import { splitFailReason } from '../admin/src/lib/fail-reason.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(here, '..', 'admin', 'src');
@@ -138,7 +140,8 @@ function allSources() {
 
 if (process.argv.includes('--self-test')) {
   let fails = 0;
-  const say = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails++; };
+  let asserts = 0;
+  const say = (ok, msg) => { asserts++; console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails++; };
   // 注入:一行 JSX 文案带 markdown 强调 → 必须被抓
   const injected = [{ file: 'fake.tsx', text: '<div className="kv">这里是**加重**文字</div>' }];
   say(scan(injected).length === 1, 'self-test:JSX 文案里的 **加重** → 被抓');
@@ -192,6 +195,16 @@ if (process.argv.includes('--self-test')) {
   say(checkFocusTargets(fake('<div>x</div>')).length === 0, 'self-test:没装钩子的页面 → 不要求落点');
   say(checkFocusTargets().length === 0, `self-test:真实代码里每页都有落点(缺:${JSON.stringify(checkFocusTargets().map((h) => h.file))})`);
   say(scan(files).length === 0, `self-test:真实代码零命中(实际 ${scan(files).length} 处)`);
+  /* 🔴 断言数下限:自检**跑到一半崩掉**时,失败数是 0、通过数悄悄变少,
+     肉眼看「✗ 0」会以为全过(2026-09-01 实测:一个 ReferenceError 让断言从 33 掉到 28,
+     而输出里一个 ✗ 都没有)。少于下限即判门坏 —— 这是「先证起点」在自检自身上的应用。
+     加断言时把这个数一起提上去。 */
+  const MIN_ASSERTS = 40;
+  if (asserts < MIN_ASSERTS) {
+    console.error(`✗ 自检只跑了 ${asserts} 条断言(下限 ${MIN_ASSERTS})—— 多半是中途崩了;失败 0 不等于全过`);
+    process.exit(3);
+  }
+  console.log(`(自检共 ${asserts} 条断言)`);
   process.exit(fails ? 1 : 0);
 }
 
@@ -252,34 +265,31 @@ function checkPublishHelpers() {
     const j = src.indexOf(end, i);
     return j < 0 ? null : src.slice(i, j + end.length);
   };
-  const failSrc = readFileSync(path.join(ROOT, 'lib', 'fail-reason.ts'), 'utf8');
-  const grabIn = (text, head, end) => {
-    const i = text.indexOf(head);
-    if (i < 0) return null;
-    const j = text.indexOf(end, i);
-    return j < 0 ? null : text.slice(i, j + end.length);
-  };
+  /* 🔴 `splitFailReason` 改成**直接 import**,不再截源码求值(2026-09-01)。
+     截源码那条路每加一种 TS 写法就要补一条剥法:先是缺模块级常量(ReferenceError)、
+     再是 `export` 关键字、再是箭头函数的返回类型标注……而每次失败的表现都是
+     「失败 0、断言悄悄变少」。node 24 能直接 import `.ts`,让它自己解析。
+     `humanPath` 仍走截取:它住在 `.tsx` 里,带 JSX,直接 import 不了。 */
   const pieces = [
     grab('const AREA: Array<[RegExp, string]> = [', '];'),
     grab('const LOCALE_NAME: Record<string, string> = {', '};'),
     grab('const FIELD_NAME: Record<string, string> = {', '};'),
     grab('export function humanPath(path: string): string {', '\n}'),
-    grabIn(failSrc, 'export function splitFailReason(raw: string): FailReason {', '\n}'),
   ];
-  if (pieces.some((p) => !p)) return [[false, 'self-test:抽不出 humanPath/splitFailReason(改名或挪走了?)——检查已失效,先修门']];
+  if (pieces.some((p) => !p)) return [[false, 'self-test:抽不出 humanPath(改名或挪走了?)——检查已失效,先修门']];
   const js = pieces
     .join('\n')
     .replace(/: Array<\[RegExp, string\]>/g, '')
     .replace(/: Record<string, string>/g, '')
     .replace(/export function humanPath\(path: string\): string/, 'function humanPath(path)')
-    .replace(/export function splitFailReason\(raw: string\): FailReason/, 'function splitFailReason(raw)')
     .replace(/ as string\[\]/g, '');
-  let humanPath, splitFailReason;
+  let humanPath;
   try {
-    ({ humanPath, splitFailReason } = new Function(`${js}; return { humanPath, splitFailReason };`)());
+    ({ humanPath } = new Function(`${js}; return { humanPath };`)());
   } catch (e) {
-    return [[false, `self-test:抽出的函数跑不起来(${String(e).slice(0, 60)})`]];
+    return [[false, `self-test:抽出的 humanPath 跑不起来(${String(e).slice(0, 60)})`]];
   }
+  if (!splitFailReason) return [[false, 'self-test:import 不到 splitFailReason —— 检查已失效,先修门']];
   const out = [];
   /* 🔴 humanPath 的判据必须是**构造性**的,路径从真种子枚举,不手写样例。
      第一版我手写了六条样例,而它抓不到 `平台数字 · nodes` 这种**半翻**
@@ -323,6 +333,11 @@ function checkPublishHelpers() {
   out.push([b2.raw === true && b2.tech !== null && !/[A-Za-z]:\\/.test(b2.human), 'self-test:原始 Node 报错 → 主视线不含本机路径']);
   const c2 = splitFailReason('发布中断(执行器无响应或超时),线上保持旧版');
   out.push([c2.human === '发布中断(执行器无响应或超时),线上保持旧版' && c2.tech === null, 'self-test:本就是人话的原因 → 原样保留']);
+  /* 🔴 中文句子里**嵌着**机器值 —— 上一版判据(只看「有没有中文」)的盲区,
+     实录:壳顶常驻红条与驾驶舱把两串十六进制摘要当人话印在主视线上(第十轮 P1-10)。 */
+  const d2 = splitFailReason('上线核验未通过:内容摘要对不上(期望 4a34ea4d0279,实际 80e1f4a84ab0)');
+  out.push([!/[0-9a-f]{8,}/.test(d2.human) && /4a34ea4d0279/.test(d2.tech ?? ''), 'self-test:中文句里嵌十六进制摘要 → 摘要移出主视线']);
+  out.push([/内容摘要对不上/.test(d2.human), 'self-test:摘出机器值后,那句话仍读得通(不是留个残句)']);
   /* 🔴 每个读 fail_reason 的地方都必须过这两个函数之一。
      实录:我先只改了发布页那两处,壳顶红条当场还印着 `(门:forbidden-words)` ——
      修一处不等于修全部,而「还有几处」只有穷举才知道。判据构造性:

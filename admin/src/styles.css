@@ -78,6 +78,18 @@ table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th { text-align: left; color: var(--ink4); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--ink2); vertical-align: top; }
 td b { color: var(--ink); font-weight: 600; }
+/* 🔴 窄屏:多列栅格改成单列(2026-09-01 第十轮独立验收 P1-11)。
+   上一轮把**表格**那一族修好了(表格自己滚),但**栅格**那一族原样留着 ——
+   典型的「修一处 ≠ 修全部」。实测 375px:公告条页布局宽 634(整整一栏「结束时间」
+   在屏幕外)、文案树 449、平台数字 393,三页都整页横滚,连导航和保存按钮都跟着跑出去。
+   判据构造性:凡 `display:grid` 且列数写死的容器,窄屏一律单列 ——
+   逐处加断点会漏,而漏掉的那处只有真到手机上才看得见。 */
+@media (max-width: 760px) {
+  .shell { grid-template-columns: 1fr !important; }
+  aside { display: flex; flex-wrap: wrap; gap: 4px; }
+  [style*="grid-template-columns"], .grid { grid-template-columns: 1fr !important; }
+}
+
 /* 窄屏:表格自己横滚,而不是把整页撑宽。
    实测手机上审计页布局视口被撑到 980px、发布页 411px —— 整页横滚意味着导航、
    状态条、按钮全都跟着跑出屏幕,人得先横着滚回去才能点别的。

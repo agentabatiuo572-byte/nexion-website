@@ -26,13 +26,23 @@ export default function AnnouncementPage() {
   const now = Date.now();
   /* 窗口态一律人话:此前混着 disabled / scheduled / expired 这类机器词直出(实景走查 P1) */
   const winState = !a.enabled ? '未启用' : !a.startsAt || !a.endsAt ? '缺起止时间' : now < Date.parse(a.startsAt) ? '已排期(还没到展示时间)' : now > Date.parse(a.endsAt) ? '已过期(展示时间已过)' : '展示中';
+  /* 🔴 校验**不以总开关为前提**(2026-09-01 第十轮独立验收 P1-9)。
+     上一版全部校验都裹在 `if (a.enabled)` 里,于是总开关关着时:
+     倒挂的起止时间、`javascript:` 链接、超长正文**全都能存进草稿且零红条**,
+     等到打开开关才一次性冒出四条 —— 而运营的自然顺序恰恰是
+     「先把文案时间填好,最后才打开开关」,整个填写过程零反馈。
+     CON09-E1/E2 两条(时间倒挂、链接协议)本来就没有以 enabled 为前提。
+     分两档:**格式类**任何时候都拦(填了就得填对);**必填类**只在启用时拦
+     (关着的公告允许留空,那是草稿的正常状态)。 */
   const errs: string[] = [];
+  for (const l of ['en', 'vi', 'zh'] as const) {
+    if (a.text[l].length > 120) errs.push(`${l} 文案超 120 字符(当前 ${a.text[l].length},超出 ${a.text[l].length - 120})`);
+  }
+  if (a.startsAt && a.endsAt && Date.parse(a.endsAt) <= Date.parse(a.startsAt)) errs.push('结束时间须晚于开始时间');
+  if (a.href && !/^(https:\/\/|\/)/.test(a.href)) errs.push('链接须为 https:// 开头或站内路径(/ 开头)');
   if (a.enabled) {
     for (const l of ['en', 'vi', 'zh'] as const) if (!a.text[l].trim()) errs.push(`启用的公告 ${l} 文案必填`);
-    for (const l of ['en', 'vi', 'zh'] as const) if (a.text[l].length > 120) errs.push(`${l} 超 120 字符(${a.text[l].length})`);
     if (!a.startsAt || !a.endsAt) errs.push('启用的公告须有起止时间');
-    else if (Date.parse(a.endsAt) <= Date.parse(a.startsAt)) errs.push('结束时间须晚于开始');
-    if (a.href && !/^(https:\/\/|\/)/.test(a.href)) errs.push('链接须为 https 或站内路径(/ 开头)');
   }
   const hits = (['en', 'vi', 'zh'] as const).flatMap((l) => scan(a.text[l] ?? '').map((h) => `${l}:${h.match}`));
 

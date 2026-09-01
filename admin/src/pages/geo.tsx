@@ -46,6 +46,11 @@ export default function GeoPage() {
 
   const r = draft ?? st.rules;
   const dirty = draft !== null;
+  /* 拦截页文案的长度约束(CON12-③ ≤300)在**界面这一层**就拦住,
+     而不是放行到最后再由服务端回一句错误码。 */
+  const tooLong = (['zh', 'en'] as const)
+    .filter((l) => r.blockPage.body[l].length > 300)
+    .map((l) => `${l === 'zh' ? '中文' : '英文'}正文超出 ${r.blockPage.body[l].length - 300} 字(上限 300)`);
   const set = (patch: Partial<Rules>) => setDraft({ ...structuredClone(r), ...patch });
 
   async function apply(confirmHighTraffic: boolean) {
@@ -136,7 +141,14 @@ export default function GeoPage() {
             <div key={l}>
               <div className="field" style={{ margin: 0 }}><label>{l} 标题</label>
                 <input value={r.blockPage.title[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, title: { ...r.blockPage.title, [l]: e.target.value } } })} /></div>
-              <div className="field"><label>{l} 正文(≤300)</label>
+              {/* 🔴 就地计数 + 就地拦(第十轮独立验收 P1-8):上一版 label 写着「≤300」却
+                  没有计数、没有红字、按钮照常可点,人一路走到最后一步才被一句
+                  `bad-request` 打回,而那句话 2.6 秒就消失、也不说是哪一栏超了多少。 */}
+              <div className="field"><label>{l} 正文(≤300)
+                <span className="kv" style={{ marginLeft: 6, color: r.blockPage.body[l].length > 300 ? 'var(--bad)' : undefined }}>
+                  {r.blockPage.body[l].length}/300
+                </span>
+              </label>
                 <AutoTextarea value={r.blockPage.body[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, body: { ...r.blockPage.body, [l]: e.target.value } } })} /></div>
             </div>
           ))}
@@ -146,9 +158,17 @@ export default function GeoPage() {
         {/* 🔴 降级态下必须禁止应用:此时页面上显示的是**内置兜底名单**(仅 CN),不是真规则。
             KV 短暂故障后恢复,运营在这个页面上改一处再应用,写回去的是「基线 + 这一处改动」,
             真名单被静默覆盖且没有任何报错。先刷新拿到真规则,再改。 */}
-        <button className="btn primary" disabled={!dirty || applying || st.degraded} title={st.degraded ? '规则存储读取异常,页面显示的是兜底名单;请先重试加载再改' : ''} onClick={() => setConfirmBox({ reason: '', hot: null, ack: false })}>应用变更(确认+理由)</button>
+        <button
+          className="btn primary"
+          disabled={!dirty || applying || st.degraded || tooLong.length > 0}
+          title={st.degraded ? '规则存储读取异常,页面显示的是兜底名单;请先重试加载再改' : tooLong.length ? tooLong.join(';') : ''}
+          onClick={() => setConfirmBox({ reason: '', hot: null, ack: false })}
+        >
+          应用变更(确认+理由)
+        </button>
         {dirty && <button className="btn ghost" onClick={() => setDraft(null)}>放弃改动</button>}
       </div>
+      {tooLong.map((x, i) => <div className="note bad" key={i} style={{ marginBottom: 10 }}>{x}——请先缩短再应用</div>)}
 
       {/* 写入失败:常驻红条 + 重试(CON12-⑤)。改动仍在草稿里,重试就是再发一次同一份规则。 */}
       {writeFail && (
