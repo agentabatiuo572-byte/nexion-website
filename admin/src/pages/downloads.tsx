@@ -1,6 +1,7 @@
 /* 下载入口(CON05 ⑤⑥):三入口 URL/开关 + 即时探活(预警不阻断,永不自动下架)。高敏模块。 */
 import { useState } from 'react';
 import { api, toast } from '../api';
+import { fieldName } from '../lib/human-path';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -25,8 +26,9 @@ export default function DownloadsPage() {
   const cur = (k: 'ios' | 'android' | 'h5') => ({ ...draft.downloads[k], ...edits[k] });
   const errs = ROWS.flatMap(([k]) => {
     const c = cur(k);
-    if (c.enabled && !c.url) return [`${k}:开启的入口必须填写链接(或把开关关掉,站上会显示「即将推出」)`];
-    if (c.url && !/^https:\/\/.+/.test(c.url)) return [`${k}:须为 https 完整链接`];
+    // 报错里用人话字段名,不印配置键(那一行的标题写的是「iOS」,报错却说 ios,第十轮 P2-7)
+    if (c.enabled && !c.url) return [`${fieldName(k)}:开启的入口必须填写链接(或把开关关掉,站上会显示「即将推出」)`];
+    if (c.url && !/^https:\/\/.+/.test(c.url)) return [`${fieldName(k)}:须为 https 完整链接`];
     return [];
   });
   const dirty = Object.keys(edits).length > 0;
@@ -57,7 +59,8 @@ export default function DownloadsPage() {
               <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : '未配置(站上显示「即将推出」并禁用)'}</span>
               {p && (p.skipped ? <span className="pill">未启用/未配置,不探</span> : p.ok ? <span className="pill ok">{/* enum-ok:这是 HTTP 状态码,原值就是要给人看的 */}可达 {p.status}</span> : <span className="pill bad">不可达({p.status || '超时'})</span>)}
               <span className="spacer" />
-              <label className="row" style={{ gap: 6 }}>
+              {/* tap44:上下架是高敏动作,点歪就把下载入口关了(第十轮 P2-9) */}
+              <label className="row tap44" style={{ gap: 6 }}>
                 <span className="kv">开启</span>
                 <input type="checkbox" style={{ width: 18, height: 18 }} checked={c.enabled}
                   onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], enabled: e.target.checked } }))} />

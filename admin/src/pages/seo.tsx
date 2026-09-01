@@ -64,7 +64,7 @@ export default function SeoPage() {
         <div className="field" style={{ margin: 0, maxWidth: 380 }}>
           <input placeholder="ops@nexgrid.ai(留空=站上隐藏联系行)" value={mail} onChange={(ev) => setEmail(ev.target.value.trim())} />
         </div>
-        <p className="kv" style={{ marginTop: 6 }}>{mail ? '站上「For AI teams」联系行将显示此邮箱' : '当前为空:站上联系行隐藏中(R49 待办③,配好邮箱后填入)'}</p>
+        <p className="kv" style={{ marginTop: 6 }}>{mail ? '站上「For AI teams」联系行将显示此邮箱' : '当前为空:站上的联系行处于隐藏状态,填入邮箱后即会显示'}</p>
         {mailErr && <div className="note bad" style={{ marginBottom: 0 }}>{mailErr}</div>}
       </div>
       <div className="note info">

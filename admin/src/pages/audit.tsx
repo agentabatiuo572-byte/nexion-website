@@ -168,8 +168,18 @@ export default function AuditPage() {
           <table>
             <thead><tr><th>时间</th><th>动作</th><th>对象</th><th>变更</th><th>理由</th></tr></thead>
             <tbody>
-              {rows.map((r) => (
-                <tr key={r.id} onClick={() => setOpen(open === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
+              {rows.map((r) => {
+                /* 🔴 只有**真有东西可展开**的行才做成可点(第十轮 P2-13):
+                   上一版整行都是 `cursor:pointer`,而短行点下去 innerText 一个字都不变 ——
+                   界面上每个看起来能点的位置,要么有效,要么别让它看起来能点。 */
+                const expandable = ((r.before_summary ?? '') + (r.after_summary ?? '')).length > 60;
+                return (
+                <tr
+                  key={r.id}
+                  onClick={expandable ? () => setOpen(open === r.id ? null : r.id) : undefined}
+                  style={expandable ? { cursor: 'pointer' } : undefined}
+                  title={expandable ? '点击展开完整变更内容' : undefined}
+                >
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
                   {/* enum-ok:主视线是人话,下面小字**刻意**保留机器码——排查时要能和日志对上 */}
                   <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
@@ -192,7 +202,8 @@ export default function AuditPage() {
                   </td>
                   <td>{r.reason ?? '—'}</td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         )}

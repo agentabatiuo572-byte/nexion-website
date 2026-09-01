@@ -75,11 +75,21 @@ export default function FaqPage() {
                 <input type="checkbox" style={{ width: 18, height: 18 }} checked={it.visible} onChange={(e) => upd(it.id, { visible: e.target.checked })} />
               </label>
               <button className="btn ghost sm" onClick={() => setOpen(open === it.id ? null : it.id)}>{open === it.id ? '收起' : '编辑'}</button>
+              {/* 🔴 拦点在**删除动作**上,不是保存时(CON08-E1 逐字:「Given 删到仅剩 2 条,
+                  When 删除第 3 条,Then 拒绝」;第十轮独立验收 P2-11 实测可一路删到 0 条,
+                  剩 2 条才在页顶冒出「保存被拦」)。让人删完七条再告诉他不行,是最差的时机。 */}
               {confirmDel === it.id ? (
                 <button className="btn sm" style={{ background: 'var(--bad-soft)', color: 'var(--bad)' }}
                   onClick={() => { upd(it.id, { deleted: true }); setConfirmDel(null); }}>确认移入回收区?</button>
               ) : (
-                <button className="btn ghost sm" onClick={() => setConfirmDel(it.id)}>删除</button>
+                <button
+                  className="btn ghost sm"
+                  disabled={it.visible && visibleCount <= 3}
+                  title={it.visible && visibleCount <= 3 ? `站上至少要有 3 条可见问答(当前 ${visibleCount} 条),不能再删了` : ''}
+                  onClick={() => setConfirmDel(it.id)}
+                >
+                  删除
+                </button>
               )}
             </div>
             {open === it.id && (

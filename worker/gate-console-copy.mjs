@@ -14,8 +14,11 @@
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-// 直接 import .ts(node 24 原生剥类型),不再截源码求值 —— 见 checkPublishHelpers 里的说明
+/* 直接 import .ts(node 24 原生剥类型),不再截源码求值 —— 见 checkPublishHelpers 里的说明。
+   humanPath 也已从 publish.tsx 挪进 lib(为了让平台数字页/下载入口页够得着同一张表),
+   于是它同样能直接 import,截取那条路彻底不用了。 */
 import { splitFailReason } from '../admin/src/lib/fail-reason.ts';
+import { humanPath, COPY_GROUPS, fieldName } from '../admin/src/lib/human-path.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(here, '..', 'admin', 'src');
@@ -258,38 +261,12 @@ function checkQueryConsumers(files, sources) {
    这道门已在链里、已在读 publish.tsx 的源码,顺手把函数抽出来跑断言,成本几乎为零。
    抽法:从源码里截出函数体,剥掉 TS 标注后 new Function 求值。源码改名/挪走时抽不出来 → 报门失效。 */
 function checkPublishHelpers() {
-  const src = readFileSync(path.join(ROOT, 'pages', 'publish.tsx'), 'utf8');
-  const grab = (head, end) => {
-    const i = src.indexOf(head);
-    if (i < 0) return null;
-    const j = src.indexOf(end, i);
-    return j < 0 ? null : src.slice(i, j + end.length);
-  };
-  /* 🔴 `splitFailReason` 改成**直接 import**,不再截源码求值(2026-09-01)。
+  /* 🔴 两个函数都**直接 import**,不再截源码求值(2026-09-01)。
      截源码那条路每加一种 TS 写法就要补一条剥法:先是缺模块级常量(ReferenceError)、
-     再是 `export` 关键字、再是箭头函数的返回类型标注……而每次失败的表现都是
+     再是 `export` 关键字、再是局部变量的类型标注……而每次失败的表现都是
      「失败 0、断言悄悄变少」。node 24 能直接 import `.ts`,让它自己解析。
-     `humanPath` 仍走截取:它住在 `.tsx` 里,带 JSX,直接 import 不了。 */
-  const pieces = [
-    grab('const AREA: Array<[RegExp, string]> = [', '];'),
-    grab('const LOCALE_NAME: Record<string, string> = {', '};'),
-    grab('const FIELD_NAME: Record<string, string> = {', '};'),
-    grab('export function humanPath(path: string): string {', '\n}'),
-  ];
-  if (pieces.some((p) => !p)) return [[false, 'self-test:抽不出 humanPath(改名或挪走了?)——检查已失效,先修门']];
-  const js = pieces
-    .join('\n')
-    .replace(/: Array<\[RegExp, string\]>/g, '')
-    .replace(/: Record<string, string>/g, '')
-    .replace(/export function humanPath\(path: string\): string/, 'function humanPath(path)')
-    .replace(/ as string\[\]/g, '');
-  let humanPath;
-  try {
-    ({ humanPath } = new Function(`${js}; return { humanPath };`)());
-  } catch (e) {
-    return [[false, `self-test:抽出的 humanPath 跑不起来(${String(e).slice(0, 60)})`]];
-  }
-  if (!splitFailReason) return [[false, 'self-test:import 不到 splitFailReason —— 检查已失效,先修门']];
+     (humanPath 此前住在 publish.tsx 里、带 JSX 所以 import 不了;
+      为了让别的内容页够得着同一张表,它已挪进 lib —— 顺带把这条脆弱路径一起消掉。) */
   const out = [];
   /* 🔴 humanPath 的判据必须是**构造性**的,路径从真种子枚举,不手写样例。
      第一版我手写了六条样例,而它抓不到 `平台数字 · nodes` 这种**半翻**
@@ -303,11 +280,12 @@ function checkPublishHelpers() {
      一旦开始为它加排除表,就退回了词法层那条死路(见本文件判据② 的四问)。
      这里与判据④ 同形:一侧是产出方(种子里真实存在的字段),一侧是消费方(人话表)。
      copy 树是自由文案 key,不在封闭集里;域名由 AREA 自己消费,从 AREA 源码里抽,不另写一份。 */
-  const areaKeys = new Set([...(grab('const AREA: Array<[RegExp, string]> = [', '];') ?? '').matchAll(/\/\^([a-zA-Z]+)/g)].map((m) => m[1]));
-  if (!areaKeys.size) return [[false, 'self-test:从 AREA 抽不出域名 —— 判据失效,先修门']];
-  const fieldKeys = new Set(
-    [...(grab('const FIELD_NAME: Record<string, string> = {', '};') ?? '').matchAll(/(?:^|[{,\s])'?([a-zA-Z_$][\w$-]*)'?\s*:/gm)].map((m) => m[1]),
-  );
+  /* 域名与字段名都从**真模块**取,不再从源码文本抠(同上:直接 import 之后没必要再猜)。
+     域名用 humanPath 自己反推:能被它认出区域的顶层键就是域名。 */
+  const areaKeys = new Set(['copy', 'downloads', 'stats', 'skus', 'faq', 'announcement', 'seo', 'footer', 'legal'].filter((k) => humanPath(`${k}.probe`) !== `${k}.probe`));
+  if (!areaKeys.size) return [[false, 'self-test:humanPath 认不出任何域名 —— 判据失效,先修门']];
+  // FIELD_NAME 没有导出整表,用 fieldName() 逐个问:译得出就算有映射(COPY_GROUPS 也走它)
+  const hasField = (k) => fieldName(k) !== k || k in COPY_GROUPS;
   const LOCALES = new Set(['en', 'vi', 'zh']);
   const segs = new Map(); // 字段名 → 它第一次出现的位置(报错时能直接说清是哪儿的字段)
   const walkCfg = (v, prefix) => {
@@ -320,7 +298,7 @@ function checkPublishHelpers() {
   };
   walkCfg(seed, '');
   if (segs.size < 20) return [[false, `self-test:从种子只枚举出 ${segs.size} 个字段 —— 判据失效(种子改形状了?)`]];
-  const missing = [...segs].filter(([k]) => !fieldKeys.has(k) && !areaKeys.has(k) && !LOCALES.has(k));
+  const missing = [...segs].filter(([k]) => !hasField(k) && !areaKeys.has(k) && !LOCALES.has(k));
   out.push([
     missing.length === 0,
     `self-test:种子里 ${segs.size} 个配置字段在人话表里都有译名(缺:${JSON.stringify(missing.map(([k, p]) => `${k} @ ${p}`).slice(0, 8))})`,

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
 import { splitFailReason } from '../lib/fail-reason';
+import { humanPath } from '../lib/human-path';
 import { useShell } from '../shell';
 
 interface Finding { path: string; rule: string; message: string }
@@ -37,64 +38,6 @@ const RULE_LABEL: Record<string, string> = {
 };
 // 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)
-/* 字段路径 → 人话。
-   🔴 实景走查 P2-11/12/13:diff 摘要、提醒行、红项表三处都在直印
-   `announcement.text.en` / `downloads.ios.enabled` 这类内部路径。
-   运营认不出这是「公告条的英文正文」还是别的什么,而 PRD 明写页面文案禁出现字段名。
-   一处映射三处共用:再多一处直印,就是这张表该补而不是再写一遍。 */
-const AREA: Array<[RegExp, string]> = [
-  [/^copy\.(en|vi|zh)\./, '文案'],
-  [/^downloads\./, '下载入口'],
-  [/^stats\./, '平台数字'],
-  [/^skus\b/, '产品卡'],
-  [/^faq\b/, '常见问题'],
-  [/^announcement\./, '公告条'],
-  [/^seo\./, 'SEO'],
-  [/^footer\./, '页脚'],
-  [/^legal\./, 'Legal 文本'],
-];
-const LOCALE_NAME: Record<string, string> = { en: '英文', vi: '越南语', zh: '中文' };
-/* 字段名 → 人话。
-   🔴 第一版只剥掉了区域前缀,尾巴原样保留,于是:
-   `产品卡 · skus[0].priceUSD` —— **人话行和下面的原文小字一模一样,等于没翻译**;
-   `平台数字 · activeDevices` 也和页面上写的「活跃设备」对不上(第八轮走查我点名请它判,它判「不够」)。
-   现在逐字段真映射;认不出的尾巴保留原样(不隐藏),但至少区域和已知字段是人话。 */
-const FIELD_NAME: Record<string, string> = {
-  // 产品卡
-  name: '名称', priceUSD: '价格', multiplier: '算力倍数', status: '状态', tagline: '标语', visible: '是否展示', sort: '排序',
-  free: '是否免费档',
-  // 下载入口(平台键也要译:`下载入口 · ios · 链接` 里那个 ios 是配置键,不是给人看的写法)
-  url: '链接', enabled: '开关', ios: 'iOS 版', android: '安卓版', h5: '网页版',
-  // 公告条 / SEO / 页脚
-  text: '正文', startsAt: '开始时间', endsAt: '结束时间', title: '标题', description: '描述',
-  social: '社媒链接', contactEmail: '联系邮箱', id: '编号',
-  // 平台数字(与各页面上的标签一致)。走查实景抓到过「平台数字 · nodes」漏在这里
-  activeDevices: '活跃设备', activeJobs: '运行中任务', countries: '覆盖国家', uptime: '在线率',
-  nodes: '节点数', asOf: '数据截至',
-  // FAQ / Legal
-  items: '条目', q: '问题', a: '答案', md: '正文', updatedAt: '最后更新', href: '跳转链接',
-  terms: '服务条款', privacy: '隐私政策', appPrivacy: 'App 隐私政策',
-  // SEO 的页面 id(seo.pages 下的键就是路由名,直接摆出来运营对不上是哪一页)
-  pages: '页面', home: '首页', learn: '学习页', nex: 'NEX 页',
-  'legal-privacy': '隐私政策页', 'legal-terms': '服务条款页', 'legal-app-privacy': 'App 隐私政策页',
-};
-/** 例:`skus[0].priceUSD` → 「产品卡 · 第 1 张 · 价格」;认不出的部分保留原样,不隐藏 */
-export function humanPath(path: string): string {
-  const area = AREA.find(([re]) => re.test(path))?.[1];
-  if (!area) return path;
-  const loc = Object.keys(LOCALE_NAME).find((l) => path.startsWith(`copy.${l}.`) || path.endsWith(`.${l}`));
-  const parts = path
-    .replace(/^(copy\.(en|vi|zh)|[a-z]+)\.?/i, '') // 去区域前缀(含 copy.<语言>)
-    .replace(/\.(en|vi|zh)$/, '') // 去尾部语言
-    .split('.')
-    .flatMap((seg) => {
-      const m = /^([a-zA-Z_$][\w$]*)?\[(\d+)\]$/.exec(seg);
-      if (m) return [m[1] ? (FIELD_NAME[m[1]] ?? m[1]) : null, `第 ${Number(m[2]) + 1} 项`].filter(Boolean) as string[];
-      return seg ? [FIELD_NAME[seg] ?? seg] : [];
-    });
-  return [area, loc && LOCALE_NAME[loc], ...parts].filter(Boolean).join(' · ');
-}
-
 /** 红项 → 该去哪个页面修 */
 function fixLink(path: string): string {
   if (path.startsWith('copy.')) return '/content';
@@ -120,6 +63,7 @@ export default function PublishPage() {
   const [openLog, setOpenLog] = useState<string | null>(null);
   const [showAllPaths, setShowAllPaths] = useState(false);
   const [showAllErrors, setShowAllErrors] = useState(false);
+  const [showAllWarnings, setShowAllWarnings] = useState(false);
   const timer = useRef<number | null>(null);
 
   const load = useCallback(() => {
@@ -369,12 +313,33 @@ export default function PublishPage() {
               )}
             </div>
           )}
-          {pre.warnings.length > 0 && (
-            <div className="note warn" style={{ marginTop: 8 }}>
-              提醒({pre.warnings.length} 项,不阻断发布):{pre.warnings.slice(0, 4).map((w) => `${RULE_LABEL[w.rule] ?? w.rule}(${humanPath(w.path)})`).join(' · ')}
-              {pre.warnings.length > 4 && ' …'}
-            </div>
-          )}
+          {pre.warnings.length > 0 && (() => {
+            /* 🔴 按**规则**归并,而不是取前四条(2026-09-01 第十轮独立验收 P2-1):
+               上一版四个位置被**同一条规则**重复占满(实录:四次「SEO 长度(SEO · 英文 · 首页 · 标题)」),
+               另外 15 条可能是完全不同的问题,一条都看不到、也没有展开入口。
+               归并后每种问题至少露一次脸,数量写在括号里,再给展开看全部。 */
+            const byRule = new Map<string, string[]>();
+            for (const w of pre.warnings) {
+              const key = RULE_LABEL[w.rule] ?? w.rule;
+              byRule.set(key, [...(byRule.get(key) ?? []), humanPath(w.path)]);
+            }
+            return (
+              <div className="note warn" style={{ marginTop: 8 }}>
+                <b>提醒({pre.warnings.length} 项,不阻断发布)</b>
+                {[...byRule].map(([rule, paths]) => (
+                  <div key={rule} style={{ marginTop: 4 }}>
+                    {rule}({paths.length} 处):
+                    <span className="kv"> {(showAllWarnings ? paths : paths.slice(0, 3)).join(' · ')}{!showAllWarnings && paths.length > 3 ? ` …另 ${paths.length - 3} 处` : ''}</span>
+                  </div>
+                ))}
+                {pre.warnings.length > byRule.size && (
+                  <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllWarnings((v) => !v)}>
+                    {showAllWarnings ? '收起' : '展开全部位置'}
+                  </button>
+                )}
+              </div>
+            );
+          })()}
           <div className="row" style={{ marginTop: 12 }}>
             <button className="btn primary" disabled={!pre.ready || busy} onClick={() => setConfirm({ reason: '' })}>
               发布(过全部机器门)
@@ -407,6 +372,18 @@ export default function PublishPage() {
       {/* 版本历史 */}
       <div className="card">
         <h3>版本历史(只增不删;回滚也走全部机器门)</h3>
+        {/* 号会跳空:并发发布拿不到锁时,那个刚建的号会被撤销(不留半个版本行,
+            也就不会造出清不掉的假红条)。但从运营那边看,一张写着「只增不删」的表里
+            少了个号而界面一句话不说,只会让人以为丢了东西(第十轮 P2-17)。 */}
+        {(() => {
+          const ids = st.versions.map((v) => v.id).sort((a, b) => a - b);
+          const gaps = ids.length > 1 && ids[ids.length - 1] - ids[0] + 1 > ids.length;
+          return gaps && !st.versionsTruncated ? (
+            <p className="kv" style={{ margin: '0 0 8px' }}>
+              版本号中间的空号是正常的:同时有人在发布时,后发起的那次会连号一起撤销(审计里记作「发布被拒」),不会留下半个版本。
+            </p>
+          ) : null;
+        })()}
         {/* 🔴 截断必须说出来:此前静默只渲染最近 30 条,46 个版本时线上那一行直接消失,
             而标题写着「只增不删」——界面在说一句它自己正在违反的话(实景走查 P1)。 */}
         {st.versionsTruncated && (
@@ -431,7 +408,19 @@ export default function PublishPage() {
                       <>
                         {f.human}
                         {/* 门名 / 原始报错留在小字里:历史表是排查入口,信息不能删,但也不该占主视线 */}
-                        {f.tech && <div className="kv mono" style={{ wordBreak: 'break-all', maxWidth: 360 }}>{f.raw ? f.tech.slice(0, 160) : `门:${f.tech}`}</div>}
+                        {/* 🔴 截断要给出口(第十轮 P2-3):上一版硬切 160 字,断在半个词上、
+                            无展开无折叠,既读不完也用不上,还把服务器目录结构摆在页面上。
+                            现在默认折起,点开才显示完整原文。 */}
+                        {f.tech && (
+                          f.raw ? (
+                            <details style={{ maxWidth: 360 }}>
+                              <summary className="kv" style={{ cursor: 'pointer' }}>查看原始报错</summary>
+                              <div className="kv mono" style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 4 }}>{f.tech}</div>
+                            </details>
+                          ) : (
+                            <div className="kv mono" style={{ wordBreak: 'break-all', maxWidth: 360 }}>门:{f.tech}</div>
+                          )
+                        )}
                       </>
                     );
                   })() : v.reason ?? (v.created_by === 'system' ? <span className="kv">初始种子(非发布)</span> : '—')}

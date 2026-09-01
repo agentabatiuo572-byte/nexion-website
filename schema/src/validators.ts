@@ -113,7 +113,8 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   // 6) 统计数字(CON06-E1 锚值软警;范围硬校验已在 zod)
   const anchorHits = Object.entries(MOCK_STAT_ANCHORS).filter(([k, v]) => (c.stats as Record<string, unknown>)[k] === v);
   for (const [k] of anchorHits)
-    warnings.push({ path: `stats.${k}`, rule: 'mock-anchor', message: '与旧演示值相同——生产上线门(R49-F1)将拦截' });
+    // 内部门编号(R49-F1)对运营既查不到也用不上,不该出现在页面上(第十轮独立验收 P2-6)
+    warnings.push({ path: `stats.${k}`, rule: 'mock-anchor', message: '与内置演示值相同——上线前必须换成真实口径值,否则生产发布会被拦下' });
 
   // 7) 产品卡(CON07-E2)与 FAQ 门槛(CON08-E1)
   if (!c.skus.some((s) => s.visible)) errors.push({ path: 'skus', rule: 'all-hidden', message: '设备板块不可为空(至少 1 个可见)' });

@@ -1,5 +1,6 @@
 /* 平台统计数字(CON06 ⑤⑥):五数字+口径月;锚值软警(R49-A2);三语格式预览。高敏模块。 */
 import { useState } from 'react';
+import { fieldName } from '../lib/human-path';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -31,9 +32,9 @@ export default function StatsPage() {
   const errs: string[] = [];
   for (const [k, , dec] of FIELDS) {
     const v = numOf(k);
-    if (!Number.isFinite(v) || v <= 0) errs.push(`${k}:须为正数`);
-    else if (k === 'uptime' && v > 100) errs.push('uptime:不得超过 100');
-    else if (dec === 0 && !Number.isInteger(v)) errs.push(`${k}:须为整数`);
+    if (!Number.isFinite(v) || v <= 0) errs.push(`${fieldName(k)}:须填一个大于 0 的数`);
+    else if (k === 'uptime' && v > 100) errs.push(`${fieldName('uptime')}:不得超过 100`);
+    else if (dec === 0 && !Number.isInteger(v)) errs.push(`${fieldName(k)}:须为整数(不能有小数)`);
   }
   const asOf = String(cur('asOf'));
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(asOf)) errs.push('口径月格式:YYYY-MM(月份 01-12)');
@@ -52,8 +53,9 @@ export default function StatsPage() {
               <label>{label}</label>
               <input className="mono" value={String(cur(k))} onChange={(e) => setEdits((s) => ({ ...s, [k]: e.target.value.trim() }))} />
             </div>
+            {/* 内部门编号(R49-F1)运营既查不到也用不上,不该印在页面上(第十轮 P2-6) */}
             {anchorHits.includes(k) ? (
-              <div className="note warn" style={{ margin: '8px 0 0' }}>与旧演示值相同——生产上线门(R49-F1)将拦截,请填真实口径值</div>
+              <div className="note warn" style={{ margin: '8px 0 0' }}>与内置演示值相同——上线前请换成真实口径值,否则生产发布会被拦下</div>
             ) : (
               <div className="kv" style={{ marginTop: 6 }}>✓ 非演示锚值</div>
             )}

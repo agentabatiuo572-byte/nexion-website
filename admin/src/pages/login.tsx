@@ -50,7 +50,7 @@ export default function Login() {
         <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy || lock.sec > 0}>
           {busy ? '登录中…' : '登录'}
         </button>
-        <p className="kv" style={{ marginTop: 12 }}>首次使用?先完成初始化(部署时的 SETUP_TOKEN):<a href="/admin/setup" style={{ color: 'var(--ink2)' }}>去初始化 →</a></p>
+        <p className="kv" style={{ marginTop: 12 }}>首次使用?先完成初始化(需要部署时配置的初始化令牌):<a href="/admin/setup" style={{ color: 'var(--ink2)' }}>去初始化 →</a></p>
       </form>
     </div>
   );

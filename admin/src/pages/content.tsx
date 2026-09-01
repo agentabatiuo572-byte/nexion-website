@@ -7,14 +7,12 @@ import { Link } from 'react-router-dom';
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { tokensOf, useDraft, type SiteConfigView } from '../lib/use-draft';
 import { AutoTextarea } from '../lib/auto-textarea';
+import { COPY_GROUPS } from '../lib/human-path';
 import { useFocusField } from '../lib/use-focus-field';
 
-const GROUPS: Array<[string, string]> = [
-  ['hero', '首屏 Hero'], ['download', '下载按钮文案'], ['stats', '统计标签'], ['path', '收益路径'],
-  ['how', 'How it works'], ['devices', '设备板块'], ['trust', '信任板块'], ['social', '社证'],
-  ['mission', '使命'], ['nex', 'NEX'], ['learn', '学习中心'], ['faq', 'FAQ 标题'], ['final', '收尾 CTA'],
-  ['site', '站点信息(SEO 源)'], ['nav', '导航'], ['footer', '页脚'], ['legal', '法务提示'], ['notfound', '404 页'],
-];
+/* 分组名单源在 lib/human-path 的 COPY_GROUPS —— 发布页翻译红项路径时用的是同一份。
+   两处各写各的必漂:实测发布页此前根本翻不出组名,因为那张表只在这个页面里。 */
+const GROUPS: Array<[string, string]> = Object.entries(COPY_GROUPS);
 const SENSITIVE_GROUPS = new Set(['trust', 'legal']);
 const SENSITIVE_KEYS = ['footer.legalLine'];
 const COLLECTION_NOTE: Record<string, ReactNode> = {
@@ -34,12 +32,19 @@ export default function ContentPage() {
   const [confirmRevert, setConfirmRevert] = useState<string | null>(null); // 撤销两步确认(PRD ④,T11-P3)
   const [showLive, setShowLive] = useState<Record<string, boolean>>({}); // 行内线上值展开(PRD ⑥,T11-P4)
 
+  /* 🔴 搜索**跨全部 18 组**(2026-09-01 第十轮独立验收 P2-12):
+     上一版先按当前组过滤、再按关键词过滤,于是运营记得站上有句话要改、
+     却不知道它属于哪一组时,搜索完全帮不上忙,只能逐组点开再搜。
+     现在:没输关键词 = 看当前组(默认行为不变);输了关键词 = 全局搜,
+     并在每条上标出它属于哪一组,点组名可以切过去。 */
+  const searching = q.trim().length > 0;
+  const matches = (k: string) =>
+    k.toLowerCase().includes(q.toLowerCase()) || (['en', 'vi', 'zh'] as const).some((l) => (val(draft!, l, k) ?? '').toLowerCase().includes(q.toLowerCase()));
   const keys = useMemo(() => {
     if (!draft) return [];
-    return Object.keys(draft.copy.en)
-      .filter((k) => k.startsWith(group + '.'))
-      .filter((k) => !q || k.toLowerCase().includes(q.toLowerCase()) || ['en', 'vi', 'zh'].some((l) => (val(draft, l as 'en', k) ?? '').toLowerCase().includes(q.toLowerCase())));
-  }, [draft, group, q]);
+    const all = Object.keys(draft.copy.en);
+    return searching ? all.filter(matches) : all.filter((k) => k.startsWith(group + '.'));
+  }, [draft, group, q, searching]);
 
   if (!draft) return <section><h2>文案树</h2><div className="grid"><div className="skl" /><div className="skl" style={{ width: '70%' }} /></div></section>;
 
@@ -85,7 +90,7 @@ export default function ContentPage() {
         </div>
         <div>
           <div className="row" style={{ marginBottom: 10 }}>
-            <input placeholder="按 key 或内容过滤本组…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
+            <input placeholder="搜索文案(全部 18 组)…" value={q} onChange={(e) => setQ(e.target.value)} style={{ maxWidth: 320 }} />
             <span className="spacer" />
             <span className="kv">{placeholderBlocked ? '有占位符缺失,保存被拦' : dirtyCount ? `本页未保存 ${dirtyCount} 处` : '无未保存改动'}</span>
             <button className="btn primary sm" disabled={!dirtyCount || saving || placeholderBlocked} onClick={saveAll}>{saving ? '保存中…' : '保存草稿'}</button>
@@ -103,6 +108,11 @@ export default function ContentPage() {
               <div className="card" key={k} style={{ marginBottom: 10 }} data-field={`copy.${k}`}>
                 <div className="row" style={{ marginBottom: 6 }}>
                   <b className="mono" style={{ fontSize: 12.5 }}>{k}</b>
+                  {searching && (
+                    <button className="pill" style={{ cursor: 'pointer' }} title="切到这一组" onClick={() => { setGroup(k.split('.')[0]); setQ(''); }}>
+                      {COPY_GROUPS[k.split('.')[0]] ?? k.split('.')[0]}
+                    </button>
+                  )}
                   {sensitive && <span className="pill warn">高敏 · 发布须理由</span>}
                   {(edits[k] || liveDiff) && <span className="pill">已改未发布</span>}
                   <span className="spacer" />
@@ -148,7 +158,24 @@ export default function ContentPage() {
                     const missTokens = loc !== 'en' && v ? enTokens.filter((t) => !tokensOf(v).includes(t)) : [];
                     return (
                       <div className="field" key={loc} style={{ margin: 0 }}>
-                        <label>{loc}{loc === 'en' && '(源)'}{missing && <span className="pill warn" style={{ marginLeft: 6 }}>缺译</span>}</label>
+                        {/* 缺译黄旗**可点**(CON04-⑥ 点击流矩阵写着「缺译黄旗 → 聚焦该空栏」)。
+                            上一版是个纯 span:光标是默认箭头、没有点击行为 ——
+                            界面上每个看起来能点的东西,要么真能点,要么别让它看起来能点(第十轮 P2-10)。 */}
+                        <label>
+                          {loc}{loc === 'en' && '(源)'}
+                          {missing && (
+                            <button
+                              className="pill warn" style={{ marginLeft: 6, cursor: 'pointer' }} title="点击定位到这一栏"
+                              onClick={(ev) => {
+                                const box = (ev.currentTarget.closest('.field') as HTMLElement | null)?.querySelector('textarea');
+                                box?.focus();
+                                box?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+                              }}
+                            >
+                              缺译
+                            </button>
+                          )}
+                        </label>
                         <AutoTextarea
                           value={v}
                           style={hits.length || missTokens.length ? { borderColor: 'var(--bad)' } : {}}

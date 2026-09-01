@@ -102,8 +102,20 @@ export default function GeoPage() {
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
           <b>总开关</b>
-          <input type="checkbox" style={{ width: 18, height: 18 }} checked={r.enabled} onChange={(e) => set({ enabled: e.target.checked })} />
-          {dirty ? <span className="pill warn">改动未应用</span> : <span className="pill ok">已生效{st.rules.updatedAt ? ` · ${new Date(st.rules.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })} 回读确认` : ''}</span>}
+          <label className="tap44" title="总开关"><input type="checkbox" style={{ width: 18, height: 18 }} checked={r.enabled} onChange={(e) => set({ enabled: e.target.checked })} /></label>
+          {/* 🔴 「已生效」指的是「页面上这份 = 线上那份」,而不是「屏蔽正在生效」——
+              上一版总开关关着时旁边也写「已生效」,而同屏状态条写「屏蔽 未启用」,同一件事两个词;
+              降级态更糟:页面显示的根本不是真规则,那枚绿标却还写着已生效(第十轮 P2-4)。 */}
+          {dirty ? (
+            <span className="pill warn">改动未应用</span>
+          ) : st.degraded ? (
+            <span className="pill warn">读不到线上规则(下方显示的是兜底名单)</span>
+          ) : (
+            <span className="pill ok">
+              {r.enabled ? '屏蔽生效中' : '屏蔽未启用'}
+              {st.rules.updatedAt ? ` · 与线上一致(${new Date(st.rules.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })} 回读确认)` : ' · 与线上一致'}
+            </span>
+          )}
           <span className="spacer" />
           <button className="btn" disabled={!st.bypassAvailable} title={st.bypassAvailable ? '' : '直通密钥未配置或仍为默认值'} onClick={() => void getBypass()}>
             获取直通(从任何地区预览官网)
@@ -112,7 +124,7 @@ export default function GeoPage() {
         <p className="kv" style={{ marginTop: 6 }}>控制台永不受屏蔽;规则改动走即时通道(约 1 分钟全球生效),不经内容发布链。</p>
         {!st.bypassAvailable && (
           <div className="note warn" style={{ marginBottom: 0 }}>
-            直通功能当前停用:部署密钥(BYPASS_SECRET)未配置、或仍是仓库内的开发默认值。上线前必须轮换成真密钥,否则任何人都能自行伪造直通凭证绕过屏蔽。
+            直通功能当前停用:部署时的直通密钥未配置,或仍是代码库里的开发默认值(运维手册里叫 BYPASS_SECRET)。上线前必须轮换成真密钥,否则任何人都能自行伪造直通凭证绕过屏蔽。
           </div>
         )}
       </div>
@@ -167,6 +179,8 @@ export default function GeoPage() {
           应用变更(确认+理由)
         </button>
         {dirty && <button className="btn ghost" onClick={() => setDraft(null)}>放弃改动</button>}
+        {/* 禁用必须说明原因(不变量);发布页在同样情形下写「无改动可发布」,这里此前是空的 */}
+        {!dirty && !st.degraded && <span className="kv">当前没有未应用的改动</span>}
       </div>
       {tooLong.map((x, i) => <div className="note bad" key={i} style={{ marginBottom: 10 }}>{x}——请先缩短再应用</div>)}
 

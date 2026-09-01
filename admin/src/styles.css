@@ -78,6 +78,32 @@ table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 th { text-align: left; color: var(--ink4); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); }
 td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--ink2); vertical-align: top; }
 td b { color: var(--ink); font-weight: 600; }
+/* 🔴 高敏动作的控件触达面积(2026-09-01 第十轮独立验收 P2-9)。
+   区域屏蔽总开关、下载入口上下架、公告条总开关此前都是 18×18 的原生复选框,
+   而这几个都是**高敏**动作(点歪的代价:错误地屏蔽一个国家 / 把下载入口下架)。
+   不变量要求触达 ≥44pt。做法是给复选框套一个 44 的可点区域,而不是把方框本身撑大
+   ——视觉不变(那是主人看过的样子),只是手指能点中的范围变大。 */
+/* ⚠️ min-height 只能给**包裹层**,不能给 input 自己 ——
+   给 input 自己会把方框从 18×18 撑成 18×44,那是改变视觉,不是扩大触达
+   (第一版就这么错了,实测抓到 18x44)。 */
+.tap44 {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* 红条 / 提示条里的行动按钮:窄屏下也保证能点中 */
+.note .btn, .note a { min-height: 32px; display: inline-flex; align-items: center; }
+
+/* 🔴 窄屏:红条里的链接不许被压成竖排单字(第十轮独立验收 P2-15:
+   375px 下「去处理」被压成 40×60 的竖排三个字,既难读也难点)。 */
+@media (max-width: 760px) {
+  .note, .note .row { flex-wrap: wrap; }
+  .note a, .note .btn { white-space: nowrap; flex: none; }
+}
+
 /* 🔴 窄屏:多列栅格改成单列(2026-09-01 第十轮独立验收 P1-11)。
    上一轮把**表格**那一族修好了(表格自己滚),但**栅格**那一族原样留着 ——
    典型的「修一处 ≠ 修全部」。实测 375px:公告条页布局宽 634(整整一栏「结束时间」

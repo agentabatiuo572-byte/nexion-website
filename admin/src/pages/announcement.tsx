@@ -54,7 +54,7 @@ export default function AnnouncementPage() {
       <div className="card" style={{ marginBottom: 10 }} data-field="announcement.enabled" data-field-alt="announcement">
         <div className="row">
           <b>总开关</b>
-          <input type="checkbox" style={{ width: 18, height: 18 }} checked={a.enabled} onChange={(ev) => setE((s) => ({ ...s, enabled: ev.target.checked }))} />
+          <label className="tap44" title="总开关"><input type="checkbox" style={{ width: 18, height: 18 }} checked={a.enabled} onChange={(ev) => setE((s) => ({ ...s, enabled: ev.target.checked }))} /></label>
           <span className={`pill ${winState === '展示中' ? 'ok' : winState === '未启用' ? '' : 'warn'}`}>{winState}</span>
         </div>
       </div>
