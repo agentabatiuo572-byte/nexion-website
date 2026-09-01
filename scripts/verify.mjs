@@ -132,16 +132,35 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
    判据:清单内钩子在 src 有 EMIT(data-x= 模板属性)则必须有 CONSUMER([data-x 选择器 或 dataset.x),
    0 消费即红。新状态钩子加进 HOOKS 清单。 */
 {
+  /* 🔴 清单改成**构造性枚举**(2026-09-01 第十轮独立验收 P1-8)。
+     上一版 `HOOKS = ['empty']` 是手写的,而那个钩子早已退役、全 src 零 EMIT,
+     于是这道门每次打印 `✓ clean` 却**一条断言都没执行**,还在「13/13」里占一格。
+     一道恒绿且什么都没查的门,比没有门更误导人。
+     现在从源码里枚举真实在用的 `data-*` 属性,逐个要求有消费方。
+     排除面写清楚**为什么排除**,不是随手加白名单:
+     - HTML/框架自带属性(data-src/srcset/theme/…)不是本站的状态钩子;
+     - 带后缀的参数属性(data-tw-delay 之类)由其主钩子统一读取。 */
   const detail = [];
-  const HOOKS = ['empty'];
   const files = walk(SRC, ['.astro', '.ts', '.css']);
   const all = files.map((f) => readFileSync(f, 'utf8')).join('\n');
-  for (const h of HOOKS) {
-    const emits = (all.match(new RegExp(`data-${h}=`, 'g')) || []).length;
-    const consumers = (all.match(new RegExp(`\\[data-${h}[\\]=']`, 'g')) || []).length + (all.match(new RegExp(`dataset\\.${h}\\b`, 'g')) || []).length;
-    if (emits > 0 && consumers === 0) detail.push(`data-${h}:EMIT ×${emits} 但 0 消费方——状态渲染了却没有任何用户可见面`);
+  const NATIVE = new Set(['src', 'srcset', 'theme', 'alt', 'target', 'locale', 'mode', 'suffix', 'sse-url']);
+  const emitted = [...new Set([...all.matchAll(/data-([a-z][a-z0-9-]*)=/g)].map((m) => m[1]))]
+    .filter((h) => !NATIVE.has(h))
+    .filter((h) => !/-/.test(h) || !emittedBase(h)); // data-tw-delay 归 data-tw 管
+  function emittedBase(h) {
+    const base = h.split('-')[0];
+    return new RegExp(`data-${base}[=\\s>]`).test(all);
   }
-  results.push({ gate: 'state-hook-consumer(R49-F2)', pass: detail.length === 0, detail });
+  if (!emitted.length) detail.push('从 src 里一个状态钩子都没枚举到 —— 判据失效(属性写法变了?),先修门');
+  for (const h of emitted) {
+    const emits = (all.match(new RegExp(`data-${h}=`, 'g')) || []).length;
+    const consumers =
+      (all.match(new RegExp(`\\[data-${h}[\\]='"]`, 'g')) || []).length +
+      (all.match(new RegExp(`dataset\\.${h.replace(/-(.)/g, (_, c) => c.toUpperCase())}\\b`, 'g')) || []).length +
+      (all.match(new RegExp(`getAttribute\\(['"\`]data-${h}`, 'g')) || []).length;
+    if (emits > 0 && consumers === 0) detail.push(`data-${h}:渲染了 ${emits} 处但没有任何地方读它——状态出现在页面上却没有用户可见面`);
+  }
+  results.push({ gate: `state-hook-consumer(R49-F2)`, pass: detail.length === 0, detail: detail.length ? detail : [`已核 ${emitted.length} 个状态钩子,均有消费方`] });
 }
 
 /* ── 门 4:页内锚点存在性(PRD §6-5 近似;T11 升级为 dist 级死链扫描)── */

@@ -141,6 +141,7 @@ export default function AuditPage() {
               {rows.map((r) => (
                 <tr key={r.id} onClick={() => setOpen(open === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
+                  {/* enum-ok:主视线是人话,下面小字**刻意**保留机器码——排查时要能和日志对上 */}
                   <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
                   {/* 「对象」列不印内部占位词:登录类事件的对象是来访 IP,取不到时服务端写 'unknown',
                       直接印出来运营会以为是个真值(实景走查 P1-3)。 */}

@@ -71,11 +71,29 @@ function scan(files) {
             import 里没有中文、CSS 值旁没有中文、映射表键值是 `:` 不是 `?:`。
          代价说清楚:形态① 只在「两分支都是机器词且变量被直接渲染」时抓得到,更绕的写法
          (机器词来自函数返回、来自数组)这道门看不见——那部分仍归实景走查,不假装覆盖。 */
-      if (!/enum-ok/.test(line)) {
-        const mapped = /\[\s*[A-Za-z_$][\w.$]*\.(status|action|state|kind|type)\s*\]/.test(line); // 过了映射表
+      /* 逃生阀认「本行或紧邻上一行」:长的 JSX 行没法在行尾再挂注释,
+         写在上一行是自然写法。豁免仍然是**显式**的(必须手写 enum-ok),
+         放宽的只是它写在哪一行,不会有人意外获得豁免。 */
+      const lines = text.split('\n');
+      const exempt = /enum-ok/.test(line) || /enum-ok/.test(lines[i - 1] ?? '');
+      if (!exempt) {
+        /* 🔴 豁免必须**按渲染点**判,不能按整行(2026-09-01 第十轮独立验收 P1-6)。
+           上一版只要这一行任何位置出现过一次映射写法,整行的裸枚举就全部隐形 ——
+           而这个形状在仓里天天被走:`{ACTION_LABEL[r.action] ?? r.action}` 与它旁边
+           刻意保留的机器码小字本来就同行(那处合法)。于是只要有人在这类行里
+           再补一个真正该翻译的枚举,门看不见。
+           改法:逐个渲染点看它**自己**前面紧挨着的是不是映射表下标 —— 判据问的是
+           「这个点过没过映射」,不是「这一行里出现过映射吗」。 */
         const asFormValue = /value=\{\s*[A-Za-z_$][\w.$]*\.(status|action|state|kind|type)\s*\}/.test(line);
-        if (!mapped && !asFormValue) {
+        if (!asFormValue) {
           for (const m of line.matchAll(/\{\s*([A-Za-z_$][\w.$]*)\.(status|action|state|kind|type)\s*\}/g)) {
+            // 该渲染点之前 24 字符内出现 `TABLE[` 才算过了映射(`{LABEL[r.action] ?? r.action}` 的兜底半边同理豁免)
+            const before = line.slice(Math.max(0, m.index - 24), m.index);
+            if (/\[[^\]]*$/.test(before) || /\?\?\s*$/.test(before)) continue;
+            /* 模板字符串的插值 `${x}` 不是 JSX 渲染点:`\`状态未知(${s.status})\`` 是
+               **缺映射时的正确兜底写法**(人话包着原值),按渲染点判会把它误报成裸枚举。
+               判据看紧邻的那个字符,不是维护一张例外清单。 */
+            if (before.endsWith('$')) continue;
             out.push({ file, line: i + 1, why: `机器枚举值 {${m[1]}.${m[2]}} 直接渲染给人看;先过映射表(缺映射时也要说「状态未知」而不是吐原词)`, code: t.slice(0, 110) });
           }
         }
@@ -89,7 +107,7 @@ function scan(files) {
       }
       // 形态①:`const x = … ? '机器词' : '机器词'`,而 x 后来被直接渲染成 `{x}`
       const decl = line.match(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=[^;]*\?\s*'([a-z][a-z0-9-]*)'\s*:\s*'([a-z][a-z0-9-]*)'/);
-      if (decl && !/enum-ok/.test(line) && new RegExp(`\\{\\s*${decl[1]}\\s*\\}`).test(text)) {
+      if (decl && !exempt && new RegExp(`\\{\\s*${decl[1]}\\s*\\}`).test(text)) {
         out.push({ file, line: i + 1, why: `变量 ${decl[1]} 存的是机器词('${decl[2]}'/'${decl[3]}'),却被直接渲染成 {${decl[1]}};存人话或过映射表`, code: t.slice(0, 110) });
       }
     });
@@ -97,20 +115,12 @@ function scan(files) {
   return out;
 }
 
-function collect(dir) {
-  const files = [];
-  const walk = (d) => {
-    for (const n of readdirSync(d)) {
-      const p = path.join(d, n);
-      if (statSync(p).isDirectory()) walk(p);
-      else if (n.endsWith('.tsx')) files.push({ file: path.relative(path.join(here, '..'), p).split(path.sep).join('/'), text: readFileSync(p, 'utf8') });
-    }
-  };
-  walk(dir);
-  return files;
-}
-
-const files = collect(ROOT);
+/* 🔴 判据①② 的扫描面必须与判据③ 一致(2026-09-01 第十轮独立验收 P1-5)。
+   上一版 `collect()` 只收 `.tsx`,而 `admin/src/lib/use-draft.ts` 里就有
+   `toast('保存被拒:数据结构不合法')` 这类**印给运营看的界面文案** ——
+   同一个文件里两种扫描面,markdown 记号写进 `.ts` 就完全看不见(实测注入即绿)。
+   界面文案住在哪个后缀里不是判据该关心的事。 */
+const files = allSources();
 
 /** 全部前端源码(判据③ 的「有没有人读」是全局问题,扫描面不能只有页面组件) */
 function allSources() {
@@ -143,6 +153,13 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: '<td>{LABEL[r.status] ?? r.status}</td>' }]).length === 0, 'self-test:过了映射表的写法 → 不误报');
   say(scan([{ file: 'f.tsx', text: '<select value={s.status}>' }]).length === 0, 'self-test:表单 value → 不误报');
   say(scan([{ file: 'f.tsx', text: '<td>{r.status}</td> {/* enum-ok:这列就要看原值 */}' }]).length === 0, 'self-test:逃生阀 enum-ok → 放行');
+  /* 判据② 的豁免范围:整行豁免会让「同行映射 + 同行裸枚举」隐形(第十轮 P1-6),
+     而那个形状在仓里天天被走 —— 所以豁免必须按渲染点判。 */
+  say(scan([{ file: 'f.tsx', text: '<span>{ACTION_LABEL[r.action]}<i>{row.status}</i></span>' }]).length === 1, 'self-test:同行「映射 + 裸枚举」→ 裸的那个仍被抓');
+  say(scan([{ file: 'f.tsx', text: '<td>{ACTION_LABEL[r.action] ?? r.action}</td>' }]).length === 0, 'self-test:映射表 + ?? 兜底(正确写法)→ 不误报');
+  say(scan([{ file: 'f.tsx', text: '<span>{SKU_STATUS[s.status] ?? `状态未知(${s.status})`}</span>' }]).length === 0, 'self-test:模板插值里的兜底原值 → 不误报(那是人话包着原值)');
+  say(scan([{ file: 'f.tsx', text: '{/* enum-ok:小字保留机器码 */}\n<td>{r.status}</td>' }]).length === 0, 'self-test:逃生阀写在紧邻上一行 → 也放行');
+  say(scan([{ file: 'f.tsx', text: '{/* enum-ok */}\n\n<td>{r.status}</td>' }]).length === 1, 'self-test:逃生阀隔了一空行 → 不放行(豁免必须紧邻,防误伤扩散)');
   /* 判据② 换层后的红绿两向。绿测这三条最要紧——它们是**上一版 26 处误报的原样标本**,
      少一条,同一种废门就能再回来一次。 */
   say(scan([{ file: 'f.tsx', text: "<b>{c.enabled ? '已上线' : 'coming-soon'}</b>" }]).length === 1, 'self-test:三元一边人话一边机器词 → 被抓');
@@ -154,6 +171,10 @@ if (process.argv.includes('--self-test')) {
   // 判据③:带了参数没人读 → 被抓;有人读 → 不误报
   const orphan = [{ file: 'a.tsx', text: 'to={`/x?focus=${p}`}' }];
   say(checkQueryConsumers(orphan).some((h) => h.why.includes('focus')), 'self-test:链接带了参数但没人读 → 被抓');
+  /* 三种承诺写法都要认(第十轮 P1-7:上一版只认第一种,而仓里三处在用 useNavigate) */
+  say(checkQueryConsumers([{ file: 'a.tsx', text: "navigate('/x?zzz=' + id)" }]).some((h) => h.why.includes('zzz')), 'self-test:navigate 拼查询串 → 被抓');
+  say(checkQueryConsumers([{ file: 'a.tsx', text: '<a href="/x?www=abc">go</a>' }]).some((h) => h.why.includes('www')), 'self-test:静态查询串 → 被抓');
+  say(checkQueryConsumers([{ file: 'a.tsx', text: "api(`/api/dash?range=${r}`)" }]).length === 0, 'self-test:发给接口的查询串 → 不要求前端消费(不误报)');
   say(checkQueryConsumers(files, allSources()).length === 0, 'self-test:真实代码里每个链接参数都有消费者(不误报)');
   // 判据④ 红绿两向 + 「读不到就报错」那一支(门的沉默是最坏的绿)
   const E = (...a) => `export const AUDIT_ACTIONS = [${a.map((x) => `'${x}'`).join(',')}] as const`;
@@ -191,9 +212,17 @@ function checkQueryConsumers(files, sources) {
   /* 只看**路由链接**里的参数(to=/ href=),不看发给接口的查询串——
      `api(\`/api/dash?range=${r}\`)` 里的 range 是给服务端的,前端当然不会去读它。
      第一版没分这两者,把接口参数也报成了摆设。 */
+  /* 🔴 「承诺」有三种写法,判据只认一种就等于只守三分之一(2026-09-01 第十轮独立验收 P1-7):
+       ① `to={\`/x?focus=${v}\`}` / `href=…`  —— 上一版只认这个;
+       ② `navigate('/x?focus=' + v)` / `nav(\`/x?focus=${v}\`)` —— 本仓三处在用 useNavigate;
+       ③ 静态查询串 `href="/x?focus=abc"` —— 值写死,但同样是一句承诺。
+     判据要抓的是「路径里带了查询参数」,而不是「用哪个属性名写的」。
+     仍然只看**路由链接**,不看发给接口的查询串(`api(\`/api/dash?range=…\`)` 里的
+     range 是给服务端的,前端当然不会去读它)。 */
+  const routeish = String.raw`(?:to|href)=\{?[\`'"]|(?:navigate|nav)\(\s*[\`'"]`;
   const produced = [
     ...new Set(
-      [...all.matchAll(/(?:to|href)=\{?[`'"][^`'"]*[?&]([a-z][a-zA-Z0-9_]*)=\$\{/g)].map((m) => m[1]),
+      [...all.matchAll(new RegExp(String.raw`(?:${routeish})(?!/api/)[^\`'"]*[?&]([a-z][a-zA-Z0-9_]*)=`, 'g'))].map((m) => m[1]),
     ),
   ];
   const out = [];
@@ -369,5 +398,5 @@ if (hits.length) {
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.why}\n     ${h.code}`);
   process.exit(1);
 }
-console.log(`PASS gate-console-copy(扫了 ${files.length} 个页面文件,零命中)`);
+console.log(`PASS gate-console-copy(扫了 ${files.length} 个前端源码文件,零命中)`);
 process.exit(0);

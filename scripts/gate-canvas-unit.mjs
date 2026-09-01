@@ -85,9 +85,15 @@ export function canvasUnitGate(srcDir, rel) {
   const refs = [];
   const files = walk(srcDir);
 
-  // 先扫一遍收集所有自定义属性定义(含组件内联)
+  /* 先扫一遍收集所有自定义属性定义(含组件内联)。
+     🔴 收集前必须**先剥注释**(2026-09-01 第十轮独立验收 P1-4):
+     下面判引用时用的是 `stripComments()`,收集定义时却读原文 ——
+     于是「把定义注释掉、忘了删引用」这个**最常见的删除写法**会让门失明:
+     注释里那句 `--x-foo: 40px;` 仍被算作「已定义」,而 CSS 里那条引用已经静默作废。
+     门要守的原始事故正是「删掉变量却漏删引用」,两侧口径必须一致。 */
   for (const f of files) {
-    for (const m of readFileSync(f, 'utf8').matchAll(/(--[\w-]+)\s*:/g)) defined.add(m[1]);
+    const stripped = stripComments(readFileSync(f, 'utf8')).map((l) => l.code).join('\n');
+    for (const m of stripped.matchAll(/(--[\w-]+)\s*:/g)) defined.add(m[1]);
   }
 
   for (const f of files) {
