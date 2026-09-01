@@ -38,7 +38,10 @@ aside { background: var(--surface); padding: 16px 10px; display: flex; flex-dire
 main.content { padding: 0 26px 40px; min-width: 0; }
 
 .statusbar { position: sticky; top: 0; background: var(--bg); display: flex; gap: 10px; align-items: center; padding: 14px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; z-index: 5; }
-.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; color: var(--ink2); }
+/* PRD ⑤ 要「超长不换行**截断**」——此前只做到不换行,却也不截断:
+   注入超长值时 chip 会一路撑到 679px 把同排其它 chip 顶开(实景走查 P2-14)。
+   补 max-width + ellipsis,并保留 title 让完整值仍可读。 */
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; color: var(--ink2); max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .chip b { color: var(--ink); font-weight: 600; }
 .chip.warnc { background: var(--warn-soft); color: var(--warn); }
 .spacer { flex: 1; }

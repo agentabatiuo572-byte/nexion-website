@@ -76,8 +76,21 @@ export default function Dashboard() {
     return <section><h2>驾驶舱</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={() => load(range)}>重试</button></div></section>;
   if (!d)
     return (
+      /* 🔴 骨架屏要贴合真实布局(实景走查 P2-4):此前只画一排 4 张、总高 900,
+         而真实是 4 列一排 + 3 列两排共十几张卡、总高 1079 —— 数据落地时版面大幅跳变。
+         骨架的作用是「先把版面占住」,占不住就只是个会动的空白。
+         列数与行数跟着下方真实结构走(4 / 3 / 3),改真实布局时这里要一起改。 */
       <section><h2>驾驶舱</h2>
-        <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>{[0, 1, 2, 3].map((i) => <div className="card" key={i}><div className="skl" style={{ height: 46 }} /></div>)}</div>
+        {([4, 3, 3] as const).map((cols, row) => (
+          <div key={row} className="grid" style={{ gridTemplateColumns: `repeat(${cols},1fr)`, marginTop: row ? 12 : 0 }}>
+            {Array.from({ length: cols }, (_, i) => (
+              <div className="card" key={i}>
+                <div className="skl" style={{ height: 14, width: '40%' }} />
+                <div className="skl" style={{ height: 34, marginTop: 8 }} />
+              </div>
+            ))}
+          </div>
+        ))}
       </section>
     );
 
