@@ -42,6 +42,12 @@ const v = validateConfig(config, manifest);
 say(v.errors.length === 0, `种子自洁:validateConfig errors=${v.errors.length}${v.errors.length ? ' 首条:' + JSON.stringify(v.errors[0]) : ''}`);
 if (v.warnings.length) console.log(`  (软警告 ${v.warnings.length} 条,预期含统计锚值 5 条)`);
 
+/* ② i18n 三语逐字节。
+   ⚠️ 这一条守的是**物化器与清单的稳定性**,不是「仓内 i18n 内容正确」——
+   `buildSeed()` 反过来从 `src/i18n/*.json` 读 copy,所以手改那些文件时
+   物化的输入也跟着变,这三条不会响(2026-09-01 第十轮独立验收 P2-3)。
+   手改由判据①(unknown-key)与判据④(落盘种子漂移)兜住,整套仍然有效;
+   但别把这三条当成「仓内 i18n == 线上配置」的证据。 */
 // ② i18n 三语逐字节
 for (const loc of ['en', 'vi', 'zh']) {
   const out = materializeI18n(config, manifest, loc);

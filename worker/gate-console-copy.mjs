@@ -243,8 +243,14 @@ function checkQueryConsumers(files, sources) {
   ];
   const out = [];
   for (const key of produced) {
-    const reader = new RegExp(`(useSearchParams|URLSearchParams)[\\s\\S]{0,400}?['"\`]${key}['"\`]`);
-    if (reader.test(all)) continue;
+    /* 🔴 消费方判定必须**按文件**跑,不能跑在全仓拼接文本上(2026-09-01 第十轮独立验收 P2-7):
+       上一版把所有源码拼成一大段再找「useSearchParams 附近 400 字符内出现同名字符串」,
+       而 400 字符很容易跨过文件边界 —— 于是「A 文件里有 useSearchParams、B 文件里恰好
+       有个同名字符串」就算「有人读」。判据的意图是「这个键有消费者」,
+       实现却成了「这两个词在拼接文本里挨得近」。
+       现在要求**同一个文件里**同时出现读取入口与该键名。 */
+    const reader = new RegExp(`(useSearchParams|URLSearchParams|searchParams\\.get)[\\s\\S]{0,400}?['"\`]${key}['"\`]`);
+    if (pool.some((f) => reader.test(f.text))) continue;
     const where = files.find((f) => new RegExp(`[?&]${key}=\\$\\{`).test(f.text));
     out.push({
       file: where ? where.file : '(未知)',
@@ -359,9 +365,15 @@ function checkAuditLabels(enumOverride, labelOverride) {
   const lb = block(labelSrc, 'const ACTION_LABEL: Record<string, string> = {');
   /* 抽不出来必须报错,不能当成「零差异」放行——**门读不到东西时的沉默是最坏的绿**。 */
   if (!eb || !lb) return [{ file: 'worker/src/audit.ts', line: 0, why: '判据④ 读不到 AUDIT_ACTIONS 或 ACTION_LABEL(改名/挪走了?)——门已失效,先修门', code: '' }];
-  const pick = (s) => new Set([...s.matchAll(/'([a-z][a-z0-9.]*)'/g)].map((m) => m[1]));
-  const actions = pick(eb);
-  const labels = pick(lb);
+  /* 🔴 只抓**键**,不抓值(2026-09-01 第十轮独立验收 P2-6):
+     上一版对整块无差别抓 `'…'`,于是人话表里但凡出现一个英文值
+     (`'config.publish': 'published'`),那个值就会被当成「不在枚举里的死键」报红。
+     现在标签值恰好都是中文所以没暴露 —— 但**会误报的门,离被加豁免只差一次**。
+     判据:枚举那边取数组元素(`'x',` / `'x']`),标签表那边取键(`'x':`)。 */
+  const pickKeys = (s) => new Set([...s.matchAll(/'([a-z][a-z0-9.]*)'\s*:/g)].map((m) => m[1]));
+  const pickItems = (s) => new Set([...s.matchAll(/'([a-z][a-z0-9.]*)'\s*(?:,|\]|$)/gm)].map((m) => m[1]));
+  const actions = pickItems(eb);
+  const labels = pickKeys(lb);
   const out = [];
   for (const a of actions) if (!labels.has(a)) out.push({ file: 'admin/src/pages/audit.tsx', line: 0, why: `动作码 '${a}' 在封闭枚举里,但界面没有对应人话 —— 审计页会把机器码原样吐给追责的人`, code: '' });
   for (const l of labels) if (!actions.has(l)) out.push({ file: 'admin/src/pages/audit.tsx', line: 0, why: `标签表里的 '${l}' 已不在 AUDIT_ACTIONS 里 —— 死键,删掉`, code: '' });

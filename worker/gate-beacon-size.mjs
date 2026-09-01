@@ -54,9 +54,14 @@ if (scripts.length !== 1) {
 // ② 覆盖:每页恰 1 份
 let missing = 0;
 let dup = 0;
+/* 🔴 判据②要和判据①认同一对标记(2026-09-01 第十轮独立验收 P2-2):
+   上一版只数 `doNotTrack`,于是把非首页的埋点端点改成 `/api/zzz` 时门照常报
+   「每页恰 1 份埋点脚本」—— 数到的是「有没有那句隐私判断」,不是「埋点还通不通」。 */
 for (const p of pages) {
-  const n = (readFileSync(p, 'utf8').match(/doNotTrack/g) ?? []).length;
-  if (n === 0) missing++;
+  const text = readFileSync(p, 'utf8');
+  const n = (text.match(/doNotTrack/g) ?? []).length;
+  const endpoints = (text.match(/\/api\/e\b/g) ?? []).length;
+  if (n === 0 || endpoints === 0) missing++;
   else if (n > 1) dup++;
 }
 if (missing || dup) {

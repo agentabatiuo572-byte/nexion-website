@@ -184,12 +184,23 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
         R38 再收:只校验「值域命中」时,跨主题错配(电蓝底+黑字 ≈2.4:1)也会绿灯。
    App 仓不存在(独立部署环境)时 warn-only 放行。 */
 {
-  const APP_TOKENS = 'D:/WORKS/PLAN/Nexion-uniapp/src/styles/tokens.css';
+  /* 🔴 跨仓路径按**候选列表**找,不写死一条(2026-09-01 第十轮独立验收 P2-5)。
+     此前两条跨仓判据口径不一:这条写死本机绝对路径(恰好命中),另一条写
+     `../Nexion-uniapp` 在 worktree 下必然落空、每次都打印「App 仓缺席」——
+     而那正是 P0-1 那道死判据的第二重成因。
+     找不到时说清**找过哪些位置**,而不是只说一句「不在本机」:
+     一句看不出找哪儿的跳过提示,和没有提示一样没法排查。 */
+  const APP_CANDIDATES = [
+    join(ROOT, '..', 'Nexion-uniapp', 'src', 'styles', 'tokens.css'), // 同级(独立 checkout)
+    join(ROOT, '..', '..', 'Nexion-uniapp', 'src', 'styles', 'tokens.css'), // worktree 在 .wt/ 下时
+    'D:/WORKS/PLAN/Nexion-uniapp/src/styles/tokens.css', // 本机固定位置(最后兜底)
+  ];
+  const APP_TOKENS = APP_CANDIDATES.find(existsSync);
   const detail = [];
   let warn = false;
-  if (!existsSync(APP_TOKENS)) {
+  if (!APP_TOKENS) {
     warn = true;
-    detail.push('App tokens 不在本机(独立环境),跳过比对');
+    detail.push(`App tokens 不在本机(独立环境),跳过比对。找过:${APP_CANDIDATES.map((p) => relative(ROOT, p) || p).join(' · ')}`);
   } else {
     const site = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8');
     const app = readFileSync(APP_TOKENS, 'utf8');
@@ -257,7 +268,7 @@ results.push(canvasUnitGate(SRC, rel));
    ① 同一条规则里写了两个 max-width(新值在前旧值在后),「已修」从未生效;
    ② 手机菜单的矮屏压缩块写在它要压的基础规则**前面**,嵌套 media 不加特异度 → 六条只落地三条。
    两次都是独立评审逐像素量出来的,肉眼与「我改了」的记忆都发现不了。
-   判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向 7 条)。 */
+   判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
@@ -298,7 +309,7 @@ results.push(canvasUnitGate(SRC, rel));
    本门的三条判据全部**构造性**,不依赖任何手写清单——路由从产物枚举、视口从产物 CSS 的断点推导、
    墨高用 canvas 逐行实测(上一版三张手写清单各漏一块:漏 9 条路由、漏窄屏、漏了 Be Vietnam Pro 的字身)。
    放在 canvas-geometry 之后:那一门已经把 dist 构建好,本门自带静态服务直接伺服 dist,不再重复构建。
-   判据、豁免与自检见 gate-render-fit.mjs(`--self-test` 六条,红绿两向)。 */
+   判据、豁免与自检见 gate-render-fit.mjs(`--self-test`,红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-render-fit.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);

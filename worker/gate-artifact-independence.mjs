@@ -69,13 +69,18 @@ try {
   writeFileSync(STAMP, `${JSON.stringify({ versionId: 999999, stamp: 'gate-probe', configSha: 'probe', anchors: {} })}\n`);
   const b = runTests('有印记');
 
-  const same = a.code === b.code && a.summary === b.summary;
+  /* 🔴 汇总行相同 ≠ 结论相同(2026-09-01 第十轮独立验收 P2-9):
+     两种状态下各红**一条不同的**用例时,汇总行同为「111 passed | 1 failed」,
+     上一版据此判「一致」,再走到下面因为「都红」而报「先修单测」——
+     方向没错但诊断指错了地方:真因恰恰是产物依赖。
+     `diff` 早就算好了,只是没参与判断。现在把它算进去。 */
+  const failedDiff = [...new Set([...a.failed, ...b.failed])].filter((t) => a.failed.includes(t) !== b.failed.includes(t));
+  const same = a.code === b.code && a.summary === b.summary && failedDiff.length === 0;
   if (!same) {
     console.error('✗ 单测结果依赖仓外构建产物 —— 有/无印记两种状态下结论不同');
     console.error(`  无印记:退出码 ${a.code} · ${a.summary}`);
     console.error(`  有印记:退出码 ${b.code} · ${b.summary}`);
-    const diff = [...new Set([...a.failed, ...b.failed])].filter((t) => a.failed.includes(t) !== b.failed.includes(t));
-    if (diff.length) console.error(`  只在其中一种状态下红的用例:\n    ${diff.join('\n    ')}`);
+    if (failedDiff.length) console.error(`  只在其中一种状态下红的用例:\n    ${failedDiff.join('\n    ')}`);
     console.error('  修法:那些用例要用资产层替身,把「有没有印记」这个前提显式写进测试,而不是继承磁盘现状。');
     exitCode = 1;
   } else if (a.code !== 0) {
