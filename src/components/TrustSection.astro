@@ -168,11 +168,13 @@ const MEANS = [1, 2, 3] as const;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: calc(18 * var(--uc));
   }
-  /* 证书瓷砖:row-span 2 让它跟着右侧两卡拉高,flex-start 把富余全堆在底部
-     (实测底部 150.58px 空 = 30.3%,R3 评审 P1-4)→ 居中让空区上下均分。 */
+  /* 证书瓷砖:align-self:start —— 不被两行的行高拉伸,盒子收到内容自然高。
+     两张竖版证书按宽度缩放,拉高后物理上填不满(1024 档实测 64% 是空的,R3b 评审 P0-1);
+     居中只是把空区挪到上下,真正的修法是让盒子别长那么高。 */
   .certs {
     grid-column: span 5;
     grid-row: span 2;
+    align-self: start;
     display: flex;
     gap: calc(14 * var(--uc));
     padding: calc(20 * var(--uc));
@@ -223,8 +225,18 @@ const MEANS = [1, 2, 3] as const;
     line-height: 1.25;
     color: var(--x-ink);
     margin: 0;
-    text-wrap: balance;
+    /* pretty 不用 balance:balance 只压最长行、不管顺序,en 两行标题出现「下行比上行
+       长 22%」的倒参差,放宽量宽也没解(R3b 工艺 P2-9);pretty 优化收尾更稳。 */
+    text-wrap: pretty;
     max-width: 46ch;
+  }
+  /* 通栏卡的标题不吃 46ch:1345px 宽的卡里标题止于 x635,右上角空出 580×70
+     的死区,而下一行又满宽(R3b 评审 P1-2) */
+  .s12 .ctitle {
+    max-width: 68ch;
+  }
+  .s12 .cdesc {
+    max-width: 78ch;
   }
   .ctitle:lang(zh),
   .ctitle:lang(vi) {
@@ -246,10 +258,14 @@ const MEANS = [1, 2, 3] as const;
   }
 
   /* 卡 03 双栏:意味着(要点列表)| 不意味着(柠檬左界强调) */
+  /* 双栏按内容定宽,不按固定比例:1.35fr/1fr 是照 en 最长条目调的,
+     zh 条目短得多 → 左栏 69% 是空的、柠檬界线离文字 637px(R3b 评审 P1-2)。
+     fit-content 让三种语言各自收到自己的宽度。 */
   .t3grid {
     display: grid;
-    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
-    gap: calc(28 * var(--uc));
+    grid-template-columns: fit-content(46%) fit-content(46%);
+    justify-content: start;
+    gap: calc(48 * var(--uc));
     margin-top: calc(18 * var(--uc));
     padding-top: calc(18 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
@@ -284,20 +300,25 @@ const MEANS = [1, 2, 3] as const;
   .t3list li:lang(zh) {
     line-height: 1.6;
   }
+  /* 方点垂直居中于首行行盒:写死的 0.42em 在三套行高(17.4/17.4/20)下落点各异,
+     en 偏高约两成大写高(R3b 工艺 P2-8)。改由 1lh 派生,三语自适应。 */
   .t3list li::before {
     content: '';
     width: calc(6 * var(--uc));
     height: calc(6 * var(--uc));
-    margin-top: 0.42em;
+    margin-top: calc((1lh - 6 * var(--uc)) / 2);
     border-radius: 1px;
     background: var(--x-accent);
     flex: 0 0 auto;
   }
   /* 「不意味着」= 本板块最关键的一句(登记≠背书),给柠檬左界与白墨,
      从原先埋在整段第 4-5 行的暗灰里提出来 */
+  /* align-self:start —— 柠檬界线跟文字走,不被左栏列表撑成一条穿过空白的长线
+     (实测 110px 线配 35px 文字,R3b 评审 P1-2) */
   .t3not {
     border-left: 2px solid var(--x-accent);
     padding-left: calc(18 * var(--uc));
+    align-self: start;
   }
   .t3notbody {
     margin: 0;
@@ -319,6 +340,16 @@ const MEANS = [1, 2, 3] as const;
     align-items: center;
     margin: calc(22 * var(--uc)) 0 0;
   }
+  /* 🔴 同族第二处:窄档两张引用卡的 meta 行曾一个左贴一个右对齐,那处在 #why 修了;
+     这里 chip+按钮的总宽两卡不同,在 en 920-1024 / vi 992-1120 / zh 904-968 区间
+     卡 01 折两行而卡 02 不折 —— 两张视觉平行的兄弟卡长出两种页脚(R3b 评审 P1-4,
+     它点名这是「只修被点名那处」的实例)。1200 以下两卡一律竖排,构造统一。 */
+  @media (max-width: 1200px) {
+    .vrow {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
   .vchip {
     color: var(--x-accent);
     border: 1px solid color-mix(in srgb, var(--x-accent) 35%, transparent);
@@ -331,13 +362,16 @@ const MEANS = [1, 2, 3] as const;
   /* 查册按钮:唯一的实心柠檬件(可点转化件分层纪律)。
      行内块而非 flex —— vi@390 文案折两行时,flex 会把 ↗ 甩到按钮最右侧垂直居中、与文字
      脱开一大段,读作坏掉的按钮(R3 评审 D4);行内块下箭头随文本流,由 NBSP 绑住末词。 */
+  /* 触达高由**对称内衬**产出,不靠 min-height 兜底:min-height 的余量只加在盒底,
+     文字实测偏上 2.13px(en),与同排 chip 的基线差 3.00px,且三语偏上量各不同
+     (zh 行盒够高时 min-height 根本不生效)—— R3b 工艺 P1-1。
+     内衬按各语言行盒推:44 = 行盒 + 2×padding。 */
   .vcta {
     color: var(--x-on-accent);
     background: var(--x-accent);
     border-radius: 999px;
-    padding: calc(12 * var(--uc)) calc(16 * var(--uc));
+    padding: calc((var(--x-touch) - 1lh) / 2) calc(16 * var(--uc));
     font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
-    min-height: var(--x-touch);
     display: inline-block;
     text-align: center;
     text-decoration: none;
