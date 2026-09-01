@@ -94,3 +94,7 @@ td b { color: var(--ink); font-weight: 600; }
    1023/1000/950 三档都没折叠,与规格不符(实景走查 P2-6)。
    折叠后导航只剩图标,可访问名由 shell.tsx 的 aria-label 兜住(同轮 P2-5)。 */
 @media (max-width: 1023px) { .shell { grid-template-columns: 64px 1fr; } .nav span.lbl, .navg, .brandrow .lbl { display: none; } }
+
+/* 「去修复」定位到的字段:短暂高亮一下,让人一眼看到是哪一处(useFocusField) */
+.focus-flash { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 10px; transition: outline-color 0.3s; }
+@media (prefers-reduced-motion: reduce) { .focus-flash { transition: none; } }

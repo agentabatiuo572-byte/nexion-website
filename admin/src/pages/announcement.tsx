@@ -3,6 +3,7 @@ import { useState } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { useDraft, type Tri } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
 type Ann = { id: string; enabled: boolean; text: Tri; href?: string; startsAt?: string; endsAt?: string };
@@ -12,6 +13,7 @@ const toInput = (iso?: string) => (iso ? new Date(new Date(iso).getTime() - new 
 const fromInput = (v: string) => (v ? new Date(v).toISOString() : undefined);
 
 export default function AnnouncementPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [e, setE] = useState<Partial<Ann>>({});
   const [textE, setTextE] = useState<Partial<Tri>>({});

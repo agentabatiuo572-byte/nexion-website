@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDraft, type Tri } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const PAGES: Array<[string, string]> = [
   ['home', '首页'], ['learn', '学习中心'], ['nex', 'NEX'],
@@ -10,6 +11,7 @@ const PAGES: Array<[string, string]> = [
 ];
 
 export default function SeoPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [pid, setPid] = useState('home');
   const [edits, setEdits] = useState<Record<string, { title?: Partial<Tri>; description?: Partial<Tri> }>>({});

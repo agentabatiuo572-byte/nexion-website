@@ -1,7 +1,7 @@
 /* 控制台壳(CON02):导航五组 + 状态条三 chip + 失败红条 + 重试;当前位置高亮。 */
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { api, toast, type Overview } from './api';
+import { ApiError, api, toast, type Overview } from './api';
 
 interface ShellState {
   overview: Overview | null;
@@ -56,7 +56,14 @@ export default function Shell() {
   useEffect(() => {
     api('/api/me')
       .then(() => { setAuthed(true); reload(); })
-      .catch(() => {}); // 401 已由 api 层跳转;其它错误由下面的失败态兜
+      .catch((e) => {
+        /* 🔴 401 之外的错误必须落进失败态(2026-09-01 第八轮 P1-1,**这是我上一轮修补引入的回归**)。
+           我当时写的注释是「其它错误由下面的失败态兜」——**而那个兜底并不存在**:
+           后端整体不可达时 authed 永远为 false、failed 永远为 false,
+           界面就永久停在骨架屏,既不报错也没有重试按钮。
+           注释里写的「由别处兜」是一句零成本的断言,当时没有任何东西验证它。 */
+        if ((e as ApiError)?.status !== 401) setFailed(true);
+      });
   }, [reload]);
 
   async function logout() {
@@ -146,7 +153,13 @@ export default function Shell() {
             )}
           </div>
           {/* 会话未确认前不挂子页:避免未登录时子页各自发请求(见上方注释) */}
-          {authed ? <Outlet /> : <div className="grid" style={{ marginTop: 12 }}><div className="skl" style={{ height: 120 }} /><div className="skl" style={{ height: 120 }} /></div>}
+          {authed ? (
+            <Outlet />
+          ) : failed ? (
+            <div className="note bad" style={{ marginTop: 12 }}>后台服务连不上,页面无法加载 <button className="btn ghost sm" onClick={() => { setFailed(false); location.reload(); }}>重试</button></div>
+          ) : (
+            <div className="grid" style={{ marginTop: 12 }}><div className="skl" style={{ height: 120 }} /><div className="skl" style={{ height: 120 }} /></div>
+          )}
         </main>
       </div>
     </ShellCtx.Provider>

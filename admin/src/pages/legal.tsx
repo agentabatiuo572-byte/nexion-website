@@ -2,6 +2,7 @@
    预览器只认这些,不渲染任何 HTML=白名单 by construction;服务端保存时另剥危险节点)。高敏。 */
 import { useState, type ReactNode } from 'react';
 import { useDraft } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const DOCS: Array<['terms' | 'privacy' | 'appPrivacy', string]> = [
   ['terms', '使用条款'], ['privacy', '隐私政策'], ['appPrivacy', 'App 隐私政策'],
@@ -47,6 +48,7 @@ function mdLite(src: string): ReactNode {
 }
 
 export default function LegalPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [doc, setDoc] = useState<'terms' | 'privacy' | 'appPrivacy'>('terms');
   const [loc, setLoc] = useState<'en' | 'vi' | 'zh'>('en');

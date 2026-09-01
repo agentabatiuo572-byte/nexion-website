@@ -1,6 +1,7 @@
 /* 平台统计数字(CON06 ⑤⑥):五数字+口径月;锚值软警(R49-A2);三语格式预览。高敏模块。 */
 import { useState } from 'react';
 import { useDraft } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const ANCHORS: Record<string, number> = { activeDevices: 28432, activeJobs: 4812, nodes: 156, countries: 47, uptime: 99.7 };
 const FIELDS = [
@@ -19,6 +20,7 @@ function fmt(n: number, decimals: number, tag: string): string {
 }
 
 export default function StatsPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, saving, conflict, save, reload } = useDraft();
   const [edits, setEdits] = useState<Record<string, string>>({});
 

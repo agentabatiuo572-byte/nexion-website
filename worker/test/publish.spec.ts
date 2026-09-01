@@ -708,6 +708,33 @@ describe('CON13 发布流水线', () => {
     expect(shell, '算不出来的版本必须留空(undefined),不许编数').toBeDefined();
   });
 
+
+  it('🔴🔴 产品卡的事实字段必须被判高敏(此前判据形状对不上,从上线起就没生效过)', async () => {
+    const cookie = await login();
+    const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as {
+      draft: { payload: Record<string, any>; draftRev: number };
+    };
+    const draft = structuredClone(o.draft.payload);
+    draft.skus[0].priceUSD = Number(draft.skus[0].priceUSD) + 100; // 改一个事实字段:价格
+    expect((await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: draft, baseRevision: o.draft.draftRev }) }, env)).status).toBe(200);
+
+    const pre = (await (await app.request('/api/publish/preflight', { headers: { cookie } }, env)).json()) as {
+      changedPaths: string[]; sensitiveChanged: string[]; reasonRequired: boolean;
+    };
+    /* 🔴 这条断言钉的是**承诺**:产品卡的事实字段改动要被判高敏、发布须理由。
+       此前判据写的是 `skus.<键>.` 点号路径,而 diff 对数组产出 `skus[0].priceUSD` 方括号,
+       两种写法从不相交——于是改价可以零理由直接上线,而页面上还标着「事实字段高敏」。
+       测试同时断言「真实 diff 产物」确实是方括号形状,免得哪天 diff 改了口径而判据没跟上。 */
+    expect(pre.changedPaths.some((x) => x.includes('priceUSD')), '改价必须出现在改动清单里').toBe(true);
+    expect(pre.sensitiveChanged.some((x) => x.includes('priceUSD')), '改价必须被判高敏').toBe(true);
+    expect(pre.reasonRequired, '含高敏改动时必须要求填理由').toBe(true);
+
+    // 且服务端真的会拦:不给理由 → 400
+    const noReason = await post(cookie, '/api/publish');
+    expect(noReason.status).toBe(400);
+    expect(((await noReason.json()) as { error?: string }).error).toBe('reason-required');
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

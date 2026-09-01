@@ -4,11 +4,13 @@ import { useState, type DragEvent } from 'react';
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { api } from '../api';
 import { useDraft, type Tri } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
 type Item = { id: string; q: Tri; a: Tri; sort: number; visible: boolean; deleted?: boolean };
 
 export default function FaqPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [work, setWork] = useState<Item[] | null>(null); // 本页工作副本(含新增/回收)
   const [open, setOpen] = useState<string | null>(null);

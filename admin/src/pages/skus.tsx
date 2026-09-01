@@ -3,6 +3,7 @@ import { useState, type DragEvent } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { useDraft } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
 /** 机器枚举 → 人话。缺映射时显示「状态未知(原值)」,不静默、也不吐裸枚举 */
@@ -10,6 +11,7 @@ const SKU_STATUS: Record<string, string> = { active: '在售', legacy: '已停�
 const FACTS = ['name', 'priceUSD', 'multiplier', 'status'] as const;
 
 export default function SkusPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
   const [open, setOpen] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export default function SkusPage() {
         const tagHits = (['en', 'vi', 'zh'] as const).flatMap((l) => scan(s.tagline[l] ?? '').map((h) => `${l}:${h.match}`));
         return (
           <div
-            className="card" key={id} style={{ marginBottom: 8, opacity: dragId === id ? 0.5 : 1 }}
+            className="card" key={id} data-field={`skus[${ids.indexOf(id)}]`} style={{ marginBottom: 8, opacity: dragId === id ? 0.5 : 1 }}
             draggable onDragStart={() => setDragId(id)} onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDrop(e, id)}
           >
             <div className="row">

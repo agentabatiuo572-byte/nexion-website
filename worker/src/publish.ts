@@ -519,16 +519,22 @@ publishRoutes.get('/status', async (c) => {
      每一版相对**它上线时的前一版**改了多少处——这是运营翻历史时最想知道的一个数。
      只对有内容的版本算(种子行与空壳行跳过);算不出来就留空,不编。 */
   {
-    const payloads = new Map<number, string>(
-      (await c.env.DB.prepare(`SELECT id, payload FROM config_versions WHERE id IN (${versions.map((v) => v.id).join(',') || '-1'})`).all<{ id: number; payload: string }>()).results.map((r) => [r.id, r.payload]),
-    );
-    const ordered = [...versions].sort((a, b) => a.id - b.id);
-    for (let i = 1; i < ordered.length; i++) {
-      const prev = payloads.get(ordered[i - 1]!.id);
-      const cur = payloads.get(ordered[i]!.id);
-      if (!prev || !cur || prev === '{}' || cur === '{}') continue;
+    /* 🔴 基线必须是**这一版真正的前一版**,不是「本页里排在它前面的那一行」(2026-09-01 第八轮 P2)。
+       第一版拿窗口内相邻两行相减,于是:① 窗口最旧那行拿了个不相干的版本当基线,**编出一个不对的数**;
+       ② 被单独捞回来的线上行排到最前,自己永远算不出。
+       「算不出来就留空」这条承诺,只有在基线正确时才成立——**基线错了,留空与否都不重要,数已经是假的**。
+       改成逐行去库里取「id 比它小的最近一版」,窗口外也取得到。 */
+    for (const v of versions) {
+      const pair = await c.env.DB
+        .prepare(
+          `SELECT (SELECT payload FROM config_versions WHERE id < ?1 ORDER BY id DESC LIMIT 1) AS prev,
+                  (SELECT payload FROM config_versions WHERE id = ?1) AS cur`,
+        )
+        .bind(v.id)
+        .first<{ prev: string | null; cur: string | null }>();
+      if (!pair?.prev || !pair.cur || pair.prev === '{}' || pair.cur === '{}') continue; // 没有前一版 / 空壳 → 留空
       try {
-        ordered[i]!.changed = diffPaths(JSON.parse(prev) as never, JSON.parse(cur) as never).length;
+        v.changed = diffPaths(JSON.parse(pair.prev) as never, JSON.parse(pair.cur) as never).length;
       } catch { /* 结构对不上就留空,不编一个数出来 */ }
     }
   }

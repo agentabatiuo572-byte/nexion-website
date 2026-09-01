@@ -88,7 +88,9 @@ export default function AuditPage() {
                 <tr key={r.id} onClick={() => setOpen(open === r.id ? null : r.id)} style={{ cursor: 'pointer' }}>
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
                   <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
-                  <td>{r.target ?? '—'}</td>
+                  {/* 「对象」列不印内部占位词:登录类事件的对象是来访 IP,取不到时服务端写 'unknown',
+                      直接印出来运营会以为是个真值(实景走查 P1-3)。 */}
+                  <td>{!r.target || r.target === 'unknown' ? <span className="kv">来源不详</span> : r.target}</td>
                   {/* PRD CON14-E3 要「摘要 + 字节数」:折叠时先告诉人这条有多长,他才知道值不值得展开(实景走查 P2-8) */}
                   <td style={open === r.id ? {} : { maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {(() => {

@@ -79,6 +79,20 @@ function collect(dir) {
 
 const files = collect(ROOT);
 
+/** 全部前端源码(判据③ 的「有没有人读」是全局问题,扫描面不能只有页面组件) */
+function allSources() {
+  const out = [];
+  const walk = (d) => {
+    for (const n of readdirSync(d)) {
+      const p2 = path.join(d, n);
+      if (statSync(p2).isDirectory()) walk(p2);
+      else if (/.(ts|tsx)$/.test(n)) out.push({ file: path.relative(path.join(here, '..'), p2).split(path.sep).join('/'), text: readFileSync(p2, 'utf8') });
+    }
+  };
+  walk(ROOT);
+  return out;
+}
+
 if (process.argv.includes('--self-test')) {
   let fails = 0;
   const say = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails++; };
@@ -96,11 +110,52 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: '<td>{LABEL[r.status] ?? r.status}</td>' }]).length === 0, 'self-test:过了映射表的写法 → 不误报');
   say(scan([{ file: 'f.tsx', text: '<select value={s.status}>' }]).length === 0, 'self-test:表单 value → 不误报');
   say(scan([{ file: 'f.tsx', text: '<td>{r.status}</td> {/* enum-ok:这列就要看原值 */}' }]).length === 0, 'self-test:逃生阀 enum-ok → 放行');
+  // 判据③:带了参数没人读 → 被抓;有人读 → 不误报
+  const orphan = [{ file: 'a.tsx', text: 'to={`/x?focus=${p}`}' }];
+  say(checkQueryConsumers(orphan).some((h) => h.why.includes('focus')), 'self-test:链接带了参数但没人读 → 被抓');
+  say(checkQueryConsumers(files, allSources()).length === 0, 'self-test:真实代码里每个链接参数都有消费者(不误报)');
   say(scan(files).length === 0, `self-test:真实代码零命中(实际 ${scan(files).length} 处)`);
   process.exit(fails ? 1 : 0);
 }
 
-const hits = scan(files);
+/* 判据③:界面给出的**跳转参数必须有人消费**(2026-09-01 第八轮 P1)。
+   实录:「去修复」链接带了 `?focus=<字段>`,而目标页一个消费者都没有——
+   参数带了、没人读,点过去仍停在页顶。**带参数是一句承诺,承诺要有兑现方。**
+   判据构造性:从代码里找出「被拼进链接的查询键」,再看全仓有没有地方去读同名键。 */
+function checkQueryConsumers(files, sources) {
+  /* 🔴 两处都栽过,写在一起记牢:
+     ① **扫描面要盖住全部前端源码**,不只是页面组件——第一版只扫 pages/*.tsx,
+        于是把住在 lib/ 里的消费者当成「没人读」,当场误报。
+        「有没有人读」是个全局问题,扫描面缩小一寸,结论就假一分。
+     ② **传进来的 files 必须真被用上**——第二版签名收了 files 却总去读真实源码,
+        于是自检的注入用例永远抓不到(注入的假文件根本没参与判断)。
+        **这和它要抓的毛病是同一种:参数带了、没人读。** */
+  const pool = sources ?? files;
+  const all = pool.map((f) => f.text).join('\n');
+  /* 只看**路由链接**里的参数(to=/ href=),不看发给接口的查询串——
+     `api(\`/api/dash?range=${r}\`)` 里的 range 是给服务端的,前端当然不会去读它。
+     第一版没分这两者,把接口参数也报成了摆设。 */
+  const produced = [
+    ...new Set(
+      [...all.matchAll(/(?:to|href)=\{?[`'"][^`'"]*[?&]([a-z][a-zA-Z0-9_]*)=\$\{/g)].map((m) => m[1]),
+    ),
+  ];
+  const out = [];
+  for (const key of produced) {
+    const reader = new RegExp(`(useSearchParams|URLSearchParams)[\\s\\S]{0,400}?['"\`]${key}['"\`]`);
+    if (reader.test(all)) continue;
+    const where = files.find((f) => new RegExp(`[?&]${key}=\\$\\{`).test(f.text));
+    out.push({
+      file: where ? where.file : '(未知)',
+      line: 0,
+      why: `链接里带了 ?${key}=… 但全仓没有任何地方读它 —— 这个参数是个摆设`,
+      code: '',
+    });
+  }
+  return out;
+}
+
+const hits = [...scan(files), ...checkQueryConsumers(files, allSources())];
 if (hits.length) {
   console.error(`✗ 控制台文案门:${hits.length} 处会把 markdown 记号原样印到界面上`);
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.why}\n     ${h.code}`);

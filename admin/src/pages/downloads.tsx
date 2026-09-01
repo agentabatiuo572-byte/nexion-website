@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { api, toast } from '../api';
 import { useDraft } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const ROWS = [
   ['ios', 'iOS', 'App Store URL(https://…)'],
@@ -13,6 +14,7 @@ type ProbeItem = { ok?: boolean; status?: number; note?: string; skipped?: boole
 type Probe = Record<string, ProbeItem> & { at?: number };
 
 export default function DownloadsPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, saving, conflict, save, reload } = useDraft();
   const [edits, setEdits] = useState<Record<string, { url?: string; enabled?: boolean }>>({});
   const [probe, setProbe] = useState<Probe | null>(null);
@@ -23,7 +25,7 @@ export default function DownloadsPage() {
   const cur = (k: 'ios' | 'android' | 'h5') => ({ ...draft.downloads[k], ...edits[k] });
   const errs = ROWS.flatMap(([k]) => {
     const c = cur(k);
-    if (c.enabled && !c.url) return [`${k}:开启的入口必须有 URL(或关闭改 coming-soon)`];
+    if (c.enabled && !c.url) return [`${k}:开启的入口必须填写链接(或把开关关掉,站上会显示「即将推出」)`];
     if (c.url && !/^https:\/\/.+/.test(c.url)) return [`${k}:须为 https 完整链接`];
     return [];
   });
@@ -43,13 +45,13 @@ export default function DownloadsPage() {
   return (
     <section>
       <h2>下载入口 <span className="pill warn">高敏 · 发布须理由</span></h2>
-      <div className="note info">未配置/关闭的入口,站上自动降级为 coming-soon 禁用态,零死链(WEB02);改动保存进草稿,经「发布」过全部机器门后生效。</div>
+      <div className="note info">未配置或关闭的入口,站上会显示「即将推出」并禁用点击,不会出现打不开的链接;改动保存进草稿,经「发布」过全部机器门后生效。</div>
       {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试</button></div>}
       {ROWS.map(([k, label, ph]) => {
         const c = cur(k);
         const p = probe?.[k];
         return (
-          <div className="card" key={k} style={{ marginBottom: 10 }}>
+          <div className="card" key={k} data-field={`downloads.${k}`} style={{ marginBottom: 10 }}>
             <div className="row">
               <b style={{ width: 88 }}>{label}</b>
               <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : '未配置(站上显示「即将推出」并禁用)'}</span>

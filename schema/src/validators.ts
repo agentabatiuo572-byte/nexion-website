@@ -154,7 +154,19 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   return { errors, warnings };
 }
 
-/** 高敏字段判定(CON04-③/CON05/CON06/CON07-E1/CON11:发布须理由) */
+/* 高敏字段判定(CON04-③/CON05/CON06/CON07-E1/CON11:发布须理由)。
+
+   🔴 产品卡那条判据**从上线第一天起就没生效过**(2026-09-01 第八轮实景走查 P1-2,端到端跑通证明):
+   判据写的是 `skus.<键>.` 点号路径,而 `diffPaths` 对数组产出的是 `skus[0].priceUSD` **方括号**——
+   两种写法从不相交。后果:改产品卡的价格 / 算力倍数 / 状态可以**零理由直接发布上线**,
+   发布页判它「普通」、确认框连理由输入框都不出现、审计里理由为空,
+   而产品卡页面自己还标着「事实字段(高敏)」——**界面在承诺一件代码没做的事**。
+
+   教训与修法:**判据里的路径形状必须与产出方的形状对齐,而这件事只能靠测试钉住**——
+   两边各写各的字符串,谁都不会报错,只会安静地永不匹配。
+   下面的 `sensitiveRe` 同时认点号与方括号,并有测试逐条断言真实 diff 产物能命中。 */
+const skuFactRe = /^skus(\.[^.[]+|\[\d+\])\.(name|priceUSD|multiplier|status)\b/;
+
 export function sensitivePaths(changedPaths: string[]): string[] {
   return changedPaths.filter(
     (p) =>
@@ -162,6 +174,6 @@ export function sensitivePaths(changedPaths: string[]): string[] {
       p.startsWith('downloads.') ||
       p.startsWith('stats.') ||
       p.startsWith('legal.') ||
-      /^skus\.[^.]+\.(name|priceUSD|multiplier|status)/.test(p),
+      skuFactRe.test(p),
   );
 }

@@ -6,6 +6,7 @@ import { Link } from 'react-router-dom';
 // @ts-expect-error 禁用词单源(站上门同文件)
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { tokensOf, useDraft, type SiteConfigView } from '../lib/use-draft';
+import { useFocusField } from '../lib/use-focus-field';
 
 const GROUPS: Array<[string, string]> = [
   ['hero', '首屏 Hero'], ['download', '下载按钮文案'], ['stats', '统计标签'], ['path', '收益路径'],
@@ -24,6 +25,7 @@ type Hit = { label: string; match: string };
 const scan = scanForbidden as (t: string) => Hit[];
 
 export default function ContentPage() {
+  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [group, setGroup] = useState('hero');
   const [q, setQ] = useState('');
