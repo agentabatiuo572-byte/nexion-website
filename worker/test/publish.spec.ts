@@ -658,6 +658,34 @@ describe('CON13 发布流水线', () => {
     expect(rows.filter((v) => v.status === 'live')).toHaveLength(1);
   });
 
+
+  it('🔴 /status 报的「能不能取消」必须与 /cancel 的真实行为一致', async () => {
+    const cookie = await login();
+
+    // ① 没有进行中的发布
+    expect((await status(cookie)).cancelable).toBe('none');
+
+    // ② 排队态(领了单但一步没报)→ 可直接取消,且真取消得掉
+    await makeChange(cookie, '取消能力-排队');
+    const r1 = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    expect((await status(cookie)).cancelable).toBe('yes');
+    expect((await post(cookie, '/api/publish/cancel')).status).toBe(200);
+
+    // ③ 已开工且执行器仍活着 → 报 no,且真取消会被拒
+    await makeChange(cookie, '取消能力-在跑');
+    const r2 = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    const job = await claim(cookie);
+    await post(cookie, '/api/publish/step', { versionId: r2.versionId, stamp: job.stamp, step: 'materialize', status: 'running' });
+    expect((await status(cookie)).cancelable).toBe('no');
+    expect((await post(cookie, '/api/publish/cancel')).status).toBe(409);
+
+    // ④ 失联超阈值 → 报 force,且带理由能真中止
+    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 13 * 60_000, r2.versionId).run();
+    expect((await status(cookie)).cancelable).toBe('force');
+    expect((await post(cookie, '/api/publish/cancel', { force: true, reason: '执行器所在机器断电' })).status).toBe(200);
+    expect(r1.versionId).not.toBe(r2.versionId);
+  });
+
   it('④ 禁止动作:不存在绕过门链直接上新的路由', async () => {
     const cookie = await login();
     for (const p of ['/api/publish/live', '/api/publish/force', '/api/config/live', '/api/publish/swap']) {

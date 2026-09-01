@@ -19,6 +19,9 @@ interface Status {
   drift: { dbLive: number; snapshot: number | null; tampered?: string[] } | null;
   /** 版本列表被截断了(只回最近若干条)——界面必须说出来,别让人以为这就是全部 */
   versionsTruncated?: boolean;
+  /** 服务端直接告诉界面能不能取消:none 无进行中 · yes 排队态可取消 · force 需失联+理由 · no 执行器仍在工作 */
+  cancelable?: 'none' | 'yes' | 'force' | 'no';
+  silentMs?: number;
 }
 
 const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
@@ -95,14 +98,19 @@ export default function PublishPage() {
 
   /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
      🔴 上一轮只做了服务端、界面上没有入口,运营遇到执行器崩掉时依旧只能干等锁超时(复验 P1-2)。 */
+  /* 能不能取消由服务端在 /status 里直说,界面不再靠**发一个注定失败的请求**去试探——
+     那种试探行为正确,但正常操作路径每次都会在浏览器控制台留一条红(实景走查 P2-10)。 */
   async function cancel() {
+    if (st?.cancelable === 'force') { setForcing(true); return; }
+    if (st?.cancelable === 'no') {
+      toast('执行器仍在工作(最近还有步骤动静),现在中止会留下没人收口的中间态');
+      return;
+    }
     try {
       await api('/api/publish/cancel', { method: 'POST', body: JSON.stringify({}) });
       toast('已取消'); load();
     } catch (e) {
-      const d = (e as ApiError).body as { canForce?: boolean; hint?: string };
-      if (d?.canForce) { setForcing(true); return; }
-      toast(d?.hint ?? '无法取消:执行器仍在工作');
+      toast(((e as ApiError).body as { hint?: string }).hint ?? '无法取消,请刷新后重试');
     }
   }
   async function forceCancel() {
@@ -141,7 +149,8 @@ export default function PublishPage() {
                   {s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? '进行中' : '等待'}
                 </span>
                 <span style={{ color: s ? 'var(--ink)' : 'var(--ink4)' }}>{STEP_LABEL[name] ?? name}</span>
-                {s && secs > 2 && <span className="kv">已耗时 {secs}s</span>}
+                {/* 「已耗时 881s」对运营是机器单位;门链本来就要跑十几分钟(实景走查 P2-7) */}
+                {s && secs > 2 && <span className="kv">已耗时 {secs < 60 ? `${secs} 秒` : `${Math.floor(secs / 60)} 分 ${secs % 60} 秒`}</span>}
               </div>
             );
           })}

@@ -2,6 +2,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { RouterProvider, createBrowserRouter } from 'react-router-dom';
 import './styles.css';
+import { setUnauthorizedRedirect } from './api';
 import Shell from './shell';
 import AuditPage from './pages/audit';
 import Login from './pages/login';
@@ -44,6 +45,10 @@ const router = createBrowserRouter(
   ],
   { basename: '/admin' },
 );
+
+/* 401 用路由跳转,不整页重载(实景走查 P2-9:三个并发探针 401 会连着触发三次整页导航,
+   控制台留下一串 ERR_ABORTED,还白白重下一次 bundle)。 */
+setUnauthorizedRedirect((to) => router.navigate(to));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

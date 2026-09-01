@@ -520,7 +520,21 @@ publishRoutes.get('/status', async (c) => {
      界面说「线上保持旧版」,而站上早就是新内容了。现在每次读状态都拿线上快照的印记与
      数据库记的 live 对一次,不一致就明说,让人能看见并重发一次把两边对齐。 */
   const drift = await liveSnapshotDrift(c.env).catch(() => null);
-  return c.json({ activeVersion: active, stepsOfVersion: stepsOf, steps, versions, versionsTruncated: truncated, stepNames: PUBLISH_STEPS, drift });
+
+  /* 取消能力直接告诉界面,别让它靠**发一个注定失败的请求**去试探(2026-09-01 实景走查 P2-10):
+     此前界面先打一次 /cancel,拿 409 里的 canForce 决定要不要展示强制面——行为正确,
+     但正常操作路径每次都在浏览器控制台留一条红。判据与 /cancel 完全一致,不另造一套。 */
+  const lastStep = active
+    ? await c.env.DB.prepare('SELECT MAX(COALESCE(ended_at, started_at)) AS t, COUNT(*) AS n FROM publish_steps WHERE version_id=?1').bind(active).first<{ t: number | null; n: number }>()
+    : null;
+  const started = (lastStep?.n ?? 0) > 0;
+  const silentMs = lastStep?.t ? now - lastStep.t : 0;
+  const cancelable = active ? (started ? (silentMs >= RUNNER_SILENT_MS ? 'force' : 'no') : 'yes') : 'none';
+
+  return c.json({
+    activeVersion: active, stepsOfVersion: stepsOf, steps, versions, versionsTruncated: truncated,
+    stepNames: PUBLISH_STEPS, drift, cancelable, silentMs,
+  });
 });
 
 /** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了。

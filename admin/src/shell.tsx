@@ -1,6 +1,6 @@
 /* 控制台壳(CON02):导航五组 + 状态条三 chip + 失败红条 + 重试;当前位置高亮。 */
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { api, toast, type Overview } from './api';
 
 interface ShellState {
@@ -38,6 +38,7 @@ const NAV: Array<{ group: string; items: Array<{ to: string; label: string; icon
 
 export default function Shell() {
   const nav = useNavigate();
+  const isOnPublish = useLocation().pathname === '/publish';
   const [overview, setOverview] = useState<Overview | null>(null);
   const [failed, setFailed] = useState(false);
 
@@ -47,9 +48,15 @@ export default function Shell() {
       .then(setOverview)
       .catch(() => setFailed(true));
   }, []);
+  /* 🔴 先确认会话,再渲染子页(实景走查 P2-9)。
+     此前壳与子页同时挂载并各自发请求,未登录时会连着打出好几个 401 ——
+     其中 `/api/dash` 那条是纯浪费的越权请求(用户还没登录,驾驶舱就去拉数据了)。
+     现在等会话探针有结果再放子页;401 由 api 层统一用**路由跳转**踢回登录。 */
+  const [authed, setAuthed] = useState(false);
   useEffect(() => {
-    void api('/api/me').catch(() => {}); // 会话探针:401 由 api 层统一踢回登录
-    reload();
+    api('/api/me')
+      .then(() => { setAuthed(true); reload(); })
+      .catch(() => {}); // 401 已由 api 层跳转;其它错误由下面的失败态兜
   }, [reload]);
 
   async function logout() {
@@ -72,8 +79,11 @@ export default function Shell() {
           {NAV.map((g) => (
             <div key={g.group || 'root'}>
               {g.group && <div className="navg"><span className="tag">{g.group}</span></div>}
+              {/* 🔴 窄窗下 .lbl 被 CSS 隐藏、只剩一个 aria-hidden 的 emoji,于是每个导航链接的
+                  可访问名为空——读屏器什么都读不到,肉眼要靠猜图标(实景走查 P2-5)。
+                  aria-label 给读屏器,title 给鼠标悬停;图标仍 aria-hidden(它不是信息)。 */}
               {g.items.map((it) => (
-                <NavLink key={it.to} to={it.to} end={it.to === '/' || it.to === '/content'} className={({ isActive }) => `nav ${isActive ? 'on' : ''}`}>
+                <NavLink key={it.to} to={it.to} end={it.to === '/' || it.to === '/content'} aria-label={it.label} title={it.label} className={({ isActive }) => `nav ${isActive ? 'on' : ''}`}>
                   <span aria-hidden>{it.icon}</span>
                   <span className="lbl">{it.label}</span>
                   {it.to === '/publish' && (overview?.dirty ?? 0) > 0 && <span className="pill warn">{overview!.dirty}</span>}
@@ -127,9 +137,16 @@ export default function Shell() {
               <span className="skl" style={{ width: 260 }} />
             )}
             <span className="spacer" />
-            <NavLink to="/publish" className="btn sm">去发布</NavLink>
+            {/* 🔴 已经在发布页时,这个按钮点了什么都不会发生、也没有任何反馈(实景走查 P2-3)。
+                界面上的每个按钮都该要么有效、要么显式禁用并说明原因——「点了没反应」是最坏的一种。 */}
+            {isOnPublish ? (
+              <button className="btn sm" disabled title="已经在发布页了">去发布</button>
+            ) : (
+              <NavLink to="/publish" className="btn sm">去发布</NavLink>
+            )}
           </div>
-          <Outlet />
+          {/* 会话未确认前不挂子页:避免未登录时子页各自发请求(见上方注释) */}
+          {authed ? <Outlet /> : <div className="grid" style={{ marginTop: 12 }}><div className="skl" style={{ height: 120 }} /><div className="skl" style={{ height: 120 }} /></div>}
         </main>
       </div>
     </ShellCtx.Provider>
