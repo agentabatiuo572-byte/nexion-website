@@ -563,12 +563,16 @@ const settle = async () => {
       const left = [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0);
       for (const e of left) {
         e.scrollIntoView({ block: 'center' });
-        await new Promise((r) => setTimeout(r, 350));
+        /* 逐个等它**自己**还原,而不是统一给一个固定窗:固定 350ms 在页面变高、
+           IO 触发更挤时不够(R3d 实录 /vi/ @320 补拍后仍 blind),而按元素等待
+           既给足慢的、又不拖快的。判据一点不放宽,只是观测面不自己制造盲点。 */
+        const t0 = Date.now();
+        while (e.children.length > 0 && Date.now() - t0 < 1500) await new Promise((r) => setTimeout(r, 50));
       }
       window.scrollTo(0, 0);
     });
     await page
-      .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 3000 })
+      .waitForFunction(() => [...document.querySelectorAll('[data-lr], [data-tw]')].every((e) => e.children.length === 0), null, { timeout: 5000 })
       .catch(() => {});
   }
   await page.waitForTimeout(60);
@@ -578,7 +582,23 @@ const settle = async () => {
    → 那些高度档判据 A 一次都不扫,而 A 判的恰恰是行间。今天仓里没有这种规则,写进来是封住它。 */
 const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.fs}/${v.lh}`).join('|');
 const scanA = async (r, w, h) => {
-  const { hits, blind } = await page.evaluate(SCAN_LINES);
+  let { hits, blind } = await page.evaluate(SCAN_LINES);
+  /* 🔴 settle 只在路由载入后跑一次,而这之后视口要换 18 档宽 —— 揭示动效的触发窗
+     与视口尺寸相关,在 settle 那个尺寸下触发过的,换个尺寸可能仍带着结构
+     (R3d 实录 /vi/ @320:冲刺滚动后 3 处卡住,在**该尺寸下**点名唤醒即全部还原)。
+     扫到盲点才唤醒重扫:正常情况零开销,判据一点不放宽,只是观测面不自己制造盲点。 */
+  if (blind.length) {
+    await page.evaluate(async () => {
+      const left = [...document.querySelectorAll('[data-lr], [data-tw]')].filter((e) => e.children.length > 0);
+      for (const e of left) {
+        e.scrollIntoView({ block: 'center' });
+        const t0 = Date.now();
+        while (e.children.length > 0 && Date.now() - t0 < 1200) await new Promise((res) => setTimeout(res, 50));
+      }
+      window.scrollTo(0, 0);
+    });
+    ({ hits, blind } = await page.evaluate(SCAN_LINES));
+  }
   scansA++;
   for (const x of hits) {
     const k = `${r}|${x.sel}`;

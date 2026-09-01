@@ -67,15 +67,17 @@ const ART: Record<number, string> = {
      改画「机柜引出的插头 ↔ 通电插座」两个端子面对面却够不着 —— 间隙即语义。
      机柜也从等宽柱改成不等宽,避开与幕一折线图的条形图语汇撞车。 */
   2: `<svg class="art" viewBox="0 0 300 112" preserveAspectRatio="xMinYMid meet" fill="none" role="img" aria-hidden="true" focusable="false">
-        <rect x="3" y="34" width="40" height="72" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
-        <rect x="51" y="18" width="34" height="88" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
-        <rect x="93" y="50" width="44" height="56" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
-        <path d="M11 48h24M11 60h24M59 32h18M59 44h18M101 64h28M101 76h28" stroke="var(--x-line)" stroke-width="1.5"/>
-        <path d="M137 78h32" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
-        <path d="M169 70h14v16h-14" stroke="var(--x-ink-dim)" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M215 70h-14v16h14" stroke="var(--x-accent)" stroke-width="1.5" stroke-linejoin="round"/>
-        <path d="M215 78h26" stroke="var(--x-accent)" stroke-width="1.5"/>
-        <path d="M283 22l-20 34h22l-20 34" stroke="var(--x-accent-hot)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="3" y="30" width="40" height="78" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="51" y="6" width="34" height="102" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="93" y="48" width="44" height="60" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M11 44h24M11 58h24M59 22h18M59 36h18M101 62h28M101 76h28" stroke="var(--x-line)" stroke-width="1.5"/>
+        <path d="M137 78h23" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M160 66h14v24h-14" stroke="var(--x-ink-dim)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M174 72h8M174 84h8" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M202 72h8M202 84h8" stroke="var(--x-accent)" stroke-width="1.5"/>
+        <path d="M224 66h-14v24h14" stroke="var(--x-accent)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M224 78h20" stroke="var(--x-accent)" stroke-width="1.5"/>
+        <path d="M281 8l-20 42h22l-20 50" stroke="var(--x-accent-hot)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
       </svg>`,
   3: `<svg class="art" viewBox="0 0 300 112" preserveAspectRatio="xMinYMid meet" fill="none" role="img" aria-hidden="true" focusable="false">
         <circle cx="150" cy="56" r="26" stroke="var(--x-accent)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
@@ -342,9 +344,9 @@ const VOICES = [
   .ink-data {
     color: var(--x-on-accent);
     background: var(--x-accent);
-    box-shadow:
-      calc(3.5 * var(--uc)) 0 0 var(--x-accent),
-      calc(-3.5 * var(--uc)) 0 0 var(--x-accent);
+    /* 只向**右**外扩:左侧外扩会让行首的柠檬块比正文左轨突出 3.5px,而左轨是插画/
+       幕号/标题/正文/锚五层共用的对齐锚,突在最显眼处(R3d 工艺 P2-6)。 */
+    box-shadow: calc(3.5 * var(--uc)) 0 0 var(--x-accent);
     white-space: nowrap;
   }
   /* 下划线走 text-decoration 不走 border-bottom:后者贴在行盒底、无法控偏移,
@@ -375,7 +377,10 @@ const VOICES = [
     vertical-align: baseline;
     position: relative;
     top: -0.18em;
-    margin-left: calc(2 * var(--uc));
+    /* 7 而非 2:要盖过底块右侧 3.5 的外扩再留呼吸,否则漆带右缘与 [ 的墨只剩 0.47px,
+       两个柠檬记号在 1× 抗锯齿后糊成一体 —— 正是本组件为纵向写下的判据换到横向复发
+       (R3d 工艺 P2-7) */
+    margin-left: calc(7 * var(--uc));
     white-space: nowrap;
   }
   .ink-ref a {
@@ -485,15 +490,16 @@ const VOICES = [
   .quote:lang(vi) {
     line-height: 1.45; /* vi 叠音符同理 */
   }
+  /* 无条件竖排(与 #trust .vrow 同构):两卡的 meta 内容宽度本就不同,断点挪到哪
+     失配带就在新位置复现 —— 设 1200 后 vi 在 1201-1230 一卡折一卡不折(R3d 工艺 P1-4)。 */
   .qmeta {
     margin-top: auto;
     padding-top: calc(14 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
     display: flex;
-    flex-wrap: wrap;
-    justify-content: space-between;
-    align-items: center;
-    gap: calc(8 * var(--uc)) calc(14 * var(--uc));
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(8 * var(--uc));
   }
   .qsrc {
     color: var(--x-ink-dim);
@@ -625,20 +631,11 @@ const VOICES = [
      1279→1280 页面总高跳变 5.7%(门限 2%)—— 三列变单列会凭空长出两幕的高度,
      断点越靠上,那段高度差占整页比重越大。行长悬崖与高度硬缝二选一,门优先;
      单列侧的过长(101 字符)由下方 max-width 收住,三列侧的偏短是三列布局的固有代价。 */
-  /* 901-1200 的三列窄:每列只剩 21-26 字符/行(R3c 工艺 P2-3)。断点不能上移
-     (会在桌面段留下页高硬缝,判据 G 红),只能在这一段把列距与内衬收一半换回字符。 */
-  @media (min-width: 901px) and (max-width: 1200px) {
-    .acts {
-      gap: calc(12 * var(--uc)) calc(34 * var(--uc));
-      padding: calc(24 * var(--uc));
-    }
-    /* 同族:两张引用卡的 meta 行在这一段也会一卡折一卡不折(vi 901-1200 实测),
-       与 #trust .vrow 的 1200 竖排取同一构造 —— 那处修了这处没修,是同族漏修 */
-    .qmeta {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  }
+  /* 🔴 901-1200 收紧列距那一档已撤除:它只换回 3-4 个字符,却在 1200/1201 造出
+     **反向跳变** —— 视口从 1201 缩到 1200,列反而变宽 8.6%、行反而变长 15.6%
+     (R3d 工艺 P1-5)。两道门都看不见它:页高只变 0.24% 吃不到判据 G 的 2%,
+     而判据 D 只盯字号、栏宽与行长不在它的观测面内。三列段行长偏短是既定代价
+     (断点不能上移,见下方注释),不再用局部收紧去换。 */
   @media (max-width: 900px) {
     .acts {
       grid-template-columns: 1fr;
@@ -676,12 +673,6 @@ const VOICES = [
     }
     .qcard {
       padding: calc(22 * var(--uc));
-    }
-    /* 窄档两张卡的 meta 行竖排:space-between 下落单的日期会左贴,
-       同屏并列的两张同型卡呈现两种形态(R3 评审 D5) */
-    .qmeta {
-      flex-direction: column;
-      align-items: flex-start;
     }
     .foot {
       padding: calc(6 * var(--uc)) calc(22 * var(--uc)) calc(22 * var(--uc));

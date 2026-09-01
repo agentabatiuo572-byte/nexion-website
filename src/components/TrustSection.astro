@@ -169,10 +169,17 @@ const MEANS = [1, 2, 3] as const;
   }
 
   /* 瓷砖阵:证书 5/12 占两行,信息卡按版面顺序补位 */
+  /* 🔴 align-items:start —— 不变量真正落地的那一行(此前只写在注释里,CSS 缺失,
+     四个子项实测全是 stretch)。证书是**定宽比图片**(高 ∝ 列宽),文字卡高 ∝ 1/列宽,
+     两条曲线反向、只交叉一次(约 1150-1250)——「并排配对天然等高」这个前提不成立:
+     强制自然高实测 en@1440 失配 33%、zh@1440 58%、en@901 反向 58%。stretch 把矮的那张
+     拉平,盒高相等而内部空 91-181px(zh 1304-1920 整段),这是「把洞挪个位置」的第四次。
+     让每张卡收到自己的内容高:卡底参差,但每张都是饱满的 —— bento 本就允许参差。 */
   .grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: calc(18 * var(--uc));
+    align-items: start;
   }
   /* 证书瓷砖:align-self:start —— 不被两行的行高拉伸,盒子收到内容自然高。
      两张竖版证书按宽度缩放,拉高后物理上填不满(1024 档实测 64% 是空的,R3b 评审 P0-1);
@@ -234,10 +241,13 @@ const MEANS = [1, 2, 3] as const;
     text-wrap: pretty;
     max-width: 46ch;
   }
-  /* 通栏卡的标题不吃 46ch:1345px 宽的卡里标题止于 x635,右上角空出 580×70
-     的死区,而下一行又满宽(R3b 评审 P1-2) */
-  /* 制度卡(7 栏)的双栏内容比其它卡宽,标题放宽一档免得右上角留死区 */
-  .s7 .ctitle {
+  /* 宽栏卡的标题放宽一档,免得右上角留死区。
+     ⚠️ 用 :where() 压掉特异度 —— 写成 `.s7 .ctitle`(0,4,0)会盖过下面的
+     `.ctitle:lang(zh)`(0,3,0),让 zh 的 26em 量宽在三分之二的卡上成为死声明
+     (R3d 工艺 P2-8:computed 实测 611.7px 而非 494px);:where() 记 0 特异度。
+     这类「写进去了但被更特异的规则盖住」现有 css-shadowed 门抓不到(它只查同规则内
+     重复与 media 源序),评审建议补判据,已记入台账。 */
+  :where(.s7) .ctitle {
     max-width: 56ch;
   }
   .ctitle:lang(zh),
@@ -307,6 +317,7 @@ const MEANS = [1, 2, 3] as const;
   }
   .t3list li:lang(zh) {
     line-height: 1.6;
+    text-wrap: balance; /* 同上:zh@901 实测「…FINCEN / 登记」两字孤行 */
   }
   /* 方点垂直居中于首行行盒:写死的 0.42em 在三套行高(17.4/17.4/20)下落点各异,
      en 偏高约两成大写高(R3b 工艺 P2-8)。改由 1lh 派生,三语自适应。 */
@@ -336,27 +347,24 @@ const MEANS = [1, 2, 3] as const;
   }
   .t3notbody:lang(zh) {
     line-height: 1.6;
+    /* CJK 孤字控制:实测「…对企业的 / 背书。」两字独占一行,而这是本板块的合规核心句
+       (R3d 工艺 P2-9)。同族 .cdesc:lang(zh) 上一轮已加,这两处漏了 */
+    text-wrap: balance;
   }
 
   /* 锚层:可核验值 chip(方角标签)+ 查册按钮(实心柠檬胶囊 = 可点转化件)。
      chip 曾与按钮同为 999 胶囊 + 同色族 + 同字档 = 标准 ghost button 长相,
      而它并不可点(R3 评审 P2-7):改方角、抬高度,与实心键在形上拉开。 */
+  /* 🔴 无条件竖排,不设断点:两卡的 chip+按钮总宽本就不同(内容宽度差),
+     断点挪到哪失配带就在新位置复现 —— 设 1200 后它从 <1200 跑到 1201-1395,
+     正好吃掉 1280 与 1366 两个最常见笔电宽(R3d 工艺 P1-3 逐 15px 扫描实测)。
+     构造统一比找「好断点」可靠:两卡永远同形。 */
   .vrow {
     display: flex;
-    flex-wrap: wrap;
-    gap: calc(10 * var(--uc)) calc(12 * var(--uc));
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(10 * var(--uc));
     margin: calc(22 * var(--uc)) 0 0;
-  }
-  /* 🔴 同族第二处:窄档两张引用卡的 meta 行曾一个左贴一个右对齐,那处在 #why 修了;
-     这里 chip+按钮的总宽两卡不同,在 en 920-1024 / vi 992-1120 / zh 904-968 区间
-     卡 01 折两行而卡 02 不折 —— 两张视觉平行的兄弟卡长出两种页脚(R3b 评审 P1-4,
-     它点名这是「只修被点名那处」的实例)。1200 以下两卡一律竖排,构造统一。 */
-  @media (max-width: 1200px) {
-    .vrow {
-      flex-direction: column;
-      align-items: flex-start;
-    }
   }
   .vchip {
     color: var(--x-accent);
@@ -406,9 +414,11 @@ const MEANS = [1, 2, 3] as const;
     min-height: var(--x-touch);
   }
   @media (max-width: 900px) {
-    .certs,
-    .s7,
-    .s12 {
+    /* 🔴 按容器复位,不按 span 类枚举:上一版清单是 `.certs,.s7,.s12`,本轮 t2 改成
+       `.s5` 后清单没跟着改 → 该卡在 ≤900 全段只有 100-337px 宽的窄柱(R3d 工艺 P0-1,
+       三语全中)。枚举式清单每加一个 span 类就要记着改一次,已在同一处栽第二次;
+       改成子代选择器后,加多少 span 类都不用回来改这里。 */
+    .grid > * {
       grid-column: 1 / -1;
       grid-row: auto;
     }

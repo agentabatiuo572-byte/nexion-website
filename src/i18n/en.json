@@ -116,7 +116,7 @@
     "act1Title": "The curve",
     "act1Body": "AI training compute has doubled roughly __every six months__^4^ since 2010. NVIDIA posted [[$89 billion]]^1^ of data-center revenue in a single quarter — and its CEO says demand still runs far ahead of what the company can supply.",
     "act1Num": "+117%",
-    "act1Cap": "NVIDIA data-center revenue, year over year (Q2 FY2027)",
+    "act1Cap": "NVIDIA data-center revenue, year over year (Q2 FY2027)",
     "act2Title": "The wall",
     "act2Body": "The bottleneck is no longer just chips. U.S. data-center vacancy sits at a record-low [[1.4%]]^2^, and chips wait in inventory with no power to plug them into^3^. Centralized compute is hitting __land, grid and cooling__.",
     "act2Num": "80.4%",
