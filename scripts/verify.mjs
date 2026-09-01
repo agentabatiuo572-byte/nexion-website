@@ -6,6 +6,7 @@
    退出码写 .verify-exit.code(外部判定读文件不读管道——PLAN 全局纪律)。 */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
 import { scanForbidden } from './forbidden-patterns.mjs';
@@ -96,17 +97,27 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     const nexHome = join(ROOT, 'dist', 'nex', 'index.html');
     if (existsSync(nexHome) && !readFileSync(nexHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
   }
-  const appAnchor = join(ROOT, '..', 'Nexion-uniapp', 'src', 'lib', 'platform-stats.ts');
-  const statsSrc = readFileSync(join(SRC, 'lib', 'stats.ts'), 'utf8');
-  const nums = [...statsSrc.matchAll(/(?:activeDevices|activeJobs|nodes|countries|uptime):\s*([\d_.]+)/g)].map((m) => m[1]);
-  if (existsSync(appAnchor)) {
-    const anchor = readFileSync(appAnchor, 'utf8');
-    const hits = nums.filter((n) => anchor.includes(n)).length;
-    if (nums.length >= 5 && hits >= 4) {
-      (PROD ? detail : info).push(`统计快照仍=App mock 锚值(${hits}/${nums.length} 字面命中)——上线前必须真值化或分层降级`);
-    }
-  } else {
-    info.push('App 仓缺席,统计镜像比对未执行(warn 放行,与 brand-parity 同体例)');
+  /* 🔴 「统计数字仍是演示值」这条判据**从 CON16 改版起就不可能触发**
+     (2026-09-01 第十轮独立验收 P0)。上一版三重不相交,少一重都还能活:
+       ① 它在 `src/lib/stats.ts` 里正则找数字字面量,而改版后那里只剩 `site.stats.activeDevices`
+          这样的**引用**,一个字面量都没有 → `nums.length >= 5` 恒假;
+       ② App 锚路径写死成同级目录的 `../Nexion-uniapp`,worktree 下解析到不存在的路径
+          → 每次都打印「App 仓缺席…warn 放行」;
+       ③ 就算前两条都修好,`site.json` 存 `28432` 而 App 源码写 `28_432`,
+          字符串 `includes` 五个值全不命中。
+     而与此同时后台还在对运营说「生产上线门将拦截」—— 一道自称会拦、实际拦不住的门,
+     比没有门更糟。
+
+     换判据:**不抠字符串、不跨仓、不猜**。锚值有单一真理源 `MOCK_STAT_ANCHORS`
+     (`schema/src/site-config.ts`,校验器 `validators.ts:114` 用的就是它),
+     直接按**值**比对物化产物里的 stats。同源同比法,两边不会再各自演化。 */
+  const { MOCK_STAT_ANCHORS } = await import(pathToFileURL(join(ROOT, 'schema', 'src', 'site-config.ts')).href);
+  const siteCfg = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
+  const anchorHits = Object.entries(MOCK_STAT_ANCHORS).filter(([k, v]) => siteCfg.stats?.[k] === v);
+  if (anchorHits.length) {
+    (PROD ? detail : info).push(
+      `统计数字仍是演示值(${anchorHits.length}/${Object.keys(MOCK_STAT_ANCHORS).length} 项与内置演示锚值逐值相同:${anchorHits.map(([k]) => k).join('、')})——上线前必须换成真值或分层降级`,
+    );
   }
   results.push({
     gate: 'launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'),
