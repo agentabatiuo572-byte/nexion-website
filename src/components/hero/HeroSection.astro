@@ -22,17 +22,19 @@ const t = useT(locale);
         <span class="tick" aria-hidden="true"></span>
         <span class="txt">{t('hero.scrollHint')}</span>
       </a>
-      {/* R49b 主人终版:两套文案各自成组——左下=第一套(赚钱主张两句),右下=第二套(toB 背书两句);
-          组内层级:首句亮、次句暗 */}
-      <p class="note x-mono">{t('hero.note')}</p>
-      <p class="note2 x-mono">{t('hero.note2')}</p>
+      {/* 两套文案各自成组,组内层级=首句亮、次句暗。
+          2026-09-01 主人令「位置对调」:左下=toB 背书套装(subtitle/subtitle2),
+          右下=品牌口号套装(note/note2,贴 h1 与下载键)。容器体制不动——
+          左列恒为小字左对齐、右列恒为大字右对齐,对调的是文案不是版式。 */}
+      <p class="note x-mono">{t('hero.subtitle')}</p>
+      <p class="note2 x-mono">{t('hero.subtitle2')}</p>
     </div>
 
     <div class="cluster">
       <h1 class="x-display-mega" data-lr="load" data-lr-delay="200">{t('hero.title')}</h1>
       <div class="subs">
-        <p class="sub x-mono-lg">{t('hero.subtitle')}</p>
-        <p class="sub2 x-mono">{t('hero.subtitle2')}</p>
+        <p class="sub x-mono-lg">{t('hero.note')}</p>
+        <p class="sub2 x-mono">{t('hero.note2')}</p>
       </div>
       <div class="dl-wrap" id="download">
         <DownloadButtons locale={locale} />
@@ -96,7 +98,7 @@ const t = useT(locale);
   .note {
     color: var(--x-ink); /* R49b:第一套首句(主张)提亮,组内分层 */
     margin: 0;
-    max-width: 50ch; /* 容住首段(2026-09-01 主人令换 App 首页口号:en 43ch 单行 / vi 焊 \n 两行 / zh 单行) */
+    max-width: 50ch; /* 容住首段(09-01 对调后装 toB 首句:en/vi 自然折两行、zh 单行) */
     text-wrap: pretty;
     line-height: 1.5;
     white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
@@ -134,7 +136,7 @@ const t = useT(locale);
   h1:lang(zh) {
     font-size: max(48px, calc(115.2 * var(--u)));
   }
-  /* R49b 双层副题:主张(亮)+ toB 背书(暗一档、小一档),右缘对齐成一组 */
+  /* 右下双层组:首句亮 + 次句暗一档小一档,右缘对齐成一组(09-01 起装品牌口号套装) */
   .subs {
     display: flex;
     flex-direction: column;
@@ -149,6 +151,9 @@ const t = useT(locale);
     width: max(300px, calc(439.2 * var(--u)));
     text-wrap: pretty;
     text-align: right; /* R49b 主人令:右下套装整组右对齐(vi 两行曾左齐与次句错茬) */
+    /* 🔴 pre-line 不能省(09-01 对调后):品牌口号的 vi 版焊了 \n 断在逗号处(语义断点),
+       右列原先不认 \n(它装的 toB 首句没有焊断行)——不补这条,搬过来的断点会被静默折叠。 */
+    white-space: pre-line;
     font-size: calc(16 * var(--uc)); /* 原版副题 16 @1440,随视口放大(R13) */
   }
   .sub2 {
@@ -156,7 +161,7 @@ const t = useT(locale);
     margin: 0;
     width: max(300px, calc(439.2 * var(--u)));
     text-wrap: pretty;
-    white-space: pre-line; /* 第二套次句 en/vi 带 \n 两行制 */
+    white-space: pre-line; /* 焊断行随文案走(09-01 对调后装零门槛句,三语均单行) */
     font-size: max(11px, calc(12 * var(--u)));
     text-align: right;
   }
