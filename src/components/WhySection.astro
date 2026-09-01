@@ -309,9 +309,6 @@ const quotes = [1, 2] as const;
     grid-column: 1 / -1;
     color: var(--x-ink-dim);
   }
-  .wtag:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量(与 .wcap 同补;x-label 型类缺口另有挂账任务) */
-  }
   .wcell {
     display: grid;
     /* 与 StatsBar .cell 同型:三条 auto 轨吃 stretch,某格 .wcap 多折一行就把本格 .wnum
@@ -340,13 +337,13 @@ const quotes = [1, 2] as const;
     letter-spacing: -0.02em;
     line-height: 1;
   }
+  /* zh 行高由型类 .x-label:lang(zh) 供给(1.6)—— R2 曾在此与 .wtag 各补一条组件侧止血,
+     型类补齐后两条同值冗余,同笔清退。.wcap 是全站唯一真会折行的 x-label 消费面,
+     也是当初逼出型类缺口的那一处。 */
   .wcap {
     color: var(--x-ink-dim);
     text-wrap: pretty;
     max-width: calc(340 * var(--uc));
-  }
-  .wcap:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量:.x-label 型类无 zh 分支,组件侧补(R2) */
   }
 
   @media (max-width: 900px) {
