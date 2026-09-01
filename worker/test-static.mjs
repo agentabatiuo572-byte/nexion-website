@@ -10,10 +10,19 @@ import { spawn, execSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { parseJsonc } from './lib/read-jsonc.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const wranglerSrc = readFileSync(path.join(here, 'wrangler.jsonc'), 'utf8');
-const declared = /"assets"\s*:\s*\{[\s\S]*?"directory"\s*:\s*"([^"]+)"/.exec(wranglerSrc)?.[1];
+/* 真解析而不是正则抠字段(2026-09-01):正则会在注释里出现同名字段时抓错,
+   也读不出「这份配置本身是不是坏的」。与 gate-config-consistency 共用同一个读取器,
+   同一份配置不能有两种「什么算合法」的理解。 */
+let declared;
+try {
+  declared = parseJsonc(readFileSync(path.join(here, 'wrangler.jsonc'), 'utf8'), 'wrangler.jsonc').assets?.directory;
+} catch (e) {
+  console.error(`✗ ${String(e).slice(0, 220)}`);
+  process.exit(3);
+}
 if (!declared) {
   console.error('✗ wrangler.jsonc 里读不到 assets.directory —— 无法确定该拿哪个目录做对照(拒绝猜)');
   process.exit(3);

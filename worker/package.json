@@ -19,7 +19,8 @@
     "gate:artifact-independence": "node gate-artifact-independence.mjs",
     "publish:runner": "node --import ./register-ts-ext.mjs runner.mjs",
     "publish:promote": "node promote.mjs",
-    "gate:console-copy": "node gate-console-copy.mjs"
+    "gate:console-copy": "node gate-console-copy.mjs",
+    "test:gates": "node lib/test-read-jsonc.mjs && node gate-config-consistency.mjs --self-test && node gate-console-copy.mjs --self-test && node gate-beacon-size.mjs --self-test && node test-static.mjs --self-test"
   },
   "dependencies": {
     "hono": "^4.6.0",

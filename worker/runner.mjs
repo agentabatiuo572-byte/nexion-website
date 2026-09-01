@@ -78,11 +78,18 @@ function runGates() {
   let gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
 
   if (code === 0) {
-    for (const [name, script] of [
+    /* 🔴 先跑门的**自检**再跑门本体(2026-09-01 补):
+       这两道门各有二十多条自检,而它们此前**不在任何一条链里** —— 只在「我记得跑」的时候才跑,
+       正是 memory 里那条「新建测试天然成孤儿」的形态。门坏了却报绿是最贵的一种错,
+       而自检只花几百毫秒。read-jsonc 是两道门共用的配置读取器,同理。 */
+    for (const [name, script, ...args] of [
+      ['jsonc-reader-自检', 'lib/test-read-jsonc.mjs'],
+      ['config-consistency-自检', 'gate-config-consistency.mjs', '--self-test'],
+      ['console-copy-自检', 'gate-console-copy.mjs', '--self-test'],
       ['config-consistency', 'gate-config-consistency.mjs'],
       ['console-copy', 'gate-console-copy.mjs'],
     ]) {
-      const w = spawnSync('node', [script], { cwd: here, shell: true, encoding: 'utf8' });
+      const w = spawnSync('node', [script, ...args], { cwd: here, shell: true, encoding: 'utf8' });
       out += `\n---- ${name} ----\n${w.stdout ?? ''}${w.stderr ?? ''}`;
       if (w.status !== 0) {
         code = w.status ?? 1;

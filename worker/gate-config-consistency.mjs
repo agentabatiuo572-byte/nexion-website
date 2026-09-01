@@ -11,11 +11,11 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const read = (p) => readFileSync(path.join(here, p), 'utf8');
-/* JSONC 注释清理:块注释 + 行首行注释。
-   块注释这一半是 2026-09-01 补的——wrangler.jsonc 里加一段 `/* … *\/` 说明(合法 JSONC,wrangler 自己读得动)
-   就让本门整个崩掉。崩了是失败关闭、不算放过,但一道读不懂被守文件半数合法语法的门,迟早会以别的形式咬人。
-   行注释仍只吃行首那种:URL 里的 `//` 不能误伤。 */
-const stripJsonc = (s) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+/* JSONC 解析改用 lib/read-jsonc.mjs(2026-09-01 收账):
+   此前是两条正则,读不懂行尾 `//`,而那是 wrangler 完全接受的写法。
+   正则判不出「这个斜杠在不在字符串里」,所以补排除表补不完;换成字符串感知的扫描器。
+   同一个读取器 `test-static.mjs` 也在用——同一份配置只能有一种「什么算合法」的理解。 */
+import { parseJsonc } from './lib/read-jsonc.mjs';
 
 const ASTRO_TEXT = read('../astro.config.mjs');
 const VALIDATOR_TEXT = read('../schema/src/validators.ts');
@@ -28,14 +28,12 @@ const say = (ok, msg) => {
 };
 
 function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText = VALIDATOR_TEXT, labelText = LABEL_TEXT) {
-  /* 读不动就明说是哪种写法读不动,别只抛一段栈(第四轮 P2-12)。
-     剥注释仍不处理**行尾** `//`——要正确处理必须字符串感知,否则会误伤 URL 里的 `//`,那条留在 T23;
-     但至少要让人一眼看出「是配置里有本门看不懂的写法」,而不是对着一段 SyntaxError 猜。 */
+  // 读不动就明说读不动在哪一处,别只抛一段栈(第四轮 P2-12);parseJsonc 会带出出错位置附近的原文
   let cfg;
   try {
-    cfg = JSON.parse(stripJsonc(cfgText));
+    cfg = parseJsonc(cfgText, 'wrangler.jsonc');
   } catch (e) {
-    return [[false, `wrangler.jsonc 读不动(本门的 JSONC 剥注释不处理行尾 // 注释):${String(e).slice(0, 120)}`]];
+    return [[false, String(e).slice(0, 220)]];
   }
   const declared = cfg.triggers?.crons ?? [];
   /* 从 CRON_JOBS 登记表取「代码处理的 cron」——通用判据,不再硬编码具体表达式(复测 O11)。
@@ -127,10 +125,17 @@ if (process.argv.includes('--self-test')) {
   // 校验器新增规则但失败面没跟上
   const newRule = VALIDATOR_TEXT.replace(/rule: 'structure'/, "rule: 'brand-new-rule'");
   say(check(cfgText, srcText, migFiles, ASTRO_TEXT, newRule).some(([ok]) => !ok), 'self-test:校验器新增规则而失败面缺映射 → 变红');
-  // 行尾注释:必须给出人话诊断而不是抛栈
-  const trailing = cfgText.replace('"directory":', '"directory": // 说明\n    ');
-  const r = check(trailing, srcText, migFiles);
-  say(r.some(([ok, m]) => !ok && String(m).includes('行尾')), 'self-test:配置含行尾注释 → 给人话诊断而不是抛栈');
+  /* 🔴 这条自检 2026-09-01 换了判据。上一版断言的是**缺陷行为本身**:
+     「配置里有行尾注释 → 门要给人话诊断」——那是在门读不懂行尾注释的前提下的将就。
+     换成字符串感知的读取器后行尾注释根本读得动,于是这条自检开始为**正确行为**报红。
+     判据要跟着能力走:能读的就断言读得动,读不动的(真坏了的配置)才断言给人话诊断。 */
+  const trailing = cfgText.replace('"directory":', '"directory": /* 说明 */');
+  say(check(trailing, srcText, migFiles).every(([ok]) => ok), 'self-test:配置含注释 → 照常读得动(不再当成读不动)');
+  const broken = cfgText.replace('"assets"', '"assets" MALFORMED');
+  say(
+    check(broken, srcText, migFiles).some(([ok, m]) => !ok && String(m).includes('wrangler.jsonc 解析失败')),
+    'self-test:配置真的坏了 → 给人话诊断(点名来源)而不是抛栈',
+  );
   /* 规则名含数字必须被本门看见。
      🔴 这条自检上一版是**假绿**(第五轮 P1-3):它用「把 structure 换成 h1-count」来注入,
      于是门变红的真实原因是「structure 的映射突然多余了」,与「认不认数字」毫无关系——
