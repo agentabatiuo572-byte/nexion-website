@@ -16,7 +16,8 @@
     "verify:prod": "node scripts/verify-preamble.mjs && node scripts/verify.mjs --prod",
     "test:worker": "npm --prefix worker test",
     "dev:worker": "npm --prefix worker run dev",
-    "build:console": "npm --prefix admin run build && node worker/assemble-admin.mjs"
+    "build:console": "npm --prefix admin run build && node worker/assemble-admin.mjs",
+    "preview:assert": "node scripts/preview-assert.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",
