@@ -28,7 +28,9 @@ const year = new Date().getFullYear();
       </div>
 
       <div class="info">
-        <p class="disclaimer x-mono">{t('footer.disclaimer')}</p>
+        {/* 页脚免责句已删(主人 2026-09-01 指令:站上不再放为规避法律风险而写的自我限制文案)。
+            `footer.disclaimer` 这个 key 也一并从三语文案里移除 —— 留着空 key 会让
+            三语 parity 门和文案树都多出一条永远为空的记录。 */}
         {/* R49-E1 需求侧最小入口(拍板 8):一段话立「买家是谁」;联系 CTA 只在邮箱配置后出现(零死承诺) */}
         <p class="teams x-mono">
           {t('footer.forTeams')}
@@ -106,12 +108,6 @@ const year = new Date().getFullYear();
     display: flex;
     flex-direction: column;
     gap: calc(18 * var(--uc));
-  }
-  .disclaimer {
-    color: var(--x-ink-dim);
-    margin: 0;
-    text-wrap: pretty;
-    line-height: 1.5;
   }
   .teams {
     color: var(--x-ink-dim);

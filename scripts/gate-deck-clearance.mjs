@@ -98,10 +98,22 @@ try {
             ratioW = parseFloat(cs.width) / pin.offsetWidth;
             ratioL = parseFloat(cs.left) / pin.offsetWidth;
           }
-          return { worst: +worst.toFixed(1), ratioW: +ratioW.toFixed(4), ratioL: +ratioL.toFixed(4) };
+          /* 🔴 判据③(2026-09-01 第十轮独立验收 P0):**分母不能是被守的那个量**。
+             ②量的是「卡宽 ÷ pin 自身宽」——pin 一缩,分子分母同比缩,比值纹丝不动,
+             于是②对「包含块整体缩水」这件它自称直接钉住的事**完全瞎**
+             (实测注入 `.decked .pin{max-width:1120px}`:pin 1905→1482 屏幕像素、卡宽 860→669,
+              deck-clearance / canvas-geometry / render-fit **三门全绿**)。
+             改用**不会跟着缩的参照**:画布 `.x-canvas` 的宽度由 R42 画布壳固定,
+             pin 应当占满它。分母独立于被守物,缩水才藏不住。 */
+          const canvas = document.querySelector('.x-canvas');
+          const pinOfCanvas = canvas && pin ? pin.offsetWidth / canvas.offsetWidth : null;
+          return { worst: +worst.toFixed(1), ratioW: +ratioW.toFixed(4), ratioL: +ratioL.toFixed(4), pinOfCanvas: pinOfCanvas === null ? null : +pinOfCanvas.toFixed(4) };
         }, ph);
         checked++;
         if (m.worst > 1) fails.push(`${W}/${loc || 'en'} 相位 ${ph}:卡侵入左栏文字 ${m.worst}px`);
+        /* 取不到参照要报错,不能当成通过——「量不到所以跳过」是假绿制造机 */
+        if (m.pinOfCanvas === null) fails.push(`${W}/${loc || 'en'} 相位 ${ph}:量不到 .x-canvas,判据③ 无从判断(门已失效,先修门)`);
+        else if (Math.abs(m.pinOfCanvas - 1) > 0.005) fails.push(`${W}/${loc || 'en'} 相位 ${ph}:钉屏区只占画布 ${(m.pinOfCanvas * 100).toFixed(1)}%,应占满 —— 包含块被缩水了(②按 pin 自身归一化,看不见这种)`);
         if (Math.abs(m.ratioW - 0.4514) > 0.015) fails.push(`${W}/${loc || 'en'} 相位 ${ph}:卡宽/钉屏区 = ${(m.ratioW * 100).toFixed(1)}%,应 45.14%(包含块疑似被兜底档 max-width 缩水)`);
         if (Math.abs(m.ratioL - 0.2743) > 0.015) fails.push(`${W}/${loc || 'en'} 相位 ${ph}:卡锚/钉屏区 = ${(m.ratioL * 100).toFixed(1)}%,应 27.43%`);
       }

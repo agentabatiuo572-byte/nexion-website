@@ -98,14 +98,12 @@
     "t2Body": "登记依据为《银行保密法》监管框架。MSB 登记信息可在 FinCEN 官网查询。",
     "t2Chip": "MSB 31000329265856",
     "t2Cta": "前往 fincen.gov 查证",
-    "t3Title": "MSB 登记意味着什么，不意味着什么。",
+    "t3Title": "MSB 登记意味着什么。",
     "t3Lead": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。",
     "t3MeansTitle": "意味着",
     "t3Means1": "企业已依法向 FinCEN 登记",
     "t3Means2": "承担相应合规义务",
     "t3Means3": "可在该框架下依法开展货币服务类业务",
-    "t3NotTitle": "不意味着",
-    "t3Not": "登记是法定义务，不构成 FinCEN 对企业的背书。",
     "certZoom": "查看大图",
     "certClose": "关闭",
     "openOriginal": "查看原件"
@@ -271,7 +269,6 @@
     "title": "让你的闲置设备工作起来。"
   },
   "footer": {
-    "disclaimer": "收益随网络需求、设备性能与在线时长浮动，平台不作任何事先承诺。本站内容不构成理财建议。",
     "privacy": "隐私政策",
     "terms": "使用条款",
     "contact": "联系我们",

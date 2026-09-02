@@ -1,5 +1,10 @@
 node_modules/
 dist/
+# 线上快照与切换中转目录(由 worker/promote.mjs 生成,不入库)
+dist-live/
+dist-live.staging/
+dist-live.prev/
+admin/dist/
 .astro/
 .verify-exit.code
 *.log

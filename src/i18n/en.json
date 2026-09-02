@@ -98,14 +98,12 @@
     "t2Body": "Registered under the Bank Secrecy Act regulatory framework. The MSB registration record can be looked up on FinCEN’s website.",
     "t2Chip": "MSB 31000329265856",
     "t2Cta": "Verify at fincen.gov",
-    "t3Title": "What MSB registration means — and what it does not.",
+    "t3Title": "What MSB registration means.",
     "t3Lead": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies.",
     "t3MeansTitle": "What it means",
     "t3Means1": "The company is registered with FinCEN as required by law",
     "t3Means2": "It carries the corresponding compliance obligations",
     "t3Means3": "It may lawfully conduct money-services business within that framework",
-    "t3NotTitle": "What it does not mean",
-    "t3Not": "Registration is a legal obligation and does not constitute FinCEN endorsement of the business.",
     "certZoom": "View full size",
     "certClose": "Close",
     "openOriginal": "Open original"
@@ -271,7 +269,6 @@
     "title": "Put your idle devices to work."
   },
   "footer": {
-    "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "contact": "Contact",

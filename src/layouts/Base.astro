@@ -102,6 +102,8 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
         而副题的进场是 CSS 驱动、2411ms 就亮了,于是首屏拍序倒过来:副题先于标题出现。
         放进 head 后引擎与样式表同批发现,顺序恢复。这是投递优先级问题,不是编舞问题。 */}
     <script src="../scripts/fx.ts"></script>
+    {/* 匿名埋点(官网后台 PRD CON15):独立 chunk(体积门单测其产物);DNT 即整体不启动;采集失败零影响站体验 */}
+    <script src="../scripts/metrics.ts"></script>
   </head>
   <body>
     <canvas id="x-bg" aria-hidden="true"></canvas>

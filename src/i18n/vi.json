@@ -98,14 +98,12 @@
     "t2Body": "Theo khung pháp lý Đạo luật Bảo mật Ngân hàng. Đăng ký MSB có thể tra cứu trên trang web của FinCEN.",
     "t2Chip": "MSB 31000329265856",
     "t2Cta": "Kiểm chứng tại fincen.gov",
-    "t3Title": "Đăng ký MSB có nghĩa là gì — và không có nghĩa là gì.",
+    "t3Title": "Đăng ký MSB có nghĩa là gì.",
     "t3Lead": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ.",
     "t3MeansTitle": "Có nghĩa là",
     "t3Means1": "Doanh nghiệp đã đăng ký với FinCEN theo luật định",
     "t3Means2": "Chịu các nghĩa vụ tuân thủ tương ứng",
     "t3Means3": "Có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó",
-    "t3NotTitle": "Không có nghĩa là",
-    "t3Not": "Đăng ký là nghĩa vụ pháp lý và không phải là sự chứng thực của FinCEN đối với doanh nghiệp.",
     "certZoom": "Xem kích thước đầy đủ",
     "certClose": "Đóng",
     "openOriginal": "Mở bản gốc"
@@ -271,7 +269,6 @@
     "title": "Để những thiết bị nhàn rỗi của bạn làm việc."
   },
   "footer": {
-    "disclaimer": "Thu nhập thay đổi theo nhu cầu mạng, hiệu năng thiết bị và thời gian hoạt động, và không được cam kết trước. Nội dung trên trang này không phải lời khuyên tài chính.",
     "privacy": "Chính sách bảo mật",
     "terms": "Điều khoản dịch vụ",
     "contact": "Liên hệ",

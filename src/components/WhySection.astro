@@ -615,15 +615,89 @@ const VOICES = [
     flex-direction: column;
     gap: calc(6 * var(--uc));
   }
+
+  /* 署名引用卡:x-q 问句体承载原话,attr 退 12 档 dim */
+  .qcol {
+    grid-column: span 5;
+    display: flex;
+    flex-direction: column;
+    gap: calc(18 * var(--uc));
+  }
+  .qcard blockquote {
+    margin: 0;
+    color: var(--x-white);
+  }
+  .qcard figcaption {
+    color: var(--x-ink-dim);
+    line-height: 1.45;
+    text-wrap: pretty; /* R2:zh 署名曾以单字「月」收尾成孤行 */
+  }
+  .qcard figcaption:lang(zh) {
+    line-height: 1.6; /* 全站 CJK 行高不变量——本地 1.45 曾把型类的 zh 分支盖掉(R2) */
+  }
+
+  /* 大数字条:StatsBar .num 同规格(display 54 档 / tabular),通栏三格细线分区。
+     横衬走 30(瓷砖通用衬)不走 StatsBar 的 14+24 两段算法——那是独立通栏板块的内衬,
+     这里上下与 narr/qcard(衬 30)同列,左轨必须合线(R2 实测错位 8px/−16px)。 */
+  .wstats {
+    grid-column: span 12;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: calc(16 * var(--uc)) calc(24 * var(--uc));
+    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
+  }
+  .wtag {
+    grid-column: 1 / -1;
+    color: var(--x-ink-dim);
+  }
+  .wcell {
+    display: grid;
+    /* 与 StatsBar .cell 同型:三条 auto 轨吃 stretch,某格 .wcap 多折一行就把本格 .wnum
+       下推「行高 ÷ 3」,三列大数字顶不齐。start = 贴顶,不吃拉伸。 */
+    align-content: start;
+    gap: calc(8 * var(--uc));
+    justify-items: start;
+    border-left: 1px solid var(--x-line-soft);
+    padding-left: calc(24 * var(--uc));
+  }
+  .wcell:first-of-type {
+    /* first-of-type 不是 first-child:tile 首子元素是 .wtag 眉标(span),
+       first-child 在这里永不命中(R2 探针实锤) */
+    border-left: 0;
+    padding-left: 0; /* 首列文字对齐瓷砖衬(30),分线间距只给后续列 */
+  }
+  .widx {
+    color: var(--x-accent-hot);
+  }
+  .wnum {
+    font-family: var(--x-font-display);
+    font-size: max(30px, calc(54 * var(--u)));
+    font-weight: 500;
+    color: var(--x-white);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  /* zh 行高由型类 .x-label:lang(zh) 供给(1.6)—— R2 曾在此与 .wtag 各补一条组件侧止血,
+     型类补齐后两条同值冗余,同笔清退。.wcap 是全站唯一真会折行的 x-label 消费面,
+     也是当初逼出型类缺口的那一处。 */
+  .wcap {
+    color: var(--x-ink-dim);
+    text-wrap: pretty;
+    max-width: calc(340 * var(--uc));
+  }
+
   .disclaim:lang(zh) {
     line-height: 1.6;
     word-spacing: -0.36em;
   }
-  /* 62ch:12 档全大写等宽的舒适带上沿(实测 640uc = 82 字符/行)。
-     与 #trust .cdesc 同族同值 —— 那一处收了、这一处没收,是同族漏修(R3c 工艺 P2-4)。 */
+  /* 62 字身宽:12 档全大写等宽的舒适带上沿(实测 640uc = 82 字符/行)。
+     与 #trust .cdesc 同族同值 —— 那一处收了、这一处没收,是同族漏修(R3c 工艺 P2-4)。
+     写 calc 不写 `62ch`:字身单位会在字体就绪前锁死在兜底值(R50 判据)。
+     这里是全大写等宽文字,取 mono 那份常数。 */
   .dtext {
     display: block;
-    max-width: 62ch;
+    max-width: calc(62 * var(--x-ch-mono));
   }
 
   /* 🔴 断点留在 900,不是 1280。R3b 评审 P0-2 提出把三列断点上移以消除
@@ -662,7 +736,9 @@ const VOICES = [
       padding-top: calc(28 * var(--uc));
     }
     .abody {
-      max-width: 68ch; /* 单列下的行长上限;三列态由列宽自然约束,不设此值 */
+      /* 单列下的行长上限;三列态由列宽自然约束,不设此值。
+         calc 不写 `68ch`:字身单位会在字体就绪前锁死在兜底值(R50 判据)。 */
+      max-width: calc(68 * var(--x-ch-mono));
     }
     /* 单列时插画独占一整行会过分抢戏:压到列宽的六成,左轨不变 */
     .act :global(.art) {

@@ -18,8 +18,10 @@ const t = useT(locale);
 /* R3 卡片排版重构(主人 2026-09-01 拍板 ABC 混合定稿):五张整段卡 → 三张分层卡。
    每卡三层:**结论**(19 档标题,一句话说清是什么)→ **细节**(12 档小字)→ **锚**
    (可核验值 chip + 实心查册按钮)。信息零删减 —— 旧 card1..card5 逐句拆进
-   t1/t2/t3(实体/州/公司类型/Entity ID/股本/平台/MSB 编号/BSA 框架/登记≠背书/两处查册说明),
-   守恒由改写脚本的断言逐条核过(8/8)。查册链接从下划线小字升级为按钮:它是本板块希望
+   t1/t2/t3(实体/州/公司类型/Entity ID/股本/平台/MSB 编号/BSA 框架/两处查册说明),
+   守恒由改写脚本的断言逐条核过。⚠️ 其中「登记≠背书」那一条**已于 2026-09-02 按主人指令删除**
+   (站上不放免责/风险提示类文案)—— 所以这里不再是「零删减」,是「零删减 + 一条按令删除」。
+   查册链接从下划线小字升级为按钮:它是本板块希望
    访客真正去做的动作(「Verify it yourself」),满饱和柠檬只给可点转化件的分层纪律成立。
    R48.7 令②的语义图标保留,升为 44 档卡首图标:注册实体 / 盾勾 / 天平。 */
 /* 🔴 栅格结构(R3c 结构性反思):证书列不再 `grid-row: span 2`。
@@ -86,10 +88,14 @@ const MEANS = [1, 2, 3] as const;
             {k === 't3' ? (
               /* 卡 03 拆层(R3 评审 D1/P1-4):旧 card4 是本板块最长的一段整段大写文字,
                  上一轮只在它头上焊了标题、底下 408 字原样 —— 主人点名的那种墙留在了原地。
-                 现在拆成「定义 → 意味着三条 → 不意味着一条」,双栏并置把 12 栏的宽度用起来;
-                 首末两句逐字保留,中间一句拆成三条要点(守恒断言逐条核过)。 */
+                 现在拆成「定义 → 意味着三条」,中间一句拆成三条要点(守恒断言逐条核过)。
+                 ⚠️ 原设计是双栏(左「意味着」/ 右「不意味着」),右栏已按主人 2026-09-02 指令删除,
+                 所以现在是单栏 —— `.t3grid` 保留栅格形态,以后要加第二栏时结构还在。 */
               <Fragment>
                 <p class="cdesc x-mono">{t('trust.t3Lead')}</p>
+                {/* 「不意味着什么」那一栏已删(主人 2026-09-02 指令:站上不放免责/风险提示类文案)。
+                    两条 key(t3NotTitle / t3Not)一并从三语文案里移除,标题也从
+                    「…means — and what it does not」收成「…means」。 */}
                 <div class="t3grid">
                   <div class="t3col">
                     <span class="t3h x-label">{t('trust.t3MeansTitle')}</span>
@@ -98,10 +104,6 @@ const MEANS = [1, 2, 3] as const;
                         <li class="x-mono">{t(`trust.t3Means${m}`)}</li>
                       ))}
                     </ul>
-                  </div>
-                  <div class="t3col t3not">
-                    <span class="t3h x-label">{t('trust.t3NotTitle')}</span>
-                    <p class="t3notbody x-mono">{t('trust.t3Not')}</p>
                   </div>
                 </div>
               </Fragment>
@@ -239,7 +241,7 @@ const MEANS = [1, 2, 3] as const;
     /* pretty 不用 balance:balance 只压最长行、不管顺序,en 两行标题出现「下行比上行
        长 22%」的倒参差,放宽量宽也没解(R3b 工艺 P2-9);pretty 优化收尾更稳。 */
     text-wrap: pretty;
-    max-width: 46ch;
+    max-width: calc(46 * var(--x-ch-display));
   }
   /* 宽栏卡的标题放宽一档,免得右上角留死区。
      ⚠️ 用 :where() 压掉特异度 —— 写成 `.s7 .ctitle`(0,4,0)会盖过下面的
@@ -248,7 +250,7 @@ const MEANS = [1, 2, 3] as const;
      这类「写进去了但被更特异的规则盖住」现有 css-shadowed 门抓不到(它只查同规则内
      重复与 media 源序),评审建议补判据,已记入台账。 */
   :where(.s7) .ctitle {
-    max-width: 56ch;
+    max-width: calc(56 * var(--x-ch-display));
   }
   .ctitle:lang(zh),
   .ctitle:lang(vi) {
@@ -267,7 +269,7 @@ const MEANS = [1, 2, 3] as const;
     color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-    max-width: 62ch;
+    max-width: calc(62 * var(--x-ch-display));
   }
   .cdesc:lang(zh) {
     /* .x-mono 型类的 zh 档就是 1.6,本地 1.45 会盖掉它,补回同值 */
@@ -320,36 +322,24 @@ const MEANS = [1, 2, 3] as const;
     text-wrap: balance; /* 同上:zh@901 实测「…FINCEN / 登记」两字孤行 */
   }
   /* 方点垂直居中于首行行盒:写死的 0.42em 在三套行高(17.4/17.4/20)下落点各异,
-     en 偏高约两成大写高(R3b 工艺 P2-8)。改由 1lh 派生,三语自适应。 */
+     en 偏高约两成大写高(R3b 工艺 P2-8)。三语自适应靠「与本列表 line-height 同值」达成,
+     zh 档另有一条覆写(见下)—— 两处必须成对改,改一个漏一个方点就偏。 */
   .t3list li::before {
     content: '';
     width: calc(6 * var(--uc));
     height: calc(6 * var(--uc));
-    margin-top: calc((1lh - 6 * var(--uc)) / 2);
+    /* 🔴 曾写 `1lh`(三语自适应),但 R50 立的字身单位判据禁掉了它 —— lh 的长度同样取自
+       字体度量,字体就绪前按兜底值算、到位后重算不可靠,会非确定性锁死在错值。
+       改直写 1.45em:与本列表 `.t3list li` 的 line-height 同源,zh 档由 :lang(zh) 覆写,
+       自适应保住而不吃字形量。 */
+    margin-top: calc((1.45em - 6 * var(--uc)) / 2);
     border-radius: 1px;
     background: var(--x-accent);
     flex: 0 0 auto;
   }
-  /* 「不意味着」= 本板块最关键的一句(登记≠背书),给柠檬左界与白墨,
-     从原先埋在整段第 4-5 行的暗灰里提出来 */
-  /* align-self:start —— 柠檬界线跟文字走,不被左栏列表撑成一条穿过空白的长线
-     (实测 110px 线配 35px 文字,R3b 评审 P1-2) */
-  .t3not {
-    border-left: 2px solid var(--x-accent);
-    padding-left: calc(18 * var(--uc));
-    align-self: start;
-  }
-  .t3notbody {
-    margin: 0;
-    color: var(--x-ink);
-    line-height: 1.45;
-    text-wrap: pretty;
-  }
-  .t3notbody:lang(zh) {
-    line-height: 1.6;
-    /* CJK 孤字控制:实测「…对企业的 / 背书。」两字独占一行,而这是本板块的合规核心句
-       (R3d 工艺 P2-9)。同族 .cdesc:lang(zh) 上一轮已加,这两处漏了 */
-    text-wrap: balance;
+  /* zh 行高是 1.6(见上面 .t3list li:lang(zh)),方点要跟着走,否则中文那颗偏高 */
+  .t3list li:lang(zh)::before {
+    margin-top: calc((1.6em - 6 * var(--uc)) / 2);
   }
 
   /* 锚层:可核验值 chip(方角标签)+ 查册按钮(实心柠檬胶囊 = 可点转化件)。
@@ -386,7 +376,9 @@ const MEANS = [1, 2, 3] as const;
     color: var(--x-on-accent);
     background: var(--x-accent);
     border-radius: 999px;
-    padding: calc((var(--x-touch) - 1lh) / 2) calc(16 * var(--uc));
+    /* 1.45em 而非 1lh:字身单位会在字体就绪前锁死在兜底值(R50 判据);
+       1.45 是本元素 line-height 的同值直写。 */
+    padding: calc((var(--x-touch) - 1.45em) / 2) calc(16 * var(--uc));
     font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
     display: inline-block;
     text-align: center;
@@ -577,11 +569,12 @@ const MEANS = [1, 2, 3] as const;
     left: 0;
     color: var(--x-accent-hot);
   }
-  /* 62ch:与 .cdesc / #why .disclaim 同族同值(760uc 实测 93 字符/行,R3c 工艺 P2-4) */
+  /* 62 字身宽:与 .cdesc / #why .disclaim 同族同值(760uc 实测 93 字符/行,R3c 工艺 P2-4)。
+     写成 calc(62 * var(--x-ch-display)) 而非 `62ch` —— 后者会在字体就绪前锁死在兜底值(R50 判据)。 */
   .poc p {
     color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc));
-    max-width: 62ch;
+    max-width: calc(62 * var(--x-ch-display));
     text-wrap: pretty;
     line-height: 1.45;
   }

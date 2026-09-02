@@ -6,8 +6,11 @@
    退出码写 .verify-exit.code(外部判定读文件不读管道——PLAN 全局纪律)。 */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
+import { regexEscapeGate } from './gate-regex-escape.mjs';
+import { scanForbidden } from './forbidden-patterns.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
@@ -31,34 +34,12 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 /* ── 门 1:禁用词(PRD §1.4-1/3/4)──────────────────────────────
    注意:"not guaranteed" 是免责声明合法用法,模式只抓「保证收益」组合。 */
 {
-  /* 族要覆盖「保证 + 收益词」「百分比 + 周期/收益词」「定额 + 周期」「零/无风险」三语;
-     U5 变异测试曾用 12 种常见表述探针,旧清单只命中 3 种(主人红线全靠此门) */
-  const PATTERNS = [
-    [/guarantee[ds]?\s+(your\s+)?(returns?|income|profits?|earnings?|yields?|payouts?)/i, 'guarantee+收益词'],
-    [/(risk[-\s]?free|(zero|no)[-\s]risk)/i, 'risk-free / zero-risk'],
-    [/\d+(\.\d+)?\s*%\s*(monthly|weekly|daily|annual(ly)?|yearly|per\s+(month|year|week|day)|a\s+(month|year|week|day))?\s*(returns?|yields?|APY|APR|ROI|profits?|income|interest|gains?)\b/i, '百分比收益承诺'],
-    /* 「百分比 + 周期」必须邻近收益名词才算承诺:本站文案天生充满抽成 % 与在线率 %
-       (fee / uptime / commission 各自合法),不加这道守卫,门会变成日常绕行的对象 */
-    [/\d+(\.\d+)?\s*%\s*(monthly|weekly|daily|annual(ly)?|yearly|per\s+(month|year|week|day)|a\s+(month|year|week|day))\s*(in\s+)?(returns?|yields?|profits?|income|earnings?|interest|gains?|payouts?)/i, '百分比+周期+收益词'],
-    [/(APY|APR|ROI)\s+of\s+\d/i, 'APY/APR/ROI of N'],
-    [/\d+(\.\d+)?\s*(USDT|USD|\$|NEX)\s+(per|every|each|a)\s+(day|week|month|year)/i, '定额周期收益'],
-    [/(up\s+to|earn|make)\s+\$\d+(\.\d+)?\s*(per|every|each|a)\s+(day|week|month|year)/i, '定额周期收益($)'],
-    /* 中文/越南语没有英文 "not guaranteed" 那种天然守卫,而否定式免责声明(「本站不保证收益」)
-       与承诺共用同一批词 → 承诺类一律加否定前瞻 */
-    [/(稳赚|保本|包赚|躺赚|看涨|(?<!不|非|无)保证(收益|回报|盈利|赚)|年化(收益)?(率)?\s*\d|收益率\s*\d|每(天|日|周|月)(收益|赚|回报|收入)\s*\d)/, '中文收益承诺/投机词'],
-    [/(?<!不存在|没有|不是)(零风险|无风险)(?!是不存在|并不存在)/, '中文零风险'],
-    [/(lãi\s+suất\s+đảm\s+bảo|lợi\s+nhuận\s+(đảm\s+bảo|cố\s+định)|đảm\s+bảo\s+(thu\s+nhập|lợi\s+nhuận)|không\s+rủi\s+ro)/i, '越南语收益承诺'],
-    /* vi 的「% 每月」同样要邻近收益名词——手续费 5% mỗi tháng 是合法文案 */
-    [/(lợi\s+nhuận|lãi)[^.。\n]{0,20}\d+(\.\d+)?\s*%\s*(mỗi|một|hàng)\s+(tháng|năm|ngày|tuần)|\d+(\.\d+)?\s*%\s*(mỗi|một|hàng)\s+(tháng|năm|ngày|tuần)[^.。\n]{0,20}(lợi\s+nhuận|lãi)/i, '越南语百分比周期收益'],
-  ];
+  /* 词表+判定函数 2026-08-31 抽至 scripts/forbidden-patterns.mjs(官网后台校验器同 import 单源;
+     T7 验收 P2:判定循环也必须共享——任一面单独加豁免即静默分叉);历史注记随词表迁移 */
   const files = walk(SRC, ['.astro', '.ts', '.tsx', '.jsx', '.json', '.md']);
   const hits = [];
   for (const f of files) {
-    const text = readFileSync(f, 'utf8');
-    for (const [re, label] of PATTERNS) {
-      const m = text.match(re);
-      if (m) hits.push(`${rel(f)}: [${label}] "${m[0]}"`);
-    }
+    for (const h of scanForbidden(readFileSync(f, 'utf8'))) hits.push(`${rel(f)}: [${h.label}] "${h.match}"`);
   }
   results.push({ gate: 'forbidden-words', pass: hits.length === 0, detail: hits });
 }
@@ -117,17 +98,41 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     const nexHome = join(ROOT, 'dist', 'nex', 'index.html');
     if (existsSync(nexHome) && !readFileSync(nexHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
   }
-  const appAnchor = join(ROOT, '..', 'Nexion-uniapp', 'src', 'lib', 'platform-stats.ts');
-  const statsSrc = readFileSync(join(SRC, 'lib', 'stats.ts'), 'utf8');
-  const nums = [...statsSrc.matchAll(/(?:activeDevices|activeJobs|nodes|countries|uptime):\s*([\d_.]+)/g)].map((m) => m[1]);
-  if (existsSync(appAnchor)) {
-    const anchor = readFileSync(appAnchor, 'utf8');
-    const hits = nums.filter((n) => anchor.includes(n)).length;
-    if (nums.length >= 5 && hits >= 4) {
-      (PROD ? detail : info).push(`统计快照仍=App mock 锚值(${hits}/${nums.length} 字面命中)——上线前必须真值化或分层降级`);
+  /* 🔴 「统计数字仍是演示值」这条判据**从 CON16 改版起就不可能触发**
+     (2026-09-01 第十轮独立验收 P0)。上一版三重不相交,少一重都还能活:
+       ① 它在 `src/lib/stats.ts` 里正则找数字字面量,而改版后那里只剩 `site.stats.activeDevices`
+          这样的**引用**,一个字面量都没有 → `nums.length >= 5` 恒假;
+       ② App 锚路径写死成同级目录的 `../Nexion-uniapp`,worktree 下解析到不存在的路径
+          → 每次都打印「App 仓缺席…warn 放行」;
+       ③ 就算前两条都修好,`site.json` 存 `28432` 而 App 源码写 `28_432`,
+          字符串 `includes` 五个值全不命中。
+     而与此同时后台还在对运营说「生产上线门将拦截」—— 一道自称会拦、实际拦不住的门,
+     比没有门更糟。
+
+     换判据:**不抠字符串、不跨仓、不猜**。锚值有单一真理源 `MOCK_STAT_ANCHORS`
+     (`schema/src/site-config.ts`,校验器 `validators.ts:114` 用的就是它),
+     直接按**值**比对物化产物里的 stats。同源同比法,两边不会再各自演化。 */
+  /* 🔴 判据换向(主人 2026-09-01 拍板):平台数字**全部后台模拟、不接真实数据**,
+     于是「和内置初值相同」不再是缺陷 —— 原判据的前提(最终会有真数据)已经不存在。
+     一道永远报、又永远不会被解决的警告,只会让人习惯性忽略,连带削弱旁边真的警告。
+     换成守**这份模拟配置自身站得住**:
+       ① 开了自动增长却一个字段都没配增量 = 开关是个摆设;
+       ② 起算日在未来 → 数字要等到那天才动,而人会以为开关没生效;
+       ③ 增长快到离谱(日增 > 基准值 5%,即约 20 天翻倍)→ 多半是多打了一个零。
+     这三条都是**配置错误**,不是产品决定,拦下来对得起人。 */
+  const siteCfg = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
+  const g = siteCfg.stats?.growth;
+  if (g?.enabled) {
+    const per = g.daily ?? {};
+    const keys = Object.keys(per).filter((k) => per[k] > 0);
+    if (!keys.length) detail.push('自动增长开着,但四个字段的每日增量都是 0 —— 开关不起任何作用,要么配增量要么关掉');
+    if (Date.parse(`${g.since}T00:00:00Z`) > Date.now()) detail.push(`自动增长的起算日 ${g.since} 在未来 —— 数字要等到那天才开始动`);
+    for (const k of keys) {
+      const base = Number(siteCfg.stats?.[k]);
+      if (Number.isFinite(base) && base > 0 && per[k] > base * 0.05) {
+        detail.push(`${k} 每天 +${per[k]},相对基准值 ${base} 约 ${Math.round(base / per[k])} 天翻倍 —— 增长过快,是不是多打了一个零?`);
+      }
     }
-  } else {
-    info.push('App 仓缺席,统计镜像比对未执行(warn 放行,与 brand-parity 同体例)');
   }
   results.push({
     gate: 'launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'),
@@ -142,16 +147,35 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
    判据:清单内钩子在 src 有 EMIT(data-x= 模板属性)则必须有 CONSUMER([data-x 选择器 或 dataset.x),
    0 消费即红。新状态钩子加进 HOOKS 清单。 */
 {
+  /* 🔴 清单改成**构造性枚举**(2026-09-01 第十轮独立验收 P1-8)。
+     上一版 `HOOKS = ['empty']` 是手写的,而那个钩子早已退役、全 src 零 EMIT,
+     于是这道门每次打印 `✓ clean` 却**一条断言都没执行**,还在「13/13」里占一格。
+     一道恒绿且什么都没查的门,比没有门更误导人。
+     现在从源码里枚举真实在用的 `data-*` 属性,逐个要求有消费方。
+     排除面写清楚**为什么排除**,不是随手加白名单:
+     - HTML/框架自带属性(data-src/srcset/theme/…)不是本站的状态钩子;
+     - 带后缀的参数属性(data-tw-delay 之类)由其主钩子统一读取。 */
   const detail = [];
-  const HOOKS = ['empty'];
   const files = walk(SRC, ['.astro', '.ts', '.css']);
   const all = files.map((f) => readFileSync(f, 'utf8')).join('\n');
-  for (const h of HOOKS) {
-    const emits = (all.match(new RegExp(`data-${h}=`, 'g')) || []).length;
-    const consumers = (all.match(new RegExp(`\\[data-${h}[\\]=']`, 'g')) || []).length + (all.match(new RegExp(`dataset\\.${h}\\b`, 'g')) || []).length;
-    if (emits > 0 && consumers === 0) detail.push(`data-${h}:EMIT ×${emits} 但 0 消费方——状态渲染了却没有任何用户可见面`);
+  const NATIVE = new Set(['src', 'srcset', 'theme', 'alt', 'target', 'locale', 'mode', 'suffix', 'sse-url']);
+  const emitted = [...new Set([...all.matchAll(/data-([a-z][a-z0-9-]*)=/g)].map((m) => m[1]))]
+    .filter((h) => !NATIVE.has(h))
+    .filter((h) => !/-/.test(h) || !emittedBase(h)); // data-tw-delay 归 data-tw 管
+  function emittedBase(h) {
+    const base = h.split('-')[0];
+    return new RegExp(`data-${base}[=\\s>]`).test(all);
   }
-  results.push({ gate: 'state-hook-consumer(R49-F2)', pass: detail.length === 0, detail });
+  if (!emitted.length) detail.push('从 src 里一个状态钩子都没枚举到 —— 判据失效(属性写法变了?),先修门');
+  for (const h of emitted) {
+    const emits = (all.match(new RegExp(`data-${h}=`, 'g')) || []).length;
+    const consumers =
+      (all.match(new RegExp(`\\[data-${h}[\\]='"]`, 'g')) || []).length +
+      (all.match(new RegExp(`dataset\\.${h.replace(/-(.)/g, (_, c) => c.toUpperCase())}\\b`, 'g')) || []).length +
+      (all.match(new RegExp(`getAttribute\\(['"\`]data-${h}`, 'g')) || []).length;
+    if (emits > 0 && consumers === 0) detail.push(`data-${h}:渲染了 ${emits} 处但没有任何地方读它——状态出现在页面上却没有用户可见面`);
+  }
+  results.push({ gate: `state-hook-consumer(R49-F2)`, pass: detail.length === 0, detail: detail.length ? detail : [`已核 ${emitted.length} 个状态钩子,均有消费方`] });
 }
 
 /* ── 门 4:页内锚点存在性(PRD §6-5 近似;T11 升级为 dist 级死链扫描)── */
@@ -175,12 +199,23 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
         R38 再收:只校验「值域命中」时,跨主题错配(电蓝底+黑字 ≈2.4:1)也会绿灯。
    App 仓不存在(独立部署环境)时 warn-only 放行。 */
 {
-  const APP_TOKENS = 'D:/WORKS/PLAN/Nexion-uniapp/src/styles/tokens.css';
+  /* 🔴 跨仓路径按**候选列表**找,不写死一条(2026-09-01 第十轮独立验收 P2-5)。
+     此前两条跨仓判据口径不一:这条写死本机绝对路径(恰好命中),另一条写
+     `../Nexion-uniapp` 在 worktree 下必然落空、每次都打印「App 仓缺席」——
+     而那正是 P0-1 那道死判据的第二重成因。
+     找不到时说清**找过哪些位置**,而不是只说一句「不在本机」:
+     一句看不出找哪儿的跳过提示,和没有提示一样没法排查。 */
+  const APP_CANDIDATES = [
+    join(ROOT, '..', 'Nexion-uniapp', 'src', 'styles', 'tokens.css'), // 同级(独立 checkout)
+    join(ROOT, '..', '..', 'Nexion-uniapp', 'src', 'styles', 'tokens.css'), // worktree 在 .wt/ 下时
+    'D:/WORKS/PLAN/Nexion-uniapp/src/styles/tokens.css', // 本机固定位置(最后兜底)
+  ];
+  const APP_TOKENS = APP_CANDIDATES.find(existsSync);
   const detail = [];
   let warn = false;
-  if (!existsSync(APP_TOKENS)) {
+  if (!APP_TOKENS) {
     warn = true;
-    detail.push('App tokens 不在本机(独立环境),跳过比对');
+    detail.push(`App tokens 不在本机(独立环境),跳过比对。找过:${APP_CANDIDATES.map((p) => relative(ROOT, p) || p).join(' · ')}`);
   } else {
     const site = readFileSync(join(SRC, 'styles/tokens.css'), 'utf8');
     const app = readFileSync(APP_TOKENS, 'utf8');
@@ -242,13 +277,14 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 }
 
 results.push(canvasUnitGate(SRC, rel));
+results.push(regexEscapeGate(ROOT, rel));
 
 /* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
    同型两次都是「写进去了但从未生效,而且没有任何反馈」:
    ① 同一条规则里写了两个 max-width(新值在前旧值在后),「已修」从未生效;
    ② 手机菜单的矮屏压缩块写在它要压的基础规则**前面**,嵌套 media 不加特异度 → 六条只落地三条。
    两次都是独立评审逐像素量出来的,肉眼与「我改了」的记忆都发现不了。
-   判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向 7 条)。 */
+   判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
@@ -289,7 +325,7 @@ results.push(canvasUnitGate(SRC, rel));
    本门的三条判据全部**构造性**,不依赖任何手写清单——路由从产物枚举、视口从产物 CSS 的断点推导、
    墨高用 canvas 逐行实测(上一版三张手写清单各漏一块:漏 9 条路由、漏窄屏、漏了 Be Vietnam Pro 的字身)。
    放在 canvas-geometry 之后:那一门已经把 dist 构建好,本门自带静态服务直接伺服 dist,不再重复构建。
-   判据、豁免与自检见 gate-render-fit.mjs(`--self-test` 六条,红绿两向)。 */
+   判据、豁免与自检见 gate-render-fit.mjs(`--self-test`,红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-render-fit.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
@@ -318,6 +354,43 @@ results.push(canvasUnitGate(SRC, rel));
   } else {
     results.push({ gate: 'deck-clearance(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
+}
+
+/* ── 门自检:各门自带的红绿表必须真在跑 ──
+   三道门(canvas-hazard / render-fit / css-shadowed)各自写了红测,头注里也写着「判据必须有红测」,
+   但此前**没有任何东西保证那些红测还过得了**——它们只在人想起来手跑时才执行,等于文档不是门。
+   一道判据被悄悄改松(如 canvas-hazard 的字身正则曾漏判全部负值)时,门本体照样报绿,
+   只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
+{
+  const SUITES = [
+    ['canvas-hazard', ['scripts/gate-canvas-unit.mjs', '--self-test']],
+    ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
+    ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
+    ['regex-escape', ['scripts/test-regex-escape.mjs']],
+  ];
+  const detail = [];
+  for (const [name, argv] of SUITES) {
+    const r = spawnSync(process.execPath, [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)], { cwd: ROOT, encoding: 'utf8' });
+    if (r.status !== 0) {
+      const tail = (r.stdout || '').trim().split('\n').filter((l) => /❌|FAIL|失败/.test(l)).slice(0, 4);
+      detail.push(`${name} 的红测没过(exit ${r.status})——该门的判据已失去红测保护`, ...tail.map((l) => '  ' + l.trim()));
+      continue;
+    }
+    /* 🔴 exit 0 不等于「跑过了」——三层都能让一套红测**一条没跑却报成功**:
+         ① 自检守卫失配(gate-canvas-unit 曾用文件名匹配,复制/改名后静默 exit 0、零输出);
+         ② 红测本体用例集为空(表被清空 / 过滤条件写错);
+         ③ 本门自己只看退出码,于是①②都看不见。
+       所以再要一条正数用例计数:三套的成功行都自带(「26 红 + 15 绿」/「22 pass」/「13 pass」),
+       读不到就判红。这一条同时封住上面三层——无论哪层坏,表现都是「输出里没有正数用例数」。 */
+    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)/g)].reduce((s, m) => s + +m[1], 0);
+    if (ran === 0) {
+      detail.push(
+        `${name} 的红测 exit 0 但读不到用例数——「没跑」不算「通过」,不许静默降级成绿`,
+        `  实际输出:${((r.stdout || '').trim().split('\n')[0] || '(空)').slice(0, 90)}`,
+      );
+    }
+  }
+  results.push({ gate: `gate-self-tests(${SUITES.length} 套红测)`, pass: detail.length === 0, detail });
 }
 
 /* ── 汇总 ── */

@@ -1,0 +1,44 @@
+{
+  // NexGrid 官网 worker —— 本地 dev 全量可跑(D1/KV 本地模拟);
+  // database_id / kv id 为占位,Phase C 上线切换时换真值(PRD §7-O1)。
+  // ⚠️ 改本文件后跑 `npm run types` 重新生成 worker-configuration.d.ts。
+  "name": "nexgrid-site-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-04-01",
+  "assets": {
+    /* 站静态产物由 worker 前置伺服(PRD §2.2):先跑 worker(屏蔽中间件/API),再落静态。
+       🔴 伺服的是**已发布快照** dist-live,不是构建产物 dist(2026-09-01 验收 P0-3):
+       质检门内部会 `npm run build` 重写 dist,而线上若直接伺服 dist,门还在跑、未过门的内容
+       就已经对外了——「门红时线上保持旧版」当场变成假话(实测:发起 45 秒后首页已是坏文案,
+       6 分钟后门判红,首页仍是那段坏文案)。现在 dist 是「待验产物」,dist-live 是「已上线快照」,
+       只有流水线最后一步 swap 才把前者拷成后者 —— 切换这才既在最后、又是整目录一次性替换。
+       dist-live 由 `npm run publish:promote` 生成(首次本地起服前需跑一次)。 */
+    "directory": "../dist-live",
+    "binding": "ASSETS",
+    "not_found_handling": "404-page",
+    "run_worker_first": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "nexgrid_site",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "kv_namespaces": [
+    { "binding": "KV", "id": "local-dev-placeholder" }
+  ],
+  "triggers": {
+    // 每日 00:10 UTC:日汇总 + 90 天原始事件滚动清理(PRD §5.3)
+    // 每 6 小时:下载链接探活巡检(PRD CON03-③;连续 2 次失败 → 驾驶舱红条)
+    "crons": ["10 0 * * *", "0 */6 * * *"]
+  },
+  "vars": {
+    "ENVIRONMENT": "dev",
+    // 仅 dev 值;生产用 `wrangler secret put SETUP_TOKEN` / `... BEACON_SALT`(Phase C)
+    "SETUP_TOKEN": "dev-setup-token",
+    "BEACON_SALT": "dev-beacon-salt",
+    "BYPASS_SECRET": "dev-bypass-secret"
+  }
+}
