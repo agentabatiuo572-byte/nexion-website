@@ -93,7 +93,7 @@
     "card1": "NexGrid LTD is incorporated in the State of Colorado, USA (coloradosos.gov) as a Colorado corporation, Entity ID 20221592644. It is authorized to issue 100,000,000 common shares and operates the NexGrid global distributed compute sharing platform.",
     "card2": "The company registration record can be looked up on the Colorado Secretary of State website.",
     "card3": "NexGrid LTD has completed MSB (Money Services Business) registration with FinCEN, the Financial Crimes Enforcement Network of the U.S. Department of the Treasury — registration number 31000329265856 — under the Bank Secrecy Act regulatory framework.",
-    "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework. Registration is a legal obligation and does not constitute FinCEN endorsement of the business.",
+    "card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
     "card5": "The MSB registration record can be looked up on FinCEN's website.",
     "certZoom": "View full size",
     "certClose": "Close",
@@ -222,7 +222,6 @@
     "title": "Put your idle devices to work."
   },
   "footer": {
-    "disclaimer": "Earnings vary with network demand, device performance, and uptime, and are not guaranteed. Nothing on this site is financial advice.",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
     "contact": "Contact",
