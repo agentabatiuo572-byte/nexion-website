@@ -110,11 +110,25 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
     if (d.url && !/^https:\/\/.+/.test(d.url)) errors.push({ path: `downloads.${k}.url`, rule: 'url', message: '须为 https 完整链接' });
   }
 
-  // 6) 统计数字(CON06-E1 锚值软警;范围硬校验已在 zod)
-  const anchorHits = Object.entries(MOCK_STAT_ANCHORS).filter(([k, v]) => (c.stats as Record<string, unknown>)[k] === v);
-  for (const [k] of anchorHits)
-    // 内部门编号(R49-F1)对运营既查不到也用不上,不该出现在页面上(第十轮独立验收 P2-6)
-    warnings.push({ path: `stats.${k}`, rule: 'mock-anchor', message: '与内置演示值相同——上线前必须换成真实口径值,否则生产发布会被拦下' });
+  /* 6) 统计数字。
+     🔴 「和内置初值相同」这条软警**已撤除**(主人 2026-09-01 拍板:平台数字全部后台模拟、
+     不接真实数据)—— 它的前提是「最终会换成真数据」,那个前提不存在了,
+     留着就是让人去做一件永远不会发生的事。范围硬校验仍在 zod。
+     换成校验**这份模拟配置自身站不站得住**(与站上 verify 的 launch-assets 同判据,同一批配置错误): */
+  const g = (c.stats as { growth?: { enabled: boolean; since: string; daily: Record<string, number> } }).growth;
+  if (g?.enabled) {
+    const grown = Object.entries(g.daily ?? {}).filter(([, v]) => v > 0);
+    if (!grown.length) warnings.push({ path: 'stats.growth', rule: 'growth-noop', message: '自动增长开着,但每个字段的日增量都是 0 —— 开关不起作用' });
+    if (Date.parse(`${g.since}T00:00:00Z`) > Date.now()) {
+      warnings.push({ path: 'stats.growth.since', rule: 'growth-future', message: '起算日在未来,数字要等到那天才开始增长' });
+    }
+    for (const [k, per] of grown) {
+      const base = Number((c.stats as Record<string, unknown>)[k]);
+      if (Number.isFinite(base) && base > 0 && per > base * 0.05) {
+        warnings.push({ path: `stats.growth.daily.${k}`, rule: 'growth-too-fast', message: `每天 +${per} 相对当前值约 ${Math.round(base / per)} 天翻倍,增长过快` });
+      }
+    }
+  }
 
   // 7) 产品卡(CON07-E2)与 FAQ 门槛(CON08-E1)
   if (!c.skus.some((s) => s.visible)) errors.push({ path: 'skus', rule: 'all-hidden', message: '设备板块不可为空(至少 1 个可见)' });

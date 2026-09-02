@@ -111,13 +111,27 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
      换判据:**不抠字符串、不跨仓、不猜**。锚值有单一真理源 `MOCK_STAT_ANCHORS`
      (`schema/src/site-config.ts`,校验器 `validators.ts:114` 用的就是它),
      直接按**值**比对物化产物里的 stats。同源同比法,两边不会再各自演化。 */
-  const { MOCK_STAT_ANCHORS } = await import(pathToFileURL(join(ROOT, 'schema', 'src', 'site-config.ts')).href);
+  /* 🔴 判据换向(主人 2026-09-01 拍板):平台数字**全部后台模拟、不接真实数据**,
+     于是「和内置初值相同」不再是缺陷 —— 原判据的前提(最终会有真数据)已经不存在。
+     一道永远报、又永远不会被解决的警告,只会让人习惯性忽略,连带削弱旁边真的警告。
+     换成守**这份模拟配置自身站得住**:
+       ① 开了自动增长却一个字段都没配增量 = 开关是个摆设;
+       ② 起算日在未来 → 数字要等到那天才动,而人会以为开关没生效;
+       ③ 增长快到离谱(日增 > 基准值 5%,即约 20 天翻倍)→ 多半是多打了一个零。
+     这三条都是**配置错误**,不是产品决定,拦下来对得起人。 */
   const siteCfg = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
-  const anchorHits = Object.entries(MOCK_STAT_ANCHORS).filter(([k, v]) => siteCfg.stats?.[k] === v);
-  if (anchorHits.length) {
-    (PROD ? detail : info).push(
-      `统计数字仍是演示值(${anchorHits.length}/${Object.keys(MOCK_STAT_ANCHORS).length} 项与内置演示锚值逐值相同:${anchorHits.map(([k]) => k).join('、')})——上线前必须换成真值或分层降级`,
-    );
+  const g = siteCfg.stats?.growth;
+  if (g?.enabled) {
+    const per = g.daily ?? {};
+    const keys = Object.keys(per).filter((k) => per[k] > 0);
+    if (!keys.length) detail.push('自动增长开着,但四个字段的每日增量都是 0 —— 开关不起任何作用,要么配增量要么关掉');
+    if (Date.parse(`${g.since}T00:00:00Z`) > Date.now()) detail.push(`自动增长的起算日 ${g.since} 在未来 —— 数字要等到那天才开始动`);
+    for (const k of keys) {
+      const base = Number(siteCfg.stats?.[k]);
+      if (Number.isFinite(base) && base > 0 && per[k] > base * 0.05) {
+        detail.push(`${k} 每天 +${per[k]},相对基准值 ${base} 约 ${Math.round(base / per[k])} 天翻倍 —— 增长过快,是不是多打了一个零?`);
+      }
+    }
   }
   results.push({
     gate: 'launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'),

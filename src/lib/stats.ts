@@ -5,6 +5,7 @@
    配置物化,禁在此手改数字)。种子期数值 = App 锚字面镜像(28_432/4_812/156/47/99.7,
    出处见官网后台 PRD CON06);上线前主人在控制台真值化——R49-F1 生产门拦截仍等于锚值的快照。
    R45(主人拍板 B8):千分位/小数点随语言;价格(USD)保持国际 $ 写法,见 skus.ts。 */
+import { grownValue, type StatsGrowth } from '../../schema/src/stats-growth';
 import site from '../config/site.json';
 import type { Locale } from '../i18n';
 
@@ -16,13 +17,23 @@ export interface PlatformStats {
   uptime: number;
 }
 
+/* 🔴 线性增长(主人 2026-09-01 拍板:数字全后台模拟、不接真实数据,但要会自己长)。
+   配置里存的是**起算日那天**的值 + 每日增量;这里算出「构建那天」的值。
+   构建产物是静态 HTML,所以它只会停在构建那一刻 —— 页面上另有一小段脚本
+   按同一个公式把日期漂移补上(见 StatsBar.astro),两处共用 schema 里那份公式,
+   不各写一遍(本项目反复踩过的那一族)。 */
+const growth = site.stats.growth as StatsGrowth | undefined;
+const now = Date.now();
 export const STATS_SNAPSHOT: PlatformStats = {
-  activeDevices: site.stats.activeDevices,
-  activeJobs: site.stats.activeJobs,
-  nodes: site.stats.nodes,
-  countries: site.stats.countries,
-  uptime: site.stats.uptime,
+  activeDevices: grownValue(site.stats.activeDevices, 'activeDevices', growth, now),
+  activeJobs: grownValue(site.stats.activeJobs, 'activeJobs', growth, now),
+  nodes: grownValue(site.stats.nodes, 'nodes', growth, now),
+  countries: grownValue(site.stats.countries, 'countries', growth, now),
+  uptime: site.stats.uptime, // 百分比不参与增长
 };
+
+/** 给页内脚本的增长参数(关掉/没配 = null,脚本什么都不做) */
+export const STATS_GROWTH = growth?.enabled ? growth : null;
 
 /** 快照口径日(展示 "Data as of" 小字;随控制台配置物化) */
 export const STATS_SNAPSHOT_AT = site.stats.asOf;

@@ -46,7 +46,10 @@ const FIELD_NAME: Record<string, string> = {
   activeDevices: '活跃设备', activeJobs: '运行中任务', countries: '覆盖国家', uptime: '在线率',
   nodes: '节点数', asOf: '数据截至',
   // FAQ / Legal
-  items: '条目', q: '问题', a: '答案', md: '正文', updatedAt: '最后更新', href: '跳转链接',
+  items: '条目',
+  q: '问题', a: '答案', md: '正文', updatedAt: '最后更新', href: '跳转链接',
+  // 自动增长(enabled 上面已有,不重复)
+  growth: '自动增长', since: '起算日', daily: '每日增量',
   terms: '服务条款', privacy: '隐私政策', appPrivacy: 'App 隐私政策',
   // SEO 的页面 id(seo.pages 下的键就是路由名,直接摆出来运营对不上是哪一页)
   pages: '页面', home: '首页', learn: '学习页', nex: 'NEX 页',

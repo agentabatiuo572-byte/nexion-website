@@ -28,8 +28,23 @@ export default function SeoPage() {
 
   return (
     <section>
-      <h2>SEO 与页脚</h2>
+      <h2>对外联系方式 · SEO</h2>
       {conflict && <div className="note bad">草稿已在别处更新,保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); setEmail(null); clearConflict(); reload(); }}>刷新后重试</button></div>}
+
+      {/* 🔴 对外联系邮箱提到页面第一位(主人 2026-09-01 指令:对外邮箱在后台配置)。
+          字段本来就有、也能配,但它此前排在六页 SEO 文案的**下面** —— 一个每天都不会碰的
+          页面里,藏着一个上线前必须配的东西。位置本身就是可发现性。
+          单源不变:仍是 footer.contactEmail 这一个字段,没有新造第二处。 */}
+      <div className="card" style={{ marginBottom: 12 }} data-field="footer.contactEmail">
+        <h3>对外联系邮箱</h3>
+        <div className="field" style={{ margin: 0, maxWidth: 380 }}>
+          <input placeholder="例:ops@nexgrid.ai" value={mail} onChange={(ev) => setEmail(ev.target.value.trim())} />
+        </div>
+        <p className="kv" style={{ marginTop: 6 }}>
+          {mail ? '站上页脚的「For AI teams」联系行会显示这个邮箱,访客点击直接发信。' : '当前为空:站上的联系行处于隐藏状态(不会出现死链),填入邮箱后即会显示。'}
+        </p>
+        {mailErr && <div className="note bad" style={{ marginBottom: 0 }}>{mailErr}</div>}
+      </div>
       <div className="row" style={{ marginBottom: 10 }}>
         {/* 红项可能指向**当前没选中**的那一页,而这一页只渲染选中的那个。
             所以选择器按钮也是落点:定位会停在这里,人一眼看到该切到哪一页去改。
@@ -59,14 +74,6 @@ export default function SeoPage() {
           </div>
         </div>
       ))}
-      <div className="card" style={{ marginBottom: 10 }}>
-        <h3>页脚 · 联系邮箱</h3>
-        <div className="field" style={{ margin: 0, maxWidth: 380 }}>
-          <input placeholder="ops@nexgrid.ai(留空=站上隐藏联系行)" value={mail} onChange={(ev) => setEmail(ev.target.value.trim())} />
-        </div>
-        <p className="kv" style={{ marginTop: 6 }}>{mail ? '站上「For AI teams」联系行将显示此邮箱' : '当前为空:站上的联系行处于隐藏状态,填入邮箱后即会显示'}</p>
-        {mailErr && <div className="note bad" style={{ marginBottom: 0 }}>{mailErr}</div>}
-      </div>
       <div className="note info">
         页脚披露句/法定名行/导航文案在 <Link to="/content" style={{ color: 'var(--brand)' }}>文案树</Link>(页脚/导航组)编辑——每处内容唯一编辑面;社媒链接清单当前站上为空集,站上落地后此处接管。
       </div>

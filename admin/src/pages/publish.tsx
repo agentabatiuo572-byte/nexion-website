@@ -33,8 +33,9 @@ const RULE_LABEL: Record<string, string> = {
   'forbidden-word': '合规禁用词', placeholder: '占位符缺失', untranslated: '缺译', 'unknown-key': '非法 key',
   'missing-key': '缺 key', 'enabled-empty-url': '开启的入口缺 URL', url: '链接格式', email: '邮箱格式',
   'all-hidden': '设备板块全隐藏', 'min-visible': 'FAQ 可见不足 3 条', 'dup-id': 'FAQ id 重复', window: '公告时间窗',
-  structure: '数据结构', 'mock-anchor': '统计仍是演示值', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
+  structure: '数据结构', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
   'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符',
+  'growth-noop': '自动增长没配增量', 'growth-future': '自动增长起算日在未来', 'growth-too-fast': '自动增长过快',
 };
 // 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)

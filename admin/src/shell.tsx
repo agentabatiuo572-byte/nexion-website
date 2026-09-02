@@ -23,7 +23,7 @@ const NAV: Array<{ group: string; items: Array<{ to: string; label: string; icon
       { to: '/content/skus', label: '产品卡', icon: '🧱' },
       { to: '/content/faq', label: 'FAQ', icon: '❓' },
       { to: '/content/announcement', label: '公告条', icon: '📣' },
-      { to: '/content/seo', label: 'SEO 与页脚', icon: '🧭' },
+      { to: '/content/seo', label: '联系方式与 SEO', icon: '🧭' },
       { to: '/content/legal', label: 'Legal', icon: '📜' },
     ],
   },

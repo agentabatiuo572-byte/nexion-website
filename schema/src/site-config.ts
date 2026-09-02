@@ -45,6 +45,23 @@ export const SiteConfigSchema = z.object({
     countries: z.number().int().positive(),
     uptime: z.number().gt(0).max(100),
     asOf: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/), // 月份 01-12(T11/12 验收观察项收紧)
+    /* 线性增长(主人 2026-09-01 拍板:平台数字全部后台模拟、不接真实数据,但要会自己长)。
+       上面五个数字是**起算日那天**的值;站上显示 = 基准值 + 日增量 ×(今天 − 起算日)。
+       为什么要有它:没有它,数字就是一张定格照片 —— 要么长期不动(看着像死站),
+       要么靠人定期手改,而每改一次都要走一遍完整发布链。
+       uptime 不参与增长:它是百分比,只在 100 附近抖,线性增长没有意义(schema 本身也不允许 >100)。 */
+    growth: z
+      .object({
+        enabled: z.boolean(),
+        since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // 起算日(基准值对应的那一天)
+        daily: z.object({
+          activeDevices: z.number().min(0),
+          activeJobs: z.number().min(0),
+          nodes: z.number().min(0),
+          countries: z.number().min(0),
+        }),
+      })
+      .optional(),
   }),
   skus: z.array(SkuSchema).min(1),
   faq: z.object({ items: z.array(FaqItem) }),

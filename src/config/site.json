@@ -6,7 +6,17 @@
     "nodes": 156,
     "countries": 47,
     "uptime": 99.7,
-    "asOf": "2026-08"
+    "asOf": "2026-08",
+    "growth": {
+      "enabled": true,
+      "since": "2026-09-01",
+      "daily": {
+        "activeDevices": 24,
+        "activeJobs": 5,
+        "nodes": 0.2,
+        "countries": 0
+      }
+    }
   },
   "skus": [
     {

@@ -136,7 +136,13 @@ describe('CON04/CON13 配置模型', () => {
     const v = await app.request('/api/config/validate', { method: 'POST', headers: J(cookie), body: '{}' }, env);
     const body = (await v.json()) as { errors: unknown[]; warnings: Array<{ rule: string }> };
     expect(body.errors).toEqual([]);
-    expect(body.warnings.some((w) => w.rule === 'mock-anchor')).toBe(true); // R49-A2 提醒在场
+    /* 🔴 原来这里断言 `mock-anchor`(统计数字仍是演示值)在场。
+       主人 2026-09-01 拍板「平台数字全部后台模拟、不接真实数据」之后,那条规则的前提
+       ——最终会换成真数据——不存在了,规则已撤除,断言跟着走。
+       改钉**现在真正的承诺**:种子这份配置本身零错误,且自动增长配置站得住
+       (开了增长就不能一个增量都没配、起算日不能在未来)。 */
+    const growthWarn = body.warnings.filter((w) => w.rule.startsWith('growth-'));
+    expect(growthWarn, `种子的自动增长配置本身不该有问题:${JSON.stringify(growthWarn)}`).toEqual([]);
   });
 
   it('CON08-③ 服务端造 id + 回收区语义(deleted 不计可见/不拦缺译)', async () => {
