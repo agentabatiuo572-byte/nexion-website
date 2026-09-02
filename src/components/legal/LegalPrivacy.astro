@@ -1,7 +1,15 @@
 ---
-/* [FEAT-WEB12] Privacy Policy — en 权威文本(主人 2026-08-20 批准起草,初稿供审;
-   上线前建议法务过目)。实体信息已按 O2 资料包填充(NexGrid LTD / Denver, CO)。
-   vi/zh 页由壳挂「以英文版为准」说明后渲染本组件。
+/* [FEAT-WEB12] Privacy Policy — en 权威文本(主人 2026-08-20 批准起草;2026-09-01 主人授权按项目实际行为定稿)。
+   🔴 2026-09-01 修订缘由:官网后台上线了**访问统计埋点**与**区域屏蔽**,而这份文本仍写着
+   「不收集任何数据 / 不设 cookie / 未提区域屏蔽」——**文本在否认本站正在做的事**。
+   本次只做一件事:把已经存在的行为如实写出来,**不新增任何承诺**。三处改动都逐条回源核实过:
+     §2 采集面 —— `src/scripts/metrics.ts`(DNT=1 整体不启动)+ `worker/src/ingest.ts`(IP 只瞬时参与
+        每日轮换的去重哈希、不落库)+ `worker/src/rollup.ts`(原始记录 90 天清理,只留每日汇总)。
+     §3 cookie/本地存储 —— 全站仅两枚 cookie:`gx_bypass`(区域直通,30 天)与 `nx_sid`(后台登录,7 天滑动);
+        访客本地存储仅 `x-bg-paused`(关闭背景动画的偏好,无障碍开关,不上传)。
+     §6 区域可用性 —— `worker/src/geo.ts`:按连接来源国家拒绝访问,被拒请求只记国家与页面大类、无任何标识。
+   ⚠️ 起草人不是律师:内容只描述已有行为,仍建议法务复核。
+   实体信息按 O2 资料包填充(NexGrid LTD / Denver, CO)。vi/zh 页由壳挂「以英文版为准」说明后渲染本组件。
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题,与 /learn 同档)、meta 行挂 .x-mono、小标题行高 1.1;
    英文正文标 lang=en(vi/zh 路由的 html lang 是本语)。 */
 import { useT, type Locale } from '../../i18n';
@@ -16,7 +24,7 @@ const t = useT(locale);
 <main class="legal" lang="en">
   {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">Privacy Policy</h1>
-  <p class="updated x-mono">Last updated: 2026-08-20</p>
+  <p class="updated x-mono">Last updated: 2026-09-01</p>
 
   <div class="sheet x-tile x-tile-calm">
   <h2>1. Scope</h2>
@@ -27,14 +35,39 @@ const t = useT(locale);
 
   <h2>2. What this Site collects</h2>
   <p>
-    The Site is a static informational website. It has no user accounts, no forms, and does not collect, store, or
-    process personal data. We do not use advertising trackers or third-party analytics scripts on the Site.
+    The Site has no visitor accounts and no forms. It does not use advertising trackers, and it loads no third-party
+    analytics scripts.
+  </p>
+  <p>
+    The Site uses its own analytics to understand how the Site is used. It records: the pages viewed, which sections,
+    buttons and questions were interacted with, the display language, whether the device is a phone or a desktop, a
+    broad category for how the visit arrived (for example: search, social, direct), campaign parameters if they are
+    present in the address, basic page-performance measurements, and the country associated with the connection.
+  </p>
+  <p>
+    Your IP address is not stored. It is used only to derive a short identifier that lets us count repeat visits within
+    a single day; that identifier is regenerated every day, so visits cannot be linked from one day to the next. No
+    name, email address, account, or other directly identifying information is collected by the Site.
+  </p>
+  <p>
+    If your browser sends a "Do Not Track" signal, the Site's analytics do not run at all.
+  </p>
+  <p>
+    Individual records are deleted after 90 days. Only aggregate daily counts are kept after that.
   </p>
 
-  <h2>3. Cookies</h2>
+  <h2>3. Cookies and browser storage</h2>
   <p>
-    The Site does not set cookies. Your language choice is reflected in the URL (for example /vi/ or /zh/) rather than
-    stored on your device.
+    Ordinary browsing sets no cookies. If you reach the Site through a regional access link, a single cookie is set for
+    up to 30 days for the sole purpose of allowing that access; it carries no information about you. Administrators
+    signing in to the Site's management area receive a session cookie for that purpose only.
+  </p>
+  <p>
+    The Site stores one preference in your browser: whether you have turned off the animated background. It stays on
+    your device and is not sent to us.
+  </p>
+  <p>
+    Your language choice is reflected in the address (for example /vi/ or /zh/) rather than stored on your device.
   </p>
 
   <h2>4. Server logs</h2>
@@ -50,10 +83,20 @@ const t = useT(locale);
     apply.
   </p>
 
-  <h2>6. Changes</h2>
+  <h2>6. Availability by region</h2>
+  <p>
+    The Site is not available in some regions. Availability is determined by the country associated with your
+    connection.
+  </p>
+  <p>
+    Requests that are turned away are counted, recording only the country and the kind of page requested. No identifier
+    is recorded for them.
+  </p>
+
+  <h2>7. Changes</h2>
   <p>We may update this policy from time to time. The "Last updated" date above reflects the current version.</p>
 
-  <h2>7. Contact</h2>
+  <h2>8. Contact</h2>
   <p>The Site is operated by NexGrid LTD, a Colorado corporation. Registered address: 1670 Bwayroad, Denver, CO 80202, United States.</p>
   </div>
 </main>

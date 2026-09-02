@@ -6,6 +6,7 @@
    R49b(主人 2026-08-31):coming-soon 说明行撤除——下载地址后台即将接配,禁用态为纯开发期过渡;
    data-empty 钩子随之退役(钩子与消费方同生同灭,state-hook 门 0 EMIT 即静默)。 */
 import { useT, type Locale } from '../../i18n';
+import { DOWNLOAD_URLS } from '../../lib/downloads';
 
 interface Props {
   locale: Locale;
@@ -14,15 +15,15 @@ interface Props {
 }
 const { locale, onLight = false } = Astro.props;
 const t = useT(locale);
-const IOS = import.meta.env.PUBLIC_IOS_URL ?? '';
-const ANDROID = import.meta.env.PUBLIC_ANDROID_URL ?? '';
-const H5 = import.meta.env.PUBLIC_H5_URL ?? '';
+const IOS = DOWNLOAD_URLS.ios;
+const ANDROID = DOWNLOAD_URLS.android;
+const H5 = DOWNLOAD_URLS.h5;
 const lightCls = onLight ? 'on-light' : '';
 
 const btns = [
-  { url: IOS, label: t('download.ios'), icon: 'apple', solid: true, arr: '→' },
-  { url: ANDROID, label: t('download.android'), icon: 'android', solid: true, arr: '→' },
-  { url: H5, label: t('nav.launchH5'), icon: 'h5', solid: false, arr: '↗' },
+  { id: 'ios', url: IOS, label: t('download.ios'), icon: 'apple', solid: true, arr: '→' },
+  { id: 'android', url: ANDROID, label: t('download.android'), icon: 'android', solid: true, arr: '→' },
+  { id: 'h5', url: H5, label: t('nav.launchH5'), icon: 'h5', solid: false, arr: '↗' },
 ];
 ---
 
@@ -61,7 +62,8 @@ const btns = [
          不给 tabindex,键盘与朗读器的焦点模式就永远碰不到它,也就听不到「不可用」这件事。
          独立可用性评审实测:390 档 Tab 序从汉堡键直接跳到页尾 CTA,三颗主键整段被跳过。 */
       return b.url ? (
-        <a class:list={['xbtn', { solid: b.solid }, lightCls]} href={b.url} target="_blank" rel="noopener">
+        // data-m:埋点标识(官网后台 PRD CON15;hero+收尾 CTA 共用本单源,禁用态不计转化)
+        <a class:list={['xbtn', { solid: b.solid }, lightCls]} data-m={`cta:${b.id}`} href={b.url} target="_blank" rel="noopener">
           <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
           <span class="xbtn-a">{inner}</span>
           <span class="xbtn-b" aria-hidden="true">{inner}</span>

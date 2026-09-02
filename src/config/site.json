@@ -1,0 +1,176 @@
+{
+  "schemaVersion": 1,
+  "stats": {
+    "activeDevices": 28432,
+    "activeJobs": 4812,
+    "nodes": 156,
+    "countries": 47,
+    "uptime": 99.7,
+    "asOf": "2026-08",
+    "growth": {
+      "enabled": true,
+      "since": "2026-09-01",
+      "daily": {
+        "activeDevices": 24,
+        "activeJobs": 5,
+        "nodes": 0.2,
+        "countries": 0
+      }
+    }
+  },
+  "skus": [
+    {
+      "id": "phone",
+      "name": "Phone",
+      "priceUSD": 0,
+      "multiplier": 1,
+      "status": "active",
+      "free": true
+    },
+    {
+      "id": "cloud-share",
+      "name": "Cloud Share",
+      "priceUSD": 19.9,
+      "multiplier": 3,
+      "status": "active"
+    },
+    {
+      "id": "s1",
+      "name": "NexGridBox S1",
+      "priceUSD": 649,
+      "multiplier": 117,
+      "status": "legacy"
+    },
+    {
+      "id": "pro",
+      "name": "NexGridBox Pro",
+      "priceUSD": 1199,
+      "multiplier": 217,
+      "status": "legacy"
+    },
+    {
+      "id": "pro-v2",
+      "name": "NexGridBox Pro v2",
+      "priceUSD": 1319,
+      "multiplier": 233,
+      "status": "active"
+    },
+    {
+      "id": "rack-p1",
+      "name": "NexGridRack P1",
+      "priceUSD": 4499,
+      "multiplier": 750,
+      "status": "legacy"
+    },
+    {
+      "id": "rack-p2",
+      "name": "NexGridRack P2",
+      "priceUSD": 7499,
+      "multiplier": 1250,
+      "status": "active"
+    }
+  ],
+  "downloads": {
+    "ios": {
+      "url": "",
+      "enabled": false
+    },
+    "android": {
+      "url": "",
+      "enabled": false
+    },
+    "h5": {
+      "url": "",
+      "enabled": false
+    }
+  },
+  "announcement": {
+    "id": "none",
+    "enabled": false,
+    "text": {
+      "en": "",
+      "vi": "",
+      "zh": ""
+    }
+  },
+  "seo": {
+    "pages": {
+      "home": {
+        "title": {
+          "en": "NexGrid — Distributed AI compute. Earn from your idle devices.",
+          "vi": "NexGrid — Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
+          "zh": "NexGrid — 分布式 AI 算力，让闲置设备产生收益。"
+        },
+        "description": {
+          "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
+          "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
+        }
+      },
+      "learn": {
+        "title": {
+          "en": "Learn NexGrid",
+          "vi": "Học NexGrid",
+          "zh": "学习中心"
+        },
+        "description": {
+          "en": "Short, practical guides to the app's core features — from first sign-up to withdrawals.",
+          "vi": "Hướng dẫn ngắn gọn, thực dụng về các tính năng cốt lõi — từ đăng ký đầu tiên đến rút tiền.",
+          "zh": "简短实用的核心功能教程——从首次注册到提现。"
+        }
+      },
+      "nex": {
+        "title": {
+          "en": "NEX — the network's utility token",
+          "vi": "NEX — token tiện ích của mạng lưới",
+          "zh": "NEX——网络的功能型代币"
+        },
+        "description": {
+          "en": "A plain-language guide: what NEX is, how it's created, and what you can do with it.",
+          "vi": "Hướng dẫn dễ hiểu: NEX là gì, được tạo ra thế nào, và bạn có thể làm gì với nó.",
+          "zh": "一份大白话指南：NEX 是什么、怎么产生、你能用它做什么。"
+        }
+      },
+      "legal-privacy": {
+        "title": {
+          "en": "NexGrid",
+          "vi": "NexGrid",
+          "zh": "NexGrid"
+        },
+        "description": {
+          "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
+          "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
+        }
+      },
+      "legal-terms": {
+        "title": {
+          "en": "NexGrid",
+          "vi": "NexGrid",
+          "zh": "NexGrid"
+        },
+        "description": {
+          "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
+          "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
+        }
+      },
+      "legal-app-privacy": {
+        "title": {
+          "en": "NexGrid",
+          "vi": "NexGrid",
+          "zh": "NexGrid"
+        },
+        "description": {
+          "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
+          "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
+        }
+      }
+    }
+  },
+  "footer": {
+    "social": [],
+    "contactEmail": ""
+  }
+}

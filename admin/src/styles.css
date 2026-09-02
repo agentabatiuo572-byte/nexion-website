@@ -1,0 +1,153 @@
+/* 控制台样式 token —— 视觉单源=已签字原型 PRD/prototypes/nexgrid-site-console.html 的蒸馏子集。
+   暗色单主题(内部工具,不做双主题);品牌准星 #9EDC1D 与站 --x-accent 同值。 */
+:root {
+  --bg: #0a0a0b; --surface: #131316; --surface2: #1b1b20; --surface3: #232329;
+  /* 🔴 --ink4 从 #5c5c64 提到 #94949d(2026-09-01 实景走查 P1)。
+     旧值在四种底色上的对比度是 2.36–2.99:1,而 AA 正文要 4.5:1——**整套「大白话」说明文字
+     恰好全住在这个 token 里**(.kv),包括禁用按钮旁边解释「为什么点不了」的那句话。
+     新值实测最差底(surface3 #232329)5.20:1,过 AA 且仍比正文暗一档、保住层次。
+     单一根因、14 组样式一次性修好:这类问题该改 token,不该逐处调。 */
+  --ink: #f2f2f3; --ink2: #b9b9c0; --ink3: #8a8a93; --ink4: #94949d;
+  --brand: #9edc1d; --on-brand: #0f1403; --brand-soft: rgba(158, 220, 29, 0.12);
+  --warn: #e8b93e; --warn-soft: rgba(232, 185, 62, 0.12);
+  --bad: #e86a5e; --bad-soft: rgba(232, 106, 94, 0.12);
+  --ok: #5ecc8f; --ok-soft: rgba(94, 204, 143, 0.12);
+  --border: rgba(255, 255, 255, 0.08);
+  --mono: ui-monospace, Consolas, monospace;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--ink); font: 500 13.5px/1.6 system-ui, -apple-system, 'Segoe UI', sans-serif; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible, a:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+input, textarea, select { font: inherit; color: var(--ink); background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; width: 100%; }
+a { color: inherit; text-decoration: none; }
+
+.tag { font: 600 10.5px/1 var(--mono); letter-spacing: 0.08em; color: var(--ink3); }
+.kv { font-size: 11.5px; color: var(--ink4); }
+.mono { font-family: var(--mono); }
+
+.shell { display: grid; grid-template-columns: 216px 1fr; min-height: 100vh; }
+aside { background: var(--surface); padding: 16px 10px; display: flex; flex-direction: column; gap: 2px; }
+.brandrow { display: flex; align-items: center; gap: 8px; padding: 6px 8px 14px; }
+.dot { width: 10px; height: 10px; border-radius: 3px; background: var(--brand); flex: none; }
+.navg { margin-top: 10px; padding: 4px 8px; }
+.nav { display: flex; width: 100%; align-items: center; gap: 8px; text-align: left; padding: 9px 10px; border-radius: 8px; color: var(--ink2); min-height: 36px; }
+.nav:hover { background: var(--surface2); }
+.nav:active { opacity: 0.8; }
+.nav.on { background: var(--brand-soft); color: var(--ink); }
+main.content { padding: 0 26px 40px; min-width: 0; }
+
+.statusbar { position: sticky; top: 0; background: var(--bg); display: flex; gap: 10px; align-items: center; padding: 14px 0 12px; border-bottom: 1px solid var(--border); margin-bottom: 20px; flex-wrap: wrap; z-index: 5; }
+/* PRD ⑤ 要「超长不换行**截断**」——此前只做到不换行,却也不截断:
+   注入超长值时 chip 会一路撑到 679px 把同排其它 chip 顶开(实景走查 P2-14)。
+   补 max-width + ellipsis,并保留 title 让完整值仍可读。 */
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--surface2); border-radius: 99px; padding: 5px 12px; font-size: 12.5px; color: var(--ink2); max-width: 42ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chip b { color: var(--ink); font-weight: 600; }
+.chip.warnc { background: var(--warn-soft); color: var(--warn); }
+.spacer { flex: 1; }
+
+h2 { font-size: 18px; font-weight: 600; margin: 4px 0 14px; }
+.card { background: var(--surface); border-radius: 14px; padding: 16px; }
+.card h3 { font-size: 12.5px; font-weight: 600; color: var(--ink3); margin-bottom: 8px; }
+.grid { display: grid; gap: 12px; }
+.row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 40px; padding: 0 18px; border-radius: 10px; background: var(--surface2); color: var(--ink); font-weight: 600; }
+.btn:active { transform: scale(0.98); }
+.btn.primary { background: var(--brand); color: var(--on-brand); }
+.btn.ghost { background: none; color: var(--ink3); font-weight: 400; }
+.btn.sm { min-height: 32px; padding: 0 12px; font-size: 12.5px; }
+.btn[disabled] { color: var(--ink4); cursor: not-allowed; transform: none; background: var(--surface2); }
+
+.pill { display: inline-block; padding: 2px 9px; border-radius: 99px; font-size: 11.5px; background: var(--surface3); color: var(--ink2); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.pill.brand { background: var(--brand-soft); color: var(--brand); }
+
+.note { border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin: 10px 0; }
+.note.warn { background: var(--warn-soft); color: var(--warn); }
+.note.bad { background: var(--bad-soft); color: var(--bad); }
+.note.okn { background: var(--ok-soft); color: var(--ok); }
+.note.info { background: var(--surface2); color: var(--ink2); }
+
+.field { margin: 10px 0; }
+.field label { display: block; font-size: 11.5px; color: var(--ink3); margin-bottom: 5px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; color: var(--ink4); font-weight: 500; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--border); color: var(--ink2); vertical-align: top; }
+td b { color: var(--ink); font-weight: 600; }
+/* 🔴 高敏动作的控件触达面积(2026-09-01 第十轮独立验收 P2-9)。
+   区域屏蔽总开关、下载入口上下架、公告条总开关此前都是 18×18 的原生复选框,
+   而这几个都是**高敏**动作(点歪的代价:错误地屏蔽一个国家 / 把下载入口下架)。
+   不变量要求触达 ≥44pt。做法是给复选框套一个 44 的可点区域,而不是把方框本身撑大
+   ——视觉不变(那是主人看过的样子),只是手指能点中的范围变大。 */
+/* ⚠️ min-height 只能给**包裹层**,不能给 input 自己 ——
+   给 input 自己会把方框从 18×18 撑成 18×44,那是改变视觉,不是扩大触达
+   (第一版就这么错了,实测抓到 18x44)。 */
+.tap44 {
+  min-height: 44px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+/* 红条 / 提示条里的行动按钮:窄屏下也保证能点中 */
+.note .btn, .note a { min-height: 32px; display: inline-flex; align-items: center; }
+
+/* 🔴 窄屏:红条里的链接不许被压成竖排单字(第十轮独立验收 P2-15:
+   375px 下「去处理」被压成 40×60 的竖排三个字,既难读也难点)。 */
+@media (max-width: 760px) {
+  .note, .note .row { flex-wrap: wrap; }
+  .note a, .note .btn { white-space: nowrap; flex: none; }
+}
+
+/* 🔴 窄屏:多列栅格改成单列(2026-09-01 第十轮独立验收 P1-11)。
+   上一轮把**表格**那一族修好了(表格自己滚),但**栅格**那一族原样留着 ——
+   典型的「修一处 ≠ 修全部」。实测 375px:公告条页布局宽 634(整整一栏「结束时间」
+   在屏幕外)、文案树 449、平台数字 393,三页都整页横滚,连导航和保存按钮都跟着跑出去。
+   判据构造性:凡 `display:grid` 且列数写死的容器,窄屏一律单列 ——
+   逐处加断点会漏,而漏掉的那处只有真到手机上才看得见。 */
+@media (max-width: 760px) {
+  .shell { grid-template-columns: 1fr !important; }
+  aside { display: flex; flex-wrap: wrap; gap: 4px; }
+  [style*="grid-template-columns"], .grid { grid-template-columns: 1fr !important; }
+}
+
+/* 窄屏:表格自己横滚,而不是把整页撑宽。
+   实测手机上审计页布局视口被撑到 980px、发布页 411px —— 整页横滚意味着导航、
+   状态条、按钮全都跟着跑出屏幕,人得先横着滚回去才能点别的。
+   `display:block` 后 thead/tbody 由匿名表格盒兜住,表格布局不变;媒体块写在基础规则之后
+   (更窄的块写在前面就是死声明,css-shadowed 门守着这一条)。 */
+@media (max-width: 700px) {
+  table { display: block; overflow-x: auto; }
+}
+
+.skl { background: linear-gradient(90deg, var(--surface2), var(--surface3), var(--surface2)); background-size: 200% 100%; animation: skl 1.2s linear infinite; border-radius: 8px; min-height: 14px; }
+@keyframes skl { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .skl { animation: none; } }
+
+.center-card { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
+.logincard { width: 340px; background: var(--surface); border-radius: 16px; padding: 28px; }
+.logincard h1 { font-size: 18px; font-weight: 600; margin: 2px 0 4px; }
+
+#toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--surface3); color: var(--ink); padding: 10px 18px; border-radius: 10px; font-size: 12.5px; opacity: 0; transition: 0.2s; z-index: 60; pointer-events: none; }
+#toast.on { opacity: 1; }
+
+/* 折叠断点对齐 PRD CON02-⑤ 的「窄窗(<1024px)导航折叠」——此前写的是 900px,
+   1023/1000/950 三档都没折叠,与规格不符(实景走查 P2-6)。
+   折叠后导航只剩图标,可访问名由 shell.tsx 的 aria-label 兜住(同轮 P2-5)。 */
+/* 🔴 折叠规则必须限定在侧栏 `aside` 内(2026-09-01 第十轮独立验收 P0)。
+   上一版写的是裸 `.nav span.lbl`,而文案树的 18 个分组按钮复用了同一套类名
+   (`content.tsx`:`<button className="nav"><span className="lbl">{组名}</span>`),
+   于是**窗口窄于 1024px 时那 18 个分组名全部消失**,只剩一列空白按钮 ——
+   1000px 是笔记本半屏的常见宽度,不是手机专属。
+   教训:改一条**全局选择器**的作用范围时,要扫的是「谁在用这个类名」,
+   而不是默认「这个类名只有我这一处在用」。选择器要把作用域写出来,别靠没人重名的运气。 */
+@media (max-width: 1023px) { .shell { grid-template-columns: 64px 1fr; } aside .nav span.lbl, aside .navg, .brandrow .lbl { display: none; } }
+
+/* 「去修复」定位到的字段:短暂高亮一下,让人一眼看到是哪一处(useFocusField) */
+.focus-flash { outline: 2px solid var(--brand); outline-offset: 4px; border-radius: 10px; transition: outline-color 0.3s; }
+@media (prefers-reduced-motion: reduce) { .focus-flash { transition: none; } }

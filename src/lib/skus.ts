@@ -17,15 +17,12 @@ export interface WebSku {
   free?: boolean;
 }
 
-export const SKUS: WebSku[] = [
-  { id: 'phone', name: 'Phone', priceUSD: 0, multiplier: 1, status: 'active', free: true },
-  { id: 'cloud-share', name: 'Cloud Share', priceUSD: 19.9, multiplier: 3, status: 'active' },
-  { id: 's1', name: 'NexGridBox S1', priceUSD: 649, multiplier: 117, status: 'legacy' },
-  { id: 'pro', name: 'NexGridBox Pro', priceUSD: 1_199, multiplier: 217, status: 'legacy' },
-  { id: 'pro-v2', name: 'NexGridBox Pro v2', priceUSD: 1_319, multiplier: 233, status: 'active' },
-  { id: 'rack-p1', name: 'NexGridRack P1', priceUSD: 4_499, multiplier: 750, status: 'legacy' },
-  { id: 'rack-p2', name: 'NexGridRack P2', priceUSD: 7_499, multiplier: 1_250, status: 'active' },
-];
+/* 单源 = 官网后台配置物化(2026-08-31 CON07/CON16 接管):src/config/site.json 只含
+   visible=true 的 SKU,已按控制台排序;结构由 schema zod 上游担保(status 枚举/字段全)。
+   改阵容/价格走控制台(产品事实字段=高敏,须与 App PRD §7.1 一致),禁在此手改。 */
+import site from '../config/site.json';
+
+export const SKUS: WebSku[] = site.skus as WebSku[];
 
 export function fmtPrice(n: number): string {
   return n === 0 ? '' : `$${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
