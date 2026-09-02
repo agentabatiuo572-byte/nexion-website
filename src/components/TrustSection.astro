@@ -15,17 +15,30 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-/* 版面顺序:事实(公司/MSB)→ 核验步骤(Colorado/FinCEN)→ 制度解释;卡 key 不变,只重排。
-   R48.7 令②:每卡配语义线性图标(按卡内容不按版面序):注册实体/盾勾/查册/清单查询/天平。
-   R49b(主人 2026-08-31 改令):查册两卡**只留官网真外链**——复制编号按钮撤除,
-   卡文由 step-by-step 详述改一句话模糊化(查询细节交给官网自己)。链接仍指检索入口页。 */
-const order = [
-  { card: 1, span: 's7', icon: 'registry' },
-  { card: 3, span: 's7', icon: 'shield' },
-  { card: 2, span: 's6', icon: 'verify-search', verify: { url: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do', label: 'coloradosos.gov' } },
-  { card: 5, span: 's6', icon: 'lookup', verify: { url: 'https://www.fincen.gov/msb-state-selector', label: 'fincen.gov/msb-state-selector' } },
-  { card: 4, span: 's12', icon: 'scale' },
+/* R3 卡片排版重构(主人 2026-09-01 拍板 ABC 混合定稿):五张整段卡 → 三张分层卡。
+   每卡三层:**结论**(19 档标题,一句话说清是什么)→ **细节**(12 档小字)→ **锚**
+   (可核验值 chip + 实心查册按钮)。信息零删减 —— 旧 card1..card5 逐句拆进
+   t1/t2/t3(实体/州/公司类型/Entity ID/股本/平台/MSB 编号/BSA 框架/两处查册说明),
+   守恒由改写脚本的断言逐条核过。⚠️ 其中「登记≠背书」那一条**已于 2026-09-02 按主人指令删除**
+   (站上不放免责/风险提示类文案)—— 所以这里不再是「零删减」,是「零删减 + 一条按令删除」。
+   查册链接从下划线小字升级为按钮:它是本板块希望
+   访客真正去做的动作(「Verify it yourself」),满饱和柠檬只给可点转化件的分层纪律成立。
+   R48.7 令②的语义图标保留,升为 44 档卡首图标:注册实体 / 盾勾 / 天平。 */
+/* 🔴 栅格结构(R3c 结构性反思):证书列不再 `grid-row: span 2`。
+   竖版证书按宽度缩放 → 高度随之定死,物理上填不满两卡的高度;三轮里「拉伸 / 居中 /
+   收到内容高」三种修法只是把同一块空洞在容器内外挪位置(内部 30% → 外部 61%)。
+   根因是网格假设与内容特性不符,不是「怎么摆」。改为两行各自配对:
+   行一 证书(5)+ 实体卡(7),两者自然高天然接近;行二 MSB(5)+ 制度卡(7),后者内容多吃宽栏。
+   不变量:容器高度由自己的内容决定,不由兄弟元素决定。 */
+const CARDS = [
+  { k: 't1', span: 's7', icon: 'registry', verify: 'https://www.coloradosos.gov/biz/BusinessEntityCriteriaExt.do' },
+  /* FinCEN 规范路径带 /resources —— 不带的那条在官方站索引里不存在(R3 评审观察项;
+     本机对 .gov 出站被阻断,无法直连确认,取规范侧 = 风险更低的一侧)。 */
+  { k: 't2', span: 's5', icon: 'shield', verify: 'https://www.fincen.gov/resources/msb-state-selector' },
+  { k: 't3', span: 's7', icon: 'scale' },
 ] as const;
+/* 卡 03 的「意味着」三条(拆自旧 card4 第二句,逐条守恒) */
+const MEANS = [1, 2, 3] as const;
 ---
 
 <section class="trust" id="trust">
@@ -66,20 +79,46 @@ const order = [
     </div>
 
     {
-      order.map(({ card, span, icon, ...rest }, i) => (
+      CARDS.map(({ k, span, icon, ...rest }, i) => (
         <article class:list={['card', 'x-tile', span]} data-rv style={`--d:${i * 0.08}s`}>
-          <span class="crow">
+          <Icon name={icon} class="cic" />
+          <div class="cbody">
             <span class="idx x-mono">0{i + 1}</span>
-            <Icon name={icon} class="cic" />
-          </span>
-          <p class="x-mono">{t(`trust.card${card}`)}</p>
-          {'verify' in rest && rest.verify && (
-            <p class="vrow">
-              <a class="vout x-mono" href={rest.verify.url} target="_blank" rel="noopener noreferrer">
-                {rest.verify.label} <span aria-hidden="true">↗</span>
-              </a>
-            </p>
-          )}
+            <h3 class="ctitle">{t(`trust.${k}Title`)}</h3>
+            {k === 't3' ? (
+              /* 卡 03 拆层(R3 评审 D1/P1-4):旧 card4 是本板块最长的一段整段大写文字,
+                 上一轮只在它头上焊了标题、底下 408 字原样 —— 主人点名的那种墙留在了原地。
+                 现在拆成「定义 → 意味着三条」,中间一句拆成三条要点(守恒断言逐条核过)。
+                 ⚠️ 原设计是双栏(左「意味着」/ 右「不意味着」),右栏已按主人 2026-09-02 指令删除,
+                 所以现在是单栏 —— `.t3grid` 保留栅格形态,以后要加第二栏时结构还在。 */
+              <Fragment>
+                <p class="cdesc x-mono">{t('trust.t3Lead')}</p>
+                {/* 「不意味着什么」那一栏已删(主人 2026-09-02 指令:站上不放免责/风险提示类文案)。
+                    两条 key(t3NotTitle / t3Not)一并从三语文案里移除,标题也从
+                    「…means — and what it does not」收成「…means」。 */}
+                <div class="t3grid">
+                  <div class="t3col">
+                    <span class="t3h x-label">{t('trust.t3MeansTitle')}</span>
+                    <ul class="t3list" role="list">
+                      {MEANS.map((m) => (
+                        <li class="x-mono">{t(`trust.t3Means${m}`)}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              </Fragment>
+            ) : (
+              <p class="cdesc x-mono">{t(`trust.${k}Body`)}</p>
+            )}
+            {'verify' in rest && rest.verify && (
+              <p class="vrow">
+                <span class="vchip x-label">{t(`trust.${k}Chip`)}</span>
+                <a class="vcta x-label" href={rest.verify} target="_blank" rel="noopener noreferrer">
+                  {t(`trust.${k}Cta`)}&nbsp;<span aria-hidden="true">↗</span>
+                </a>
+              </p>
+            )}
+          </div>
         </article>
       ))
     }
@@ -132,84 +171,228 @@ const order = [
   }
 
   /* 瓷砖阵:证书 5/12 占两行,信息卡按版面顺序补位 */
+  /* 🔴 align-items:start —— 不变量真正落地的那一行(此前只写在注释里,CSS 缺失,
+     四个子项实测全是 stretch)。证书是**定宽比图片**(高 ∝ 列宽),文字卡高 ∝ 1/列宽,
+     两条曲线反向、只交叉一次(约 1150-1250)——「并排配对天然等高」这个前提不成立:
+     强制自然高实测 en@1440 失配 33%、zh@1440 58%、en@901 反向 58%。stretch 把矮的那张
+     拉平,盒高相等而内部空 91-181px(zh 1304-1920 整段),这是「把洞挪个位置」的第四次。
+     让每张卡收到自己的内容高:卡底参差,但每张都是饱满的 —— bento 本就允许参差。 */
   .grid {
     display: grid;
     grid-template-columns: repeat(12, minmax(0, 1fr));
     gap: calc(18 * var(--uc));
+    align-items: start;
   }
+  /* 证书瓷砖:align-self:start —— 不被两行的行高拉伸,盒子收到内容自然高。
+     两张竖版证书按宽度缩放,拉高后物理上填不满(1024 档实测 64% 是空的,R3b 评审 P0-1);
+     居中只是把空区挪到上下,真正的修法是让盒子别长那么高。 */
   .certs {
     grid-column: span 5;
-    grid-row: span 2;
     display: flex;
     gap: calc(14 * var(--uc));
     padding: calc(20 * var(--uc));
-    align-items: flex-start;
+    align-items: center;
   }
+  /* R3 分层卡:大图标 ←→ 三层正文(编号+结论+细节+锚) */
   .card {
-    display: grid;
-    gap: calc(18 * var(--uc));
-    align-content: start;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
+    display: flex;
+    gap: calc(22 * var(--uc));
+    align-items: flex-start;
+    padding: calc(28 * var(--uc)) calc(32 * var(--uc));
+  }
+  .s5 {
+    grid-column: span 5;
   }
   .s7 {
     grid-column: span 7;
   }
-  .s6 {
-    grid-column: span 6;
+  /* 图标升 44 档并转柠檬:它现在是卡的视觉入口,不再是编号旁的小配件 */
+  .card :global(.cic) {
+    width: max(34px, calc(44 * var(--u)));
+    height: max(34px, calc(44 * var(--u)));
+    color: var(--x-accent);
+    flex: 0 0 auto;
+    margin-top: calc(2 * var(--uc));
   }
-  .s12 {
-    grid-column: span 12;
-  }
-  /* 两端行:编号 ←→ 语义图标(与瓷砖章 metarow 同构;图标退 dim 档,不与编号争柠檬) */
-  .crow {
+  /* 三层间距有层级:结论贴编号(6)、细节稍离(10)、锚层拉开(22)——
+     等距一摞会让「结论 → 细节 → 锚」的分层只存在于设计意图里(R3 评审 P2-11)。 */
+  .cbody {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
+    flex-direction: column;
+    gap: calc(6 * var(--uc));
+    min-width: 0;
+    flex: 1;
   }
   .idx {
     color: var(--x-accent-hot);
     font-weight: 400;
   }
-  .crow :global(.cic) {
-    width: max(18px, calc(24 * var(--u)));
-    height: max(18px, calc(24 * var(--u)));
-    color: var(--x-ink-dim);
-    flex: 0 0 auto;
-  }
-  .card p {
+  /* 结论层 19 档:一句话说清这张卡是什么,读者不必读完细节。
+     量宽 46ch 给 balance 更合理的解空间 —— 647 宽容器里两行标题曾出现「下行比上行长」
+     的倒参差(R3 评审 P2-12)。 */
+  .ctitle {
+    font-family: var(--x-font-display);
+    font-size: max(17px, calc(19 * var(--u)));
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    line-height: 1.25;
+    color: var(--x-ink);
     margin: 0;
-    color: var(--x-ink-cap);
+    /* pretty 不用 balance:balance 只压最长行、不管顺序,en 两行标题出现「下行比上行
+       长 22%」的倒参差,放宽量宽也没解(R3b 工艺 P2-9);pretty 优化收尾更稳。 */
+    text-wrap: pretty;
+    max-width: calc(46 * var(--x-ch-display));
+  }
+  /* 宽栏卡的标题放宽一档,免得右上角留死区。
+     ⚠️ 用 :where() 压掉特异度 —— 写成 `.s7 .ctitle`(0,4,0)会盖过下面的
+     `.ctitle:lang(zh)`(0,3,0),让 zh 的 26em 量宽在三分之二的卡上成为死声明
+     (R3d 工艺 P2-8:computed 实测 611.7px 而非 494px);:where() 记 0 特异度。
+     这类「写进去了但被更特异的规则盖住」现有 css-shadowed 门抓不到(它只查同规则内
+     重复与 media 源序),评审建议补判据,已记入台账。 */
+  :where(.s7) .ctitle {
+    max-width: calc(56 * var(--x-ch-display));
+  }
+  .ctitle:lang(zh),
+  .ctitle:lang(vi) {
+    line-height: 1.45;
+  }
+  /* 46ch 是按拉丁字身算的量宽;CJK 无空格断行,盒缘落哪断哪 —— zh 卡 01 末行只占首行
+     15.4%,且把专名「科罗拉多州」劈成两行(R3c 工艺 P2-2)。按 CJK 字身单独给。 */
+  .ctitle:lang(zh) {
+    max-width: 26em;
+    line-break: strict;
+  }
+  /* 细节层 12 档:量宽 62ch —— 640px 在 12 档等宽下实测 88 字符/行,
+     全大写超舒适带一倍(R3 评审 P1-5 的行长面) */
+  .cdesc {
+    margin: calc(4 * var(--uc)) 0 0;
+    color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-    /* 量宽上限(R49 收线 D2):s12 卡曾 1290px≈179 字符/行,s7 卡 ≈100 字符/行——
-       全大写 12px mono 超舒适带一倍以上;封 640(≈89ch),zh 3 字孤行随之消失。 */
-    max-width: calc(640 * var(--uc));
+    max-width: calc(62 * var(--x-ch-display));
   }
-  .card p:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量 */
-    text-wrap: balance; /* CJK 短段孤行控制:pretty 对 CJK 几乎不管孤行(R49 收线 D1) */
+  .cdesc:lang(zh) {
+    /* .x-mono 型类的 zh 档就是 1.6,本地 1.45 会盖掉它,补回同值 */
+    line-height: 1.6;
+    text-wrap: balance; /* CJK 短段孤行控制(R49 收线 D1) */
   }
-  /* R49b 核验行:官方外链(复制按钮已按主人令撤除) */
+
+  /* 卡 03 双栏:意味着(要点列表)| 不意味着(柠檬左界强调) */
+  /* 双栏按内容定宽,不按固定比例:1.35fr/1fr 是照 en 最长条目调的,
+     zh 条目短得多 → 左栏 69% 是空的、柠檬界线离文字 637px(R3b 评审 P1-2)。
+     fit-content 让三种语言各自收到自己的宽度。 */
+  .t3grid {
+    display: grid;
+    grid-template-columns: fit-content(46%) fit-content(46%);
+    justify-content: start;
+    gap: calc(48 * var(--uc));
+    margin-top: calc(18 * var(--uc));
+    padding-top: calc(18 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+  }
+  .t3col {
+    display: flex;
+    flex-direction: column;
+    gap: calc(10 * var(--uc));
+    min-width: 0;
+  }
+  .t3h {
+    color: var(--x-accent);
+  }
+  .t3h:lang(zh) {
+    line-height: 1.6; /* x-label 与 x-mono 同基座,取同一 zh 档;型类只有 vi 分支 */
+  }
+  .t3list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: calc(8 * var(--uc));
+  }
+  .t3list li {
+    color: var(--x-ink-cap);
+    line-height: 1.45;
+    display: flex;
+    gap: calc(10 * var(--uc));
+    text-wrap: pretty;
+  }
+  .t3list li:lang(zh) {
+    line-height: 1.6;
+    text-wrap: balance; /* 同上:zh@901 实测「…FINCEN / 登记」两字孤行 */
+  }
+  /* 方点垂直居中于首行行盒:写死的 0.42em 在三套行高(17.4/17.4/20)下落点各异,
+     en 偏高约两成大写高(R3b 工艺 P2-8)。三语自适应靠「与本列表 line-height 同值」达成,
+     zh 档另有一条覆写(见下)—— 两处必须成对改,改一个漏一个方点就偏。 */
+  .t3list li::before {
+    content: '';
+    width: calc(6 * var(--uc));
+    height: calc(6 * var(--uc));
+    /* 🔴 曾写 `1lh`(三语自适应),但 R50 立的字身单位判据禁掉了它 —— lh 的长度同样取自
+       字体度量,字体就绪前按兜底值算、到位后重算不可靠,会非确定性锁死在错值。
+       改直写 1.45em:与本列表 `.t3list li` 的 line-height 同源,zh 档由 :lang(zh) 覆写,
+       自适应保住而不吃字形量。 */
+    margin-top: calc((1.45em - 6 * var(--uc)) / 2);
+    border-radius: 1px;
+    background: var(--x-accent);
+    flex: 0 0 auto;
+  }
+  /* zh 行高是 1.6(见上面 .t3list li:lang(zh)),方点要跟着走,否则中文那颗偏高 */
+  .t3list li:lang(zh)::before {
+    margin-top: calc((1.6em - 6 * var(--uc)) / 2);
+  }
+
+  /* 锚层:可核验值 chip(方角标签)+ 查册按钮(实心柠檬胶囊 = 可点转化件)。
+     chip 曾与按钮同为 999 胶囊 + 同色族 + 同字档 = 标准 ghost button 长相,
+     而它并不可点(R3 评审 P2-7):改方角、抬高度,与实心键在形上拉开。 */
+  /* 🔴 无条件竖排,不设断点:两卡的 chip+按钮总宽本就不同(内容宽度差),
+     断点挪到哪失配带就在新位置复现 —— 设 1200 后它从 <1200 跑到 1201-1395,
+     正好吃掉 1280 与 1366 两个最常见笔电宽(R3d 工艺 P1-3 逐 15px 扫描实测)。
+     构造统一比找「好断点」可靠:两卡永远同形。 */
   .vrow {
     display: flex;
-    flex-wrap: wrap;
-    gap: calc(10 * var(--uc)) calc(14 * var(--uc));
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(10 * var(--uc));
+    margin: calc(22 * var(--uc)) 0 0;
   }
-  .vout {
-    color: var(--x-ink);
-    text-decoration: underline;
-    text-underline-offset: calc(3 * var(--uc));
-    min-height: var(--x-touch);
-    display: inline-flex;
-    align-items: center;
+  .vchip {
+    color: var(--x-accent);
+    border: 1px solid color-mix(in srgb, var(--x-accent) 35%, transparent);
+    border-radius: calc(4 * var(--uc));
+    padding: calc(9 * var(--uc)) calc(12 * var(--uc));
+  }
+  .vchip:lang(zh) {
+    line-height: 1.6;
+  }
+  /* 查册按钮:唯一的实心柠檬件(可点转化件分层纪律)。
+     行内块而非 flex —— vi@390 文案折两行时,flex 会把 ↗ 甩到按钮最右侧垂直居中、与文字
+     脱开一大段,读作坏掉的按钮(R3 评审 D4);行内块下箭头随文本流,由 NBSP 绑住末词。 */
+  /* 触达高由**对称内衬**产出,不靠 min-height 兜底:min-height 的余量只加在盒底,
+     文字实测偏上 2.13px(en),与同排 chip 的基线差 3.00px,且三语偏上量各不同
+     (zh 行盒够高时 min-height 根本不生效)—— R3b 工艺 P1-1。
+     内衬按各语言行盒推:44 = 行盒 + 2×padding。 */
+  .vcta {
+    color: var(--x-on-accent);
+    background: var(--x-accent);
+    border-radius: 999px;
+    /* 1.45em 而非 1lh:字身单位会在字体就绪前锁死在兜底值(R50 判据);
+       1.45 是本元素 line-height 的同值直写。 */
+    padding: calc((var(--x-touch) - 1.45em) / 2) calc(16 * var(--uc));
+    font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
+    display: inline-block;
+    text-align: center;
+    text-decoration: none;
     transition: opacity 0.2s;
   }
-  .vout:hover {
-    opacity: 0.7;
+  .vcta:lang(zh) {
+    line-height: 1.6; /* x-label 与 x-mono 同基座,取同一 zh 档(型类只有 vi 分支) */
   }
-  .vout:active {
-    opacity: 0.6;
+  .vcta:hover {
+    opacity: 0.85;
+  }
+  .vcta:active {
+    opacity: 0.75;
   }
   /* 灯箱内「查看原件」出口(R49-D6):dialog 是亮底,走纸面墨色 */
   .cert-orig {
@@ -223,12 +406,30 @@ const order = [
     min-height: var(--x-touch);
   }
   @media (max-width: 900px) {
-    .certs,
-    .s7,
-    .s6,
-    .s12 {
+    /* 🔴 按容器复位,不按 span 类枚举:上一版清单是 `.certs,.s7,.s12`,本轮 t2 改成
+       `.s5` 后清单没跟着改 → 该卡在 ≤900 全段只有 100-337px 宽的窄柱(R3d 工艺 P0-1,
+       三语全中)。枚举式清单每加一个 span 类就要记着改一次,已在同一处栽第二次;
+       改成子代选择器后,加多少 span 类都不用回来改这里。 */
+    .grid > * {
       grid-column: 1 / -1;
       grid-row: auto;
+    }
+    /* 窄档图标转上方:横排时图标列把正文挤到 237px,标题折到 4-5 行
+       且 balance 在多行下给出「最长行落在最后」的倒参差(R3 评审 P1-6) */
+    .card {
+      flex-direction: column;
+      gap: calc(14 * var(--uc));
+      padding: calc(24 * var(--uc)) calc(22 * var(--uc));
+    }
+    .card :global(.cic) {
+      margin-top: 0;
+    }
+    .ctitle {
+      text-wrap: pretty; /* 窄档多行:balance 的解空间不够,pretty 收尾更稳 */
+    }
+    .t3grid {
+      grid-template-columns: 1fr;
+      gap: calc(20 * var(--uc));
     }
   }
 
@@ -368,10 +569,12 @@ const order = [
     left: 0;
     color: var(--x-accent-hot);
   }
+  /* 62 字身宽:与 .cdesc / #why .disclaim 同族同值(760uc 实测 93 字符/行,R3c 工艺 P2-4)。
+     写成 calc(62 * var(--x-ch-display)) 而非 `62ch` —— 后者会在字体就绪前锁死在兜底值(R50 判据)。 */
   .poc p {
     color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc));
-    max-width: calc(760 * var(--uc));
+    max-width: calc(62 * var(--x-ch-display));
     text-wrap: pretty;
     line-height: 1.45;
   }

@@ -1,13 +1,17 @@
 ---
-/* [FEAT-WEB13] Why now 行业叙事板块(2026-09-01 主人拍板:全套 + 署名引用)。
-   叙事之桥:紧缺在最高端 → 集中式撞物理墙(电力/机房)→ 分布式绕墙 → F@h 先例 → 8.8B 连接普惠收束。
-   合规姿势(PRD §1.4-2):第三方公司名只以**文字**出现(正文/引用卡/来源块),零 logo;
-   每条数字自带 as-of 日期戳;Sources 折叠块列「机构+报告名+日期+外链」;尾行非关联免责声明。
-   ⚠️ 与 social/mission 的定高体例**有意偏差**:本板块含可展开 <details>,
+/* [FEAT-WEB13] Why now 行业叙事板块 — R3 卡片排版重构(主人 2026-09-01 拍板 ABC 混合定稿)。
+   叙事之桥不变(紧缺在最高端 → 集中式撞物理墙 → 分布式绕墙 → F@h 先例 → 8.8B 连接普惠收束),
+   变的是版式:整段连排 → **三幕**,每幕 = 线绘插画 + 幕号 + 标题 + 带批注的短文 + 数字锚。
+   三处取材:A 三幕骨架与数字锚 · B 批注墨水([[硬数据]] 柠檬底块 / __关键短语__ 柠檬下划线 /
+   ^N^ 引注上标,六条来源全部被逐条引用且可点跳转)· C 线绘插画(与粒子地球同族的 stroke 语言)。
+   引用卡上真人头像(NVIDIA Newsroom / Microsoft-Brian Smale CC BY-SA 4.0,署名在 photoCredit)。
+
+   合规姿势不变(PRD §1.4-2):公司名只以文字出现,零 logo;每数字带 as-of 日期戳;
+   Sources 折叠块列「机构+报告名+日期+外链」;非关联免责声明常驻于板块尾、所有具名内容之后。
+   ⚠️ 与 social/mission 的定高体例仍是有意偏差:本板块含可展开 <details>,
    定高 + overflow:hidden 会把展开内容静默截掉(竖向裁切无机器门可见)→ min-height、不写 hidden。
    ⚠️ 'why' 不加入 fx.ts ANCHOR_IDS(需新姿态定义并重排四段混合链,属编舞重设计);
-   本区段地球停 poseHome(中央大球),故密集正文/来源小字全部进玻璃 tile 护字(StatsBar 同解法),
-   大标题裸排压球(hero 先例)。 */
+   本区段地球停 poseHome(中央大球),故正文与小字全部进玻璃 tile 护字,大标题裸排压球(hero 先例)。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -15,7 +19,83 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-/* 来源外链:URL 不进 i18n(TrustSection order 数组同体例)。序号与 i18n why.src{n} 一一对应。 */
+
+/* 批注标记解析:[[硬数据]] / __关键短语__ / ^N^ 引注上标 → 片段流。
+   ponytail:标记只此一处消费,就地解析不建工具模块;文案里存标记而非 HTML —— 译者
+   移动整块即可(三语语序差异大),且 JSON 永不含标签,杜绝 set:html 注入面。
+   引注收 \d+ 不收 \d:来源涨到两位数时 ^10^ 会原样漏字面到页面(R3 评审 P2-6)。 */
+type Frag = { k: 'plain' | 'data' | 'em' | 'ref'; s: string; ref?: string };
+const marks = (src: string): Frag[] => {
+  const out: Frag[] = [];
+  const re = /\[\[(.+?)\]\]|__(.+?)__|\^(\d+)\^/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) out.push({ k: 'plain', s: src.slice(last, m.index) });
+    if (m[1] !== undefined) out.push({ k: 'data', s: m[1] });
+    else if (m[2] !== undefined) out.push({ k: 'em', s: m[2] });
+    else {
+      /* 紧跟在数据块后的引注并进那一格:否则折行点会落在两者之间,
+         柠檬块留在上一行、[N] 单独掉到下一行开头,与它标注的数字分家
+         (R3 评审 P1-3 在 zh 实测,en 幕二亦复现)。短语后的引注不并 ——
+         下划线短语本身可折行,整体 nowrap 会溢出。 */
+      const prev = out[out.length - 1];
+      if (prev && prev.k === 'data' && prev.ref === undefined) prev.ref = m[3];
+      else out.push({ k: 'ref', s: m[3] });
+    }
+    last = re.lastIndex;
+  }
+  if (last < src.length) out.push({ k: 'plain', s: src.slice(last) });
+  return out;
+};
+
+/* 三幕插画:与背景粒子网络同族的 stroke 线绘(无填充、无文字标签 —— 标签会绕过 i18n)。
+   幕一 = 指数曲线;幕二 = 满载机房撞上断电的墙;幕三 = 中心节点辐射的设备网络。
+   R3 评审 P2-5/D2:三张统一 viewBox 300×112 且墨迹填满同一横向范围(2→298),
+   配 preserveAspectRatio="xMinYMid meet" —— 默认的 xMid 会让每张按各自墨迹宽度居中,
+   实测三张左缘差 32.6px 且都不咬文字左轨。 */
+const ART: Record<number, string> = {
+  1: `<svg class="art" viewBox="0 0 300 112" preserveAspectRatio="xMinYMid meet" fill="none" role="img" aria-hidden="true" focusable="false">
+        <path d="M4 6v100h294" stroke="var(--x-line)" stroke-width="1"/>
+        <path d="M4 78h294M4 46h294" stroke="var(--x-line-soft)" stroke-width="1"/>
+        <path d="M4 98 C 104 94, 174 82, 216 54 C 246 34, 268 20, 294 6" stroke="var(--x-accent)" stroke-width="2" stroke-linecap="round"/>
+        <circle cx="216" cy="54" r="3.5" fill="var(--x-bg)" stroke="var(--x-accent-hot)" stroke-width="2"/>
+        <circle cx="294" cy="6" r="3.5" fill="var(--x-bg)" stroke="var(--x-accent-hot)" stroke-width="2"/>
+      </svg>`,
+  /* 幕二重画(R3b 评审 P2-3):原稿是「机柜 + 虚线墙 + 闪电」,读作「电在那边」,
+     没有否定记号;而这一幕说的是 chips wait in inventory with **no power to plug into**。
+     改画「机柜引出的插头 ↔ 通电插座」两个端子面对面却够不着 —— 间隙即语义。
+     机柜也从等宽柱改成不等宽,避开与幕一折线图的条形图语汇撞车。 */
+  2: `<svg class="art" viewBox="0 0 300 112" preserveAspectRatio="xMinYMid meet" fill="none" role="img" aria-hidden="true" focusable="false">
+        <rect x="3" y="30" width="40" height="78" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="51" y="6" width="34" height="102" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <rect x="93" y="48" width="44" height="60" rx="2" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M11 44h24M11 58h24M59 22h18M59 36h18M101 62h28M101 76h28" stroke="var(--x-line)" stroke-width="1.5"/>
+        <path d="M137 78h23" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M160 66h14v24h-14" stroke="var(--x-ink-dim)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M174 72h8M174 84h8" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <path d="M202 72h8M202 84h8" stroke="var(--x-accent)" stroke-width="1.5"/>
+        <path d="M224 66h-14v24h14" stroke="var(--x-accent)" stroke-width="1.5" stroke-linejoin="round"/>
+        <path d="M224 78h20" stroke="var(--x-accent)" stroke-width="1.5"/>
+        <path d="M281 8l-20 42h22l-20 50" stroke="var(--x-accent-hot)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>`,
+  3: `<svg class="art" viewBox="0 0 300 112" preserveAspectRatio="xMinYMid meet" fill="none" role="img" aria-hidden="true" focusable="false">
+        <circle cx="150" cy="56" r="26" stroke="var(--x-accent)" stroke-width="1" stroke-dasharray="2 4" opacity="0.5"/>
+        <path d="M141 52 L18 16M143 62 L14 92M146 48 L104 8M159 51 L232 14M160 60 L282 74M155 66 L196 100M143 64 L74 104" stroke="var(--x-accent)" stroke-width="1" opacity="0.7"/>
+        <circle cx="150" cy="56" r="9" stroke="var(--x-accent-hot)" stroke-width="2"/>
+        <!-- 节点内移到 stroke 外扩后仍在 viewBox 内:cy=5 / cy=107 的圆边加 0.75 描边会越界,被 meet 裁成平边(R3b 评审 D2) -->
+        <circle cx="14" cy="14" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="10" cy="93" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="100" cy="8" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="237" cy="12" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="286" cy="76" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="200" cy="101" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+        <circle cx="69" cy="104" r="5" stroke="var(--x-ink-dim)" stroke-width="1.5"/>
+      </svg>`,
+};
+const ACTS = [1, 2, 3] as const;
+
+/* 来源外链:URL 不进 i18n(TrustSection order 数组同体例)。序号与 why.src{n} 及正文 ^N^ 引注一一对应。 */
 const SOURCES = [
   { n: 1, url: 'https://investor.nvidia.com/news/press-release-details/2026/NVIDIA-Announces-Financial-Results-for-Second-Quarter-Fiscal-2027/default.aspx' },
   { n: 2, url: 'https://www.cbre.com/insights/books/north-america-data-center-trends-h1-2026' },
@@ -24,8 +104,12 @@ const SOURCES = [
   { n: 5, url: 'https://www.gsmaintelligence.com/research/the-mobile-economy-2026' },
   { n: 6, url: 'https://www.techspot.com/news/84832-foldinghome-project-passes-24-exaflops-more-than-top.html' },
 ] as const;
-const stats = [1, 2, 3] as const;
-const quotes = [1, 2] as const;
+
+/* 引用人:头像文件与姓名同源(public/people/<file>.webp,160 见方,官方新闻室件)。 */
+const VOICES = [
+  { n: 1, file: 'kress' },
+  { n: 2, file: 'nadella' },
+] as const;
 ---
 
 <section class="why" id="why">
@@ -37,59 +121,107 @@ const quotes = [1, 2] as const;
     <h2 class="state x-display" data-lr>{t('why.title')}</h2>
   </div>
 
-  <div class="grid">
-    <div class="narr x-tile x-tile-calm" data-rv>
-      <p>{t('why.p1')}</p>
-      <p>{t('why.p2')}</p>
-      <p>{t('why.p3')}</p>
-
-      <details class="sources">
-        <summary>
-          <span class="q x-q">{t('why.sourcesTitle')}</span>
-          <span class="mark x-mono" aria-hidden="true">+</span>
-        </summary>
-        <ol class="srclist" role="list">
-          {
-            SOURCES.map(({ n, url }) => (
-              <li>
-                <a class="srcline x-mono" href={url} target="_blank" rel="noopener noreferrer">
-                  {t(`why.src${n}`)} <span aria-hidden="true">↗</span>
-                </a>
-              </li>
-            ))
-          }
-        </ol>
-      </details>
-    </div>
-
-    <aside class="qcol">
-      {
-        quotes.map((n, i) => (
-          <figure class="qcard x-tile" data-rv style={`--d:${i * 0.08}s`}>
-            <blockquote class="x-q">{t(`why.quote${n}`)}</blockquote>
-            <figcaption class="x-mono">{t(`why.attr${n}`)}</figcaption>
-          </figure>
-        ))
-      }
-    </aside>
-
-    {/* R2(评审整改):① 顶行「行业数据」出处眉——平台自数(WEB03)与第三方行业数用同一
-        套大数字语法,快扫会混出处,眉标把这条 tile 显式标成引用态;② 尾行非关联免责声明从
-        Sources 折叠块移出常驻——免责必须与触发它的署名引用/大数字同视区不可回避(FTC
-        clear-and-conspicuous 口径),折叠态不可见即失职。 */}
-    <div class="wstats x-tile" data-rv>
-      <span class="wtag x-label">{t('why.statsTag')}</span>
-      {
-        stats.map((n, i) => (
-          <div class="wcell">
-            <span class="widx x-mono">{String(i + 1).padStart(2, '0')}</span>
-            <span class="wnum">{t(`why.stat${n}`)}</span>
-            <span class="wcap x-label">{t(`why.stat${n}Cap`)}</span>
+  <ol class="acts x-tile x-tile-calm" role="list" data-rv>
+    {
+      ACTS.map((n) => (
+        <li class="act">
+          <Fragment set:html={ART[n]} />
+          <span class="anum x-mono">{`0${n}`}</span>
+          <h3 class="atitle x-h24">{t(`why.act${n}Title`)}</h3>
+          <p class="abody">
+            {marks(t(`why.act${n}Body`)).map((f) =>
+              f.k === 'data' ? (
+                <span class="nb">
+                  <span class="ink-data">{f.s}</span>
+                  {f.ref && (
+                    <sup class="ink-ref">
+                      <a href={`#why-src-${f.ref}`}>[{f.ref}]</a>
+                    </sup>
+                  )}
+                </span>
+              ) : f.k === 'em' ? (
+                <span class="ink-em">{f.s}</span>
+              ) : f.k === 'ref' ? (
+                /* 引注可点:跳到下方 Sources 同号条目(脚本顺带展开折叠块)。
+                   ⚠️ 不挂 .x-mono —— 型类的 :lang(vi|zh) 分支特异度高于 scoped 类,
+                   会把这里的字号与行高整个盖掉(R3 评审 P1-3 实测:en 行距被压 77%,
+                   vi/zh 声明从未生效)。同轮 .abody 的注释写过这个坑,下一个元素还是踩了。 */
+                <sup class="ink-ref">
+                  <a href={`#why-src-${f.s}`}>[{f.s}]</a>
+                </sup>
+              ) : (
+                f.s
+              ),
+            )}
+          </p>
+          <div class="anchor">
+            <span class="anum-big">{t(`why.act${n}Num`)}</span>
+            <span class="acap x-label">{t(`why.act${n}Cap`)}</span>
           </div>
-        ))
-      }
-      <p class="disclaim x-mono"><span class="dtext">{t('why.disclaim')}</span></p>
-    </div>
+        </li>
+      ))
+    }
+  </ol>
+
+  <div class="quotes">
+    {
+      VOICES.map(({ n, file }, i) => (
+        <figure class="qcard x-tile" data-rv style={`--d:${i * 0.08}s`}>
+          <div class="person">
+            <img
+              class="face"
+              src={`/people/${file}.webp`}
+              alt={t('why.portraitAlt', { name: t(`why.name${n}`) })}
+              width="160"
+              height="160"
+              loading="lazy"
+              decoding="async"
+            />
+            <span class="pnames">
+              <span class="pname x-mono">{t(`why.name${n}`)}</span>
+              <span class="prole x-label">{t(`why.role${n}`)}</span>
+            </span>
+          </div>
+          <blockquote class="quote">{t(`why.quote${n}`)}</blockquote>
+          <figcaption class="qmeta">
+            <span class="qsrc x-label">
+              <span class="qdot" aria-hidden="true" />
+              {t(`why.meta${n}`)}
+            </span>
+            <span class="qdate x-label">{t(`why.date${n}`)}</span>
+          </figcaption>
+        </figure>
+      ))
+    }
+  </div>
+
+  {/* 板块尾:完整来源(可折叠)+ 常驻小字。免责与照片署名在所有具名内容之后,
+      不可回避(FTC clear-and-conspicuous 口径;折叠态不可见即失职 —— R2 判例)。 */}
+  <div class="foot x-tile x-tile-calm">
+    <details class="sources">
+      <summary>
+        <span class="q x-q">{t('why.sourcesTitle')}</span>
+        <span class="mark x-mono" aria-hidden="true">+</span>
+      </summary>
+      <ol class="srclist" role="list">
+        {
+          SOURCES.map(({ n, url }) => (
+            <li id={`why-src-${n}`}>
+              <a class="srcline x-mono" href={url} target="_blank" rel="noopener noreferrer">
+                <span class="srcnum">[{n}]</span>
+                <span class="srctxt">
+                  {t(`why.src${n}`)} <span aria-hidden="true">↗</span>
+                </span>
+              </a>
+            </li>
+          ))
+        }
+      </ol>
+    </details>
+    <p class="disclaim x-mono">
+      <span class="dtext">{t('why.disclaim')}</span>
+      <span class="dtext">{t('why.photoCredit')}</span>
+    </p>
   </div>
 </section>
 
@@ -103,7 +235,7 @@ const quotes = [1, 2] as const;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: max(28px, calc(48 * var(--u)));
+    gap: max(24px, calc(36 * var(--u)));
   }
   .head {
     display: flex;
@@ -134,52 +266,268 @@ const quotes = [1, 2] as const;
     max-width: calc(835.2 * var(--u));
   }
 
-  /* 瓷砖阵:叙事 7 + 引用 5,数字条通栏(trust 12 列同族) */
-  .grid {
+  /* ── 三幕:等宽三列。分隔线走伪元素画在 gap 正中 ——
+     用 `.act + .act { padding-left }` 会只缩后两幕,实测首幕正文宽 9.5%(R3 评审 P1-2)。 ── */
+  /* 🔴 三幕走 subgrid 横向锁行(R3c 结构性反思):插画/幕号/标题/正文/锚 五层各自
+     在三列间取同一行高,锚线与大数字**天然共线**。此前用 `.anchor{margin-top:auto}`
+     底对齐 + `.acap{min-height:2lh}` 兜底,那是「定行数」不是「取同高」——说明折到
+     3 行就又断线(en 901-1023 差 14.4px / vi 901-1139 差 17.4px,含 1024 主流笔电宽,
+     修好又复发过一轮)。行距由父级 row-gap 供给,子项不再自带 gap。 */
+  .acts {
+    list-style: none;
+    margin: 0;
+    padding: calc(30 * var(--uc));
     display: grid;
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-    gap: calc(18 * var(--uc));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: auto auto auto 1fr auto;
+    gap: calc(12 * var(--uc)) calc(68 * var(--uc));
   }
-  .narr {
-    grid-column: span 7;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
-    display: flex;
-    flex-direction: column;
-    gap: calc(16 * var(--uc));
+  .act {
+    position: relative;
+    display: grid;
+    grid-row: span 5;
+    grid-template-rows: subgrid;
+    min-width: 0;
   }
-  /* 叙事正文:16 档大写 mono(mission.body 同尺;多行长文行距取 trust 卡文的 1.45)。
-     手写不挂 .x-mono —— 型类 :lang 分支特异度(0,2,1)会把 zh 字号盖回 12.5
-     (SocialSection .roles 同型注释),语言分支在本容器自带。
-     🔴 只用子代组合器 `>`:后代 `.narr p` 会泄进 <details> 内部,把免责/来源小注放大成
-     16 档正文(R2 评审 −0.7 实锤,特异度 0,1,1 盖过全局 .x-mono)。 */
-  .narr > p {
+  .act + .act::before {
+    content: '';
+    position: absolute;
+    left: calc(-34 * var(--uc));
+    top: 0;
+    bottom: 0;
+    border-left: 1px solid var(--x-line-soft);
+  }
+  /* 容器比例锁到 viewBox 比例:固定高度 + meet 会让画面按高度缩放,右侧留下
+     一条永远填不满的空带(1440 实测只填 72%,860 只填 37%,R3b 评审 P2-2)。
+     比例一致后 meet 不再产生留白,插画横向铺满列宽、与文字左右轨对齐。 */
+  .act :global(.art) {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 300 / 112;
+    display: block;
+    margin-bottom: calc(4 * var(--uc));
+  }
+  .anum {
+    color: var(--x-accent-hot);
+  }
+  .atitle {
+    font-size: max(18px, calc(22 * var(--u)));
+    color: var(--x-white);
+    margin: 0;
+  }
+  /* 幕正文:13 档 sentence-case —— 长文可读性优先于全站 uppercase 体例
+     (R2 工艺评审 P2 观察项「叙事段建议弃 uppercase」的采纳)。手写不挂 .x-mono:
+     型类的 :lang 分支特异度会把字号盖回 12.5(SocialSection .roles 同型注释)。 */
+  .abody {
     font-family: var(--x-font-mono);
-    font-size: calc(16 * var(--uc));
+    font-size: calc(13 * var(--uc));
     letter-spacing: 0;
-    text-transform: uppercase;
-    line-height: 1.45;
+    line-height: 1.65;
     color: var(--x-ink-cap);
     margin: 0;
     text-wrap: pretty;
-    max-width: calc(640 * var(--uc)); /* 行长上限(R49 收线 D2 同款,≈89ch) */
   }
-  .narr > p:lang(zh) {
-    font-size: max(16.5px, calc(16.56 * var(--u)));
-    line-height: 1.6; /* 全站 CJK 行高不变量 */
-    /* R2:多行正文禁 balance(trust 卡的 balance 是 2-4 行短卡文场景)——balance 把
-       p2 压成 66% 宽窄块右缘参差;孤行控制交给 pretty + 文内 NBSP。 */
-    text-wrap: pretty;
+  .abody:lang(zh) {
+    font-size: calc(13.5 * var(--uc));
+    line-height: 1.75; /* 13 档比型类的 12 档更小更密,行距在 mono 的 zh 档(1.6)之上再放一档 */
     word-spacing: -0.36em; /* mission.body zh 同款:等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */
   }
-  .narr > p:lang(vi) {
-    line-height: 1.45;
+  .abody:lang(vi) {
+    line-height: 1.7; /* 叠音符 + 下点:比拉丁再放一档 */
+  }
+  /* 批注墨水:硬数据 = 柠檬底黑字(全站唯一的实心柠檬文字块,只给可核验数字);
+     关键短语 = 白字 + 柠檬下划线;引注 = 柠檬上标,指向下方 Sources 同号条目。 */
+  /* 底块只向**左右**外扩,不向上下:四向 spread(3.5)把漆带撑到 26px 而行距只有
+     21.45px,结构上必然侵入相邻行 —— 实测与上一行墨的净空 en 0.20px / vi 0.59px,
+     且与上一行的下划线记号纵向重叠 0.88-3.06px,两个柠檬记号读成连体(R3c 工艺 P1-1)。
+     水平外扩保留呼吸、垂直归零消碰撞;padding 方案则会把起行的整行右推 6px。 */
+  .ink-data {
+    color: var(--x-on-accent);
+    background: var(--x-accent);
+    /* 只向**右**外扩:左侧外扩会让行首的柠檬块比正文左轨突出 3.5px,而左轨是插画/
+       幕号/标题/正文/锚五层共用的对齐锚,突在最显眼处(R3d 工艺 P2-6)。 */
+    box-shadow: calc(3.5 * var(--uc)) 0 0 var(--x-accent);
+    white-space: nowrap;
+  }
+  /* 下划线走 text-decoration 不走 border-bottom:后者贴在行盒底、无法控偏移,
+     与下一行的底块漆带重叠;text-decoration 自带 skip-ink 与偏移控制。 */
+  .ink-em {
+    color: var(--x-white);
+    text-decoration: underline;
+    text-decoration-color: var(--x-accent);
+    text-decoration-thickness: 1px;
+    text-underline-offset: calc(3 * var(--uc));
+  }
+  /* 数据块与它的引注共处一格,折行点不会落在两者之间 */
+  .nb {
+    white-space: nowrap;
+  }
+  /* 引注上标:字号不得低于 12 档(9 档在 1440 带经典滚动条时实测 8.91px,跌破
+     canvas-geometry 判据 E 的 11px 可读线)。用手写 vertical-align 而非 <sup> 默认的
+     super + line-height:0 —— 后者在 en 下把带引注那一行的行距压掉 77%(R3 评审 P1-3)。 */
+  .ink-ref {
+    font-family: var(--x-font-mono);
+    font-size: calc(12 * var(--uc));
+    letter-spacing: 0;
+    line-height: inherit;
+    /* 上标偏移走 relative 不走 vertical-align:后者参与行盒计算,凡带 [N] 的行
+       行盒被顶高 12.1%,同一段里两种行距(R3b 工艺 P1-3 逐行基线实测)。
+       −0.18em 而非建议的 −0.3em:后者把上标顶与上行墨底的净空压到 0.65px,
+       render-fit 判据 A 逐行量墨会红;0.18 留 2.2px 余量,上标形态仍在。 */
+    vertical-align: baseline;
+    position: relative;
+    top: -0.18em;
+    /* 7 而非 2:要盖过底块右侧 3.5 的外扩再留呼吸,否则漆带右缘与 [ 的墨只剩 0.47px,
+       两个柠檬记号在 1× 抗锯齿后糊成一体 —— 正是本组件为纵向写下的判据换到横向复发
+       (R3d 工艺 P2-7) */
+    margin-left: calc(7 * var(--uc));
+    white-space: nowrap;
+  }
+  .ink-ref a {
+    color: var(--x-accent-hot);
+    text-decoration: none;
+    transition: opacity 0.2s;
+  }
+  .ink-ref a:hover {
+    opacity: 0.7;
+  }
+  /* 数字锚:幕的收束,54 档太重(三列并置会与首屏大字争),取 34 档。
+     说明槽定高 2 行 —— 否则说明折几行、细线与大数字就跨列浮几行
+     (R3 评审 P1-1 实测 en 差 14.25px / vi 差 17.21px,而 zh 恰好共线,静态门看不见)。 */
+  .anchor {
+    padding-top: calc(16 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--uc));
+  }
+  .anum-big {
+    font-family: var(--x-font-display);
+    font-size: max(26px, calc(34 * var(--u)));
+    font-weight: 500;
+    color: var(--x-white);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .acap {
+    color: var(--x-ink-dim);
+    text-wrap: pretty;
+  }
+  /* .x-label 与 .x-mono 基座逐字节相同(mono / 12 / 400 / 零字距 / uppercase / 1.2),
+     同基座取同一 zh 档;型类只有 :lang(vi) 分支没有 zh,组件侧补。
+     ⚠️ 全站并没有「CJK 一律 1.6」这条不变量 —— tokens.css 的 zh 阶梯实为六个值
+     (mega 1.05 / display 1.15 / h24 1.35 / q 1.45 / mono-lg 1.5 / mono 1.6),
+     写注释时不要沿用邻居的措辞,那会把假不变量复制到下一处。 */
+  .acap:lang(zh) {
+    line-height: 1.6;
+    word-spacing: -0.36em;
   }
 
-  /* Sources 折叠:细线行式(.poc/FAQ 同规格),住在 calm tile 内部尾段 */
-  .sources {
-    margin-top: calc(10 * var(--uc));
-    border-top: 1px solid var(--x-line-soft);
+  /* ── 署名引用卡:头像 + 引语 + 机构徽记 ── */
+  .quotes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: calc(18 * var(--uc));
   }
+  .qcard {
+    margin: 0;
+    padding: calc(30 * var(--uc));
+    display: flex;
+    flex-direction: column;
+    gap: calc(20 * var(--uc));
+  }
+  .person {
+    display: flex;
+    align-items: center;
+    gap: calc(14 * var(--uc));
+  }
+  /* 真人头像(官方新闻室件):圆形裁切 + 细亮环,浅底照片在深玻璃上自成视觉锚 */
+  .face {
+    width: calc(52 * var(--uc));
+    height: calc(52 * var(--uc));
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--x-glass-border);
+    flex: 0 0 auto;
+    background: var(--x-glass);
+  }
+  .pnames {
+    display: flex;
+    flex-direction: column;
+    gap: calc(3 * var(--uc));
+    min-width: 0;
+  }
+  .pname {
+    color: var(--x-white);
+    text-transform: none; /* 专名照原样:全大写会把 Kress / Nadella 读成缩写 */
+  }
+  .prole {
+    color: var(--x-ink-dim);
+  }
+  .prole:lang(zh) {
+    line-height: 1.6;
+    word-spacing: -0.36em;
+  }
+  /* 开引号悬挂:不挂时首行被引号推进,26 档大字上的参差肉眼可见
+     (实测 en 10.9 / vi 9 / zh 25.2px,R3b 评审 P1-3)。
+     负缩进按各语言引号的实际字身给:zh 用全角「,拉丁用弯引号。 */
+  .quote {
+    margin: 0;
+    font-family: var(--x-font-display);
+    font-size: max(20px, calc(26 * var(--u)));
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    color: var(--x-white);
+    text-wrap: balance;
+    text-indent: -0.38em;
+  }
+  .quote:lang(zh) {
+    line-height: 1.45; /* CJK 方块字容不下 1.3 */
+    text-indent: -1em;
+  }
+  .quote:lang(vi) {
+    line-height: 1.45; /* vi 叠音符同理 */
+  }
+  /* 无条件竖排(与 #trust .vrow 同构):两卡的 meta 内容宽度本就不同,断点挪到哪
+     失配带就在新位置复现 —— 设 1200 后 vi 在 1201-1230 一卡折一卡不折(R3d 工艺 P1-4)。 */
+  .qmeta {
+    margin-top: auto;
+    padding-top: calc(14 * var(--uc));
+    border-top: 1px solid var(--x-line-soft);
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: calc(8 * var(--uc));
+  }
+  .qsrc {
+    color: var(--x-ink-dim);
+    display: inline-flex;
+    align-items: center;
+    gap: calc(8 * var(--uc));
+  }
+  .qsrc:lang(zh),
+  .qdate:lang(zh) {
+    line-height: 1.6; /* 同 .acap 的依据:x-label 与 x-mono 同基座 */
+    word-spacing: -0.36em;
+  }
+  .qdot {
+    width: calc(6 * var(--uc));
+    height: calc(6 * var(--uc));
+    border-radius: 50%;
+    background: var(--x-accent);
+    flex: 0 0 auto;
+  }
+  .qdate {
+    color: var(--x-accent);
+  }
+
+  /* ── 板块尾:来源折叠 + 常驻小字。三张瓷砖同一水平内衬(30),文本左轨共线 ── */
+  .foot {
+    padding: calc(6 * var(--uc)) calc(30 * var(--uc)) calc(24 * var(--uc));
+  }
+  /* 细线行式(.poc / FAQ 同规格) */
   .sources summary {
     cursor: pointer;
     min-height: calc(60 * var(--uc));
@@ -223,23 +571,28 @@ const quotes = [1, 2] as const;
   }
   .srclist li {
     border-top: 1px solid var(--x-line-soft);
+    scroll-margin-top: calc(var(--x-nav-h) + 20px); /* 引注跳转不被常驻导航盖住 */
   }
-  .srclist li:first-child {
-    border-top: 0;
-  }
-  /* 来源外链行:.vout 同体例(下划线 + ↗ + 触达高)。
-     align-items 走 flex-end 不走 center:390 下链接折 3-4 行时 center 会把 ↗ 悬到
-     行块右侧中部(R2 评审),flex-end 让箭头落在末行 = 行尾内联语法,单行时两者无差。 */
+  /* 来源行:序号列与正文列分开 —— 折行时正文不钻到序号下方(悬挂缩进)。
+     行高由内衬撑到触达线,不用 min-height 拉伸后靠 baseline 对齐 ——
+     那样文字在 44px 盒里上留 7.9 下留 19.1(R3 评审 P2-9)。 */
   .srcline {
     color: var(--x-ink);
+    text-decoration: none;
+    display: flex;
+    align-items: baseline;
+    gap: calc(10 * var(--uc));
+    padding: calc(13 * var(--uc)) 0;
+    min-height: var(--x-touch);
+    transition: opacity 0.2s;
+  }
+  .srcnum {
+    color: var(--x-accent-hot);
+    flex: 0 0 auto;
+  }
+  .srctxt {
     text-decoration: underline;
     text-underline-offset: calc(3 * var(--uc));
-    min-height: var(--x-touch);
-    display: inline-flex;
-    align-items: flex-end;
-    gap: calc(4 * var(--uc));
-    padding: calc(6 * var(--uc)) 0;
-    transition: opacity 0.2s;
   }
   .srcline:hover {
     opacity: 0.7;
@@ -247,20 +600,20 @@ const quotes = [1, 2] as const;
   .srcline:active {
     opacity: 0.6;
   }
-  /* 非关联免责行:常驻于数字条 tile 尾行(R2 移位:署名引用的合规配对件必须不可回避)。
-     分线通栏、文本限宽分开挂:max-width 若压在盒上会把 border-top 截停在半空(R2-D2)。 */
+  /* 非关联免责 + 照片署名:常驻,分线通栏、文本限宽分开挂
+     (max-width 若压在盒上会把 border-top 截停在半空 —— R2-D2 判例)。
+     两行同色:照片署名是 CC BY-SA 的强制署名,曾叠 opacity:.75 → 4.28:1 不过 AA
+     (R3 评审 P2-2),层级改由字序与位置承担。 */
   .disclaim {
-    grid-column: 1 / -1;
-    color: var(--x-ink-dim);
-    margin: calc(6 * var(--uc)) 0 0;
+    margin: calc(10 * var(--uc)) 0 0;
     padding-top: calc(16 * var(--uc));
     border-top: 1px solid var(--x-line-soft);
+    color: var(--x-ink-dim);
     text-wrap: pretty;
     line-height: 1.45;
-  }
-  .disclaim .dtext {
-    display: block;
-    max-width: calc(640 * var(--uc));
+    display: flex;
+    flex-direction: column;
+    gap: calc(6 * var(--uc));
   }
 
   /* 署名引用卡:x-q 问句体承载原话,attr 退 12 档 dim */
@@ -269,15 +622,6 @@ const quotes = [1, 2] as const;
     display: flex;
     flex-direction: column;
     gap: calc(18 * var(--uc));
-  }
-  .qcard {
-    margin: 0;
-    padding: calc(26 * var(--uc)) calc(30 * var(--uc));
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between; /* R2:引语顶、署名底——卡内空隙分布成呼吸,不堆成下坠空腔 */
-    gap: calc(16 * var(--uc));
-    flex: 1;
   }
   .qcard blockquote {
     margin: 0;
@@ -343,25 +687,71 @@ const quotes = [1, 2] as const;
     max-width: calc(340 * var(--uc));
   }
 
+  .disclaim:lang(zh) {
+    line-height: 1.6;
+    word-spacing: -0.36em;
+  }
+  /* 62 字身宽:12 档全大写等宽的舒适带上沿(实测 640uc = 82 字符/行)。
+     与 #trust .cdesc 同族同值 —— 那一处收了、这一处没收,是同族漏修(R3c 工艺 P2-4)。
+     写 calc 不写 `62ch`:字身单位会在字体就绪前锁死在兜底值(R50 判据)。
+     这里是全大写等宽文字,取 mono 那份常数。 */
+  .dtext {
+    display: block;
+    max-width: calc(62 * var(--x-ch-mono));
+  }
+
+  /* 🔴 断点留在 900,不是 1280。R3b 评审 P0-2 提出把三列断点上移以消除
+     「101 字符 → 27 字符」的行长悬崖,我照做后 canvas-geometry 判据 G 当场红:
+     1279→1280 页面总高跳变 5.7%(门限 2%)—— 三列变单列会凭空长出两幕的高度,
+     断点越靠上,那段高度差占整页比重越大。行长悬崖与高度硬缝二选一,门优先;
+     单列侧的过长(101 字符)由下方 max-width 收住,三列侧的偏短是三列布局的固有代价。 */
+  /* 🔴 901-1200 收紧列距那一档已撤除:它只换回 3-4 个字符,却在 1200/1201 造出
+     **反向跳变** —— 视口从 1201 缩到 1200,列反而变宽 8.6%、行反而变长 15.6%
+     (R3d 工艺 P1-5)。两道门都看不见它:页高只变 0.24% 吃不到判据 G 的 2%,
+     而判据 D 只盯字号、栏宽与行长不在它的观测面内。三列段行长偏短是既定代价
+     (断点不能上移,见下方注释),不再用局部收紧去换。 */
   @media (max-width: 900px) {
-    .narr,
-    .qcol,
-    .wstats {
-      grid-column: 1 / -1;
-    }
-    .wstats {
+    .acts {
       grid-template-columns: 1fr;
-      row-gap: calc(20 * var(--uc));
+      grid-template-rows: none;
+      gap: calc(28 * var(--uc));
+      padding: calc(26 * var(--uc)) calc(22 * var(--uc));
     }
-    .wcell {
+    /* 单列后 subgrid 无对象:回 flex,行距自带 */
+    .act {
+      display: flex;
+      flex-direction: column;
+      grid-row: auto;
+      gap: calc(12 * var(--uc));
+    }
+    /* 单列后区界只剩横线:纵线伪元素退场,第 2 幕起吃顶线 */
+    .act + .act::before {
+      left: 0;
+      right: 0;
+      bottom: auto;
       border-left: 0;
       border-top: 1px solid var(--x-line-soft);
-      padding-left: 0;
-      padding-top: calc(20 * var(--uc));
     }
-    .wcell:first-of-type {
-      border-top: 0;
-      padding-top: 0;
+    .act + .act {
+      padding-top: calc(28 * var(--uc));
+    }
+    .abody {
+      /* 单列下的行长上限;三列态由列宽自然约束,不设此值。
+         calc 不写 `68ch`:字身单位会在字体就绪前锁死在兜底值(R50 判据)。 */
+      max-width: calc(68 * var(--x-ch-mono));
+    }
+    /* 单列时插画独占一整行会过分抢戏:压到列宽的六成,左轨不变 */
+    .act :global(.art) {
+      width: min(100%, calc(420 * var(--uc)));
+    }
+    .quotes {
+      grid-template-columns: 1fr;
+    }
+    .qcard {
+      padding: calc(22 * var(--uc));
+    }
+    .foot {
+      padding: calc(6 * var(--uc)) calc(22 * var(--uc)) calc(22 * var(--uc));
     }
     .state {
       max-width: 100%;
@@ -369,3 +759,20 @@ const quotes = [1, 2] as const;
     }
   }
 </style>
+
+<script>
+  /* 引注 [N] → Sources 同号条目:锚点原生跳转,脚本只负责把折叠块打开
+     (与 TrustSection 的 #poc 意图到达同款机制)。无 JS 时锚点仍在,只是需手动展开。 */
+  const det = document.querySelector<HTMLDetailsElement>('#why details.sources');
+  if (det) {
+    const openIfSrcHash = () => {
+      if (location.hash.startsWith('#why-src-')) det.open = true;
+    };
+    openIfSrcHash();
+    window.addEventListener('hashchange', openIfSrcHash);
+    document.addEventListener('click', (e) => {
+      const hit = e.target instanceof Element && e.target.closest('#why .ink-ref a');
+      if (hit) det.open = true;
+    });
+  }
+</script>
