@@ -1,0 +1,5 @@
+{
+  "$comment": "官网仓 git 钩子的仓级参数(2026-09-03 Tier 1-⑧,从 Nexion-uniapp .githooks 原样复制,只改主线名)。mainline = 受 pre-commit / pre-push 守的主线分支名;sMaxFiles = S 级直提主线的暂存文件上限(主人 2026-08-17 分档规矩)。改这里 = 改门定义。",
+  "mainline": "main",
+  "sMaxFiles": 5
+}

@@ -1,0 +1,5 @@
+#!/bin/sh
+# git pre-push → node 门(见同目录 verify-before-push.mjs):推主线前必须有 full verify 全绿。
+# 挂载靠 core.hooksPath=.githooks(npm install 时由 package.json prepare 自动设置;手动:git config core.hooksPath .githooks)。
+# git 会把 remote 名/url 当参数、把要推的 ref 列表喂 stdin —— 原样透传给 node。
+exec node "$(dirname "$0")/verify-before-push.mjs" "$@"

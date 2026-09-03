@@ -4,10 +4,11 @@
    用法:node scripts/verify.mjs [--prod]
    --prod = 部署门升为阻断(PENDING 标记/Legal 缺失 exit 2);默认仅告警。
    退出码写 .verify-exit.code(外部判定读文件不读管道——PLAN 全局纪律)。 */
-import { readFileSync, writeFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
 import { regexEscapeGate } from './gate-regex-escape.mjs';
 import { scanForbidden } from './forbidden-patterns.mjs';
@@ -19,6 +20,13 @@ const results = [];
 // 置红的正主是 npm script 里先跑的 verify-preamble.mjs(独立进程,门模块语法错也拦得住);
 // 这里再写一次,给「直接 node scripts/verify.mjs」的调用方兜底
 writeFileSync(join(ROOT, '.verify-exit.code'), '2');
+
+/* 推主线门(2026-09-03 Tier 1-⑧,.githooks/verify-before-push.mjs)读 .verify-cache/last-run.json 判「要推的树有没有 full 绿」:
+   本仓 verify 只有一档,全程即 full。开跑时记一次树指纹(HEAD + status + diff --stat),结束再算一次 ——
+   跑的过程中树动了(treeMoved)= 结论不锚定任何一棵树,pre-push 会拒;dirty = 跑时有未提交改动,绿的是「HEAD + 私活」不是任何提交。 */
+const gitOut = (...a) => { const r = spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8' }); return r.status === 0 ? (r.stdout || '').trim() : ''; };
+const treeFingerprint = () => createHash('sha1').update([gitOut('rev-parse', 'HEAD'), gitOut('status', '--porcelain'), gitOut('diff', '--stat')].join('\n')).digest('hex');
+const startFingerprint = treeFingerprint();
 
 function walk(dir, exts, out = []) {
   for (const name of readdirSync(dir)) {
@@ -367,6 +375,9 @@ results.push(regexEscapeGate(ROOT, rel));
     ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
     ['regex-escape', ['scripts/test-regex-escape.mjs']],
+    // git 层两道门的红测(2026-09-03 Tier 1-⑧,node --test 体例,成功行是「# pass N」):pre-push full 门 / pre-commit S 级门
+    ['githooks-pre-push', ['.githooks/verify-before-push.test.mjs']],
+    ['githooks-pre-commit', ['.githooks/guard-mainline-commit.test.mjs']],
   ];
   const detail = [];
   for (const [name, argv] of SUITES) {
@@ -382,7 +393,8 @@ results.push(regexEscapeGate(ROOT, rel));
          ③ 本门自己只看退出码,于是①②都看不见。
        所以再要一条正数用例计数:三套的成功行都自带(「26 红 + 15 绿」/「22 pass」/「13 pass」),
        读不到就判红。这一条同时封住上面三层——无论哪层坏,表现都是「输出里没有正数用例数」。 */
-    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)/g)].reduce((s, m) => s + +m[1], 0);
+    // 两种成功行都认:「22 pass」(自研红测)与 node --test 的「# pass 13」(数在后)
+    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)|#\s*pass\s+(\d+)/g)].reduce((s, m) => s + +(m[1] ?? m[2]), 0);
     if (ran === 0) {
       detail.push(
         `${name} 的红测 exit 0 但读不到用例数——「没跑」不算「通过」,不许静默降级成绿`,
@@ -408,4 +420,13 @@ console.log(
   `[verify] ${results.length - failed - notRun}/${results.length} gates pass${notRun ? ` · ${notRun} NOT-RUN(未执行,不算过)` : ''}${PROD ? ' (prod mode)' : ''}`,
 );
 writeFileSync(join(ROOT, '.verify-exit.code'), String(code));
+// pre-push 门读这份:NOT-RUN 不算过(--allow-not-run 放行的绿不背书任何一棵树),要推得走 ALLOW_UNVERIFIED_PUSH 留痕
+try {
+  mkdirSync(join(ROOT, '.verify-cache'), { recursive: true });
+  writeFileSync(join(ROOT, '.verify-cache', 'last-run.json'), JSON.stringify({
+    mode: 'full', verdict: code === 0 && notRun === 0 ? 'pass' : 'fail', at: new Date().toISOString(),
+    headTree: gitOut('rev-parse', 'HEAD^{tree}'), dirty: gitOut('status', '--porcelain') !== '', treeMoved: treeFingerprint() !== startFingerprint,
+    gates: results.length, failed, notRun,
+  }, null, 2) + '\n');
+} catch { /* 写不了缓存不影响门结论,只是推主线时要重跑 */ }
 process.exit(code);
