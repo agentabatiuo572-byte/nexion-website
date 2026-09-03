@@ -16,7 +16,10 @@
     "verify:prod": "node scripts/verify-preamble.mjs && node scripts/verify.mjs --prod",
     "test:worker": "npm --prefix worker test",
     "dev:worker": "npm --prefix worker run dev",
-    "build:console": "npm --prefix admin run build && node worker/assemble-admin.mjs"
+    "build:console": "npm --prefix admin run build && node worker/assemble-admin.mjs",
+    "preview:assert": "node scripts/preview-assert.mjs",
+    "prepare": "node .githooks/verify-before-push.mjs --install",
+    "test:githooks": "node --test .githooks/verify-before-push.test.mjs .githooks/guard-mainline-commit.test.mjs"
   },
   "dependencies": {
     "@astrojs/sitemap": "^3.7.3",

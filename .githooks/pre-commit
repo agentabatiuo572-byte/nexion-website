@@ -1,0 +1,4 @@
+#!/bin/sh
+# git pre-commit → node 门(见同目录 guard-mainline-commit.mjs):主线上只许 S 级直提,M/L 走 pkg/<字母>-<短名> 分支。
+# 挂载靠 core.hooksPath=.githooks(npm install 时由 package.json prepare 自动设置;手动:git config core.hooksPath .githooks)。
+exec node "$(dirname "$0")/guard-mainline-commit.mjs" "$@"
