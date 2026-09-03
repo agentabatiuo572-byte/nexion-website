@@ -393,8 +393,8 @@ results.push(regexEscapeGate(ROOT, rel));
          ③ 本门自己只看退出码,于是①②都看不见。
        所以再要一条正数用例计数:三套的成功行都自带(「26 红 + 15 绿」/「22 pass」/「13 pass」),
        读不到就判红。这一条同时封住上面三层——无论哪层坏,表现都是「输出里没有正数用例数」。 */
-    // 两种成功行都认:「22 pass」(自研红测)与 node --test 的「# pass 13」(数在后)
-    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)|#\s*pass\s+(\d+)/g)].reduce((s, m) => s + +(m[1] ?? m[2]), 0);
+    // 两种成功行都认:「22 pass」(自研红测)与 node --test 的汇总行「# pass 13」(tap)/「ℹ pass 13」(spec,非终端下实测就是它)—— 数在后
+    const ran = [...(r.stdout || '').matchAll(/(\d+)\s*(?:pass|红|绿|通过)|[#ℹ]\s*pass\s+(\d+)/g)].reduce((s, m) => s + +(m[1] ?? m[2]), 0);
     if (ran === 0) {
       detail.push(
         `${name} 的红测 exit 0 但读不到用例数——「没跑」不算「通过」,不许静默降级成绿`,
