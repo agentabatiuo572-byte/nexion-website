@@ -23,7 +23,13 @@ import { GLOBE_DOTS_B64, GLOBE_DOTS_N } from './globe-dots';
    延迟到 DOMContentLoaded 才挂,慢网上会先闪一下再被隐藏。 */
 document.documentElement.classList.add('fx');
 
-const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
+let reduced = motionQuery.matches;
+/* 偏好可能在页面已打开后变化；所有长驻 JS 动效共用这一个可变状态和事件。 */
+motionQuery.addEventListener('change', (event) => {
+  reduced = event.matches;
+  document.dispatchEvent(new CustomEvent('x:motion-preference', { detail: reduced }));
+});
 const coarse = matchMedia('(pointer: coarse)').matches;
 /* 开场钟:四拍的 CSS 时间线锚在 html.x-boot 落地(首帧前),JS 拍(标题)以本模块执行时刻近似锚点 */
 const BOOT_T0 = performance.now();
@@ -48,7 +54,7 @@ const scrollLock = (on: boolean) => {
   document.documentElement.style.overflow = lockN > 0 ? 'hidden' : '';
   if (!lenisInst) return;
   if (on) lenisInst.stop();
-  else lenisInst.start();
+  else if (!reduced) lenisInst.start();
 };
 
 /* 可用视口宽(html 布局宽,不含经典滚动条/滚动条槽)→ --x-vw,画布缩放系数的输入(tokens.css 以 100vw 兜底)。
@@ -343,9 +349,122 @@ function initGlobe() {
   /* 网络层:枢纽/弧/流光,每帧重画(唯一常驻动帧成本;黑底 + screen 同 R34 流光层) */
   const net = document.createElement('canvas');
   const nctx = net.getContext('2d')!;
+  /* 护字渐变只在几何变化时烘焙；帧循环只合成一张透明位图，避免每帧创建渐变对象。 */
+  const copyShield = document.createElement('canvas');
+  const sctx = copyShield.getContext('2d')!;
 
   let W = 0,
     H = 0;
+
+  /* 移动首页护字区：粒子参数与运动原样保留，只在最终合成后把标题/副题每一行背后的
+     局部亮度柔和压回底色。按真实换行盒取材，三语自然跟随；桌面分支完全不进入。 */
+  interface CopyShield {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    padX: number;
+    padY: number;
+  }
+  const mobileHeroQuery = matchMedia('(max-width: 860px)');
+  let copyShields: CopyShield[] = [];
+  let copyShieldCssHeight = 0;
+  const refreshCopyShields = () => {
+    copyShields = [];
+    if (mobileHeroQuery.matches) {
+      const canvasRect = canvas.getBoundingClientRect();
+      const canvasScaleX = canvasRect.width / W || 1;
+      const canvasScaleY = canvasRect.height / H || 1;
+      for (const element of document.querySelectorAll<HTMLElement>('.hero h1, .hero .sub, .hero .sub2')) {
+        const revealLines = [...element.querySelectorAll<HTMLElement>(':scope > .lr-line')];
+        const rects = revealLines.length
+          ? revealLines.map((line) => {
+              const box = line.getBoundingClientRect();
+              const inner = line.querySelector<HTMLElement>('.lr-inner');
+              if (!inner) return box;
+              const range = document.createRange();
+              range.selectNodeContents(inner);
+              const ink = [...range.getClientRects()].filter((rect) => rect.width > 0);
+              if (!ink.length) return box;
+              const left = Math.min(...ink.map((rect) => rect.left));
+              const right = Math.max(...ink.map((rect) => rect.right));
+              const top = Math.min(box.top, ...ink.map((rect) => rect.top));
+              const bottom = Math.max(box.bottom, ...ink.map((rect) => rect.bottom));
+              return {
+                left,
+                right,
+                top,
+                bottom,
+                width: right - left,
+                height: bottom - top,
+              };
+            })
+          : (() => {
+              const range = document.createRange();
+              range.selectNodeContents(element);
+              return [...range.getClientRects()];
+            })();
+        for (const rect of rects) {
+          if (rect.width <= 0 || rect.height <= 0) continue;
+          const title = element.matches('h1');
+          copyShields.push({
+            left: (rect.left - canvasRect.left) / canvasScaleX + scrollX,
+            top: (rect.top - canvasRect.top) / canvasScaleY + scrollY,
+            right: (rect.right - canvasRect.left) / canvasScaleX + scrollX,
+            bottom: (rect.bottom - canvasRect.top) / canvasScaleY + scrollY,
+            padX: Math.max(title ? 24 : 16, rect.height * (title ? 0.48 : 0.6)),
+            padY: Math.max(title ? 14 : 10, rect.height * 0.28),
+          });
+        }
+      }
+    }
+    copyShieldCssHeight = copyShields.length
+      ? Math.max(H, Math.ceil(Math.max(...copyShields.map((zone) => zone.bottom + zone.padY))))
+      : 0;
+    copyShield.width = Math.max(1, Math.round(W * DPR));
+    copyShield.height = Math.max(1, Math.round(copyShieldCssHeight * DPR));
+    sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    sctx.clearRect(0, 0, W, copyShieldCssHeight);
+    sctx.globalAlpha = 0.94;
+    for (const zone of copyShields) {
+      const outerTop = zone.top - zone.padY;
+      const outerBottom = zone.bottom + zone.padY;
+      const outerHeight = outerBottom - outerTop;
+      const edgeStop = Math.min(0.42, zone.padY / outerHeight);
+      const vertical = sctx.createLinearGradient(0, outerTop, 0, outerBottom);
+      vertical.addColorStop(0, 'transparent');
+      vertical.addColorStop(edgeStop, BG);
+      vertical.addColorStop(1 - edgeStop, BG);
+      vertical.addColorStop(1, 'transparent');
+      sctx.fillStyle = vertical;
+      sctx.fillRect(zone.left, outerTop, zone.right - zone.left, outerHeight);
+
+      const cy = (zone.top + zone.bottom) / 2;
+      const ry = outerHeight / 2;
+      for (const cx of [zone.left, zone.right]) {
+        sctx.save();
+        sctx.translate(cx, cy);
+        sctx.scale(zone.padX / ry, 1);
+        const cap = sctx.createRadialGradient(0, 0, 0, 0, 0, ry);
+        cap.addColorStop(0, BG);
+        cap.addColorStop(Math.max(0.5, (zone.bottom - zone.top) / outerHeight), BG);
+        cap.addColorStop(1, 'transparent');
+        sctx.fillStyle = cap;
+        sctx.fillRect(-ry, -ry, ry * 2, ry * 2);
+        sctx.restore();
+      }
+    }
+    sctx.globalAlpha = 1;
+    dbg.shieldLines = copyShields.length;
+  };
+
+  const drawCopyShields = () => {
+    if (!copyShields.length || !copyShieldCssHeight) return;
+    ctx.save();
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.drawImage(copyShield, 0, 0, copyShield.width, copyShield.height, -scrollX, -scrollY, W, copyShieldCssHeight);
+    ctx.restore();
+  };
 
   interface Pose {
     cx: number;
@@ -412,7 +531,7 @@ function initGlobe() {
   /* 辉光烘焙节流(R47):上次烘焙时刻 + 「主体新于辉光」标记,停稳补烘 */
   let glowAt = -1e9;
   let glowStale = false;
-  const dbg = { renders: 0, yaw: 0, pitch: 0, r: 0, fl: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
+  const dbg = { renders: 0, yaw: 0, pitch: 0, r: 0, fl: 0, dots: N, shieldLines: 0, tiltX: 0, tiltY: 0, driftX: 0, driftY: 0 };
   (window as unknown as Record<string, unknown>).__xbg = dbg;
 
   /* R36:高分屏适配——渲染精度乘 DPR(上限 1.5),离屏缓存机制不变 */
@@ -432,9 +551,10 @@ function initGlobe() {
     bctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     gctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     nctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    refreshCopyShields();
     dirty = true;
-    /* R45:reduced-motion 没有帧循环,位图被 resize 清空后必须当场重画,否则背景从此全黑 */
-    if (reduced && W > 0 && H > 0) drawStatic();
+    /* 没有帧循环的两种状态都必须在 resize 清空位图后补静帧。 */
+    if ((reduced || userPaused) && W > 0 && H > 0) drawStatic();
   };
 
   const px = new Float32Array(N),
@@ -717,6 +837,7 @@ function initGlobe() {
     ctx.drawImage(glow, 0, 0, W, H);
     ctx.drawImage(body, 0, 0, W, H);
     drawNet(0, true);
+    drawCopyShields();
   };
 
   let raf = 0;
@@ -799,6 +920,7 @@ function initGlobe() {
     ctx.drawImage(glow, 0, 0, W, H);
     ctx.drawImage(body, 0, 0, W, H);
     drawNet(now, false);
+    drawCopyShields();
 
     if (running) raf = requestAnimationFrame(frame);
   };
@@ -832,6 +954,29 @@ function initGlobe() {
   resize();
   anchors = ANCHOR_IDS.map((id) => document.getElementById(id));
   addEventListener('resize', resize);
+  /* 字体与开场行遮罩都会改变真实换行盒；各自稳定后重取一次，避免缓存过渡态几何。 */
+  const refreshSettledCopyShields = () => {
+    refreshCopyShields();
+    if (reduced || userPaused) drawStatic();
+  };
+  document.addEventListener('x:hero-copy-layout', refreshSettledCopyShields);
+  document.fonts?.ready.then(refreshSettledCopyShields);
+  setTimeout(refreshSettledCopyShields, Math.max(0, BOOT_T0 + 2800 - performance.now()));
+  /* #x-bg 首秒会从 1.05 倍缩回 1；护字位图与它同画布，首秒按当前变换逆算坐标并低频重烘，
+     否则较早缓存的行盒会随 canvas 缩放漂离正在上滑的字。只跑这 1s，常驻帧零布局读取。 */
+  if (mobileHeroQuery.matches && document.documentElement.classList.contains('x-boot')) {
+    const syncBootCopyShield = () => {
+      refreshCopyShields();
+      const remaining = BOOT_T0 + 1050 - performance.now();
+      if (remaining > 0) setTimeout(syncBootCopyShield, Math.min(100, remaining));
+    };
+    syncBootCopyShield();
+  }
+  let copyShieldResizeTimer = 0;
+  addEventListener('resize', () => {
+    clearTimeout(copyShieldResizeTimer);
+    copyShieldResizeTimer = window.setTimeout(refreshSettledCopyShields, 260);
+  });
   if (!coarse) {
     addEventListener(
       'mousemove',
@@ -859,6 +1004,15 @@ function initGlobe() {
       drawStatic();
     } else start();
   });
+  document.addEventListener('x:motion-preference', () => {
+    refreshCopyShields();
+    if (reduced) {
+      stop();
+      drawStatic();
+    } else if (!document.hidden && !userPaused) {
+      start();
+    }
+  });
 
   if (reduced) {
     drawStatic();
@@ -884,7 +1038,16 @@ function initLenis() {
     requestAnimationFrame(raf);
   };
   requestAnimationFrame(raf);
+  document.addEventListener('x:motion-preference', () => {
+    if (reduced || lockN > 0) lenis.stop();
+    else lenis.start();
+  });
 
+  return lenis;
+}
+
+/* 站内 hash 的展开、聚焦和历史语义不依赖平滑滚动；初始 reduced-motion 也必须安装。 */
+function initHashNavigation() {
   document.addEventListener('click', (e) => {
     /* R45:修饰键 / 非主键 / 已被处理的点击放行原生语义(Ctrl+click 开新标签等) */
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
@@ -894,18 +1057,24 @@ function initLenis() {
     const el = id && document.getElementById(id);
     if (!el) return;
     e.preventDefault();
+    /* 目标在折叠 details 内时先展开再量位置/聚焦；对隐藏后代 focus 会静默失败。 */
+    const closedDetails = el.closest<HTMLDetailsElement>('details:not([open])');
+    if (closedDetails) closedDetails.open = true;
     /* R43:此前写死 84(屏幕量),而 [id]{scroll-margin-top} 是画布量、会随画布缩,
        两者在 >=1440 分家 16px —— 点击站内链接后目标标题被导航条压住(实测净空 -16.1px)。
        改为实测导航条高度,单位天然一致。 */
-    const navH = document.querySelector('.site-nav')?.getBoundingClientRect().height ?? 0;
-    lenis.scrollTo(el.getBoundingClientRect().top + window.scrollY - navH - 10);
+    const navBottom = document.querySelector('.site-nav')?.getBoundingClientRect().bottom ?? 0;
+    const top = el.getBoundingClientRect().top + window.scrollY - navBottom - 10;
+    if (lenisInst && !reduced) lenisInst.scrollTo(top);
+    else window.scrollTo({ top, behavior: 'auto' });
     // hash 没变就不 push:连点同一个锚点曾让 history 每次 +1(与原生片段导航口径不同,back 要按 N 次)
-    if (location.hash !== `#${id}`) history.pushState(null, '', `#${id}`);
+    let currentId = location.hash.slice(1);
+    try { currentId = decodeURIComponent(currentId); } catch { /* 畸形旧 hash 按不同目标处理 */ }
+    if (currentId !== id) history.pushState(null, '', `#${id}`);
     /* R45:原生片段导航会把键盘焦点起点移到目标,补间版也要——否则点完 Tab 又回到导航 */
     if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
     el.focus({ preventScroll: true });
   });
-  return lenis;
 }
 
 /* ---------- ⑨ 证书放大(R44 · R45 锁滚) ----------
@@ -968,6 +1137,20 @@ function initLineReveal() {
   /* 每个宿主一份状态:原文(重建要用)、是否已播(播完已还原成纯文本,重建无意义)、在途的观察器/定时器 */
   type LR = { original: string; played: boolean; io?: IntersectionObserver; timer?: number };
   const st = new Map<HTMLElement, LR>();
+  const notifyHeroCopyLayout = (el: HTMLElement) => {
+    if (el.closest('.hero')) document.dispatchEvent(new Event('x:hero-copy-layout'));
+  };
+
+  const finish = (el: HTMLElement, state = st.get(el)) => {
+    if (!state) return;
+    state.played = true;
+    state.io?.disconnect();
+    clearTimeout(state.timer);
+    el.textContent = state.original;
+    el.style.height = '';
+    el.classList.add('lr-ready');
+    notifyHeroCopyLayout(el);
+  };
 
   const build = (el: HTMLElement) => {
     const s: LR = st.get(el) ?? { original: el.textContent ?? '', played: false };
@@ -1028,7 +1211,12 @@ function initLineReveal() {
     }
     el.classList.add('lr-ready'); // 遮罩已建,宿主可见(内层仍在 110% 处,被 overflow 遮住)
     if (Math.abs(el.offsetHeight - plainH) > 0.5) el.style.height = `${plainH}px`; // 拆行盒子高度与纯文本不一致时锁高
+    notifyHeroCopyLayout(el);
     const play = () => {
+      if (reduced) {
+        finish(el, s);
+        return;
+      }
       s.played = true;
       requestAnimationFrame(() =>
         requestAnimationFrame(() =>
@@ -1043,6 +1231,7 @@ function initLineReveal() {
         if (el.textContent === original) return;
         el.textContent = original; // 还原原始文本(a11y/选中/SEO 一致性)
         el.style.height = '';
+        notifyHeroCopyLayout(el);
       };
       last.addEventListener('transitionend', restore, { once: true });
       /* 过渡被取消(播放中切「减少动态」/ 打印 / 祖先被隐藏)时 transitionend 永不到达,
@@ -1090,7 +1279,12 @@ function initLineReveal() {
   let rt = 0;
   addEventListener('resize', () => {
     clearTimeout(rt);
-    rt = window.setTimeout(() => els.forEach(rebuild), 200);
+    rt = window.setTimeout(() => {
+      if (!reduced) els.forEach(rebuild);
+    }, 200);
+  });
+  document.addEventListener('x:motion-preference', () => {
+    if (reduced) els.forEach((el) => finish(el));
   });
 
   /* 每个标题只等自己那档字重**和自己那串字**(Mega 500:首屏标题与页脚字标;其余 400),不等 fonts.ready:
@@ -1106,9 +1300,14 @@ function initLineReveal() {
     const cs = getComputedStyle(el);
     const key = `${cs.fontWeight} 16px ${cs.fontFamily}`;
     const load = document.fonts ? document.fonts.load(key, el.textContent ?? '').catch(() => undefined) : Promise.resolve(undefined);
-    Promise.race([load, cap]).then(() => build(el));
+    Promise.race([load, cap]).then(() => {
+      if (reduced) el.classList.add('lr-ready');
+      else build(el);
+    });
   }
-  if (document.fonts) document.fonts.ready.then(() => els.forEach(rebuild));
+  if (document.fonts) document.fonts.ready.then(() => {
+    if (!reduced) els.forEach(rebuild);
+  });
 }
 
 /* ---------- ④ 打字机(mono 眉标/编号;P1-02 · R45 影子层) ----------
@@ -1122,8 +1321,15 @@ function initType() {
     return;
   }
   const zh = (document.documentElement.lang || '').startsWith('zh');
+  const originals = new Map<HTMLElement, string>();
+  const finish = (el: HTMLElement, text = originals.get(el) ?? el.textContent ?? '') => {
+    el.textContent = text;
+    el.classList.remove('tw', 'tw-inline', 'tw-block');
+    el.classList.add('tw-done');
+  };
   const prep = (el: HTMLElement) => {
     const text = el.textContent ?? '';
+    originals.set(el, text);
     const inline = getComputedStyle(el).display === 'inline';
     const sr = document.createElement('span');
     sr.className = 'x-sr';
@@ -1143,20 +1349,23 @@ function initType() {
     const speed = Number(el.dataset.twSpeed || (zh ? 90 : 50));
     let i = 0;
     const iv = setInterval(() => {
+      if (reduced) {
+        clearInterval(iv);
+        finish(el, text);
+        return;
+      }
       i++;
       live.textContent = text.slice(0, i);
       if (i >= text.length) {
         clearInterval(iv);
-        el.textContent = text; // 终态 === i18n 原文,影子/打字层全部拆除
-        el.classList.remove('tw', 'tw-inline', 'tw-block');
-        el.classList.add('tw-done');
+        finish(el, text); // 终态 === i18n 原文,影子/打字层全部拆除
       }
     }, speed);
   };
   for (const el of els) {
     const { text, live } = prep(el);
     const delay = Number(el.dataset.twDelay || 0);
-    const go = () => setTimeout(() => run(el, text, live), delay);
+    const go = () => setTimeout(() => reduced ? finish(el, text) : run(el, text, live), delay);
     if (el.dataset.tw === 'load') {
       go();
     } else {
@@ -1172,6 +1381,9 @@ function initType() {
       io.observe(el);
     }
   }
+  document.addEventListener('x:motion-preference', () => {
+    if (reduced) for (const [el, text] of originals) finish(el, text);
+  });
 }
 
 /* ---------- ⑤ 次要块 reveal(P1-03:阈值 .05/底-20px) ---------- */
@@ -1179,18 +1391,24 @@ function initType() {
 function initBgToggle() {
   const btn = document.querySelector<HTMLButtonElement>('[data-bg-toggle]');
   if (!btn) return;
-  let paused = false;
-  try { paused = localStorage.getItem('x-bg-paused') === '1'; } catch { /* 存储不可用 */ }
+  let userPaused = false;
+  try { userPaused = localStorage.getItem('x-bg-paused') === '1'; } catch { /* 存储不可用 */ }
   const render = () => {
-    btn.textContent = paused ? btn.dataset.labelPlay ?? '' : btn.dataset.labelPause ?? '';
-    btn.setAttribute('aria-pressed', String(paused));
+    const effectivePaused = reduced || userPaused;
+    btn.textContent = reduced
+      ? btn.dataset.labelReduced ?? btn.dataset.labelPlay ?? ''
+      : userPaused ? btn.dataset.labelPlay ?? '' : btn.dataset.labelPause ?? '';
+    btn.setAttribute('aria-pressed', String(effectivePaused));
+    btn.disabled = reduced;
   };
   render();
   btn.addEventListener('click', () => {
-    paused = !paused;
+    if (reduced) return;
+    userPaused = !userPaused;
     render();
-    document.dispatchEvent(new CustomEvent('x:bg-pause', { detail: paused }));
+    document.dispatchEvent(new CustomEvent('x:bg-pause', { detail: userPaused }));
   });
+  document.addEventListener('x:motion-preference', render);
 }
 
 function initReveal() {
@@ -1236,6 +1454,11 @@ function initReveal() {
     { threshold: 0.05, rootMargin: '0px 0px -20px 0px' },
   );
   els.forEach((el) => io.observe(el));
+  document.addEventListener('x:motion-preference', () => {
+    if (!reduced) return;
+    io.disconnect();
+    for (const el of els) el.classList.add('in', 'rv-done');
+  });
 }
 
 /* ---------- ⑥ 设备 deck:画布几何连续推进(R8) ----------
@@ -1333,6 +1556,7 @@ function initPile() {
   };
   engage();
   addEventListener('resize', engage);
+  document.addEventListener('x:motion-preference', engage);
   addEventListener(
     'scroll',
     () => {
@@ -1345,19 +1569,22 @@ function initPile() {
 /* ---------- ⑦ 三列滚动视差(反白卡区;P1-28) ---------- */
 function initParallax() {
   const els = [...document.querySelectorAll<HTMLElement>('[data-plx]')];
-  if (!els.length || reduced || coarse) return;
+  if (!els.length || coarse) return;
   let raf = 0;
   /* 已写进 transform 的位移(画布量)。必须记账:getBoundingClientRect() 读到的 top 里**已经含着它**,
      不减掉就成了递归定义 —— 每帧只走 1/(1+k) 的距离,而 apply() 只挂在 scroll/resize/focusin 上,
      瞬时滚动(锚点直达、刷新恢复)只触发一次,于是永久冻在半路。 */
   const written = new WeakMap<HTMLElement, number>();
+  const clear = () => {
+    for (const el of els) {
+      el.style.transform = '';
+      written.delete(el);
+    }
+  };
   const apply = () => {
     raf = 0;
-    if (matchMedia('(max-width: 850px)').matches) {
-      for (const el of els) {
-        el.style.transform = '';
-        written.delete(el);
-      }
+    if (reduced || matchMedia('(max-width: 850px)').matches) {
+      clear();
       return;
     }
     const vh2 = innerHeight / 2;
@@ -1383,11 +1610,12 @@ function initParallax() {
     { passive: true },
   );
   addEventListener('resize', apply);
+  document.addEventListener('x:motion-preference', apply);
   /* 键盘 Tab 进视差层:浏览器按**旧位移**把元素滚进视口,随后视差重算又把它挪走(实测焦点件落到视口下方 300px)。
      重算完再把焦点件对到视口中间。 */
   addEventListener('focusin', (e) => {
     const t = e.target as HTMLElement | null;
-    if (!t || !t.closest('[data-plx]')) return;
+    if (reduced || !t || !t.closest('[data-plx]')) return;
     if (!t.matches(':focus-visible')) return; // 只管键盘路径:鼠标点半露卡片里的链接不该被瞬移居中
     apply();
     requestAnimationFrame(() => {
@@ -1433,7 +1661,7 @@ function initClock() {
    移开立即还原;按下取消(点击瞬间文本必须稳定);reduced/无 hover 设备不挂。 */
 function initScramble() {
   const els = [...document.querySelectorAll<HTMLElement>('[data-scr]')];
-  if (!els.length || reduced || !matchMedia('(hover: hover)').matches) return;
+  if (!els.length || !matchMedia('(hover: hover)').matches) return;
   /* R49-D6:导航落地后光标常驻原位,新页同位元素立刻收到 mouseenter——语言标签在
      「刚切完语言」这一最敏感时刻闪 130ms 乱码(可用性实测)。落地 600ms 内不响应首次悬停。 */
   const ARM_AT = performance.now() + 600;
@@ -1469,13 +1697,16 @@ function initScramble() {
       else raf = 0;
     };
     el.addEventListener('mouseenter', () => {
-      if (performance.now() < ARM_AT) return;
+      if (reduced || performance.now() < ARM_AT) return;
       stop(false);
       frame = 0;
       raf = requestAnimationFrame(run);
     });
     el.addEventListener('mouseleave', () => stop(true));
     el.addEventListener('pointerdown', () => stop(true));
+    document.addEventListener('x:motion-preference', () => {
+      if (reduced) stop(true);
+    });
   }
 }
 
@@ -1494,6 +1725,7 @@ const boot = () => {
     setTimeout(initGlobe, 200);
   }
   initLenis();
+  initHashNavigation();
   initLineReveal();
   initCertZoom();
   initType();

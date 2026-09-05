@@ -3,14 +3,16 @@
    行阵装进一块玻璃瓷砖(细线行式 + 序号 + 柠檬 +/− 记号保留;墨色翻回暗系)。
    涉收益答案一律引导 App 内查看 + PoC,不给数字(PRD §1.4-1)。
    本规格仍是 /nex FAQ 与信任区 PoC 手风琴的样板(R45 B7 归一)。 */
-import { useT, type Locale } from '../i18n';
+import { numberedTranslationPairs, useT, type Locale } from '../i18n';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
-const qs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const; /* R49-B9:补电池发热/可用范围/费用三大真实反对意见;WEB13:q10 正面承接「AI 公司凭什么买日常设备算力」(Why now 板块桥论证的异议位) */
+/* FAQ 是后台可增删/排序的集合，物化器把可见项重新编号为 q1…qN。
+   页面与 JSON-LD 必须从同一份实际 key 集合派生，不能保留历史固定数量。 */
+const qs = numberedTranslationPairs('faq');
 const ld = {
   '@context': 'https://schema.org',
   '@type': 'FAQPage',

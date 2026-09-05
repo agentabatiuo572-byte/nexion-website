@@ -14,6 +14,17 @@ function visibleFaq(c: SiteConfig) {
   return c.faq.items.filter((i) => i.visible && !i.deleted).sort((a, b) => a.sort - b.sort);
 }
 
+function materializeLegalDocument(doc: SiteConfig['legal']['terms']) {
+  return {
+    md: {
+      en: doc.md.en,
+      vi: doc.md.vi,
+      zh: doc.md.zh,
+    },
+    updatedAt: doc.updatedAt,
+  };
+}
+
 /** 单语言 i18n JSON 物化 */
 export function materializeI18n(c: SiteConfig, manifest: CopyManifest, locale: Locale): string {
   const faq = visibleFaq(c);
@@ -47,6 +58,11 @@ export function materializeSiteJson(c: SiteConfig): string {
     announcement: c.announcement,
     seo: c.seo,
     footer: c.footer,
+    legal: {
+      terms: materializeLegalDocument(c.legal.terms),
+      privacy: materializeLegalDocument(c.legal.privacy),
+      appPrivacy: materializeLegalDocument(c.legal.appPrivacy),
+    },
   };
   return serialize(site);
 }

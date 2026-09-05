@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie';
 import type { Context, MiddlewareHandler } from 'hono';
 import type { Env } from './env';
-import { writeAudit } from './audit';
+import { prepareAuditAfterPreviousChange, writeAudit } from './audit';
 
 /** 安全参数(PRD §3;KDF 迭代可由 env.KDF_ITER 覆盖——Workers 免费档 CPU 上限的部署期调节阀) */
 const KDF_ITER_DEFAULT = 600_000;
@@ -67,70 +67,95 @@ async function isInitialized(db: D1Database): Promise<boolean> {
 
 // ---------- 限速(CON01-E2:15 分钟 5 次尝试 → 锁 15 分钟,锁内正确口令也拒) ----------
 //
-// 🔴 原子「先占名额」模型(安全评审 HIGH 2026-08-31 修):一次登录尝试 = 一条 UPSERT+RETURNING,
-// 在**验口令之前**就原子完成「窗口滚动 + 计数递增 + 触发锁定」并拿回结果。并发 N 个请求各自拿到
-// 唯一的递增值(1..N),超阈值者当场判 blocked——消除了旧代码「先 SELECT 读未锁、再各自验口令、
-// 最后才写计数」之间的 check-then-act 间隙(那个间隙让并发爆破的实际上限 = 并发数而非 5 次)。
-// 列名 fail_count 沿用迁移(现语义 = 窗口内尝试数;成功即 clearAttempts 清零,故稳态 = 连续失败数)。
+// 🔴 计算前准入模型：先由 D1 原子登记尝试并写 attempt 审计，只有前 5 个请求可以进入 PBKDF2。
+// 第 6 个及以后在昂贵计算前即 429。结果审计失败时保留已审计的准入计数，安全侧失败关闭；
+// 成功会在 session + success audit 同一事务中把计数归零。列名 fail_count 沿用迁移。
 
-async function registerAttempt(db: D1Database, key: string, now: number): Promise<{ blocked: boolean; retryAfterMs: number }> {
-  const row = await db
-    .prepare(
-      `INSERT INTO login_throttle (key, fail_count, window_start, locked_until) VALUES (?1, 1, ?2, NULL)
-       ON CONFLICT(key) DO UPDATE SET
-         fail_count = CASE
-           WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN fail_count
-           WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN 1
-           ELSE fail_count + 1 END,
-         window_start = CASE
-           WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN window_start
-           WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN ?2
-           ELSE window_start END,
-         locked_until = CASE
-           WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN locked_until
-           WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN NULL
-           WHEN fail_count + 1 > ${LOCK_AFTER_FAILS} THEN ?2 + ${LOCK_DURATION_MS}
-           ELSE locked_until END
-       RETURNING fail_count, locked_until`,
-    )
-    .bind(key, now)
-    .first<{ fail_count: number; locked_until: number | null }>();
-  const lockedUntil = row?.locked_until ?? null;
-  const overLimit = (row?.fail_count ?? 1) > LOCK_AFTER_FAILS;
+interface AttemptRow { fail_count: number; locked_until: number | null }
+
+function prepareAttempt(db: D1Database, key: string, now: number): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO login_throttle (key, fail_count, window_start, locked_until) VALUES (?1, 1, ?2, NULL)
+     ON CONFLICT(key) DO UPDATE SET
+       fail_count = CASE
+         WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN fail_count
+         WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN 1
+         ELSE fail_count + 1 END,
+       window_start = CASE
+         WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN window_start
+         WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN ?2
+         ELSE window_start END,
+       locked_until = CASE
+         WHEN locked_until IS NOT NULL AND locked_until > ?2 THEN locked_until
+         WHEN (locked_until IS NOT NULL AND locked_until <= ?2) OR (?2 - window_start > ${LOCK_WINDOW_MS}) THEN NULL
+         WHEN fail_count + 1 > ${LOCK_AFTER_FAILS} THEN ?2 + ${LOCK_DURATION_MS}
+         ELSE locked_until END
+     RETURNING fail_count, locked_until`,
+  ).bind(key, now);
+}
+
+function attemptOutcome(row: AttemptRow, now: number): { blocked: boolean; retryAfterMs: number } {
+  const lockedUntil = row.locked_until;
+  const overLimit = row.fail_count > LOCK_AFTER_FAILS;
   const blocked = overLimit || (lockedUntil !== null && lockedUntil > now);
   const retryAfterMs = blocked && lockedUntil ? Math.max(0, lockedUntil - now) : 0;
   return { blocked, retryAfterMs };
 }
 
-async function clearAttempts(db: D1Database, key: string): Promise<void> {
-  await db.prepare('DELETE FROM login_throttle WHERE key = ?1').bind(key).run();
+type AttemptAuditAction = 'login.attempt' | 'auth.setup.attempt';
+type BlockedAuditAction = 'login.fail' | 'auth.setup.fail';
+
+function prepareBlockedAttemptAudit(
+  db: D1Database,
+  key: string,
+  now: number,
+  action: BlockedAuditAction,
+): D1PreparedStatement {
+  return db.prepare(
+    `INSERT INTO audit (ts,actor,action,target,before_summary,after_summary,reason)
+     SELECT ?1,'admin',?2,?3,NULL,NULL,'locked'
+     FROM login_throttle
+     WHERE key=?3 AND (fail_count>${LOCK_AFTER_FAILS} OR (locked_until IS NOT NULL AND locked_until>?1))`,
+  ).bind(now,action,key);
+}
+
+/** 尝试计数、准入审计、锁定结果审计同一事务；事务失败时绝不进入 KDF。 */
+async function reserveAttempt(
+  db: D1Database,
+  key: string,
+  now: number,
+  attemptAction: AttemptAuditAction,
+  blockedAction: BlockedAuditAction,
+): Promise<{ blocked: boolean; retryAfterMs: number }> {
+  const committed = await db.batch([
+    prepareAttempt(db,key,now),
+    prepareAuditAfterPreviousChange(db, { action: attemptAction, target: key }),
+    prepareBlockedAttemptAudit(db,key,now,blockedAction),
+  ]);
+  const row = committed[0]?.results?.[0] as AttemptRow | undefined;
+  if (!row) throw new Error('login throttle admission returned no state');
+  return attemptOutcome(row,now);
+}
+
+async function activeLock(db: D1Database, key: string, now: number): Promise<number | null> {
+  const row = await db.prepare('SELECT locked_until FROM login_throttle WHERE key=?1 AND locked_until>?2')
+    .bind(key,now).first<{ locked_until: number }>();
+  return row?.locked_until ?? null;
 }
 
 // ---------- 会话 ----------
 
-async function createSession(db: D1Database, now: number): Promise<string> {
-  const token = randomHex(32);
-  await db
-    .prepare('INSERT INTO sessions (token_hash, created_at, expires_at) VALUES (?1, ?2, ?3)')
-    .bind(await sha256Hex(token), now, now + SESSION_TTL_MS)
-    .run();
-  return token;
-}
-
 /** 会话校验 + 滑动续期;无效返回 false 并顺手清掉过期行 */
 async function validateSession(db: D1Database, token: string, now: number): Promise<boolean> {
   const hash = await sha256Hex(token);
-  const row = await db
-    .prepare('SELECT expires_at FROM sessions WHERE token_hash = ?1')
-    .bind(hash)
-    .first<{ expires_at: number }>();
-  if (!row) return false;
-  if (row.expires_at <= now) {
-    await db.prepare('DELETE FROM sessions WHERE token_hash = ?1').bind(hash).run();
-    return false;
-  }
-  await db.prepare('UPDATE sessions SET expires_at = ?1 WHERE token_hash = ?2').bind(now + SESSION_TTL_MS, hash).run();
-  return true;
+  /* 授权判定与续期必须是同一条条件写：若 logout 已在线性化点前删掉 session，UPDATE
+     命中 0 行就拒绝；不能先 SELECT 判有效、再无视续期 UPDATE 是否仍命中。 */
+  const renewed = await db.prepare(
+    'UPDATE sessions SET expires_at = ?1 WHERE token_hash = ?2 AND expires_at > ?3 RETURNING token_hash',
+  ).bind(now + SESSION_TTL_MS,hash,now).first<{ token_hash: string }>();
+  if (renewed) return true;
+  await db.prepare('DELETE FROM sessions WHERE token_hash = ?1 AND expires_at <= ?2').bind(hash,now).run();
+  return false;
 }
 
 /** 受保护 API 中间件:无效会话一律 401(CON01-E3;登录页回跳由前端处理) */
@@ -140,6 +165,10 @@ export const requireAuth: MiddlewareHandler<{ Bindings: Env }> = async (c, next)
     return c.json({ error: 'unauthorized' }, 401);
   }
   await next();
+  // 数据库与浏览器必须按同一活动时点滑动；登出响应只保留后续 deleteCookie。
+  if (!new URL(c.req.url).pathname.endsWith('/logout')) {
+    setCookie(c, SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTS, maxAge: SESSION_TTL_MS / 1000 });
+  }
 };
 
 // ---------- 路由 ----------
@@ -154,48 +183,59 @@ authRoutes.get('/state', async (c) => c.json({ initialized: await isInitialized(
 authRoutes.post('/setup', async (c) => {
   const now = Date.now();
   const ip = clientIp(c);
+  const throttleKey = `setup:${ip}`;
   if (await isInitialized(c.env.DB)) return c.json({ error: 'already-initialized' }, 410);
-  const gate = await registerAttempt(c.env.DB, `setup:${ip}`, now);
-  if (gate.blocked) {
-    return c.json({ error: 'too-many-attempts', retryAfterSec: Math.ceil(gate.retryAfterMs / 1000) }, 429, {
-      'Retry-After': String(Math.ceil(gate.retryAfterMs / 1000)),
-    });
-  }
   const body = await c.req.json<{ token?: string; password?: string }>().catch(() => null);
+  const admission = await reserveAttempt(c.env.DB,throttleKey,now,'auth.setup.attempt','auth.setup.fail');
+  if (admission.blocked) {
+    const retryAfterSec = Math.ceil(admission.retryAfterMs / 1000);
+    return c.json({ error: 'too-many-attempts', retryAfterSec }, 429, { 'Retry-After': String(retryAfterSec) });
+  }
   if (!body?.token || !timingSafeEqualHex(await sha256Hex(body.token), await sha256Hex(c.env.SETUP_TOKEN ?? ''))) {
+    await writeAudit(c.env.DB, { action: 'auth.setup.fail', target: throttleKey, reason: 'invalid-token' });
     return c.json({ error: 'forbidden' }, 403);
   }
   if (!body.password || body.password.length < MIN_PASSWORD_LEN || body.password.length > MAX_PASSWORD_LEN) {
+    await writeAudit(c.env.DB, { action: 'auth.setup.fail', target: throttleKey, reason: 'password-length' });
     return c.json({ error: `password-length(must be ${MIN_PASSWORD_LEN}-${MAX_PASSWORD_LEN})` }, 400);
   }
   const salt = randomHex(16);
   const hash = await pbkdf2Hex(body.password, salt, kdfIter(c.env));
-  try {
-    await c.env.DB
-      .prepare('INSERT INTO auth_account (id, password_hash, salt, initialized_at) VALUES (1, ?1, ?2, ?3)')
-      .bind(hash, salt, now)
-      .run();
-  } catch {
-    // 并发重复 setup 撞主键(CHECK id=1):安全不变量仍成立,回干净的 410 而非 500(LOW)
+  const committed = await c.env.DB.batch([
+    c.env.DB.prepare(`INSERT INTO auth_account(id,password_hash,salt,initialized_at)
+      SELECT 1,?1,?2,?3
+        WHERE EXISTS(SELECT 1 FROM login_throttle WHERE key=?4 AND fail_count<=${LOCK_AFTER_FAILS}
+          AND (locked_until IS NULL OR locked_until<=?3))
+        AND NOT EXISTS(SELECT 1 FROM auth_account WHERE id=1)
+      RETURNING id`).bind(hash,salt,now,throttleKey),
+    prepareAuditAfterPreviousChange(c.env.DB, { action: 'auth.setup', target: 'admin' }),
+    c.env.DB.prepare('DELETE FROM login_throttle WHERE key=?1 AND changes()>0').bind(throttleKey),
+    // 预检查后若另一请求已完成 setup，本请求的临时尝试没有业务结果与审计，事务内清干净。
+    c.env.DB.prepare('DELETE FROM login_throttle WHERE key=?1 AND changes()=0 AND EXISTS(SELECT 1 FROM auth_account WHERE id=1)').bind(throttleKey),
+  ]);
+  if (!(committed[0]?.meta.changes ?? 0)) {
+    if ((committed[3]?.meta.changes ?? 0)>0) return c.json({ error: 'already-initialized' }, 410);
+    const lockedUntil = await activeLock(c.env.DB,throttleKey,Date.now());
+    if (lockedUntil) {
+      const retryAfterSec = Math.ceil((lockedUntil-Date.now())/1000);
+      return c.json({ error: 'too-many-attempts', retryAfterSec }, 429, { 'Retry-After': String(retryAfterSec) });
+    }
+    // 并发重复 setup：条件 INSERT 只有一个能命中，失败方稳定返回 410。
     return c.json({ error: 'already-initialized' }, 410);
   }
-  await clearAttempts(c.env.DB, `setup:${ip}`);
-  await writeAudit(c.env.DB, { action: 'auth.setup', target: 'admin' });
   return c.json({ ok: true });
 });
 
-/** 登录(CON01-A1/E1/E2)。错误一律同文案,不泄露差在哪个字段;限速在验口令前原子占位。 */
+/** 登录(CON01-A1/E1/E2)。错误一律同文案；已有锁先快拒，候选口令与最终限速/结果在 D1 batch 收口。 */
 authRoutes.post('/login', async (c) => {
   const now = Date.now();
   const ip = clientIp(c);
-  const attempt = await registerAttempt(c.env.DB, ip, now);
-  if (attempt.blocked) {
-    await writeAudit(c.env.DB, { action: 'login.fail', target: ip, reason: 'locked' });
-    return c.json({ error: 'too-many-attempts', retryAfterSec: Math.ceil(attempt.retryAfterMs / 1000) }, 429, {
-      'Retry-After': String(Math.ceil(attempt.retryAfterMs / 1000)),
-    });
-  }
   const body = await c.req.json<{ password?: string }>().catch(() => null);
+  const admission = await reserveAttempt(c.env.DB,ip,now,'login.attempt','login.fail');
+  if (admission.blocked) {
+    const retryAfterSec = Math.ceil(admission.retryAfterMs / 1000);
+    return c.json({ error: 'too-many-attempts', retryAfterSec }, 429, { 'Retry-After': String(retryAfterSec) });
+  }
   const account = await c.env.DB
     .prepare('SELECT password_hash, salt FROM auth_account WHERE id = 1')
     .first<{ password_hash: string; salt: string }>();
@@ -204,21 +244,53 @@ authRoutes.post('/login', async (c) => {
     pw && pw.length >= MIN_PASSWORD_LEN && pw.length <= MAX_PASSWORD_LEN
       ? await pbkdf2Hex(pw, account?.salt ?? randomHex(16), kdfIter(c.env))
       : '';
-  if (!account || !candidate || !timingSafeEqualHex(candidate, account.password_hash)) {
+  const valid = !!account && !!candidate && timingSafeEqualHex(candidate, account.password_hash);
+  if (!valid) {
     await writeAudit(c.env.DB, { action: 'login.fail', target: ip });
     return c.json({ error: 'invalid-credentials' }, 401);
   }
-  await clearAttempts(c.env.DB, ip); // 成功即清零窗口内尝试
-  const token = await createSession(c.env.DB, now);
+  const token = randomHex(32);
+  const tokenHash = await sha256Hex(token);
+  const committed = await c.env.DB.batch([
+    c.env.DB.prepare(`INSERT INTO sessions(token_hash,created_at,expires_at)
+      SELECT ?1,?2,?3
+        WHERE EXISTS(SELECT 1 FROM login_throttle WHERE key=?4 AND fail_count<=${LOCK_AFTER_FAILS}
+          AND (locked_until IS NULL OR locked_until<=?2))`).bind(tokenHash,now,now+SESSION_TTL_MS,ip),
+    c.env.DB.prepare(
+      `INSERT INTO audit(ts,actor,action,target,before_summary,after_summary,reason)
+       SELECT ?1,'admin','login.success',?2,NULL,NULL,NULL
+       WHERE EXISTS(SELECT 1 FROM sessions WHERE token_hash=?3)`,
+    ).bind(now,ip,tokenHash),
+    c.env.DB.prepare(
+      `UPDATE login_throttle SET fail_count=0,window_start=?1,locked_until=NULL
+       WHERE key=?2 AND EXISTS(SELECT 1 FROM sessions WHERE token_hash=?3)`,
+    ).bind(now,ip,tokenHash),
+    c.env.DB.prepare(
+      `INSERT INTO audit(ts,actor,action,target,before_summary,after_summary,reason)
+       SELECT ?1,'admin','login.fail',?2,NULL,NULL,'locked'
+       FROM login_throttle
+       WHERE key=?2 AND NOT EXISTS(SELECT 1 FROM sessions WHERE token_hash=?3)
+         AND (fail_count>${LOCK_AFTER_FAILS} OR (locked_until IS NOT NULL AND locked_until>?1))`,
+    ).bind(now,ip,tokenHash),
+  ]);
+  if (!(committed[0]?.meta.changes ?? 0)) {
+    const lockedUntil = await activeLock(c.env.DB,ip,Date.now());
+    if (!lockedUntil) throw new Error('eligible login session was not created');
+    const retryAfterSec = Math.ceil((lockedUntil-Date.now())/1000);
+    return c.json({ error: 'too-many-attempts', retryAfterSec }, 429, { 'Retry-After': String(retryAfterSec) });
+  }
   setCookie(c, SESSION_COOKIE, token, { ...SESSION_COOKIE_OPTS, maxAge: SESSION_TTL_MS / 1000 });
-  await writeAudit(c.env.DB, { action: 'login.success', target: ip });
   return c.json({ ok: true });
 });
 
 authRoutes.post('/logout', requireAuth, async (c) => {
   const token = getCookie(c, SESSION_COOKIE);
-  if (token) await c.env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?1').bind(await sha256Hex(token)).run();
+  if (token) {
+    await c.env.DB.batch([
+      c.env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?1').bind(await sha256Hex(token)),
+      prepareAuditAfterPreviousChange(c.env.DB, { action: 'auth.logout' }),
+    ]);
+  }
   deleteCookie(c, SESSION_COOKIE, SESSION_COOKIE_OPTS); // 属性与 setCookie 镜像(LOW)
-  await writeAudit(c.env.DB, { action: 'auth.logout' });
   return c.json({ ok: true });
 });

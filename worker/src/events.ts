@@ -1,14 +1,33 @@
 import { z } from 'zod';
+import { utf8ByteLength } from '../../schema/src/utf8';
+import {
+  METRIC_CTA_IDS,
+  METRIC_CTA_SECTION_IDS,
+  METRIC_SECTION_IDS,
+  METRIC_TEXT_BYTES,
+  isMetricFaqId,
+} from '../../schema/src/event-contract';
 
 /* 线上事件契约(官网后台 PRD §5.2)。短键=省 beacon 体积;此处是唯一权威,
    站侧 src/scripts/metrics.ts 按本表写字面量(端到端 parity 由 T18/T24 真链路 E2E 兜)。
    键名映射:t=type · loc=locale · dev=deviceClass(m/d) · ref=refClass · us/um/uc=utm 三参 ·
    sec=sectionId · cta=ctaId · faq=faqId · lcp/cls=vitals · h=错误哈希。 */
 
-const path = z.string().min(1).max(200);
-const short = z.string().max(64);
+/* 跨 ingest/rollup 的单一字符串边界：按 UTF-8 字节计长，并拒绝 NUL。
+   SQLite 对 TEXT 的 length() 按码点且遇 NUL 截断；rollup 改用 BLOB 字节长度与 X'00' 检查。 */
+const boundedText = (minBytes: number, maxBytes: number) => z.string().refine((value) => {
+  const bytes = utf8ByteLength(value);
+  return !value.includes(String.fromCharCode(0)) && bytes >= minBytes && bytes <= maxBytes;
+}, { message: `must be ${minBytes}-${maxBytes} UTF-8 bytes without NUL` });
+
+const path = boundedText(1, METRIC_TEXT_BYTES.path);
+const short = boundedText(0, METRIC_TEXT_BYTES.short);
 const locale = z.enum(['en', 'vi', 'zh']);
 const dev = z.enum(['m', 'd']);
+const section = z.enum(METRIC_SECTION_IDS);
+const cta = z.enum(METRIC_CTA_IDS);
+const ctaSection = z.enum(METRIC_CTA_SECTION_IDS);
+const faq = boundedText(1, METRIC_TEXT_BYTES.faq).refine(isMetricFaqId, { message: 'must be qN where N is positive' });
 
 export const EventSchema = z.discriminatedUnion('t', [
   z.object({
@@ -21,11 +40,11 @@ export const EventSchema = z.discriminatedUnion('t', [
     um: short,
     uc: short,
   }),
-  z.object({ t: z.literal('sec'), sec: z.string().min(1).max(32), path }),
-  z.object({ t: z.literal('cta'), cta: z.string().min(1).max(32), sec: z.string().max(32), loc: locale, path }),
-  z.object({ t: z.literal('faq'), faq: z.string().min(1).max(16), loc: locale }),
+  z.object({ t: z.literal('sec'), sec: section, path }),
+  z.object({ t: z.literal('cta'), cta, sec: ctaSection, loc: locale, path }),
+  z.object({ t: z.literal('faq'), faq, loc: locale }),
   z.object({ t: z.literal('vit'), lcp: z.number().min(0).max(120_000), cls: z.number().min(0).max(10), path, dev }),
-  z.object({ t: z.literal('err'), h: z.string().min(1).max(16), path }),
+  z.object({ t: z.literal('err'), h: boundedText(1, 16), path }),
 ]);
 export type BeaconEvent = z.infer<typeof EventSchema>;
 
@@ -36,4 +55,5 @@ export interface BlockedEvent {
   t: 'blocked';
   c: string; // ISO 国家码
   p: string; // pathClass
+  bot?: 0 | 1;
 }

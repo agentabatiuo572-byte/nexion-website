@@ -12,4 +12,10 @@ export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_S
   BYPASS_SECRET: string;
   /** PBKDF2 迭代覆盖(默认 600k;Workers 免费档 CPU 上限的部署期调节阀 + 测试提速) */
   KDF_ITER?: string;
+  PUBLISH_RUNNER_TOKEN?: string;
+  PUBLISH_EXECUTION_MODE?: string;
+  PUBLISH_GITHUB_REPOSITORY?: string;
+  PUBLISH_GITHUB_WORKFLOW?: string;
+  PUBLISH_GITHUB_REF?: string;
+  PUBLISH_GITHUB_TOKEN?: string;
 };

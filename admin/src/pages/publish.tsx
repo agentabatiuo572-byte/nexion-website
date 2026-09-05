@@ -1,17 +1,20 @@
 /* 发布与版本(CON13 ⑤⑥):diff 摘要 + 前置校验红项(带去修复跳转)+ 确认弹窗(高敏须理由)
    + 流水线四步进度 + 失败面(大白话 + 门名 + 原始日志折叠)+ 版本历史与回滚。
-   诚实:门红时明说「线上保持旧版未受影响」;执行器不在线时给排队态与取消出口,不吊死。 */
+   检查失败保留旧版；服务未就绪在提交前明示，切换不确定时暂停后续发布。 */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { ApiError, api, toast } from '../api';
+import { ApiError, api, apiErrorHint, toast } from '../api';
 import { splitFailReason } from '../lib/fail-reason';
 import { humanPath } from '../lib/human-path';
+import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
 import { useShell } from '../shell';
 
 interface Finding { path: string; rule: string; message: string }
 interface Preflight {
   ready: boolean; errors: Finding[]; warnings: Finding[];
   changedPaths: string[]; changed: number; sensitiveChanged: string[]; reasonRequired: boolean;
+  /** 确认页看到的草稿身份；普通发布必须把同一个 revision 带回服务端。 */
+  draftRev: number;
 }
 interface StepRow { step: string; status: string; detail: string | null; started_at: number; ended_at: number | null }
 interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null; changed?: number }
@@ -24,10 +27,11 @@ interface Status {
   /** 服务端直接告诉界面能不能取消:none 无进行中 · yes 排队态可取消 · force 需失联+理由 · no 执行器仍在工作 */
   cancelable?: 'none' | 'yes' | 'force' | 'no';
   silentMs?: number;
+  executor: {mode:string;ready:boolean;reason:string;lastSeenAt:number|null};
 }
 
-const STEP_LABEL: Record<string, string> = { materialize: '物化配置(生成三语文案与站点配置)', gates: '站上全部机器门(13 门)', build: '生产构建', swap: '原子切换上新' };
-const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '校验中', publishing: '发布中' };
+const STEP_LABEL: Record<string, string> = { materialize: '生成三语文案与站点配置', gates: '全部发布检查', build: '构建网站与后台', swap: '切换新版并核验' };
+const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '等待自动执行', publishing: '发布中', unknown:'切换结果待核实' };
 /** 把校验规则译成人话;缺映射显规则名原文,不隐藏 */
 const RULE_LABEL: Record<string, string> = {
   'forbidden-word': '合规禁用词', placeholder: '占位符缺失', untranslated: '缺译', 'unknown-key': '非法 key',
@@ -57,8 +61,9 @@ export default function PublishPage() {
   const [pre, setPre] = useState<Preflight | null>(null);
   const [st, setSt] = useState<Status | null>(null);
   const [failed, setFailed] = useState(false);
+  const [pollFailed, setPollFailed] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [confirm, setConfirm] = useState<{ reason: string; rollbackFrom?: number } | null>(null);
+  const [confirm, setConfirm] = useState<PublishConfirmation | null>(null);
   const [forcing, setForcing] = useState(false);
   const [forceReason, setForceReason] = useState('');
   const [openLog, setOpenLog] = useState<string | null>(null);
@@ -75,30 +80,46 @@ export default function PublishPage() {
   }, []);
   useEffect(load, [load]);
 
-  // 发布进行中轮询(2s);结束即停并刷新壳状态条
+  // 发布时每2秒更新，空闲时每5秒更新服务就绪状态；结束刷新壳和前置检查。
   useEffect(() => {
-    if (st?.activeVersion) {
-      timer.current = window.setTimeout(() => {
+    let stopped = false;
+    if (st) {
+      const poll = () => {
         api<Status>('/api/publish/status').then((s) => {
+          if (stopped) return;
+          setPollFailed(false);
           setSt(s);
-          if (!s.activeVersion) { load(); reloadShell(); }
-        }).catch(() => {});
-      }, 2000);
+          if (st.activeVersion && !s.activeVersion) { load(); reloadShell(); }
+        }).catch(() => {
+          if (stopped) return;
+          setPollFailed(true);
+          timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
+        });
+      };
+      timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
     }
-    return () => { if (timer.current) window.clearTimeout(timer.current); };
+    return () => { stopped = true; if (timer.current) window.clearTimeout(timer.current); };
   }, [st, load, reloadShell]);
 
-  async function doPublish(rollbackFrom?: number) {
+  async function doPublish() {
     if (!confirm) return;
     setBusy(true);
     try {
-      await api('/api/publish', { method: 'POST', body: JSON.stringify({ reason: confirm.reason, fromVersion: rollbackFrom }) });
-      toast(rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
+      await api('/api/publish', { method: 'POST', body: JSON.stringify(publishRequestBody(confirm)) });
+      toast(confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
       setConfirm(null);
       load();
     } catch (e) {
       const err = e instanceof ApiError ? String(e.body.error ?? '') : '';
-      toast(err.includes('reason') ? '需要填写理由(≥8 字)' : err.includes('in-progress') ? '已有发布正在进行' : err.includes('preflight') ? '前置校验未通过' : '发起失败,请重试');
+      if (e instanceof ApiError && e.status === 409 && err === 'draft-changed') {
+        setConfirm(null);
+        toast('草稿在确认后发生了变化；已刷新检查，请重新核对并确认');
+        load();
+        return;
+      }
+      const serviceMessage = e instanceof ApiError && ['executor-unavailable', 'config-upgrade-conflict', 'config-upgrade-retry'].includes(err)
+        ? String(e.body.message ?? e.body.hint ?? '配置升级尚未完成，请刷新查看具体原因') : null;
+      toast(serviceMessage ?? (err.includes('reason') ? '需要填写理由(≥8 字)' : err.includes('in-progress') ? '已有发布正在进行或等待核实' : err.includes('preflight') ? '前置校验未通过' : '发起失败,请重试'));
     } finally { setBusy(false); }
   }
 
@@ -116,7 +137,7 @@ export default function PublishPage() {
       await api('/api/publish/cancel', { method: 'POST', body: JSON.stringify({}) });
       toast('已取消'); load();
     } catch (e) {
-      toast(((e as ApiError).body as { hint?: string }).hint ?? '无法取消,请刷新后重试');
+      toast(apiErrorHint(e, '无法取消,请刷新后重试'));
     }
   }
   async function forceCancel() {
@@ -125,7 +146,7 @@ export default function PublishPage() {
       await api('/api/publish/cancel', { method: 'POST', body: JSON.stringify({ force: true, reason: forceReason.trim() }) });
       toast('已强制中止,可以重新发起'); setForcing(false); setForceReason(''); load();
     } catch (e) {
-      toast(((e as ApiError).body as { hint?: string }).hint ?? '仍无法中止(执行器可能又有动静了)');
+      toast(apiErrorHint(e, '仍无法中止(执行器可能又有动静了)'));
     }
   }
 
@@ -140,6 +161,9 @@ export default function PublishPage() {
   return (
     <section>
       <h2>发布与版本</h2>
+      {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。发布任务继续在后台执行。</div>}
+      {!st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
+      {st.versions.some(v=>v.status==='unknown') && <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>}
 
       {/* 进行中:四步进度 */}
       {active && (
@@ -162,7 +186,7 @@ export default function PublishPage() {
           })}
           {st.steps.length === 0 && (
             <div className="note warn">
-              排队中——发布执行器尚未领取任务。本机开发下需另开一个终端运行执行器;若长时间无响应可取消。
+              已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。
               <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
             </div>
           )}
@@ -170,7 +194,7 @@ export default function PublishPage() {
           {st.steps.length > 0 && !forcing && (
             <div className="note" style={{ marginTop: 8 }}>
               执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
-              <span className="kv">执行器超过 12 分钟没有动静才允许中止;门链本身要跑约 6 分钟,属正常。</span>
+              <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>
             </div>
           )}
           {forcing && (
@@ -179,7 +203,7 @@ export default function PublishPage() {
               {/* 口径要与列表和审计一致:中止后列表显示「已取消」,这里就不能写「记为失败」(第五轮 P1-7) */}
               {/* JSX 里 `**…**` 就是两个星号,会原样印在界面上;要加重用 <b>(gate-console-copy 守) */}
               <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
-              <div className="kv">⚠️ 中止只在系统里放开这次发布,<b>并不会去停掉那个执行器进程</b>。若它其实还活着,请先把它关掉再重新发起。</div>
+              <div className="kv">中止后系统会撤销本次执行权限；发布服务确认权限失效后停止操作。</div>
               <div className="row" style={{ marginTop: 6, gap: 8 }}>
                 <input className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
                 <button className="btn" onClick={forceCancel}>确认中止</button>
@@ -342,7 +366,7 @@ export default function PublishPage() {
             );
           })()}
           <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary" disabled={!pre.ready || busy} onClick={() => setConfirm({ reason: '' })}>
+            <button className="btn primary" disabled={!pre.ready || busy || !st.executor.ready || st.versions.some(v=>v.status==='unknown')} onClick={() => setConfirm({ reason: '', draftRev: pre.draftRev })}>
               发布(过全部机器门)
             </button>
             <span className="kv">{!pre.ready && (pre.changed === 0 ? '无改动可发布' : '先修完上面的红项')}</span>
@@ -356,8 +380,8 @@ export default function PublishPage() {
           <h3>{confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
           <p className="kv">
             {confirm.rollbackFrom
-              ? '回滚 = 以该版内容发起一次新发布,同样要过全部机器门(不绕道);成功后线上是一个新版本号,内容与该版一致。'
-              : '发布将依次执行:物化配置 → 站上 13 道机器门 → 生产构建 → 原子切换。任一步失败则线上保持旧版。'}
+              ? '回滚会按当前网站结构恢复该版内容，并发起一次新发布、执行全部检查。旧版格式会自动转换；已修改内容存在兼容冲突时会停止并提示。成功后生成新版本号。'
+              : '确认后系统自动生成配置、执行全部检查、构建并切换新版。检查失败时保留旧版；切换后会核验实际内容。'}
           </p>
           {(pre.reasonRequired || confirm.rollbackFrom) && (
             <div className="field"><label>理由(必填,≥8 字)</label>
@@ -365,7 +389,7 @@ export default function PublishPage() {
           )}
           <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button className="btn ghost" onClick={() => setConfirm(null)}>取消</button>
-            <button className="btn primary" disabled={busy} onClick={() => void doPublish(confirm.rollbackFrom)}>{busy ? '发起中…' : '确认'}</button>
+            <button className="btn primary" disabled={busy} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
           </div>
         </div>
       )}

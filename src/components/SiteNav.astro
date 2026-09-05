@@ -94,7 +94,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   /* 常驻最顶层;过浅区整体翻色(currentColor 贯通,脚本置 .on-light) */
   .site-nav {
     position: fixed;
-    top: 0;
+    top: var(--x-announcement-screen-h, 0px);
     left: 0;
     right: 0;
     z-index: 40;

@@ -3,9 +3,10 @@ import { SiteConfigSchema, buildManifest, diffPaths, sensitivePaths, validateCon
 import seedJson from '../seed/site-config.seed.json';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
-import { writeAudit } from './audit';
+import { prepareAuditAfterPreviousChange } from './audit';
 import { liveSnapshotDrift } from './publish';
 import { loadRules } from './geo';
+import { commitDraftUpgrade, ensureDraftUpgrade, validateUpgradeResolution, type DraftUpgradeStatus } from './config-upgrade';
 
 /* 配置模型(CON04-A1/E3 + CON13-③ 版本表底座)。
    编辑面永不直写线上:一切上新只经发布流水线(T21);此处只有 草稿/校验/版本读。 */
@@ -22,7 +23,7 @@ interface DraftRow {
 /** 首访种子化:live v1 = 种子,草稿 = 种子副本(幂等)。
     🔴 发布/驾驶舱等一切读配置的入口都必须先调它——否则全新安装上直接调用会读到 null 而 500
     (T21 测试实证:发布接口漏调,空库发起发布即崩)。 */
-export async function ensureInit(db: D1Database): Promise<void> {
+export async function ensureInit(db: D1Database): Promise<DraftUpgradeStatus> {
   /* 两张表都要在。此前只看版本表,于是「版本表有行、草稿行没了」这种半初始化状态会被判成
      「已初始化」直接返回,概览接口随后在 draft.payload 上 500(2026-09-01 写 CON02-E2 测试时撞到)。
      下面两条 INSERT 各自带 OR IGNORE / 条件,补哪张都安全。 */
@@ -30,7 +31,7 @@ export async function ensureInit(db: D1Database): Promise<void> {
     db.prepare('SELECT id FROM config_versions LIMIT 1').first(),
     db.prepare('SELECT id FROM config_draft WHERE id = 1').first(),
   ]);
-  if (hasVer && hasDraft) return;
+  if (hasVer && hasDraft) return ensureDraftUpgrade(db);
   const now = Date.now();
   if (hasVer) {
     // 版本在、草稿丢了:用当前线上内容补一份草稿,别去动版本历史
@@ -39,7 +40,7 @@ export async function ensureInit(db: D1Database): Promise<void> {
       .prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev) VALUES (1, ?1, 1, ?2, 1)')
       .bind(live?.payload ?? JSON.stringify(SEED), now)
       .run();
-    return;
+    return ensureDraftUpgrade(db);
   }
   await db.batch([
     db
@@ -47,6 +48,7 @@ export async function ensureInit(db: D1Database): Promise<void> {
       .bind(JSON.stringify(SEED), now),
     db.prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev) VALUES (1, ?1, 1, ?2, 1)').bind(JSON.stringify(SEED), now),
   ]);
+  return ensureDraftUpgrade(db);
 }
 
 async function getDraft(db: D1Database): Promise<DraftRow> {
@@ -63,7 +65,7 @@ export const configRoutes = new Hono<{ Bindings: Env }>();
 
 /** 概览:壳状态条与各模块共用(CON02-③) */
 configRoutes.get('/', async (c) => {
-  await ensureInit(c.env.DB);
+  const configUpgrade = await ensureInit(c.env.DB);
   const [draft, live] = await Promise.all([getDraft(c.env.DB), getLive(c.env.DB)]);
   const livePayload = JSON.parse(live!.payload) as SiteConfig;
   const changed = diffPaths(livePayload, JSON.parse(draft.payload));
@@ -77,6 +79,7 @@ configRoutes.get('/', async (c) => {
     .bind(live!.id)
     .first<{ id: number; fail_reason: string | null; created_at: number }>();
   return c.json({
+    configUpgrade,
     liveVersion: live!.id,
     livePublishedAt: live!.published_at,
     /* 劈叉也要出现在壳的状态条上:只挂在发布页,运营在别的页面看到的仍是「与线上一致」(第四轮 P1-6) */
@@ -93,9 +96,17 @@ configRoutes.get('/', async (c) => {
 
 /** 存草稿(CON04-A1/E1/E3):结构校验拦、禁用词不拦(红旗留发布前置);乐观锁 409 */
 configRoutes.put('/draft', async (c) => {
-  await ensureInit(c.env.DB);
-  const body = await c.req.json<{ payload?: unknown; baseRevision?: number }>().catch(() => null);
+  const upgrade = await ensureInit(c.env.DB);
+  if (upgrade.status === 'retry') return c.json({ error: 'config-upgrade-retry', message: '草稿刚被另一处更新，请刷新后重试' }, 409);
+  const body = await c.req.json<{ payload?: unknown; baseRevision?: number; resolveUpgrade?: boolean }>().catch(() => null);
   if (!body || typeof body.baseRevision !== 'number') return c.json({ error: 'bad-request' }, 400);
+  const resolving = body.resolveUpgrade === true && upgrade.status === 'blocked';
+  if (upgrade.status === 'blocked' && !resolving) return c.json({ error: 'config-upgrade-conflict', message: '旧草稿有无法自动迁移的修改，原内容已保留，请先处理列出的冲突', conflicts: upgrade.conflicts }, 409);
+  if (body.resolveUpgrade === true && !resolving) return c.json({ error: 'conflict', message: '旧草稿冲突已被处理，请刷新后再编辑' }, 409);
+  if (resolving) {
+    const resolution = validateUpgradeResolution(body.payload);
+    if (!resolution.ok) return c.json({ error: 'invalid-upgrade-resolution', message: '解决稿必须完整通过当前配置校验，原冲突内容未改变', issues: resolution.issues }, 400);
+  }
   const parsed = SiteConfigSchema.safeParse(body.payload);
   if (!parsed.success) return c.json({ error: 'bad-structure', issues: parsed.error.issues.slice(0, 10) }, 400);
   const cur = await getDraft(c.env.DB);
@@ -104,16 +115,18 @@ configRoutes.put('/draft', async (c) => {
   // 禁用词/缺译仍为草稿可存、发布拦(E1/E4 的分层设计不变)
   const placeholderErrs = validateConfig(parsed.data, MANIFEST).errors.filter((e) => e.rule === 'placeholder');
   if (placeholderErrs.length) return c.json({ error: 'placeholder', issues: placeholderErrs.slice(0, 10) }, 400);
-  const prev = JSON.parse(cur.payload) as SiteConfig;
+  // An explicit resolution may replace a malformed legacy payload; its exact bytes still go into the backup.
+  const prev = (() => { try { return JSON.parse(cur.payload); } catch { return cur.payload; } })();
   // CON09-E3:公告内容(文案/链接)变更 → server 换 id(访客关闭记忆按 id 记,新公告重新展示)。
   // T14 验收 P-3:内容改回与线上完全一致时还原线上 id——手工全量回滚不留幽灵改动。
   const a = parsed.data.announcement;
-  const pa = prev.announcement;
+  const previousConfig = SiteConfigSchema.safeParse(prev);
+  const pa = previousConfig.success ? previousConfig.data.announcement : null;
   const liveRow = await getLive(c.env.DB);
   const la = liveRow ? (JSON.parse(liveRow.payload) as SiteConfig).announcement : null;
   if (la && JSON.stringify(a.text) === JSON.stringify(la.text) && a.href === la.href) {
     a.id = la.id;
-  } else if (JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
+  } else if (!pa || JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
     a.id = `ann-${crypto.randomUUID().slice(0, 8)}`;
   }
   // CON11-E3:Legal markdown 剥离危险节点(白名单外的可执行面),剥离计数回显给 UI 提示
@@ -132,16 +145,27 @@ configRoutes.put('/draft', async (c) => {
     }
   }
   const now = Date.now();
-  const changed = diffPaths(JSON.parse(cur.payload), parsed.data);
-  await c.env.DB
-    .prepare('UPDATE config_draft SET payload = ?1, updated_at = ?2, draft_rev = draft_rev + 1 WHERE id = 1 AND draft_rev = ?3')
-    .bind(JSON.stringify(parsed.data), now, body.baseRevision)
-    .run();
-  await writeAudit(c.env.DB, {
-    action: 'config.save',
-    target: 'draft',
-    after: `${changed.length} 处改动:${changed.slice(0, 5).join(', ')}${changed.length > 5 ? ' …' : ''}`,
-  });
+  const changed = diffPaths(prev, parsed.data);
+  if (resolving) {
+    // Recheck after the same announcement normalization and Legal sanitization used for ordinary saves.
+    const resolution = validateUpgradeResolution(parsed.data);
+    if (!resolution.ok) return c.json({ error: 'invalid-upgrade-resolution', issues: resolution.issues }, 400);
+    const result = await commitDraftUpgrade(c.env.DB, cur, { ok: true, config: resolution.config, changed: true }, { explicitResolution: true });
+    if (result.status !== 'applied') return c.json({ error: 'conflict', draftRev: (await getDraft(c.env.DB)).draft_rev }, 409);
+    return c.json({ ok: true, resolvedUpgrade: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length, sanitized });
+  }
+  const committed = await c.env.DB.batch([
+    c.env.DB
+      .prepare('UPDATE config_draft SET payload = ?1, updated_at = ?2, draft_rev = draft_rev + 1 WHERE id = 1 AND draft_rev = ?3')
+      .bind(JSON.stringify(parsed.data), now, body.baseRevision),
+    prepareAuditAfterPreviousChange(c.env.DB, {
+      action: 'config.save',
+      target: 'draft',
+      after: `${changed.length} 处改动:${changed.slice(0, 5).join(', ')}${changed.length > 5 ? ' …' : ''}`,
+    }),
+  ]);
+  const saved = committed[0]!;
+  if ((saved.meta.changes ?? 0) === 0) return c.json({ error: 'conflict', draftRev: (await getDraft(c.env.DB)).draft_rev }, 409);
   return c.json({ ok: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length, sanitized });
 });
 
@@ -154,9 +178,17 @@ configRoutes.post('/mint-id', async (c) => {
 
 /** 发布前置校验(CON13-E1 的数据源;也供各模块「保存时即时校验」共用) */
 configRoutes.post('/validate', async (c) => {
-  await ensureInit(c.env.DB);
+  const upgrade = await ensureInit(c.env.DB);
   const body = await c.req.json<{ payload?: unknown }>().catch(() => null);
+  if (upgrade.status === 'blocked' && !body?.payload) return c.json({
+    errors: upgrade.conflicts.map((conflict) => ({ path: conflict.path, rule: 'structure', message: conflict.reason })), warnings: [],
+  });
+  if (upgrade.status === 'retry') return c.json({ error: 'config-upgrade-retry', message: '草稿刚被另一处更新，请刷新后重试' }, 409);
   const target = body?.payload ?? JSON.parse((await getDraft(c.env.DB)).payload);
+  if (upgrade.status === 'blocked') {
+    const resolution = validateUpgradeResolution(target);
+    if (!resolution.ok) return c.json({ errors: resolution.issues, warnings: [] });
+  }
   const parsed = SiteConfigSchema.safeParse(target);
   if (!parsed.success) return c.json({ errors: parsed.error.issues.slice(0, 20).map((i) => ({ path: i.path.join('.'), rule: 'structure', message: i.message })), warnings: [] });
   const live = await getLive(c.env.DB);
@@ -167,9 +199,14 @@ configRoutes.post('/validate', async (c) => {
 
 /** 下载链接探活(CON05-⑥ 按需 + CON03-③ 定时 6h 巡检共用同一实现,禁两套判据)。
     预警不阻断:结果只回显/落库,不自动下架(CON05-④「永不自动下架」)。 */
-export async function probeDownloads(env: Env, persist: boolean): Promise<Record<string, unknown>> {
-  const draft = await env.DB.prepare('SELECT payload FROM config_draft WHERE id = 1').first<{ payload: string }>();
+export async function probeDownloads(env: Env, persist: boolean, expectedDraftRev?: number): Promise<Record<string, unknown>> {
+  /* payload 与 draft_rev 必须来自同一行、同一次查询。否则另一个标签页恰好保存时，
+     r8 的链接探活可能被前端错误标成 r7。 */
+  const draft = await env.DB.prepare('SELECT payload, draft_rev FROM config_draft WHERE id = 1').first<{ payload: string; draft_rev: number }>();
   const live = await env.DB.prepare("SELECT payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ payload: string }>();
+  if (!persist && (draft?.draft_rev ?? null) !== expectedDraftRev) {
+    return { error: 'draft-changed', expectedDraftRev, draftRev: draft?.draft_rev ?? null };
+  }
   // 定时巡检看**线上**配置(线上才是访客真正点到的);按需探活看草稿(改完想立刻试)
   const src = persist ? (live?.payload ?? draft?.payload) : (draft?.payload ?? live?.payload);
   if (!src) return { at: Date.now() };
@@ -188,7 +225,21 @@ export async function probeDownloads(env: Env, persist: boolean): Promise<Record
   };
   const targets = ['ios', 'android', 'h5'] as const;
   const results = await Promise.all(targets.map((k) => one(cfg[k].url, cfg[k].enabled)));
-  const out: Record<string, unknown> = { at: Date.now() };
+  if (!persist) {
+    /* HEAD 是外部 I/O，期间草稿可能已被另一标签页保存。探活结果只能归属读取链接时
+       的那一版；全部 HEAD 完成后再次核对 revision，漂移就明确拒绝旧结果。 */
+    const latestDraft = await env.DB
+      .prepare('SELECT draft_rev FROM config_draft WHERE id = 1')
+      .first<{ draft_rev: number }>();
+    if ((latestDraft?.draft_rev ?? null) !== draft!.draft_rev) {
+      return {
+        error: 'draft-changed',
+        expectedDraftRev,
+        draftRev: latestDraft?.draft_rev ?? null,
+      };
+    }
+  }
+  const out: Record<string, unknown> = { at: Date.now(), ...(!persist ? { draftRev: draft!.draft_rev } : {}) };
   const now = Date.now();
   const stmts: D1PreparedStatement[] = [];
   targets.forEach((k, i) => {
@@ -214,7 +265,16 @@ export async function probeDownloads(env: Env, persist: boolean): Promise<Record
   return out;
 }
 
-configRoutes.post('/probe-downloads', async (c) => c.json(await probeDownloads(c.env, false)));
+configRoutes.post('/probe-downloads', async (c) => {
+  await ensureInit(c.env.DB);
+  const body = await c.req.json<{ expectedDraftRev?: number }>().catch(() => null);
+  if (!body || !Number.isInteger(body.expectedDraftRev) || body.expectedDraftRev! < 1) {
+    return c.json({ error: 'bad-request', message: 'expectedDraftRev is required' }, 400);
+  }
+  const result = await probeDownloads(c.env, false, body.expectedDraftRev);
+  if (result.error === 'draft-changed') return c.json(result, 409);
+  return c.json(result);
+});
 
 /** 版本列表(CON13-⑤ 下半;发布/回滚动作归 T21) */
 configRoutes.get('/versions', async (c) => {

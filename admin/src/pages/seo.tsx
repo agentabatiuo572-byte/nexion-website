@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AutoTextarea } from '../lib/auto-textarea';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { useDraft, type Tri } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -13,10 +14,11 @@ const PAGES: Array<[string, string]> = [
 
 export default function SeoPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [pid, setPid] = useState('home');
   const [edits, setEdits] = useState<Record<string, { title?: Partial<Tri>; description?: Partial<Tri> }>>({});
   const [email, setEmail] = useState<string | null>(null);
+  const dirty = Object.keys(edits).length > 0 || email !== null;
+  const { draft, saving, conflict, clearConflict, save, reload } = useDraft(dirty);
 
   if (!draft) return <section><h2>SEO 与页脚</h2><div className="skl" style={{ height: 80 }} /></section>;
 
@@ -24,7 +26,6 @@ export default function SeoPage() {
   const cur = (field: 'title' | 'description', l: 'en' | 'vi' | 'zh') => edits[pid]?.[field]?.[l] ?? page[field][l];
   const mail = email ?? draft.footer.contactEmail;
   const mailErr = mail && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(mail) ? '邮箱格式不合法' : '';
-  const dirty = Object.keys(edits).length > 0 || email !== null;
 
   return (
     <section>
@@ -80,15 +81,20 @@ export default function SeoPage() {
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={!dirty || saving || !!mailErr}
           onClick={async () => {
+            const submittedEdits = submissionSnapshot(edits);
+            const submittedEmail = email;
             const ok = await save((d) => {
-              for (const [id, m] of Object.entries(edits)) {
+              for (const [id, m] of Object.entries(submittedEdits)) {
                 const t = d.seo.pages[id]!;
                 if (m.title) Object.assign(t.title, m.title);
                 if (m.description) Object.assign(t.description, m.description);
               }
-              if (email !== null) d.footer.contactEmail = email;
+              if (submittedEmail !== null) d.footer.contactEmail = submittedEmail;
             });
-            if (ok) { setEdits({}); setEmail(null); }
+            if (ok) {
+              setEdits((current) => retainPostSubmit(current, submittedEdits, {}));
+              setEmail((current) => retainPostSubmit(current, submittedEmail, null));
+            }
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

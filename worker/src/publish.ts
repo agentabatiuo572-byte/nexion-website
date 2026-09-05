@@ -2,8 +2,10 @@ import { Hono } from 'hono';
 import { LOCALES, SiteConfigSchema, diffPaths, materializeI18n, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
-import { writeAudit } from './audit';
+import { prepareAuditAfterPreviousChange, writeAudit, type AuditEntry } from './audit';
 import { ensureInit } from './config';
+import { adaptLegacyConfig } from './config-upgrade';
+import { executorState, dispatchPending, RUNNER_ID } from './publish-executor';
 
 /* 发布流水线(PRD CON13)。核心承诺:**不存在绕门发布的路径**——
    上新只经本文件的状态机,而状态机必然经过「前置校验 → 物化 → 站上全部机器门 → 构建 → 原子切换」。
@@ -13,6 +15,10 @@ import { ensureInit } from './config';
 
 const MANIFEST = manifestJson as unknown as CopyManifest;
 const LOCK_TTL_MS = 15 * 60_000;
+/** 执行器失联判据:最长门链仍要留余量，同时必须短于租约。 */
+const RUNNER_SILENT_MS = 12 * 60_000;
+const UNKNOWN_DETAIL = '切换结果待核实，系统会继续核对已发布内容；核实前暂停新发布。';
+const UNKNOWN_REASON = '恢复阶段无法确认线上快照与本次发布一致';
 export const PUBLISH_STEPS = ['materialize', 'gates', 'build', 'swap'] as const;
 export type PublishStep = (typeof PUBLISH_STEPS)[number];
 
@@ -37,6 +43,20 @@ export const GATE_REASONS: Record<string, string> = {
 export const explainGate = (name: string): string => GATE_REASONS[name] ?? name;
 
 interface LockRow { id: number; version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }
+interface RecoveryClaim { observedAt: number }
+
+/** 超时恢复必须在最终事务里重新确认：没有任何锁，或本版本的任务租约仍然过期。
+ * publish_runner 只证明进程在线；空闲心跳没有版本/口令，不能替某个旧任务续命。 */
+const recoveryGuard = (observedAt: string) => `(
+  ${observedAt} IS NULL
+  OR NOT EXISTS(SELECT 1 FROM publish_lock)
+  OR EXISTS(
+    SELECT 1 FROM publish_lock l
+    WHERE l.id=1 AND l.version_id=?1 AND l.expires_at<=${observedAt}
+  )
+)`;
+
+const recoveryTime = (claim?: RecoveryClaim): number | null => claim?.observedAt ?? null;
 
 /** 线上快照里的上线印记,由 promote.mjs 写入;服务端标 live 前回读核实(见 STAMP_WHY) */
 const STAMP_PATH = '/.publish-stamp.json';
@@ -53,31 +73,80 @@ const STAMP_PATH = '/.publish-stamp.json';
 
 const randomHex = (n: number) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) => b.toString(16).padStart(2, '0')).join('');
 
-/** 取锁:并发发布只允许一个(E3);过期锁自动释放并把那一版标 failed。同时生成本次的一次性口令。 */
-async function acquireLock(env: Env, versionId: number, now: number): Promise<{ ok: true; nonce: string } | { ok: false; heldBy: number }> {
+type PublicationSource = { kind: 'draft'; draftRev: number } | { kind: 'snapshot'; payload: string };
+type CreatePublicationResult =
+  | { ok: true; versionId: number }
+  | { ok: false; error: 'blocked'; heldBy: number | null }
+  | { ok: false; error: 'draft-changed'; draftRev: number };
+
+/** 旧锁先恢复；确认的草稿快照、新版本、锁、派发记录和审计只在同一事务中出现。 */
+async function createPublication(env: Env, source: PublicationSource, reason: string | null, audit: AuditEntry): Promise<CreatePublicationResult> {
+  const uncertain = await env.DB.prepare("SELECT id FROM config_versions WHERE status='unknown' LIMIT 1").first<{id:number}>();
+  if (uncertain) return {ok:false,error:'blocked',heldBy:uncertain.id};
+  const observedAt = Date.now();
   const cur = await env.DB.prepare('SELECT id, version_id, expires_at, claim_nonce, claimed_at FROM publish_lock WHERE id = 1').first<LockRow>();
-  if (cur && cur.expires_at > now) return { ok: false, heldBy: cur.version_id };
+  if (cur && cur.expires_at > observedAt) return { ok: false, error:'blocked', heldBy: cur.version_id };
   if (cur) {
-    // 过期锁:上一次发布崩在半路 → 标 failed,别让它永远挂着 publishing
-    await env.DB.batch([
-      env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1 AND status IN ('validating','publishing')").bind(cur.version_id, '发布超时(执行器无响应),锁已自动释放'),
-      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(cur.version_id),
-    ]);
+    const recovery = await recoverInterrupted(env,cur.version_id,'发布超时，草稿已保留，可重新发布。',{observedAt});
+    if (!recovery.terminal || ('unknown' in recovery && recovery.unknown)) return {ok:false,error:'blocked',heldBy:cur.version_id};
+    await releaseExpiredTerminalLock(env,cur.version_id,observedAt);
   }
   const nonce = randomHex(16);
-  await env.DB.batch([
-    env.DB.prepare('INSERT INTO publish_lock (id, version_id, acquired_at, expires_at, claim_nonce) VALUES (1, ?1, ?2, ?3, ?4)').bind(versionId, now, now + LOCK_TTL_MS, nonce),
-    // 口令同时记在版本行上:锁会被释放,版本不会(见 0007 迁移的说明)
-    env.DB.prepare('UPDATE config_versions SET claim_nonce=?2 WHERE id=?1').bind(versionId, nonce),
+  const now = Date.now();
+  const insertVersion = source.kind === 'draft'
+    ? env.DB.prepare(`INSERT INTO config_versions (status, payload, reason, created_by, created_at, claim_nonce)
+        SELECT 'validating',d.payload,?1,'admin',?2,?3 FROM config_draft d
+        WHERE d.id=1 AND d.draft_rev=?4
+          AND NOT EXISTS(SELECT 1 FROM publish_lock)
+          AND NOT EXISTS(SELECT 1 FROM config_versions WHERE status='unknown' OR claim_nonce=?3)
+        RETURNING id`).bind(reason,now,nonce,source.draftRev)
+    : env.DB.prepare(`INSERT INTO config_versions (status, payload, reason, created_by, created_at, claim_nonce)
+        SELECT 'validating',?1,?2,'admin',?3,?4
+        WHERE NOT EXISTS(SELECT 1 FROM publish_lock)
+          AND NOT EXISTS(SELECT 1 FROM config_versions WHERE status='unknown' OR claim_nonce=?4)
+        RETURNING id`).bind(source.payload,reason,now,nonce);
+  const auditValues = [now, audit.actor ?? 'admin', audit.action, audit.before ?? null, audit.after ?? null, audit.reason ?? null, nonce];
+  const committed = await env.DB.batch([
+    insertVersion,
+    // changes() 仅承接本事务前一句的真实插入；新 id 从 nonce 定位，绝不复用连接上的历史 last_insert_rowid。
+    env.DB.prepare(`INSERT INTO publish_lock (id,version_id,acquired_at,expires_at,claim_nonce)
+      SELECT 1,id,?2,?3,claim_nonce FROM config_versions WHERE claim_nonce=?1 AND changes()=1`).bind(nonce,now,now+LOCK_TTL_MS),
+    ...(env.PUBLISH_EXECUTION_MODE==='github' ? [env.DB.prepare(`INSERT INTO publish_dispatch(version_id,next_attempt_at)
+      SELECT version_id,?2 FROM publish_lock WHERE claim_nonce=?1 AND changes()=1`).bind(nonce,now)] : []),
+    env.DB.prepare(`INSERT INTO audit (ts,actor,action,target,before_summary,after_summary,reason)
+      SELECT ?1,?2,?3,'v'||v.id,?4,?5,?6 FROM config_versions v JOIN publish_lock l ON l.version_id=v.id
+      WHERE v.claim_nonce=?7 AND l.claim_nonce=?7`).bind(...auditValues),
   ]);
-  return { ok: true, nonce };
+  const version = committed[0]?.results?.[0] as {id:number} | undefined;
+  if (!version) {
+    const held = await env.DB.prepare('SELECT version_id FROM publish_lock WHERE id=1').first<{version_id:number}>();
+    const blocked = held ? null : await env.DB.prepare("SELECT id FROM config_versions WHERE status='unknown' LIMIT 1").first<{id:number}>();
+    if (held || blocked) return {ok:false,error:'blocked',heldBy:held?.version_id ?? blocked?.id ?? null};
+    if (source.kind === 'draft') {
+      const current = await env.DB.prepare('SELECT draft_rev FROM config_draft WHERE id=1').first<{draft_rev:number}>();
+      return {ok:false,error:'draft-changed',draftRev:current?.draft_rev ?? source.draftRev};
+    }
+    return {ok:false,error:'blocked',heldBy:null};
+  }
+  return { ok: true, versionId: version.id };
 }
-/* 🔴 释放锁一律**按版本限定**(第十轮 P0 的同族排查):`publish_lock` 是单例表(id=1),
+/* 🔴 释放锁一律**按版本、观察到的过期时间和版本终态限定**:`publish_lock` 是单例表(id=1),
    无条件 `DELETE WHERE id=1` 的语义是「把当下那把锁删掉,不管它属于谁」。
    在并发下这就是「我以为我在清自己那把过期锁,实际清掉了别人刚建的新锁」。
    调用方手上都拿着 version_id,不传是白白丢掉一层保护。 */
-const releaseLock = (env: Env, versionId: number) =>
-  env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId).run();
+const releaseExpiredTerminalLock = (env: Env, versionId: number, observedAt: number) =>
+  env.DB.prepare(`DELETE FROM publish_lock WHERE id=1 AND version_id=?1 AND expires_at<=?2
+    AND NOT EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status IN ('validating','publishing','unknown'))`)
+    .bind(versionId,observedAt).run();
+
+/** 某个任务的最后活性只能来自版本绑定事件：领取、步骤、或带版本+口令的租约续期。
+ * expires_at 每次任务心跳都会写成 now+LOCK_TTL_MS，因此可无损还原该次续期时间。 */
+async function lastJobActivity(env: Env, versionId: number, fallback: number | null) {
+  const lease = await env.DB.prepare('SELECT claimed_at,expires_at FROM publish_lock WHERE version_id=?1')
+    .bind(versionId).first<{claimed_at:number | null;expires_at:number}>();
+  const renewedAt = lease ? lease.expires_at - LOCK_TTL_MS : 0;
+  return Math.max(fallback ?? 0, lease?.claimed_at ?? 0, renewedAt);
+}
 
 interface LiveStamp {
   versionId?: number;
@@ -181,23 +250,21 @@ async function ensureTerminalEffect(
   gate: string | undefined,
   detail: string | undefined,
   now: number,
+  recovering = false,
+  recoveryClaim?: RecoveryClaim,
+  auditActor?: AuditEntry['actor'],
 ): Promise<{ ok: true; applied: boolean; reason?: string } | { ok: false; error: string; why: string }> {
   if (status === 'failed') {
     const reason = gate ? `${explainGate(gate)}(门:${gate})` : (detail ?? '执行器报告失败');
-    const r = await env.DB.batch([
-      env.DB.prepare("UPDATE config_versions SET status='failed', fail_reason=COALESCE(fail_reason, ?2) WHERE id=?1 AND status IN ('validating','publishing')").bind(versionId, reason),
-      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
-    ]);
-    const applied = (r[0]?.meta?.changes ?? 0) > 0;
-    if (applied) await writeAudit(env.DB, { action: 'config.publish.failed', target: `v${versionId}`, after: reason });
+    const applied = await commitPublishFailure(env, versionId, reason, now, detail ?? reason, false, recoveryClaim, auditActor);
     return { ok: true, applied, reason };
   }
 
   if (step !== 'swap') return { ok: true, applied: false }; // 非最后一步的成功没有额外副作用
 
-  const target = await env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id=?1').bind(versionId).first<{ id: number; status: string; payload: string }>();
+  const target = await env.DB.prepare('SELECT id, status, payload, claim_nonce FROM config_versions WHERE id=?1').bind(versionId).first<{ id: number; status: string; payload: string; claim_nonce: string | null }>();
   if (!target) return { ok: false, error: 'version-not-found', why: `v${versionId} 不存在` };
-  if (target.status === 'live') return { ok: true, applied: false }; // 已经上线:重放收敛到同一终态
+  if (!['validating', 'publishing', 'unknown'].includes(target.status)) return { ok: true, applied: false };
 
   /* 标 live 之前先核实线上快照(见文件上方 STAMP_WHY)。fail-closed:核不过就不上线。
      🔴 但要把「读不到」与「对不上」分开(第六轮 P1-5):资产层那一瞬读不到不等于有人动了文件,
@@ -206,23 +273,26 @@ async function ensureTerminalEffect(
   /* 口令从**版本行**读,不从锁读(2026-09-01 第六轮,192 格表抓出)。
      终态回报会删锁,所以在「回报丢了→重发」这个真实形态里,锁已经不在了;
      从锁读会让重放必然核验失败。口令属于「这一次发布」,载体是版本行,不是那把会被释放的锁。 */
-  const nonceRow = await env.DB.prepare('SELECT claim_nonce FROM config_versions WHERE id=?1').bind(versionId).first<{ claim_nonce: string | null }>();
   const wantSha = await expectedConfigSha(target.payload).catch(() => null);
   const badAnchors = await verifyAnchors(env, stamp);
   const unreadable = (badAnchors ?? []).filter((x) => x.includes('取不到') || x.includes('读取失败'));
-  if (unreadable.length) {
+  if (unreadable.length && !recovering) {
     // 环境问题,不改版本状态、不释放锁 → 执行器重试即可继续
     return { ok: false, error: 'live-check-unavailable', why: `暂时读不到线上快照(${unreadable.join('、')}),稍后重试;本次发布未判失败` };
   }
   const good =
-    stamp && stamp.versionId === versionId && !!nonceRow?.claim_nonce && stamp.stamp === nonceRow.claim_nonce && !!wantSha && stamp.configSha === wantSha
-    && !(badAnchors && badAnchors.length);
+    stamp && stamp.versionId === versionId && !!target.claim_nonce && stamp.stamp === target.claim_nonce && !!wantSha && stamp.configSha === wantSha
+    && (recovering ? badAnchors !== null && badAnchors.length === 0 : !(badAnchors && badAnchors.length));
   if (!good) {
+    if (recovering) {
+      const applied = await markPublishUnknown(env, versionId, target.claim_nonce, recoveryClaim);
+      return { ok: true, applied };
+    }
     const why = !stamp
       ? '线上快照里没有本次发布的上线印记(切换步没有真正搬运过产物)'
       : stamp.versionId !== versionId
         ? `线上快照的印记指向 v${stamp.versionId},不是本次要上线的 v${versionId}`
-        : stamp.stamp !== nonceRow?.claim_nonce
+        : stamp.stamp !== target.claim_nonce
           ? '线上快照的印记口令与本次发布不符'
           : stamp.configSha !== wantSha
             ? `线上快照不是照这一版的配置构建的(内容摘要对不上:期望 ${String(wantSha).slice(0, 12)}…,实际 ${String(stamp.configSha ?? '缺失').slice(0, 12)}…)`
@@ -232,26 +302,72 @@ async function ensureTerminalEffect(
           (实测:归档版本被翻成 failed 并写下不实审计,而审计只增不改);
        ② 删锁**按 version_id 限定** —— `publish_lock` 是单例表(id=1),无条件删就是
           「谁来都能把当前那把锁删掉」,哪怕那把锁属于另一次进行中的发布。 */
-    await env.DB.batch([
-      env.DB
-        .prepare("UPDATE config_versions SET status='failed', fail_reason=?2 WHERE id=?1 AND status IN ('validating','publishing')")
-        .bind(versionId, `上线核验未通过:${why}`),
-      env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?3 WHERE version_id=?1 AND step=?2").bind(versionId, 'swap', why),
-      env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
-    ]);
-    await writeAudit(env.DB, { action: 'config.publish.failed', target: `v${versionId}`, after: `上线核验未通过:${why}` });
+    const applied = await commitPublishFailure(env, versionId, `上线核验未通过:${why}`, now, why, true);
+    if (!applied) return { ok: true, applied: false }; // 资产核验期间已收口，不改历史步骤、不造失败审计。
     return { ok: false, error: 'live-verification-failed', why };
   }
 
-  const live = await getLive(env);
-  const stmts = [
-    env.DB.prepare("UPDATE config_versions SET status='live', published_at=?2 WHERE id=?1").bind(versionId, now),
-    env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(versionId),
-  ];
-  if (live) stmts.unshift(env.DB.prepare("UPDATE config_versions SET status='archived' WHERE id=?1").bind(live.id));
-  await env.DB.batch(stmts);
-  await writeAudit(env.DB, { action: 'config.publish.live', target: `v${versionId}`, before: live ? `v${live.id}` : 'none' });
-  return { ok: true, applied: true };
+  // D1 batch 是事务。前三步使用同一资格条件，最后才改变目标版本状态；
+  // 因而并发请求若已收口目标版本，步骤、旧 live 和锁都会一起保持原状。
+  const observedAt = recoveryTime(recoveryClaim);
+  const eligible = `EXISTS(SELECT 1 FROM config_versions target WHERE target.id=?1 AND target.claim_nonce=?2
+    AND target.status IN ('validating','publishing','unknown')
+    AND NOT EXISTS(SELECT 1 FROM config_versions newer WHERE newer.status='live' AND newer.id>target.id))
+    AND ${recoveryGuard('?4')}`;
+  const args = [versionId,target.claim_nonce,now,observedAt];
+  const previousLive = await getLive(env);
+  const committed = await env.DB.batch([
+    env.DB.prepare(`UPDATE publish_steps SET status='ok',ended_at=?3 WHERE version_id=?1 AND step='swap' AND ${eligible}`).bind(...args),
+    env.DB.prepare(`UPDATE config_versions SET status='archived' WHERE status='live' AND id<?1 AND ${eligible} RETURNING id`).bind(...args),
+    env.DB.prepare(`UPDATE config_versions SET status='live',published_at=?3,fail_reason=NULL WHERE id=?1 AND ${eligible}`).bind(...args),
+    prepareAuditAfterPreviousChange(env.DB, {
+      actor: auditActor,
+      action: 'config.publish.live',
+      target: `v${versionId}`,
+      before: previousLive ? `v${previousLive.id}` : 'none',
+    }),
+    env.DB.prepare('DELETE FROM publish_lock WHERE version_id=?1 AND changes()>0').bind(versionId),
+  ]);
+  const applied = (committed[2]?.meta.changes ?? 0)>0;
+  if (!applied && recovering) {
+    await markPublishUnknown(env, versionId, target.claim_nonce, recoveryClaim);
+  }
+  return { ok: true, applied };
+}
+
+async function commitPublishFailure(env: Env, versionId: number, reason: string, now: number, stepDetail = reason, failedSwap = false, recoveryClaim?: RecoveryClaim, auditActor?: AuditEntry['actor']) {
+  const observedAt = recoveryTime(recoveryClaim);
+  const stepEligible = `EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status IN ('validating','publishing'))
+    AND ${recoveryGuard('?5')}`;
+  const versionEligible = recoveryGuard('?3');
+  const committed = await env.DB.batch([
+    // 恢复只结束正在执行的步骤；仅上线核验明确失败可纠正旧式分步提交留下的 swap ok。
+    env.DB.prepare(`UPDATE publish_steps SET status='failed',detail=?2,ended_at=?3 WHERE version_id=?1 AND (status='running' OR (?4=1 AND step='swap')) AND ${stepEligible}`).bind(versionId,stepDetail,now,failedSwap ? 1 : 0,observedAt),
+    env.DB.prepare(`UPDATE config_versions SET status='failed',fail_reason=COALESCE(fail_reason,?2) WHERE id=?1
+      AND status IN ('validating','publishing') AND ${versionEligible}`).bind(versionId,reason,observedAt),
+    prepareAuditAfterPreviousChange(env.DB,{actor:auditActor,action:'config.publish.failed',target:`v${versionId}`,after:reason}),
+    env.DB.prepare('DELETE FROM publish_lock WHERE version_id=?1 AND changes()>0').bind(versionId),
+  ]);
+  const applied = (committed[1]?.meta.changes ?? 0)>0;
+  return applied;
+}
+
+async function markPublishUnknown(env: Env, versionId: number, nonce: string | null, recoveryClaim?: RecoveryClaim): Promise<boolean> {
+  const observedAt = recoveryTime(recoveryClaim);
+  const committed = await env.DB.batch([
+    env.DB.prepare(`UPDATE config_versions SET status='unknown',fail_reason=?3 WHERE id=?1 AND claim_nonce=?2
+      AND status IN ('validating','publishing') AND ${recoveryGuard('?4')}`)
+      .bind(versionId,nonce,UNKNOWN_DETAIL,observedAt),
+    prepareAuditAfterPreviousChange(env.DB, {
+      actor: 'system',
+      action: 'config.publish.unknown',
+      target: `v${versionId}`,
+      before: 'validating/publishing',
+      after: UNKNOWN_DETAIL,
+      reason: UNKNOWN_REASON,
+    }),
+  ]);
+  return (committed[0]?.meta.changes ?? 0)>0;
 }
 
 async function getDraft(env: Env) {
@@ -261,17 +377,32 @@ async function getLive(env: Env) {
   return env.DB.prepare("SELECT id, payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ id: number; payload: string }>();
 }
 
-export const publishRoutes = new Hono<{ Bindings: Env }>();
+type DraftUpgradeStatus = Awaited<ReturnType<typeof ensureInit>>;
+export const publishRoutes = new Hono<{ Bindings: Env; Variables: { draftUpgrade: DraftUpgradeStatus } }>();
 
 // 全新安装保障:任何发布相关入口先确保种子已就位(见 config.ts ensureInit 注释)
 publishRoutes.use('*', async (c, next) => {
-  await ensureInit(c.env.DB);
+  c.set('draftUpgrade', await ensureInit(c.env.DB));
   await next();
 });
+
+function upgradeProblem(upgrade: DraftUpgradeStatus) {
+  if (upgrade.status === 'blocked') {
+    const conflicts = upgrade.conflicts ?? [{path:'$',reason:'旧配置有无法自动合并的修改。'}];
+    return {status:409 as const,body:{error:'config-upgrade-conflict',message:'旧配置有需要保留并处理的修改，请先处理列出的冲突字段再发布。',conflicts,paths:conflicts.map(item=>item.path)}};
+  }
+  if (upgrade.status === 'retry') {
+    const message = '草稿正在同步新版配置，请稍后重试发布。';
+    return {status:503 as const,body:{error:'config-upgrade-retry',message,conflicts:[{path:'$',reason:message}],paths:['$']}};
+  }
+  return null;
+}
 
 /** 发布前置校验(CON13-E1 的唯一判据源;UI 的「去修复」清单也读它) */
 publishRoutes.get('/preflight', async (c) => {
   const draft = await getDraft(c.env);
+  const upgrade = upgradeProblem(c.get('draftUpgrade'));
+  if (upgrade) return c.json({ready:false,errors:upgrade.body.conflicts.map(item=>({path:item.path,rule:'structure',message:item.reason})),warnings:[],changedPaths:[],changed:0,sensitiveChanged:[],reasonRequired:false,draftRev:draft.draft_rev,message:upgrade.body.message});
   const live = await getLive(c.env);
   const cfg = SiteConfigSchema.parse(JSON.parse(draft.payload));
   const { errors, warnings } = validateConfig(cfg, MANIFEST);
@@ -288,14 +419,17 @@ publishRoutes.get('/preflight', async (c) => {
   });
 });
 
-/** 发起发布(CON13-A1):建版本行 → 取锁 → 交执行器;不做任何「跳过门」的分支 */
+/** 发起发布(CON13-A1):原子建立版本和执行凭据 → 交执行器;不做任何「跳过门」的分支 */
 publishRoutes.post('/', async (c) => {
-  const body = await c.req.json<{ reason?: string; fromVersion?: number }>().catch(() => null);
+  const body = await c.req.json<{ reason?: string; fromVersion?: number; draftRev?: number }>().catch(() => null);
+  const upgrade = upgradeProblem(c.get('draftUpgrade'));
+  if (upgrade) return c.json(upgrade.body,upgrade.status);
   const now = Date.now();
   const live = await getLive(c.env);
 
   // 回滚(A2):以指定旧版内容为发布内容,同样走完整门链
   let payload: string;
+  let source: PublicationSource;
   let rollbackFrom: number | null = null;
   if (body?.fromVersion) {
     /* 只能回滚到**真上线过**的版本(live / archived)。此前不限状态,于是一个门红过、从未上线的版本
@@ -305,10 +439,19 @@ publishRoutes.post('/', async (c) => {
       .bind(body.fromVersion)
       .first<{ id: number; payload: string }>();
     if (!src) return c.json({ error: 'version-not-rollbackable(只能回滚到曾经上线过的版本)' }, 404);
-    payload = src.payload;
+    let historical: unknown;
+    try { historical = JSON.parse(src.payload); } catch { historical = null; }
+    const adapted = adaptLegacyConfig(historical);
+    if (!adapted.ok) return c.json({error:'config-upgrade-conflict',message:'所选历史版本有无法自动保留的配置修改，请先处理冲突字段。',conflicts:adapted.conflicts,paths:adapted.conflicts.map(item=>item.path)},409);
+    payload = JSON.stringify(adapted.config); // 只升级新发布副本，历史版本正文永不改写。
+    source = { kind: 'snapshot', payload };
     rollbackFrom = src.id;
   } else {
-    payload = (await getDraft(c.env)).payload;
+    if (!Number.isInteger(body?.draftRev) || body!.draftRev! < 1) return c.json({error:'draft-revision-required'},400);
+    const draft = await getDraft(c.env);
+    if (draft.draft_rev !== body!.draftRev) return c.json({error:'draft-changed',draftRev:draft.draft_rev},409);
+    payload = draft.payload;
+    source = { kind: 'draft', draftRev: body!.draftRev! };
   }
 
   const cfg = SiteConfigSchema.safeParse(JSON.parse(payload));
@@ -323,32 +466,98 @@ publishRoutes.post('/', async (c) => {
     return c.json({ error: 'reason-required', sensitiveChanged: sensitive }, 400); // 高敏/回滚须理由
   }
 
-  const ins = await c.env.DB
-    .prepare("INSERT INTO config_versions (status, payload, reason, created_by, created_at) VALUES ('validating', ?1, ?2, 'admin', ?3) RETURNING id")
-    .bind(payload, body?.reason?.trim() ?? null, now)
-    .first<{ id: number }>();
-  const versionId = ins!.id;
+  const executor = await executorState(c.env, now);
+  if (!executor.ready) return c.json({error:'executor-unavailable', message:executor.reason, executor}, 503);
 
-  const lock = await acquireLock(c.env, versionId, now);
-  if (!lock.ok) {
-    /* 🔴 拿不到锁 = 这次发布**根本没开始过**,把刚建的行删掉,别留成 failed(2026-09-01 复验 P1-1)。
-       留成 failed 的后果不是多一行历史:壳顶红条判「有比线上更新的失败版本」,
-       而这行垃圾的 id 永远比线上大,于是运营多点一次「发布」,就会得到一条
-       **成功发布也清不掉**的假红条,写着一个从没发布过的版本号。
-       这一族的教训:**没发生过的事不要留痕迹**——留了就会被别处当成事实读。 */
-    await c.env.DB.prepare('DELETE FROM config_versions WHERE id=?1').bind(versionId).run();
-    // 不留版本行,但要留审计:否则「谁在什么时候试图发布过、被并发挡了」在系统里查不到(第四轮 P2-4)
-    await writeAudit(c.env.DB, { action: 'config.publish.rejected', target: `v${lock.heldBy} 正在发布`, after: '并发发布被拒,未建版本', reason: body?.reason?.trim() });
-    return c.json({ error: 'publish-in-progress', heldBy: lock.heldBy }, 409);
-  }
-  await writeAudit(c.env.DB, {
+  const audit: AuditEntry = {
     action: rollbackFrom ? 'config.rollback' : 'config.publish',
-    target: `v${versionId}`,
     before: live ? `live=v${live.id}` : 'live=none',
     after: rollbackFrom ? `内容取自 v${rollbackFrom}` : `${changed.length} 处改动`,
     reason: body?.reason?.trim(),
-  });
+  };
+  const created = await createPublication(c.env,source,body?.reason?.trim() ?? null,audit);
+  if (!created.ok) {
+    if (created.error === 'draft-changed') return c.json({error:'draft-changed',draftRev:created.draftRev},409);
+    // 未取得执行资格的请求从不落版本行，避免并发双击留下假失败历史。
+    await writeAudit(c.env.DB, { action: 'config.publish.rejected', target: `v${created.heldBy} 正在发布`, after: '并发发布被拒,未建版本', reason: body?.reason?.trim() });
+    return c.json({ error: 'publish-in-progress', heldBy: created.heldBy }, 409);
+  }
+  const versionId = created.versionId;
+  // Persist before dispatch: closing the browser cannot lose the job.
+  if (executor.mode === 'github') {
+    await dispatchPending(c.env);
+  }
   return c.json({ ok: true, versionId, rollbackFrom, steps: PUBLISH_STEPS });
+});
+
+publishRoutes.get('/executor', async (c) => c.json(await executorState(c.env)));
+
+publishRoutes.get('/runner-state', async (c) => {
+  const runnerId = c.req.query('runnerId') ?? '';
+  const lock = RUNNER_ID.test(runnerId)
+    ? await c.env.DB.prepare('SELECT version_id,expires_at FROM publish_lock WHERE claimed_by=?1 AND expires_at>?2').bind(runnerId,Date.now()).first<{version_id:number;expires_at:number}>()
+    : null;
+  return c.json({activeVersion:lock?.version_id ?? null, expiresAt:lock?.expires_at ?? null, environment:c.env.ENVIRONMENT, executor:await executorState(c.env)});
+});
+
+publishRoutes.post('/heartbeat', async (c) => {
+  const b = await c.req.json<{runnerId?:string;versionId?:number;stamp?:string}>().catch(() => null);
+  if (!b?.runnerId || !RUNNER_ID.test(b.runnerId)) return c.json({error:'bad-runner-id'},400);
+  const now = Date.now();
+  if (b.versionId !== undefined) {
+    const committed = await c.env.DB.batch([
+      c.env.DB.prepare(
+        `UPDATE publish_lock SET expires_at=?4 WHERE version_id=?1 AND claimed_by=?2 AND claim_nonce=?3 AND expires_at>?5
+         AND EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status IN ('validating','publishing'))`,
+      ).bind(b.versionId,b.runnerId,b.stamp ?? '',now + LOCK_TTL_MS,now),
+      c.env.DB.prepare(`INSERT INTO publish_runner(runner_id,last_seen_at)
+        SELECT ?1,?2 WHERE changes()>0
+        ON CONFLICT(runner_id) DO UPDATE SET last_seen_at=excluded.last_seen_at`).bind(b.runnerId,now),
+      c.env.DB.prepare('DELETE FROM publish_runner WHERE last_seen_at<?1').bind(now-86400000),
+    ]);
+    if (!committed[0]?.meta.changes) return c.json({error:'not-current-job'},409);
+  } else {
+    await c.env.DB.batch([
+      c.env.DB.prepare('INSERT INTO publish_runner(runner_id,last_seen_at) VALUES(?1,?2) ON CONFLICT(runner_id) DO UPDATE SET last_seen_at=excluded.last_seen_at').bind(b.runnerId,now),
+      c.env.DB.prepare('DELETE FROM publish_runner WHERE last_seen_at<?1').bind(now-86400000),
+    ]);
+  }
+  return c.json({ok:true,expiresAt:b.versionId ? now+LOCK_TTL_MS : null});
+});
+
+/** Crash recovery cannot claim the old process never deployed. Resolve a swap from served
+ * evidence; otherwise retain an explicit unknown state and forbid another publication. */
+async function recoverInterrupted(env: Env, versionId: number, detail: string, recoveryClaim?: RecoveryClaim) {
+  const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first<{status:string}>();
+  if (!v || ['live','archived','failed','cancelled'].includes(v.status)) return {ok:true,terminal:true,live:v?.status==='live'};
+  const swap = await env.DB.prepare("SELECT status FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(versionId).first<{status:string}>();
+  if (swap) {
+    // 同一份资产只核验一次，步骤与版本由同一个条件事务提交。
+    await ensureTerminalEffect(env,versionId,'swap','ok',undefined,undefined,Date.now(),true,recoveryClaim,'system');
+  } else {
+    await ensureTerminalEffect(env,versionId,'materialize','failed',undefined,detail,Date.now(),false,recoveryClaim,'system');
+  }
+  const current = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first<{status:string}>();
+  return {ok:true,terminal:!current || ['live','archived','failed','cancelled'].includes(current.status),live:current?.status==='live',...(current?.status==='unknown' ? {unknown:true} : {})};
+}
+
+export async function maintainPublishing(env: Env) {
+  const observedAt = Date.now();
+  const expired = await env.DB.prepare(
+    "SELECT v.id FROM config_versions v JOIN publish_lock l ON l.version_id=v.id WHERE l.expires_at<=?1 AND v.status IN ('validating','publishing')",
+  ).bind(observedAt).all<{id:number}>();
+  for (const v of expired.results) await recoverInterrupted(env,v.id,'发布服务中断或超时，草稿已保留，可重新发布。',{observedAt});
+  const uncertain = await env.DB.prepare("SELECT id FROM config_versions WHERE status='unknown'").all<{id:number}>();
+  for (const v of uncertain.results) await recoverInterrupted(env,v.id,'切换结果待核实');
+  await dispatchPending(env);
+}
+
+publishRoutes.post('/runner-fail', async(c) => {
+  const b = await c.req.json<{runnerId?:string;versionId?:number;stamp?:string;detail?:string}>().catch(()=>null);
+  if (!b?.versionId || !b.runnerId) return c.json({error:'bad-request'},400);
+  const owner = await c.env.DB.prepare('SELECT runner_id,claim_nonce FROM config_versions WHERE id=?1').bind(b.versionId).first<{runner_id:string;claim_nonce:string}>();
+  if (!owner || owner.runner_id!==b.runnerId || owner.claim_nonce!==b.stamp) return c.json({error:'not-current-job'},409);
+  return c.json(await recoverInterrupted(c.env,b.versionId,(b.detail ?? '发布服务已重启，本次构建中断，草稿保留，可重新发布。').slice(0,500)));
 });
 
 /** 执行器领取任务(§5.4 契约;dev 本机 runner / Phase C CI runner 共用)。
@@ -357,22 +566,58 @@ publishRoutes.post('/', async (c) => {
 /* 用 POST:领单会**写库**(原子占位),不该是 GET。
    带副作用的 GET 在 SameSite=Lax 下是会被跨站顶层导航触发的那一类(复验 P2)。 */
 publishRoutes.post('/next', async (c) => {
+  const b = await c.req.json<{runnerId?:string;versionId?:number}>().catch(()=>null);
+  if (!b?.runnerId || !RUNNER_ID.test(b.runnerId)) return c.json({error:'bad-runner-id'},400);
+  if (c.env.ENVIRONMENT==='production' && !Number.isSafeInteger(b.versionId)) return c.json({error:'version-required'},400);
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
+  if (b.versionId !== undefined && b.versionId!==lock.version_id) return c.json({job:null});
   const v = await c.env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string }>();
   if (!v || !['validating', 'publishing'].includes(v.status)) return c.json({ job: null });
 
-  /* 🔴 原子占位(2026-09-01 复验 P1-B):此前判「已有步骤记录就不再派发」只挡得住**先后**——
-     两个执行器一起启动就是同一个 3 秒节拍,实测两次并发 /next 领到同一单,各干各的。
-     改成条件更新:claimed_at 为空才能写进去,同时到达也只有一个能拿到(单语句,不存在读后写的窗口)。 */
-  const claim = await c.env.DB
-    .prepare('UPDATE publish_lock SET claimed_at=?1, claimed_by=?2 WHERE id=1 AND version_id=?3 AND claimed_at IS NULL RETURNING claim_nonce')
-    .bind(Date.now(), c.req.header('user-agent')?.slice(0, 64) ?? 'runner', v.id)
-    .first<{ claim_nonce: string | null }>();
-  if (!claim) return c.json({ job: null, note: 'already-claimed' });
+  /* claim、版本 owner、durable dispatch 必须是同一事务。旧实现先占锁再分两次写：
+     任一后写失败都会留下「锁已领、owner/dispatch 未落」的半套状态，重试还只补 owner。
+     这批语句同时支持首次领取与同 runner 的响应丢失重试；历史半套状态也会被补齐。 */
+  const claimAt = Date.now();
+  const dispatchClaim = c.env.PUBLISH_EXECUTION_MODE === 'github'
+    ? c.env.DB.prepare(`INSERT INTO publish_dispatch(version_id,state,next_attempt_at)
+        SELECT ?1,'claimed',?3
+        WHERE EXISTS(SELECT 1 FROM config_versions v WHERE v.id=?1 AND v.runner_id=?2 AND v.status IN ('validating','publishing'))
+          AND EXISTS(SELECT 1 FROM publish_lock l WHERE l.id=1 AND l.version_id=?1 AND l.claimed_by=?2
+            AND l.claimed_at IS NOT NULL AND l.expires_at>?3)
+          AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?1)
+        ON CONFLICT(version_id) DO UPDATE SET state='claimed'`).bind(v.id,b.runnerId,claimAt)
+    : c.env.DB.prepare(`UPDATE publish_dispatch SET state='claimed' WHERE version_id=?1
+        AND EXISTS(SELECT 1 FROM config_versions v WHERE v.id=?1 AND v.runner_id=?2 AND v.status IN ('validating','publishing'))
+        AND EXISTS(SELECT 1 FROM publish_lock l WHERE l.id=1 AND l.version_id=?1 AND l.claimed_by=?2
+          AND l.claimed_at IS NOT NULL AND l.expires_at>?3)
+        AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?1)`).bind(v.id,b.runnerId,claimAt);
+  const committed = await c.env.DB.batch([
+    c.env.DB.prepare(`UPDATE publish_lock SET claimed_at=COALESCE(claimed_at,?1),claimed_by=?2,expires_at=?5
+      WHERE id=1 AND version_id=?3 AND expires_at>?4
+        AND ((claimed_at IS NULL AND claimed_by IS NULL) OR (claimed_at IS NOT NULL AND claimed_by=?2))
+        AND EXISTS(SELECT 1 FROM config_versions cv WHERE cv.id=?3 AND cv.status IN ('validating','publishing')
+          AND (cv.runner_id IS NULL OR cv.runner_id=?2))
+        AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?3)
+      RETURNING claim_nonce`).bind(claimAt,b.runnerId,v.id,claimAt,claimAt+LOCK_TTL_MS),
+    c.env.DB.prepare(`UPDATE config_versions SET runner_id=?2 WHERE id=?1 AND status IN ('validating','publishing')
+      AND (runner_id IS NULL OR runner_id=?2)
+      AND EXISTS(SELECT 1 FROM publish_lock l WHERE l.id=1 AND l.version_id=?1 AND l.claimed_by=?2
+        AND l.claimed_at IS NOT NULL AND l.expires_at>?3)
+      AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?1)`).bind(v.id,b.runnerId,claimAt),
+    dispatchClaim,
+    c.env.DB.prepare(`SELECT l.claim_nonce FROM publish_lock l JOIN config_versions v ON v.id=l.version_id
+      WHERE l.id=1 AND l.version_id=?1 AND l.claimed_by=?2 AND l.claimed_at IS NOT NULL AND l.expires_at>?3
+        AND v.runner_id=?2 AND v.status IN ('validating','publishing')
+        AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?1)
+        AND (?4=0 OR EXISTS(SELECT 1 FROM publish_dispatch d WHERE d.version_id=?1 AND d.state='claimed'))`)
+      .bind(v.id,b.runnerId,claimAt,c.env.PUBLISH_EXECUTION_MODE === 'github' ? 1 : 0),
+  ]);
+  const receipt = committed[3]?.results?.[0] as {claim_nonce:string | null} | undefined;
+  if (!receipt?.claim_nonce) return c.json({ job: null, note: 'already-claimed' });
 
   return c.json({
-    job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS, stamp: claim.claim_nonce },
+    job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS, stamp: receipt.claim_nonce, runnerId:b.runnerId },
   });
 });
 
@@ -384,7 +629,7 @@ publishRoutes.post('/next', async (c) => {
       ② **前序步骤必须都已 ok**(顺序不可跳);
       ③ 报 ok/failed 前该步必须已 running(先声明再收口,防凭空落一步)。 */
 publishRoutes.post('/step', async (c) => {
-  const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string; stamp?: string }>().catch(() => null);
+  const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string; stamp?: string; runnerId?:string }>().catch(() => null);
   if (!b?.versionId || !b.step || !PUBLISH_STEPS.includes(b.step) || !['running', 'ok', 'failed'].includes(b.status ?? '')) {
     return c.json({ error: 'bad-request' }, 400);
   }
@@ -406,11 +651,11 @@ publishRoutes.post('/step', async (c) => {
      早就是这么读的),而锁只是「谁在跑」的临时凭据。身份先验、且与锁无关,于是
      **重放(锁已删但口令仍在)与冒充(口令对不上)第一次被分开**,幂等分支不必再自带授权。 */
   const versionNonce = await c.env.DB
-    .prepare('SELECT claim_nonce, status FROM config_versions WHERE id=?1')
+    .prepare('SELECT claim_nonce, status, runner_id FROM config_versions WHERE id=?1')
     .bind(b.versionId)
-    .first<{ claim_nonce: string | null; status: string }>();
+    .first<{ claim_nonce: string | null; status: string; runner_id:string | null }>();
   if (!versionNonce) return c.json({ error: 'no-such-version' }, 404);
-  if (!versionNonce.claim_nonce || b.stamp !== versionNonce.claim_nonce) {
+  if (!versionNonce.claim_nonce || b.stamp !== versionNonce.claim_nonce || b.runnerId!==versionNonce.runner_id) {
     return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
   }
 
@@ -476,17 +721,34 @@ publishRoutes.post('/step', async (c) => {
   }
 
   if (b.status === 'running') {
-    await c.env.DB.batch([
-      c.env.DB.prepare('INSERT INTO publish_steps (version_id, step, status, started_at) VALUES (?1,?2,?3,?4)').bind(b.versionId, b.step, 'running', now),
-      c.env.DB.prepare("UPDATE config_versions SET status='publishing' WHERE id=?1").bind(b.versionId),
-      c.env.DB.prepare('UPDATE publish_lock SET expires_at=?2 WHERE id=1').bind(b.versionId, now + LOCK_TTL_MS), // 心跳续锁
+    const committingAt = Date.now();
+    const eligible = `EXISTS(SELECT 1 FROM config_versions v JOIN publish_lock l ON l.version_id=v.id
+      WHERE v.id=?1 AND v.status IN ('validating','publishing') AND v.claim_nonce=?3 AND v.runner_id=?4
+        AND l.id=1 AND l.claim_nonce=?3 AND l.claimed_by=?4 AND l.claimed_at IS NOT NULL AND l.expires_at>?5)
+      AND NOT EXISTS(SELECT 1 FROM publish_steps WHERE version_id=?1 AND step=?2)
+      ${idx ? `AND (SELECT COUNT(DISTINCT step) FROM publish_steps WHERE version_id=?1 AND status='ok'
+        AND step IN (${PUBLISH_STEPS.slice(0,idx).map(step=>`'${step}'`).join(',')}))=${idx}` : ''}`;
+    const args = [b.versionId,b.step,b.stamp!,b.runnerId!,committingAt];
+    const committed = await c.env.DB.batch([
+      c.env.DB.prepare(`UPDATE config_versions SET status='publishing' WHERE id=?1 AND ${eligible}`).bind(...args),
+      c.env.DB.prepare(`UPDATE publish_lock SET expires_at=?6 WHERE id=1 AND version_id=?1 AND ${eligible}`).bind(...args,committingAt+LOCK_TTL_MS),
+      // 最后写步骤，前三句始终共用「本步尚未存在」的资格；迟到回报不能复活终态或续错锁。
+      c.env.DB.prepare(`INSERT INTO publish_steps (version_id,step,status,started_at)
+        SELECT ?1,?2,'running',?5 WHERE ${eligible}`).bind(...args),
     ]);
+    if (!committed[2]?.meta.changes) return c.json({error:'not-current-job'},409);
     return c.json({ ok: true });
   }
 
-  // ③ 该步必须已 running(受影响行数=0 说明没先声明就想收口)
+  // 终态的步骤与版本必须共用条件事务，不能先把步骤写好再异步核验资产。
+  if (b.status === 'failed' || b.step === 'swap') {
+    const eff = await ensureTerminalEffect(c.env,b.versionId,b.step,b.status as 'ok'|'failed',b.gate,b.detail,now);
+    if (!eff.ok) return c.json({error:eff.error,why:eff.why},409);
+    return c.json({ok:true,...(b.status==='failed' ? {failed:true,reason:eff.reason} : {})});
+  }
+  // ③ 非终态成功也不能改写已经被并发请求收口的版本。
   const upd = await c.env.DB
-    .prepare("UPDATE publish_steps SET status=?3, detail=?4, ended_at=?5 WHERE version_id=?1 AND step=?2 AND status='running'")
+    .prepare("UPDATE publish_steps SET status=?3, detail=?4, ended_at=?5 WHERE version_id=?1 AND step=?2 AND status='running' AND EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status IN ('validating','publishing'))")
     .bind(b.versionId, b.step, b.status, b.detail ?? null, now)
     .run();
   if ((upd.meta.changes ?? 0) === 0) return c.json({ error: 'step-not-running(先报 running 再报结果)' }, 409);
@@ -501,6 +763,7 @@ publishRoutes.post('/step', async (c) => {
     否则执行器中途死掉后,界面会一直显示「正在发布」直到下一次有人发起发布才被顺手清理,
     那是「看起来在跑、其实早死了」的假状态(实测:执行器被开发服务器重启掐断后即如此)。 */
 publishRoutes.get('/status', async (c) => {
+  await maintainPublishing(c.env);
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   const now = Date.now();
   const active = lock && lock.expires_at > now ? lock.version_id : null;
@@ -510,27 +773,18 @@ publishRoutes.get('/status', async (c) => {
      同一件事两条路径两种处理,就是漏的来源。 */
   const stale = (
     await c.env.DB
-      .prepare("SELECT id FROM config_versions WHERE status IN ('validating','publishing') AND id <> COALESCE(?1, -1)")
-      .bind(active)
+      .prepare(`SELECT id FROM config_versions v WHERE status IN ('validating','publishing')
+        AND NOT EXISTS(SELECT 1 FROM publish_lock l WHERE l.version_id=v.id AND l.expires_at>?1)`)
+      .bind(now)
       .all<{ id: number }>()
   ).results;
   if (stale.length) {
-    const reason = '发布中断(执行器无响应或超时),线上保持旧版';
-    await c.env.DB.batch([
-      c.env.DB.prepare(
-        `UPDATE config_versions SET status='failed', fail_reason=COALESCE(fail_reason, ?1)
-           WHERE status IN ('validating','publishing') AND id <> COALESCE(?2, -1)`,
-      ).bind(reason, active),
-      c.env.DB.prepare(
-        `UPDATE publish_steps SET status='failed', detail=COALESCE(detail, ?1), ended_at=?2
-           WHERE status='running' AND version_id IN (SELECT id FROM config_versions WHERE status='failed' AND fail_reason=?1)`,
-      ).bind(reason, now),
-    ]);
     for (const v of stale) {
-      await writeAudit(c.env.DB, { action: 'config.publish.failed', target: `v${v.id}`, after: reason });
+      // 恢复函数区分未切换的失败与待核实的切换，并且只给真正提交的失败写审计。
+      await recoverInterrupted(c.env,v.id,'发布服务中断或超时，草稿已保留，可重新发布。',{observedAt:now});
     }
   }
-  if (!active && lock) await releaseLock(c.env, lock.version_id); // 顺手清掉过期锁(只清这一把)
+  if (!active && lock) await releaseExpiredTerminalLock(c.env, lock.version_id, now);
   /* 步骤日志:进行中看当前版本;没有进行中时回**最近一次**的步骤日志——
      否则失败态下「查看原始日志」永远没有数据可渲染(验收 P1:日志存了却取不回)。 */
   const stepsOf = active ?? (await c.env.DB.prepare('SELECT version_id FROM publish_steps ORDER BY id DESC LIMIT 1').first<{ version_id: number }>())?.version_id ?? null;
@@ -591,19 +845,17 @@ publishRoutes.get('/status', async (c) => {
     ? await c.env.DB.prepare('SELECT MAX(COALESCE(ended_at, started_at)) AS t, COUNT(*) AS n FROM publish_steps WHERE version_id=?1').bind(active).first<{ t: number | null; n: number }>()
     : null;
   const started = (lastStep?.n ?? 0) > 0;
-  const silentMs = lastStep?.t ? now - lastStep.t : 0;
-  const cancelable = active ? (started ? (silentMs >= RUNNER_SILENT_MS ? 'force' : 'no') : 'yes') : 'none';
+  const lastSeen = active ? await lastJobActivity(c.env,active,lastStep?.t ?? null) : 0;
+  const silentMs = lastSeen ? now-lastSeen : 0;
+  const swapping = steps.some((s) => s.step==='swap');
+  const cancelable = active ? (swapping ? 'no' : started ? (silentMs >= RUNNER_SILENT_MS ? 'force' : 'no') : 'yes') : 'none';
 
   return c.json({
     activeVersion: active, stepsOfVersion: stepsOf, steps, versions, versionsTruncated: truncated,
     stepNames: PUBLISH_STEPS, drift, cancelable, silentMs,
+    executor:await executorState(c.env),
   });
 });
-
-/** 执行器失联判据:最后一次步骤动静距今超过这个时长,就当它已经死了。
-    实测门链单步最长 343-361 秒,原定 8 分钟只剩两分钟余量——过线后会在执行器健康时劝人掐掉正在跑的发布(复验 P2)。
-    改 12 分钟:仍小于 15 分钟的锁 TTL,不会出现「劝不动又等不到」的空档。 */
-const RUNNER_SILENT_MS = 12 * 60_000;
 
 /* 取消发布(CON13-E4:执行器不在线时不吊死)。两档:
    ① 排队态(一步都没开始)—— 直接取消,任何时候都行;
@@ -618,12 +870,15 @@ publishRoutes.post('/cancel', async (c) => {
   const body = await c.req.json<{ force?: boolean; reason?: string }>().catch(() => null);
   const lock = await c.env.DB.prepare('SELECT version_id FROM publish_lock WHERE id = 1').first<{ version_id: number }>();
   if (!lock) return c.json({ error: 'no-active-publish' }, 409);
+  const swapping = await c.env.DB.prepare("SELECT id FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(lock.version_id).first();
+  if (swapping) return c.json({error:'swap-in-progress',hint:'已开始切换，需等待系统核实结果，不能中止后覆盖发布。'},409);
   const last = await c.env.DB
     .prepare('SELECT MAX(COALESCE(ended_at, started_at)) AS t, COUNT(*) AS n FROM publish_steps WHERE version_id=?1')
     .bind(lock.version_id)
     .first<{ t: number | null; n: number }>();
   const started = (last?.n ?? 0) > 0;
-  const silentMs = last?.t ? Date.now() - last.t : 0;
+  const lastSeen = await lastJobActivity(c.env,lock.version_id,last?.t ?? null);
+  const silentMs = lastSeen ? Date.now()-lastSeen : 0;
 
   if (started) {
     if (!body?.force) {
@@ -644,15 +899,29 @@ publishRoutes.post('/cancel', async (c) => {
     if (!body.reason?.trim()) return c.json({ error: 'reason-required(强制中止必须写明理由)' }, 400);
   }
 
+  const now = Date.now();
+  const cutoff = now - RUNNER_SILENT_MS;
   const why = started ? `强制中止(执行器失联 ${Math.round(silentMs / 60_000)} 分钟):${body!.reason!.trim()}` : '已取消(执行器未上线)';
-  await c.env.DB.batch([
+  const modeEligibility = started
+    ? `EXISTS(SELECT 1 FROM publish_steps s WHERE s.version_id=?1)
+       AND COALESCE((SELECT MAX(COALESCE(s.ended_at,s.started_at)) FROM publish_steps s WHERE s.version_id=?1),0)<=?3
+       AND COALESCE((SELECT MAX(COALESCE(l.claimed_at,0),l.expires_at-${LOCK_TTL_MS}) FROM publish_lock l WHERE l.version_id=?1),0)<=?3`
+    : `NOT EXISTS(SELECT 1 FROM publish_steps s WHERE s.version_id=?1) AND ?3 IS NOT NULL`;
+  const committed = await c.env.DB.batch([
     /* 🔴 取消记 'cancelled' 不记 'failed'(2026-09-01 第四轮 P1-5):按 PRD E4 正常取消一次,
        就会换来一条「上次发布失败」的红条常驻全站、只有下一次成功发布能清掉。
        取消是运营的主动决定,不是故障——把它记成故障,红条就在说假话。 */
-    c.env.DB.prepare("UPDATE config_versions SET status='cancelled', fail_reason=?2 WHERE id=?1").bind(lock.version_id, why),
-    c.env.DB.prepare("UPDATE publish_steps SET status='failed', detail=?2, ended_at=?3 WHERE version_id=?1 AND status='running'").bind(lock.version_id, why, Date.now()),
-    c.env.DB.prepare('DELETE FROM publish_lock WHERE id = 1 AND version_id = ?1').bind(lock.version_id),
+    c.env.DB.prepare(`UPDATE config_versions SET status='cancelled',fail_reason=?2 WHERE id=?1
+      AND status IN ('validating','publishing')
+      AND EXISTS(SELECT 1 FROM publish_lock l WHERE l.id=1 AND l.version_id=?1)
+      AND NOT EXISTS(SELECT 1 FROM publish_steps s WHERE s.version_id=?1 AND s.step='swap')
+      AND ${modeEligibility}`).bind(lock.version_id,why,cutoff),
+    prepareAuditAfterPreviousChange(c.env.DB,{action:'config.publish.cancel',target:`v${lock.version_id}`,after:why,reason:body?.reason?.trim()}),
+    c.env.DB.prepare('DELETE FROM publish_lock WHERE id=1 AND version_id=?1 AND changes()>0').bind(lock.version_id),
+    c.env.DB.prepare(`UPDATE publish_steps SET status='failed',detail=?2,ended_at=?3 WHERE version_id=?1 AND status='running'
+      AND EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status='cancelled' AND fail_reason=?2)
+      AND NOT EXISTS(SELECT 1 FROM publish_lock WHERE version_id=?1)`).bind(lock.version_id,why,now),
   ]);
-  await writeAudit(c.env.DB, { action: 'config.publish.cancel', target: `v${lock.version_id}`, after: why, reason: body?.reason?.trim() });
+  if ((committed[0]?.meta.changes ?? 0)===0) return c.json({error:'cancel-conflict',hint:'发布状态已变化，请刷新后重试。'},409);
   return c.json({ ok: true, forced: !!started });
 });

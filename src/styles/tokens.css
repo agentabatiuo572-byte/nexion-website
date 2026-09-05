@@ -136,6 +136,9 @@
      门 render-fit 判据 C 会拿实测值钉住它,漂了就红。
      R48 胶囊化重标:上衬 26(胶囊上缘 14 + 内衬 12)+ 内容 44 + 下衬 12 = 82。 */
   --x-nav-h: 82px;
+  --x-announcement-h: 0px; /* 画布单位：运行时公告实高 ÷ zoom */
+  --x-announcement-screen-h: 0px; /* 屏幕单位：fixed 导航的 top */
+  --x-chrome-h: calc(var(--x-nav-h) + var(--x-announcement-h));
   /* 触达底线:画布内写 44px 也会被 zoom 缩(1440–1455 这段带经典滚动条时 zoom<1,实测只有 43.53)。
      取两者较大:除以 zoom 保证屏幕上不低于 44,画布单位保证 >1440 时仍跟着放大。 */
   --x-touch: max(calc(44px / var(--x-zoom)), calc(44 * var(--uc)));
@@ -201,7 +204,7 @@ html {
 /* 锚点余量从导航实高派生,不是第二个常数:导航高 >860 是 74、≤860 是 54,
    写死 84 会让两档的净余量变成 10px 与 30px。上面 --x-nav-h 那段自己写着「它是唯一来源」。 */
 [id] {
-  scroll-margin-top: calc(var(--x-nav-h) + 10 * var(--uc));
+  scroll-margin-top: calc(var(--x-chrome-h) + 10 * var(--uc));
 }
 /* 站内锚点补间后目标获焦(键盘焦点起点随之移动),程序化焦点不画框 */
 [tabindex='-1']:focus {

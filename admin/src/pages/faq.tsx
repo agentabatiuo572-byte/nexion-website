@@ -3,20 +3,24 @@ import { useState, type DragEvent } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { api } from '../api';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { AutoTextarea } from '../lib/auto-textarea';
-import { useDraft, type Tri } from '../lib/use-draft';
+import { appendMintedFaqItem, type FaqItemValue } from '../lib/faq-items';
+import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
-type Item = { id: string; q: Tri; a: Tri; sort: number; visible: boolean; deleted?: boolean };
+type Item = FaqItemValue;
 
 export default function FaqPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [work, setWork] = useState<Item[] | null>(null); // 本页工作副本(含新增/回收)
   const [open, setOpen] = useState<string | null>(null);
   const [confirmDel, setConfirmDel] = useState<string | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState('');
+  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft(work !== null);
 
   if (!draft) return <section><h2>FAQ</h2><div className="skl" style={{ height: 80 }} /></section>;
 
@@ -43,16 +47,25 @@ export default function FaqPage() {
   }
 
   async function addItem() {
-    const { id } = await api<{ id: string }>('/api/config/mint-id', { method: 'POST', body: JSON.stringify({ kind: 'faq' }) });
-    const empty: Tri = { en: '', vi: '', zh: '' };
-    setWork([...items, { id, q: { ...empty }, a: { ...empty }, sort: items.length + 1, visible: true }]);
-    setOpen(id);
+    if (adding) return;
+    setAdding(true);
+    setAddError('');
+    try {
+      const { id } = await api<{ id: string }>('/api/config/mint-id', { method: 'POST', body: JSON.stringify({ kind: 'faq' }) });
+      setWork((current) => appendMintedFaqItem(current, items, id));
+      setOpen(id);
+    } catch {
+      setAddError('新增失败：没有拿到条目编号，请重试；现有编辑已保留。');
+    } finally {
+      setAdding(false);
+    }
   }
 
   return (
     <section>
       <h2>FAQ 管理</h2>
       <div className="note info">拖拽排序 · 可见条目须 ≥3 · 删除先进回收区(发布前可恢复,发布后物理移除)· 发布后站上问答与搜索结构化数据自动跟随。</div>
+      {addError && <div className="note bad" role="alert">{addError} <button className="btn ghost sm" disabled={adding} onClick={() => void addItem()}>重试新增</button></div>}
       {conflict && <div className="note bad">草稿已在别处更新,保存被拒 <button className="btn ghost sm" onClick={() => { setWork(null); clearConflict(); reload(); }}>刷新后重试</button></div>}
       {visibleCount < 3 && <div className="note bad">FAQ 可见条目须 ≥3(当前 {visibleCount})——保存被拦</div>}
       {alive.map((it, idx) => {
@@ -108,13 +121,15 @@ export default function FaqPage() {
         );
       })}
       <div className="row" style={{ margin: '12px 0' }}>
-        <button className="btn" onClick={() => void addItem()}>+ 新增条目(三语必填)</button>
+        <button className="btn" disabled={adding} onClick={() => void addItem()}>{adding ? '新增中…' : '+ 新增条目(三语必填)'}</button>
         <button className="btn primary" disabled={!dirty || saving || visibleCount < 3}
           onClick={async () => {
+            const submitted = submissionSnapshot(work!);
+            const submittedAlive = submitted.filter((item) => !item.deleted);
             const ok = await save((d) => {
-              (d.faq.items as Item[]) = items.map((i, n) => ({ ...i, sort: i.deleted ? i.sort : alive.findIndex((a) => a.id === i.id) + 1 || n + 1 }));
+              (d.faq.items as Item[]) = submitted.map((i, n) => ({ ...i, sort: i.deleted ? i.sort : submittedAlive.findIndex((a) => a.id === i.id) + 1 || n + 1 }));
             });
-            if (ok) setWork(null);
+            if (ok) setWork((current) => retainPostSubmit(current, submitted, null));
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

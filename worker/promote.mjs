@@ -13,21 +13,28 @@
    用法:node promote.mjs [--check] [--version <id> --stamp <token>]
      --check                只报告快照与产物是否一致,不搬运
      --version/--stamp      写上线印记(执行器从 /api/publish/next 拿到后原样透传) */
-import { cpSync, existsSync, renameSync, rmSync, readdirSync, statSync, readFileSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, renameSync, rmSync, readdirSync, statSync, lstatSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const SRC = path.join(here, '..', 'dist');
-const LIVE = path.join(here, '..', 'dist-live');
-const TMP = path.join(here, '..', 'dist-live.staging');
-const OLD = path.join(here, '..', 'dist-live.prev');
 const STAMP = '.publish-stamp.json';
 const argOf = (k) => {
   const i = process.argv.indexOf(k);
   return i >= 0 ? process.argv[i + 1] : null;
 };
+const SRC = path.resolve(argOf('--source') || path.join(here, '..', 'dist'));
+const LIVE = path.resolve(argOf('--live') || path.join(here, '..', 'dist-live'));
+const TMP = `${LIVE}.staging`;
+const OLD = `${LIVE}.prev`;
+const MATERIALIZED_ROOT = path.resolve(argOf('--materialized-root') || path.join(here, '..'));
+if (path.basename(SRC) !== 'dist' || path.basename(LIVE) !== 'dist-live' || SRC === LIVE || SRC.startsWith(`${LIVE}${path.sep}`)) {
+  throw new Error('拒绝不明确的快照目录：source 必须为 dist，live 必须为 dist-live，且两者分离');
+}
+for (const p of [SRC, LIVE, TMP, OLD]) {
+  if (existsSync(p) && lstatSync(p).isSymbolicLink()) throw new Error('快照目录不能是链接，拒绝跨边界操作');
+}
 
 /* 指纹 = 路径 + **内容摘要**。
    🔴 早先只算「路径 + 字节数」,对**等长改写**是瞎的(复验 P2:改掉同样长度的内容后
@@ -109,6 +116,7 @@ function dropStamp(dir) {
 }
 
 function syncInPlace() {
+  dropStamp(LIVE); // 修改之前先撤掉旧凭证，绝不让混排内容带着旧上线印记。
   const want = new Set(listFiles(SRC));
   for (const rel of listFiles(LIVE)) {
     if (!want.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
@@ -128,14 +136,13 @@ function syncInPlace() {
 const MATERIALIZED_FILES = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'];
 function writeStamp(dir) {
   const versionId = Number(argOf('--version'));
-  const stampToken = argOf('--stamp');
+  const stampToken = process.env.PUBLISH_STAMP || argOf('--stamp');
   if (!versionId || !stampToken) return null;
   const parts = [];
   for (const rel of MATERIALIZED_FILES) {
-    const p = path.join(here, '..', rel);
+    const p = path.join(MATERIALIZED_ROOT, rel);
     if (!existsSync(p)) {
-      console.error(`✗ 缺 ${rel} —— 物化步没跑过?拒绝写上线印记(没有印记服务端不会放行上线)`);
-      process.exit(2);
+      throw new Error(`缺 ${rel}，拒绝写上线印记：隔离副本没有完整物化配置`);
     }
     parts.push(`${rel}\0${readFileSync(p, 'utf8')}`);
   }
@@ -175,29 +182,49 @@ function writeStamp(dir) {
    `rename` 直接 EBUSY —— 也就是「本地开着服务时 swap 必失败」,而那恰好是它唯一被用到的场合。
    故:能换名就换名(服务没起 / 部署机上,拿到强原子性);换不动就退回就地同步,并说明降级原因。
    生产环境不走这里——Cloudflare 的资产随 Worker 一起部署,平台自带原子性。 */
+let staged = false;
+const restorePrevious = () => {
+  if (!existsSync(OLD)) return;
+  if (!existsSync(LIVE)) { renameSync(OLD, LIVE); return; }
+  dropStamp(LIVE);
+  const previous = new Set(listFiles(OLD));
+  for (const rel of listFiles(LIVE)) if (!previous.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
+  cpSync(OLD, LIVE, { recursive: true, force: true });
+};
 try {
   rmSync(TMP, { recursive: true, force: true });
   rmSync(OLD, { recursive: true, force: true });
   cpSync(SRC, TMP, { recursive: true });
   writeStamp(TMP); // 印记随 staging 一起上位,和内容同一瞬间可见
+  staged = true;
   if (existsSync(LIVE)) renameSync(LIVE, OLD);
   renameSync(TMP, LIVE);
-  rmSync(OLD, { recursive: true, force: true });
 } catch (e) {
-  if (!['EBUSY', 'EPERM', 'ENOTEMPTY', 'EACCES'].includes(e.code)) throw e;
+  if (!staged || !['EBUSY', 'EPERM', 'ENOTEMPTY', 'EACCES'].includes(e.code)) {
+    restorePrevious();
+    throw e;
+  }
   // 换名失败后 LIVE 可能已被改名到 OLD,先把它放回去,再就地同步
   if (!existsSync(LIVE) && existsSync(OLD)) renameSync(OLD, LIVE);
-  syncInPlace();
-  writeStamp(LIVE); // 内容同步完再落印记:印记在,就意味着内容已经就位
+  // 就地覆盖前必须留下完整旧版；同步异常则把全部旧文件和印记还原。
+  if (existsSync(LIVE) && !existsSync(OLD)) cpSync(LIVE, OLD, { recursive: true });
+  try {
+    syncInPlace();
+    writeStamp(LIVE);
+  } catch (failure) {
+    restorePrevious();
+    throw failure;
+  }
   rmSync(TMP, { recursive: true, force: true });
-  rmSync(OLD, { recursive: true, force: true });
   console.log(`· 目录被占用(${e.code}),已改用就地同步(内容一致,少了换名那一瞬的原子性)`);
 }
 
 const f = fingerprint(LIVE);
 const s = fingerprint(SRC);
 if (f.hash !== s.hash || f.count !== s.count) {
+  restorePrevious();
   console.error(`✗ 提升后两者仍不一致:dist ${s.count}/${s.hash} vs dist-live ${f.count}/${f.hash}`);
   process.exit(1);
 }
+rmSync(OLD, { recursive: true, force: true });
 console.log(`✓ 已上线:dist-live ← dist(${f.count} 文件 / ${f.hash})`);

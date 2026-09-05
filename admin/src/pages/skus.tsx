@@ -3,33 +3,57 @@ import { useState, type DragEvent } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { AutoTextarea } from '../lib/auto-textarea';
-import { useDraft } from '../lib/use-draft';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
+import { NumericInput, parseNumericInput } from '../lib/numeric-input';
+import { useDraft, type SiteConfigView, type Tri } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
 /** 机器枚举 → 人话。缺映射时显示「状态未知(原值)」,不静默、也不吐裸枚举 */
 const SKU_STATUS: Record<string, string> = { active: '在售', legacy: '已停产', coming: '即将上市' };
 const FACTS = ['name', 'priceUSD', 'multiplier', 'status'] as const;
+type Sku = SiteConfigView['skus'][number];
+type SkuEdit = Partial<Omit<Sku, 'priceUSD' | 'multiplier' | 'tagline'>> & {
+  priceUSD?: string;
+  multiplier?: string;
+  tagline?: Partial<Tri>;
+};
 
 export default function SkusPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
-  const [edits, setEdits] = useState<Record<string, Record<string, unknown>>>({});
+  const [edits, setEdits] = useState<Record<string, SkuEdit>>({});
   const [open, setOpen] = useState<string | null>(null);
   const [order, setOrder] = useState<string[] | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
+  const dirty = Object.keys(edits).length > 0 || order !== null;
+  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft(dirty);
 
   if (!draft) return <section><h2>产品卡</h2><div className="skl" style={{ height: 80 }} /></section>;
 
   const ids = order ?? [...draft.skus].sort((a, b) => a.sort - b.sort).map((s) => s.id);
   const skuOf = (id: string) => {
     const base = draft.skus.find((s) => s.id === id)!;
-    return { ...base, ...(edits[id] ?? {}), tagline: { ...base.tagline, ...((edits[id]?.tagline as object) ?? {}) } };
+    const edit = edits[id];
+    return {
+      ...base,
+      ...(edit ?? {}),
+      priceUSD: edit?.priceUSD ?? String(base.priceUSD),
+      multiplier: edit?.multiplier ?? String(base.multiplier),
+      tagline: { ...base.tagline, ...(edit?.tagline ?? {}) },
+    };
   };
   const factTouched = (id: string) => FACTS.some((f) => edits[id]?.[f] !== undefined);
   const anyFactTouched = ids.some(factTouched);
-  const dirty = Object.keys(edits).length > 0 || order !== null;
   const visibleCount = ids.filter((id) => skuOf(id).visible).length;
+  const numberErrors = ids.flatMap((id) => {
+    const sku = skuOf(id);
+    const price = parseNumericInput(sku.priceUSD);
+    const multiplier = parseNumericInput(sku.multiplier);
+    return [
+      ...(price === null || price < 0 ? [`${sku.name || id}：价格须为不小于 0 的数`] : []),
+      ...(multiplier === null || multiplier < 1 ? [`${sku.name || id}：算力倍数须为不小于 1 的数`] : []),
+    ];
+  });
 
   function onDrop(e: DragEvent, targetId: string) {
     e.preventDefault();
@@ -61,7 +85,7 @@ export default function SkusPage() {
               <span className="kv mono" style={{ cursor: 'grab' }} title="拖拽排序">⠿</span>
               <b>{s.name}</b>
               <span className={`pill ${s.status === 'active' ? 'brand' : ''}`}>{SKU_STATUS[s.status] ?? `状态未知(${s.status})`}</span>
-              <span className="mono kv">${s.priceUSD.toLocaleString('en-US')} · {s.multiplier}×</span>
+              <span className="mono kv">${parseNumericInput(s.priceUSD)?.toLocaleString('en-US') ?? s.priceUSD} · {s.multiplier}×</span>
               {factTouched(id) && <span className="pill warn">事实字段已改</span>}
               <span className="spacer" />
               <label className="row" style={{ gap: 6 }}>
@@ -75,8 +99,8 @@ export default function SkusPage() {
               <div style={{ marginTop: 10 }}>
                 <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
                   <div className="field"><label>名称(事实)</label><input value={String(s.name)} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], name: e.target.value } }))} /></div>
-                  <div className="field"><label>价格 USD(事实)</label><input className="mono" value={String(s.priceUSD)} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], priceUSD: Number(e.target.value) } }))} /></div>
-                  <div className="field"><label>算力倍数(事实)</label><input className="mono" value={String(s.multiplier)} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], multiplier: Number(e.target.value) } }))} /></div>
+                   <div className="field"><label>价格 USD(事实)</label><NumericInput className="mono" value={s.priceUSD} onValueChange={(value) => setEdits((st) => ({ ...st, [id]: { ...st[id], priceUSD: value } }))} /></div>
+                   <div className="field"><label>算力倍数(事实)</label><NumericInput className="mono" value={s.multiplier} onValueChange={(value) => setEdits((st) => ({ ...st, [id]: { ...st[id], multiplier: value } }))} /></div>
                   <div className="field"><label>状态(事实)</label>
                     {/* enum-ok:select 的 value 必须是机器值,人话在 option 文字里 */}
                     <select value={s.status} onChange={(e) => setEdits((st) => ({ ...st, [id]: { ...st[id], status: e.target.value } }))}>
@@ -100,20 +124,28 @@ export default function SkusPage() {
           </div>
         );
       })}
+      {numberErrors.map((error) => <div className="note bad" key={error}>{error}</div>)}
       <div className="row" style={{ marginTop: 12 }}>
-        <button className="btn primary" disabled={!dirty || saving || visibleCount === 0}
+        <button className="btn primary" disabled={!dirty || saving || visibleCount === 0 || numberErrors.length > 0}
           onClick={async () => {
+            const submittedEdits = submissionSnapshot(edits);
+            const submittedOrder = submissionSnapshot(order);
             const ok = await save((d) => {
-              for (const [id, m] of Object.entries(edits)) {
+              for (const [id, m] of Object.entries(submittedEdits)) {
                 const t = d.skus.find((s) => s.id === id)!;
-                const { tagline, ...rest } = m as { tagline?: Record<string, string> };
+                const { tagline, priceUSD, multiplier, ...rest } = m;
                 Object.assign(t, rest);
                 if (tagline) Object.assign(t.tagline, tagline);
+                if (priceUSD !== undefined) t.priceUSD = Number(priceUSD);
+                if (multiplier !== undefined) t.multiplier = Number(multiplier);
               }
-              const ord = order ?? ids;
+              const ord = submittedOrder ?? ids;
               d.skus.forEach((s) => { s.sort = ord.indexOf(s.id) + 1; });
             }, anyFactTouched ? '草稿已保存(含事实字段改动,发布须理由)' : '草稿已保存 · 未发布');
-            if (ok) { setEdits({}); setOrder(null); }
+            if (ok) {
+              setEdits((current) => retainPostSubmit(current, submittedEdits, {}));
+              setOrder((current) => retainPostSubmit(current, submittedOrder, null));
+            }
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

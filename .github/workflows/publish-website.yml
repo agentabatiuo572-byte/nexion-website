@@ -1,0 +1,66 @@
+name: Publish website
+
+on:
+  workflow_dispatch:
+    inputs:
+      versionId:
+        description: Immutable website configuration version to publish
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: nexgrid-site-worker-production
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.repository == 'jasonukkd/nexgrid-website' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    environment: production
+    timeout-minutes: 45
+    env:
+      PUBLISH_MODE: production
+      PUBLISH_VERSION_ID: ${{ inputs.versionId }}
+      PUBLISH_API_URL: ${{ vars.PUBLISH_API_URL }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      PUBLISH_D1_DATABASE_ID: ${{ vars.PUBLISH_D1_DATABASE_ID }}
+      PUBLISH_KV_NAMESPACE_ID: ${{ vars.PUBLISH_KV_NAMESPACE_ID }}
+      PUBLISH_WRANGLER_CONFIG: ${{ runner.temp }}/nexgrid-publish/wrangler.production.json
+    steps:
+      - name: Check out the immutable triggering revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin/package-lock.json
+            worker/package-lock.json
+            schema/package-lock.json
+      - name: Validate the requested version
+        run: node -e 'const v = process.env.PUBLISH_VERSION_ID; if (!/^[1-9][0-9]*$/.test(v ?? "") || !Number.isSafeInteger(Number(v))) { console.error("A positive integer versionId is required"); process.exit(1); }'
+      - name: Generate the dedicated production configuration
+        run: node worker/production-config.mjs --output "$PUBLISH_WRANGLER_CONFIG"
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          npm ci --prefix admin
+          npm ci --prefix worker
+          npm ci --prefix schema
+      - name: Install the rendering gate browser
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Test production configuration safeguards
+        run: node --test worker/runner-tests/production-config.test.mjs
+      - name: Claim, verify and publish this version
+        env:
+          PUBLISH_RUNNER_TOKEN: ${{ secrets.PUBLISH_RUNNER_TOKEN }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm --prefix worker run publish:runner -- --once --version "$PUBLISH_VERSION_ID"

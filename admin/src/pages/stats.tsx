@@ -1,7 +1,9 @@
 /* 平台统计数字(CON06 ⑤⑥):五数字+口径月;锚值软警(R49-A2);三语格式预览。高敏模块。 */
 import { useState } from 'react';
-import { daysSince, grownValue, type StatsGrowth } from '../../../schema/src/stats-growth';
+import { daysSince, grownValue, type GrowingKey, type StatsGrowth } from '../../../schema/src/stats-growth';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { fieldName } from '../lib/human-path';
+import { NumericInput, parseNumericInput } from '../lib/numeric-input';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -25,17 +27,42 @@ const GROWING = [
   ['activeDevices', '活跃设备'], ['activeJobs', '运行中任务'], ['nodes', '节点'], ['countries', '覆盖国家'],
 ] as const;
 const DEFAULT_GROWTH: StatsGrowth = { enabled: false, since: new Date().toISOString().slice(0, 10), daily: { activeDevices: 0, activeJobs: 0, nodes: 0, countries: 0 } };
+type GrowthDraft = Omit<StatsGrowth, 'daily'> & { daily: Record<GrowingKey, string> };
+
+const growthDraftOf = (growth: StatsGrowth): GrowthDraft => ({
+  ...growth,
+  daily: {
+    activeDevices: String(growth.daily.activeDevices),
+    activeJobs: String(growth.daily.activeJobs),
+    nodes: String(growth.daily.nodes),
+    countries: String(growth.daily.countries),
+  },
+});
+
+const parsedGrowthOf = (growth: GrowthDraft): StatsGrowth => ({
+  enabled: growth.enabled,
+  since: growth.since,
+  daily: {
+    activeDevices: parseNumericInput(growth.daily.activeDevices) ?? Number.NaN,
+    activeJobs: parseNumericInput(growth.daily.activeJobs) ?? Number.NaN,
+    nodes: parseNumericInput(growth.daily.nodes) ?? Number.NaN,
+    countries: parseNumericInput(growth.daily.countries) ?? Number.NaN,
+  },
+});
 
 export default function StatsPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, saving, conflict, save, reload } = useDraft();
   const [edits, setEdits] = useState<Record<string, string>>({});
-  const [growthE, setGrowthE] = useState<StatsGrowth | null>(null);
+  const [growthE, setGrowthE] = useState<GrowthDraft | null>(null);
+  const dirty = Object.keys(edits).length > 0 || growthE !== null;
+  const { draft, saving, conflict, save, reload } = useDraft(dirty);
 
   if (!draft) return <section><h2>平台统计数字</h2><div className="skl" style={{ height: 80 }} /></section>;
 
-  const growth: StatsGrowth = growthE ?? (draft.stats as { growth?: StatsGrowth }).growth ?? DEFAULT_GROWTH;
-  const setGrowth = (g: StatsGrowth) => setGrowthE(g);
+  const growthBase = (draft.stats as { growth?: StatsGrowth }).growth ?? DEFAULT_GROWTH;
+  const growth: GrowthDraft = growthE ?? growthDraftOf(growthBase);
+  const parsedGrowth = parsedGrowthOf(growth);
+  const setGrowth = (g: GrowthDraft) => setGrowthE(g);
   /* 起算日在未来 = 配置写错了:公式会按 0 天算,于是数字看起来「不长」,
      而人会以为是开关没生效 —— 说出来,别让人猜。 */
   const growthErr = growth.enabled && Date.parse(`${growth.since}T00:00:00Z`) > Date.now() ? '起算日在未来,数字要等到那天才开始长' : '';
@@ -49,22 +76,24 @@ export default function StatsPage() {
     else if (k === 'uptime' && v > 100) errs.push(`${fieldName('uptime')}:不得超过 100`);
     else if (dec === 0 && !Number.isInteger(v)) errs.push(`${fieldName(k)}:须为整数(不能有小数)`);
   }
+  for (const [k, label] of GROWING) {
+    const daily = parseNumericInput(growth.daily[k]);
+    if (daily === null || daily < 0) errs.push(`${label}每天增量：须填一个不小于 0 的数`);
+  }
   const asOf = String(cur('asOf'));
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(asOf)) errs.push('口径月格式:YYYY-MM(月份 01-12)');
   const anchorHits = FIELDS.filter(([k]) => numOf(k) === ANCHORS[k]).map(([k]) => k);
-  const dirty = Object.keys(edits).length > 0 || growthE !== null;
-
   return (
     <section>
       <h2>平台统计数字 <span className="pill warn">高敏 · 发布须理由</span></h2>
-      {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试</button></div>}
+      {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); setGrowthE(null); reload(); }}>刷新后重试</button></div>}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
         {FIELDS.map(([k, label]) => (
           // data-field:「去修复」的落点(useFocusField 逐级剥尾匹配到这一级)
           <div className="card" key={k} data-field={`stats.${k}`}>
             <div className="field" style={{ margin: 0 }}>
               <label>{label}</label>
-              <input className="mono" value={String(cur(k))} onChange={(e) => setEdits((s) => ({ ...s, [k]: e.target.value.trim() }))} />
+              <NumericInput className="mono" value={String(cur(k))} onValueChange={(value) => setEdits((s) => ({ ...s, [k]: value.trim() }))} />
             </div>
             {/* 🔴 主人 2026-09-01 拍板:平台数字**全部后台模拟、不接真实数据**。
                 于是「和内置初值一样」不再是待办 —— 它只是「这一项还没调过」。
@@ -111,16 +140,16 @@ export default function StatsPage() {
               {GROWING.map(([k, label]) => (
                 <div className="field" key={k} style={{ margin: 0 }}>
                   <label>{label} · 每天 +</label>
-                  <input
-                    className="mono" value={String(growth.daily[k] ?? 0)}
-                    onChange={(e) => setGrowth({ ...growth, daily: { ...growth.daily, [k]: Number(e.target.value) || 0 } })}
-                  />
+                   <NumericInput
+                     className="mono" value={growth.daily[k]}
+                     onValueChange={(value) => setGrowth({ ...growth, daily: { ...growth.daily, [k]: value } })}
+                   />
                 </div>
               ))}
             </div>
             <div className="note info" style={{ marginTop: 8, marginBottom: 0 }}>
               <b>今天站上实际显示:</b>{' '}
-              {GROWING.map(([k, label]) => `${label} ${grownValue(numOf(k), k, growth, Date.now()).toLocaleString('en-US')}`).join(' · ')}
+              {GROWING.map(([k, label]) => `${label} ${grownValue(numOf(k), k, parsedGrowth, Date.now()).toLocaleString('en-US')}`).join(' · ')}
               <div className="kv" style={{ marginTop: 4 }}>
                 起算日至今 {daysSince(growth.since, Date.now())} 天{growthErr && <span style={{ color: 'var(--bad)' }}> · {growthErr}</span>}
               </div>
@@ -140,12 +169,17 @@ export default function StatsPage() {
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={!dirty || errs.length > 0 || saving}
           onClick={async () => {
+            const submittedEdits = submissionSnapshot(edits);
+            const submittedGrowth = submissionSnapshot(growthE);
             const ok = await save((d) => {
               const t = d.stats as Record<string, number | string | StatsGrowth>;
-              for (const [k, v] of Object.entries(edits)) t[k] = k === 'asOf' ? v : Number(v);
-              if (growthE) t.growth = growthE;
+              for (const [k, v] of Object.entries(submittedEdits)) t[k] = k === 'asOf' ? v : Number(v);
+              if (submittedGrowth) t.growth = parsedGrowthOf(submittedGrowth);
             });
-            if (ok) { setEdits({}); setGrowthE(null); }
+            if (ok) {
+              setEdits((current) => retainPostSubmit(current, submittedEdits, {}));
+              setGrowthE((current) => retainPostSubmit(current, submittedGrowth, null));
+            }
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

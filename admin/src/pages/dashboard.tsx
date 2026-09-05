@@ -12,11 +12,15 @@ const isErr = (x: unknown): x is { error: true } => !!x && typeof x === 'object'
 
 interface Dash {
   range: number; from: string; to: string;
-  overview: Maybe<{ pv: number; uv: number; sessions: number; ctaClicks: number; ctaVisitors: number; byCta: Array<{ cta_id: string; clicks: number }>; starRate: number | null; deltaUv: number | null; deltaCta: number | null; hasData: boolean }>;
+  overview: {
+    traffic: Maybe<{ pv: number; uv: number; sessions: number; deltaUv: number | null; hasData: boolean }>;
+    downloads: Maybe<{ ctaClicks: number; byCta: Array<{ cta_id: string; clicks: number }>; deltaCta: number | null }>;
+    conversion: Maybe<{ ctaVisitors: number; starRate: number | null; starRatePrev: number | null }>;
+  };
   trend: Maybe<Array<{ date: string; pv: number; uv: number; cta: number }>>;
   funnel: Maybe<{ uv: number; download: number; trust: number; cta: number }>;
   locales: Maybe<Array<{ locale: string; uv: number; pv: number; share: number; rate: number | null }>>;
-  dims: Maybe<{ sources: Array<{ k: string; uv: number }>; countries: Array<{ k: string; uv: number }>; devices: Array<{ k: string; uv: number }> }>;
+  dims: { sources: Maybe<Array<{ k: string; uv: number }>>; countries: Maybe<Array<{ k: string; uv: number }>>; devices: Maybe<Array<{ k: string; uv: number }>> };
   content: {
     pages: Maybe<Array<{ path: string; locale: string; pv: number; uv: number }>>;
     faq: Maybe<Array<{ faq_id: string; opens: number }>>;
@@ -95,8 +99,8 @@ export default function Dashboard() {
       </section>
     );
 
-  const ov = d.overview;
-  const empty = !isErr(ov) && !ov.hasData;
+  const { traffic, downloads, conversion } = d.overview;
+  const empty = !isErr(traffic) && !traffic.hasData;
 
   return (
     <section>
@@ -116,24 +120,29 @@ export default function Dashboard() {
       )}
 
       {/* 总览 */}
-      {isErr(ov) ? <ErrCard title="总览" onRetry={() => load(range)} /> : (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)' }}>
+          {isErr(traffic) ? <ErrCard title="独立访客 UV" onRetry={() => load(range)} /> : (
           <Card title="独立访客 UV" note="按日相加口径(跨日重复计人)">
-            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{num(ov.uv)}
-              {ov.deltaUv !== null && <small style={{ fontSize: 12, marginLeft: 6, color: ov.deltaUv >= 0 ? 'var(--ok)' : 'var(--bad)' }}>{ov.deltaUv >= 0 ? '+' : ''}{pct(ov.deltaUv)}</small>}
+            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{num(traffic.uv)}
+              {traffic.deltaUv !== null && <small style={{ fontSize: 12, marginLeft: 6, color: traffic.deltaUv >= 0 ? 'var(--ok)' : 'var(--bad)' }}>{traffic.deltaUv >= 0 ? '+' : ''}{pct(traffic.deltaUv)}</small>}
             </div>
-            <div className="kv">PV {num(ov.pv)} · 会话 {num(ov.sessions)}</div>
+            <div className="kv">PV {num(traffic.pv)} · 会话 {num(traffic.sessions)}</div>
           </Card>
+          )}
+          {isErr(downloads) ? <ErrCard title="下载点击" onRetry={() => load(range)} /> : (
           <Card title="下载点击" note="「点击」口径:商店安装数不在本站数据面,不冒充">
-            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{num(ov.ctaClicks)}
-              {ov.deltaCta !== null && <small style={{ fontSize: 12, marginLeft: 6, color: ov.deltaCta >= 0 ? 'var(--ok)' : 'var(--bad)' }}>{ov.deltaCta >= 0 ? '+' : ''}{pct(ov.deltaCta)}</small>}
+            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{num(downloads.ctaClicks)}
+              {downloads.deltaCta !== null && <small style={{ fontSize: 12, marginLeft: 6, color: downloads.deltaCta >= 0 ? 'var(--ok)' : 'var(--bad)' }}>{downloads.deltaCta >= 0 ? '+' : ''}{pct(downloads.deltaCta)}</small>}
             </div>
-            <div className="kv">{ov.byCta.length ? ov.byCta.map((x) => `${CTA_LABEL[x.cta_id] ?? x.cta_id} ${x.clicks}`).join(' · ') : '—'}</div>
+            <div className="kv">{downloads.byCta.length ? downloads.byCta.map((x) => `${CTA_LABEL[x.cta_id] ?? x.cta_id} ${x.clicks}`).join(' · ') : '—'}</div>
           </Card>
+          )}
+          {isErr(conversion) ? <ErrCard title="北极星转化率" onRetry={() => load(range)} /> : (
           <Card title="北极星转化率" note="点击访客 ÷ UV(官网 PRD §1.3);两者同为按日相加口径">
-            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{pct(ov.starRate)}</div>
-            <div className="kv">点击访客 {num(ov.ctaVisitors)}</div>
+            <div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{pct(conversion.starRate)}</div>
+            <div className="kv">点击访客 {num(conversion.ctaVisitors)}</div>
           </Card>
+          )}
           <Card title="今日实时" note="当日预览,口径以次日汇总为准;已排除爬虫">
             {isErr(d.todayLive) ? (
               <div className="note bad" style={{ margin: 0 }}>查询失败 <button className="btn ghost sm" onClick={() => load(range)}>重试</button></div>
@@ -145,7 +154,6 @@ export default function Dashboard() {
             )}
           </Card>
         </div>
-      )}
 
       {/* 漏斗 / 分语言 / 趋势 */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 12 }}>
@@ -187,12 +195,11 @@ export default function Dashboard() {
       </div>
 
       {/* 来源 / 国家 / 设备 */}
-      {isErr(d.dims) ? <ErrCard title="来源与设备" onRetry={() => load(range)} /> : (
         <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)', marginTop: 12 }}>
           {([['流量来源', d.dims.sources, (k: string) => ({ direct: '直接访问', search: '搜索引擎', social: '社交媒体', referral: '外链', internal: '站内' }[k] ?? k)],
             ['国家/地区 Top', d.dims.countries, (k: string) => `${k} ${countryName(k)}`],
-            ['设备端', d.dims.devices, (k: string) => (k === 'm' ? '移动' : '桌面')]] as Array<[string, Array<{ k: string; uv: number }>, (k: string) => string]>).map(([title, rows, fmt]) => (
-            <Card key={title} title={title}>
+            ['设备端', d.dims.devices, (k: string) => (k === 'm' ? '移动' : '桌面')]] as Array<[string, Maybe<Array<{ k: string; uv: number }>>, (k: string) => string]>).map(([title, rows, fmt]) => (
+            isErr(rows) ? <ErrCard key={title} title={title} onRetry={() => load(range)} /> : <Card key={title} title={title}>
               {rows.length === 0 ? <p className="kv">暂无数据</p> : (
                 <table><tbody>{rows.slice(0, 8).map((r) => (
                   <tr key={r.k}><td>{fmt(r.k)}</td><td className="mono" style={{ textAlign: 'right' }}><b>{num(r.uv)}</b></td></tr>
@@ -201,7 +208,6 @@ export default function Dashboard() {
             </Card>
           ))}
         </div>
-      )}
 
       {/* 内容四榜:服务端已各自独立成组(复测 R2-P2),前端逐卡判失败——一张表挂了只黑它自己 */}
       <div className="grid" style={{ gridTemplateColumns: 'repeat(4,1fr)', marginTop: 12 }}>

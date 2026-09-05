@@ -7,15 +7,19 @@
    体例同 LegalPrivacy:en 权威,vi/zh 壳挂「以英文版为准」。 */
 /* PENDING-TRUST-ASSETS: App 隐私政策正文待主人/法务供稿(数据清单/权限/保留期/联系人) */
 import { useT, type Locale } from '../../i18n';
+import { SITE_CONFIG } from '../../lib/site-config';
+import LegalDocument from './LegalDocument.astro';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+const configured = SITE_CONFIG.legal?.appPrivacy;
+const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.en?.trim());
 ---
 
-<main class="legal" lang="en">
+{hasConfigured ? <LegalDocument locale={locale} document="appPrivacy" fallbackTitle="App Privacy Policy" /> : <main class="legal" lang="en">
   {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">App Privacy Policy</h1>
   <p class="updated x-mono">Publication pending</p>
@@ -31,7 +35,7 @@ const t = useT(locale);
       The policy for this marketing website is already available at <a href={locale === 'en' ? '/legal/privacy/' : `/${locale}/legal/privacy/`}>Privacy Policy</a>.
     </p>
   </div>
-</main>
+</main>}
 
 <style>
   .legal {

@@ -45,7 +45,7 @@ const MIN_SAMPLES = 24;
 const CONFORM = 0.98;
 
 let chromium;
-for (const anchor of ['D:/WORKS/PLAN/Nexion-uniapp/package.json', join(ROOT, 'package.json')]) {
+for (const anchor of [join(ROOT, 'package.json')]) {
   try {
     chromium = createRequire(anchor)('playwright').chromium;
     break;

@@ -47,7 +47,7 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import { join, extname } from 'node:path';
-const require = createRequire('D:/WORKS/PLAN/Nexion-uniapp/package.json');
+const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');

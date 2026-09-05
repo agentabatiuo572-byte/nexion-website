@@ -48,7 +48,7 @@ const router = createBrowserRouter(
 
 /* 401 用路由跳转,不整页重载(实景走查 P2-9:三个并发探针 401 会连着触发三次整页导航,
    控制台留下一串 ERR_ABORTED,还白白重下一次 bundle)。 */
-setUnauthorizedRedirect((to) => router.navigate(to));
+setUnauthorizedRedirect((to) => router.navigate(to, { state: { bypassUnsaved: true } }));
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

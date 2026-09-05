@@ -1,7 +1,7 @@
 // T2 验收(plan T2-AC1..AC4;继承 PRD CON01-A1/E1/E2/E3/E4 + CON14-A1/E2)。
 // pool-workers 0.22 无 per-test 隔离存储 → beforeEach 显式清表,每条测试自建全部状态。
 import { env } from 'cloudflare:test';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/index';
 
 beforeEach(async () => {
@@ -45,6 +45,45 @@ async function auditActions(): Promise<string[]> {
 }
 
 describe('CON01 初始化与登录', () => {
+  it('setup 成功审计失败时账号回滚，已审计的计算准入计数留作失败关闭', async () => {
+    await env.DB.prepare(
+      "CREATE TRIGGER fail_setup_audit BEFORE INSERT ON audit WHEN NEW.action='auth.setup' BEGIN SELECT RAISE(ABORT, 'injected-setup-audit-failure'); END",
+    ).run();
+    try {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect((await setup()).status).toBe(500);
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM auth_account').first()).toMatchObject({ n: 0 });
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM login_throttle').first()).toMatchObject({ n: 1 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.setup.attempt'").first()).toMatchObject({ n: 1 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.setup'").first()).toMatchObject({ n: 0 });
+    } finally {
+      vi.restoreAllMocks();
+      await env.DB.prepare('DROP TRIGGER fail_setup_audit').run();
+    }
+    expect((await setup()).status).toBe(200);
+  });
+
+  it('setup 的预检查过时且账号已被并发建立时，不留下无对应审计的限速状态', async () => {
+    await env.DB.prepare("INSERT INTO auth_account(id,password_hash,salt,initialized_at) VALUES(1,'winner','00',?1)")
+      .bind(Date.now()).run();
+    const stalePrecheckDb = {
+      prepare(sql: string) {
+        if (sql === 'SELECT id FROM auth_account WHERE id = 1') {
+          return { first: async () => null } as unknown as D1PreparedStatement;
+        }
+        return env.DB.prepare(sql);
+      },
+      batch: env.DB.batch.bind(env.DB),
+    } as unknown as D1Database;
+    const result = await app.request('/api/auth/setup', {
+      method: 'POST', headers: IP,
+      body: JSON.stringify({ token: env.SETUP_TOKEN, password: PW }),
+    }, { ...env, DB: stalePrecheckDb });
+    expect(result.status).toBe(410);
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM login_throttle').first()).toMatchObject({ n: 0 });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.setup'").first()).toMatchObject({ n: 0 });
+  });
+
   it('AC1 正确口令登录:会话 cookie 属性齐 + 审计 login.success', async () => {
     await setup();
     const res = await login(PW);
@@ -68,6 +107,70 @@ describe('CON01 初始化与登录', () => {
     const body = (await res.json()) as { error: string };
     expect(body.error).toBe('invalid-credentials');
     expect(await auditActions()).toContain('login.fail');
+  });
+
+  it('登录结果审计失败时保留已审计的计算准入计数', async () => {
+    await setup();
+    await env.DB.prepare(
+      "CREATE TRIGGER fail_login_failure_audit BEFORE INSERT ON audit WHEN NEW.action='login.fail' BEGIN SELECT RAISE(ABORT, 'injected-login-failure-audit'); END",
+    ).run();
+    try {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect((await login('wrong-password-xxxx')).status).toBe(500);
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM login_throttle').first()).toMatchObject({ n: 1 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='login.attempt'").first()).toMatchObject({ n: 1 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='login.fail'").first()).toMatchObject({ n: 0 });
+    } finally {
+      vi.restoreAllMocks();
+      await env.DB.prepare('DROP TRIGGER fail_login_failure_audit').run();
+    }
+  });
+
+  it('登录成功审计失败时 session/cookie 回滚，计算准入计数失败关闭', async () => {
+    await setup();
+    expect((await login('wrong-password-xxxx')).status).toBe(401);
+    const before = await env.DB.prepare('SELECT fail_count,window_start,locked_until FROM login_throttle WHERE key=?1')
+      .bind('203.0.113.7')
+      .first<{ fail_count: number; window_start: number; locked_until: number | null }>();
+    await env.DB.prepare(
+      "CREATE TRIGGER fail_login_success_audit BEFORE INSERT ON audit WHEN NEW.action='login.success' BEGIN SELECT RAISE(ABORT, 'injected-login-success-audit'); END",
+    ).run();
+    try {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const result = await login(PW);
+      expect(result.status).toBe(500);
+      expect(result.headers.get('set-cookie')).toBeNull();
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first()).toMatchObject({ n: 0 });
+      expect(await env.DB.prepare('SELECT fail_count,window_start,locked_until FROM login_throttle WHERE key=?1')
+        .bind('203.0.113.7').first()).toMatchObject({ ...before, fail_count: (before?.fail_count ?? 0) + 1 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='login.success'").first()).toMatchObject({ n: 0 });
+    } finally {
+      vi.restoreAllMocks();
+      await env.DB.prepare('DROP TRIGGER fail_login_success_audit').run();
+    }
+  });
+
+  it('锁定分支的 login.fail 审计失败时第六次尝试与锁定一起回滚', async () => {
+    await setup();
+    for (let i = 0; i < 5; i++) expect((await login('wrong-password-xxxx')).status).toBe(401);
+    const before = await env.DB.prepare('SELECT fail_count,window_start,locked_until FROM login_throttle WHERE key=?1')
+      .bind('203.0.113.7')
+      .first<{ fail_count: number; window_start: number; locked_until: number | null }>();
+    const auditBefore = await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='login.fail'").first<{ n: number }>();
+    await env.DB.prepare(
+      "CREATE TRIGGER fail_locked_login_audit BEFORE INSERT ON audit WHEN NEW.action='login.fail' BEGIN SELECT RAISE(ABORT, 'injected-locked-login-audit'); END",
+    ).run();
+    try {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      expect((await login(PW)).status).toBe(500);
+      expect(await env.DB.prepare('SELECT fail_count,window_start,locked_until FROM login_throttle WHERE key=?1')
+        .bind('203.0.113.7').first()).toEqual(before);
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first()).toMatchObject({ n: 0 });
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='login.fail'").first()).toEqual(auditBefore);
+    } finally {
+      vi.restoreAllMocks();
+      await env.DB.prepare('DROP TRIGGER fail_locked_login_audit').run();
+    }
   });
 
   it('AC2b 限速:5 次失败后锁定,正确口令也拒(429);另一 IP 不受连坐', async () => {
@@ -95,6 +198,57 @@ describe('CON01 初始化与登录', () => {
     expect(out.status).toBe(200);
     expect((await app.request('/api/me', { headers: { cookie: cookie2 } }, env)).status).toBe(401);
     expect(await auditActions()).toContain('auth.logout');
+  });
+
+  it('会话续期提交前若已被并发登出删除，旧请求不得继续取得授权或刷新 cookie', async () => {
+    await setup();
+    const cookie = sidCookie(await login(PW));
+    let injected = false;
+    const racingDb = {
+      prepare(sql: string) {
+        const statement = env.DB.prepare(sql);
+        if (!sql.startsWith('UPDATE sessions SET expires_at')) return statement;
+        return {
+          bind(...values: unknown[]) {
+            const bound = statement.bind(...values);
+            const revoke = async () => {
+              if (injected) return;
+              injected = true;
+              await env.DB.prepare('DELETE FROM sessions').run();
+            };
+            return {
+              run: async () => { await revoke(); return bound.run(); },
+              first: async <T>() => { await revoke(); return bound.first<T>(); },
+            };
+          },
+        } as unknown as D1PreparedStatement;
+      },
+    } as D1Database;
+
+    const result = await app.request('/api/me', { headers: { cookie } }, { ...env, DB: racingDb });
+    expect(injected).toBe(true);
+    expect(result.status).toBe(401);
+    expect(result.headers.get('set-cookie')).toBeNull();
+  });
+
+  it('登出审计失败时会话删除与 cookie 清除一起回滚', async () => {
+    await setup();
+    const cookie = sidCookie(await login(PW));
+    await env.DB.prepare(
+      "CREATE TRIGGER fail_logout_audit BEFORE INSERT ON audit WHEN NEW.action='auth.logout' BEGIN SELECT RAISE(ABORT, 'injected-logout-audit-failure'); END",
+    ).run();
+    try {
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      const out = await app.request('/api/auth/logout', { method: 'POST', headers: { cookie } }, env);
+      expect(out.status).toBe(500);
+      expect(out.headers.get('set-cookie')).toBeNull();
+      expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM sessions').first()).toMatchObject({ n: 1 });
+      expect((await app.request('/api/me', { headers: { cookie } }, env)).status).toBe(200);
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.logout'").first()).toMatchObject({ n: 0 });
+    } finally {
+      vi.restoreAllMocks();
+      await env.DB.prepare('DROP TRIGGER fail_logout_audit').run();
+    }
   });
 
   it('E4 状态探针:初始化前 false / 后 true(T10-P1 回归:setup 页访问即知)', async () => {
@@ -160,19 +314,53 @@ describe('CON14 审计底座', () => {
 
 // 安全评审 HIGH/MEDIUM/LOW 回归(2026-08-31 修复的针对性门)
 describe('限速与硬化回归', () => {
-  it('HIGH 并发爆破:N 个并发错口令,放行验证的最多 5 次,其余 429', async () => {
-    // ⚠️ 诚实局限:本地 workerd 会把同进程并发近乎串行化,故此测试在本地对新旧实现都会绿;
-    // 竞态真正的防线是 registerAttempt 的原子 UPSERT(单条 SQL、D1 单写者串行,check-then-act 间隙不存在),
-    // 那是静态可验证的。此门的价值:①锁定计数正确性 ②在能真并发的环境(生产/CI)成为有效回归门。
+  it('HIGH 并发爆破:最多 5 个请求能进入账号读取与 KDF 前置路径', async () => {
     await setup();
-    const results = await Promise.all(
-      Array.from({ length: 20 }, () => login('wrong-password-xxxx').then((r) => r.status)),
-    );
+    let kdfEligible = 0;
+    const admissionOrder: string[] = [];
+    let releaseAccountReads!: () => void;
+    const accountReadGate = new Promise<void>((resolve) => { releaseAccountReads = resolve; });
+    const countedDb = {
+      prepare(sql: string) {
+        if (sql.includes('SELECT password_hash, salt FROM auth_account')) {
+          const prepared = env.DB.prepare(sql);
+          return {
+            first: async <T>() => {
+              admissionOrder.push('account-read-before-kdf');
+              kdfEligible++;
+              await accountReadGate;
+              return prepared.first<T>();
+            },
+          } as unknown as D1PreparedStatement;
+        }
+        return env.DB.prepare(sql);
+      },
+      batch(statements: D1PreparedStatement[]) {
+        admissionOrder.push('admission-batch');
+        return env.DB.batch(statements);
+      },
+    } as unknown as D1Database;
+    const pending = Array.from({ length: 20 }, async () => (
+        await app.request(
+          '/api/auth/login',
+          { method: 'POST', headers: IP, body: JSON.stringify({ password: 'wrong-password-xxxx' }) },
+          { ...env, DB: countedDb },
+        )
+      ).status);
+    for (let attempt = 0; attempt < 100 && kdfEligible < 5; attempt++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    const admittedBeforeRelease = kdfEligible;
+    releaseAccountReads();
+    const results = await Promise.all(pending);
     const n401 = results.filter((s) => s === 401).length;
     const n429 = results.filter((s) => s === 429).length;
-    expect(n401).toBeLessThanOrEqual(5); // 绝不允许 >5 次口令校验被放行
+    expect(n401).toBeLessThanOrEqual(5); // 绝不允许 >5 个请求拿到可区分于锁定的凭据结果
     expect(n401 + n429).toBe(20); // 每个请求都有确定结果,无异常
     expect(n429).toBeGreaterThan(0); // 确实触发了锁定
+    expect(admittedBeforeRelease).toBe(5); // 第 6 个起必须在 PBKDF2 之前被 D1 准入门挡住
+    expect(admissionOrder.indexOf('admission-batch')).toBeLessThan(admissionOrder.indexOf('account-read-before-kdf'));
   });
 
   it('429 带解锁倒计时数据(Retry-After 头 + retryAfterSec)', async () => {
@@ -195,6 +383,8 @@ describe('限速与硬化回归', () => {
       );
     for (let i = 0; i < 5; i++) expect((await bad()).status).toBe(403);
     expect((await bad()).status).toBe(429);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.setup.attempt'").first()).toMatchObject({ n: 6 });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE action='auth.setup.fail'").first()).toMatchObject({ n: 6 });
   });
 
   it('LOW 密码超长(>256)被拒 400', async () => {

@@ -2,7 +2,7 @@
    所有编辑页共用一个口径(单源:改 payload 的方式只有 saveDraft 一条路)。 */
 import { useState } from 'react';
 import { ApiError, api, toast } from '../api';
-import { useShell } from '../shell';
+import { useShell, useUnsavedChanges } from '../shell';
 
 // SiteConfig 的结构由 schema 包权威定义;控制台按使用面收窄声明,字段名与 §5.1 一字不差。
 export interface Tri {
@@ -22,8 +22,9 @@ export interface SiteConfigView {
   legal: Record<'terms' | 'privacy' | 'appPrivacy', { md: Tri; updatedAt: string }>;
 }
 
-export function useDraft() {
+export function useDraft(hasUnsavedChanges = false) {
   const { overview, reload, failed } = useShell();
+  useUnsavedChanges(hasUnsavedChanges);
   const [saving, setSaving] = useState(false);
   const [conflict, setConflict] = useState(false);
 
@@ -43,8 +44,12 @@ export function useDraft() {
         body: JSON.stringify({ payload: next, baseRevision: overview.draft.draftRev }),
       });
       // T14 验收 P-4:剥离提示用真实计数,不用「(如有)」泛化文案
+      const refreshed = await reload();
+      if (!refreshed) {
+        toast('草稿已经保存，但最新状态读取失败；本页改动已保留，请刷新确认');
+        return false;
+      }
       toast(res.sanitized ? `已剥离 ${res.sanitized} 处危险内容并保存 · 未发布` : okMsg);
-      reload();
       return true;
     } catch (e) {
       if (e instanceof ApiError && e.status === 409) {

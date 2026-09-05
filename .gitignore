@@ -17,6 +17,12 @@ admin/dist/
 .pi/
 .verify-cache/
 
+# Local launcher logs and Windows-encrypted administrator password
+.local-start/
+worker/.dev.vars*
+!worker/.dev.vars.example
+.publish-runner/
+
 # 删除暂存垃圾桶(PreToolUse 守卫的 Move 目标),永不入库
 .trash/
 

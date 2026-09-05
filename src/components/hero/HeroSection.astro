@@ -247,7 +247,7 @@ const t = useT(locale);
   @media (max-height: 520px) {
     .hero {
       height: auto; /* 接管桌面定高:>860 宽的矮窗口不走上面的竖屏档 */
-      padding-top: calc(var(--x-nav-h) + 22 * var(--uc));
+      padding-top: calc(var(--x-chrome-h) + 22 * var(--uc));
       padding-bottom: calc(24 * var(--uc)); /* 画布像素:本块不再限宽,svh 会在 ≥1440 被 zoom 二次放大 */
     }
     .cluster {
@@ -265,7 +265,7 @@ const t = useT(locale);
   }
   @media (max-height: 380px) {
     .hero {
-      padding-top: calc(var(--x-nav-h) + 14 * var(--uc)); /* 同上;更矮的档余量收一点 */
+      padding-top: calc(var(--x-chrome-h) + 14 * var(--uc)); /* 同上;更矮的档余量收一点 */
       padding-bottom: calc(16 * var(--uc)); /* 同上 */
     }
     h1 {

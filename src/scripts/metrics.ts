@@ -1,3 +1,12 @@
+import { truncateUtf8 } from '../../schema/src/utf8';
+import {
+  METRIC_SECTION_IDS,
+  METRIC_TEXT_BYTES,
+  isMetricCtaId,
+  isMetricSectionId,
+  metricFaqId,
+} from '../../schema/src/event-contract';
+
 /* [官网后台 PRD CON15] 匿名埋点 —— 契约:
    · 零 cookie / 零本地存储 / 无个人信息;DNT=1 整体不启动(E1)
    · 批量上报:5s / 满 10 条 / pagehide,sendBeacon 优先、fetch keepalive 兜底;失败静默不重试(E3)
@@ -11,7 +20,7 @@ type Ev = Record<string, string | number>;
 
 if (!DNT) {
   const Q: Ev[] = [];
-  const path = location.pathname;
+  const path = truncateUtf8(location.pathname, METRIC_TEXT_BYTES.path);
   const lang = document.documentElement.lang || 'en';
   const loc = lang.startsWith('vi') ? 'vi' : lang.startsWith('zh') ? 'zh' : 'en';
   const dev = matchMedia('(max-width: 767px)').matches ? 'm' : 'd';
@@ -62,14 +71,13 @@ if (!DNT) {
           ? 'social'
           : 'referral';
   const sp = new URLSearchParams(location.search);
-  const u = (k: string) => (sp.get(k) || '').slice(0, 64);
+  const u = (k: string) => truncateUtf8(sp.get(k) || '', METRIC_TEXT_BYTES.short);
   push({ t: 'pv', path, loc, dev, ref, us: u('utm_source'), um: u('utm_medium'), uc: u('utm_campaign') });
 
   // ---- sec:12 板块曝光首次(id=站内真实锚点)----
   // 判据:板块可视 ≥50% **或** 板块占满视口 ≥50%(等效判据,治超高板块——
   // devices 叠卡区 5000+px,前者构造性永不可达,T4 验收实测挖出;PRD CON03-③ 同步)。
   // 细阈值梯度让超高板块滚入过程有回调可判(0.5 单阈值对它永不触发)。
-  const SECTIONS = ['download', 'stats', 'social', 'mission', 'devices', 'how', 'path', 'trust', 'nex', 'learn-entry', 'faq', 'final-cta'];
   try {
     const io = new IntersectionObserver(
       (es) => {
@@ -82,7 +90,7 @@ if (!DNT) {
       },
       { threshold: [0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5] },
     );
-    for (const id of SECTIONS) {
+    for (const id of METRIC_SECTION_IDS) {
       const el = document.getElementById(id);
       if (el) io.observe(el);
     }
@@ -102,7 +110,10 @@ if (!DNT) {
           : (el.getAttribute('href') || '').startsWith('mailto:')
             ? 'contact'
             : '';
-      if (cta) push({ t: 'cta', cta, sec: (el.closest('[id]') as HTMLElement | null)?.id || '', loc, path });
+      if (cta && isMetricCtaId(cta)) {
+        const rawSection = (el.closest('[id]') as HTMLElement | null)?.id || '';
+        push({ t: 'cta', cta, sec: isMetricSectionId(rawSection) ? rawSection : '', loc, path });
+      }
     },
     { capture: true, passive: true },
   );
@@ -111,7 +122,7 @@ if (!DNT) {
   document.querySelectorAll('#faq details').forEach((d, i) => {
     let seen = 0;
     d.addEventListener('toggle', () => {
-      if ((d as HTMLDetailsElement).open && !seen++) push({ t: 'faq', faq: 'q' + (i + 1), loc });
+      if ((d as HTMLDetailsElement).open && !seen++) push({ t: 'faq', faq: metricFaqId(i + 1), loc });
     });
   });
 

@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { tokensOf, useDraft, type SiteConfigView } from '../lib/use-draft';
 import { AutoTextarea } from '../lib/auto-textarea';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { COPY_GROUPS } from '../lib/human-path';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -25,12 +26,12 @@ const scan = scanForbidden as (t: string) => Hit[];
 
 export default function ContentPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft();
   const [group, setGroup] = useState('hero');
   const [q, setQ] = useState('');
   const [edits, setEdits] = useState<Record<string, Partial<Record<'en' | 'vi' | 'zh', string>>>>({});
   const [confirmRevert, setConfirmRevert] = useState<string | null>(null); // 撤销两步确认(PRD ④,T11-P3)
   const [showLive, setShowLive] = useState<Record<string, boolean>>({}); // 行内线上值展开(PRD ⑥,T11-P4)
+  const { draft, live, saving, conflict, clearConflict, save, reload } = useDraft(Object.keys(edits).length > 0);
 
   /* 🔴 搜索**跨全部 18 组**(2026-09-01 第十轮独立验收 P2-12):
      上一版先按当前组过滤、再按关键词过滤,于是运营记得站上有句话要改、
@@ -62,10 +63,11 @@ export default function ContentPage() {
   });
 
   async function saveAll() {
+    const submitted = submissionSnapshot(edits);
     const ok = await save((d) => {
-      for (const [k, m] of Object.entries(edits)) for (const [loc, v] of Object.entries(m)) d.copy[loc as 'en'][k] = v as string;
+      for (const [k, m] of Object.entries(submitted)) for (const [loc, v] of Object.entries(m)) d.copy[loc as 'en'][k] = v as string;
     }, `已保存 ${dirtyCount} 处到草稿 · 未发布`);
-    if (ok) setEdits({});
+    if (ok) setEdits((current) => retainPostSubmit(current, submitted, {}));
   }
 
   const groupDirty = (g: string) => Object.keys(edits).filter((k) => k.startsWith(g + '.')).length;

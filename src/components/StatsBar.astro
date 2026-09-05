@@ -3,8 +3,7 @@
    axiom 方向:全出血暗带 + display 大数字 + 等宽大写标签 + 序号。逻辑不变。
    R45:数字千分位随语言(B8);有动效时注册即归零(此前 SSR 终值先淡入再跳回 0 重数)。 */
 import { useT, type Locale } from '../i18n';
-import { daysSince } from '../../schema/src/stats-growth';
-import { STATS_SNAPSHOT, STATS_SNAPSHOT_AT, STATS_GROWTH, statsMode, fmtStat, localeTag } from '../lib/stats';
+import { STATS_BASE, STATS_SNAPSHOT, STATS_SNAPSHOT_AT, STATS_GROWTH, statsMode, fmtStat, localeTag } from '../lib/stats';
 
 interface Props {
   locale: Locale;
@@ -12,9 +11,6 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const mode = statsMode();
-/* 构建期已经把「起算日 → 构建那天」这段增长算进 STATS_SNAPSHOT 了。
-   页内脚本要反推基准值,就得知道构建时算了多少天 —— 否则它会在已增长的值上再加一遍。 */
-const BUILT_DAYS = STATS_GROWTH ? daysSince(STATS_GROWTH.since, Date.now()) : 0;
 const items = [
   { key: 'activeDevices', label: t('stats.activeDevices'), value: STATS_SNAPSHOT.activeDevices, decimals: 0 },
   { key: 'activeJobs', label: t('stats.activeJobs'), value: STATS_SNAPSHOT.activeJobs, decimals: 0 },
@@ -42,7 +38,6 @@ const items = [
             data-target={it.value}
             data-decimals={it.decimals}
             data-suffix={it.suffix ?? ''}
-            data-built-days={BUILT_DAYS}
           >
             {fmtStat(it.value, it.decimals, locale)}{it.suffix ?? ''}
           </span>
@@ -64,24 +59,26 @@ const items = [
   STATS_GROWTH && (
     <script
       is:inline
-      define:vars={{ since: STATS_GROWTH.since, daily: STATS_GROWTH.daily, tag: localeTag(locale) }}
+      define:vars={{ since: STATS_GROWTH.since, daily: STATS_GROWTH.daily, base: STATS_BASE, tag: localeTag(locale) }}
     >
       (function () {
         var t0 = Date.parse(since + 'T00:00:00Z');
         if (!isFinite(t0)) return;
         var days = Math.max(0, Math.floor((Date.now() - t0) / 86400000));
+        var live = {};
         document.querySelectorAll('#stats .num[data-key]').forEach(function (el) {
+          var key = el.dataset.key;
           var per = daily[el.dataset.key];
-          if (!per) return;
-          // data-target 上现在是「构建那天」的值 —— 反推基准值再按今天重算,不做二次累加
           var built = Number(el.dataset.target);
-          var builtDays = Number(el.dataset.builtDays || 0);
-          var base = built - per * builtDays;
-          var now = Math.round(base + per * days);
-          if (now === built) return;
-          el.dataset.target = String(now);
-          el.textContent = now.toLocaleString(tag) + (el.dataset.suffix || '');
+          // 直接从后台保存的起算日基数重算；已取整的构建快照不可逆，不能拿它反推小数基数。
+          var now = per ? Math.round(Number(base[key]) + per * days) : built;
+          if (now !== built) {
+            el.dataset.target = String(now);
+            el.textContent = now.toLocaleString(tag) + (el.dataset.suffix || '');
+          }
+          live[key] = now;
         });
+        window.__xLiveStats = live;
       })();
     </script>
   )
@@ -155,7 +152,7 @@ const items = [
   // count-up(进视口一次)+ SSE 热更新(mode=sse 时)。数值格式与服务端 fmtStat 同语义(含语言千分位)。
   const root = document.getElementById('stats');
   const nums = [...(root?.querySelectorAll<HTMLElement>('.num') ?? [])];
-  const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const motionQuery = matchMedia('(prefers-reduced-motion: reduce)');
   const tag = root?.dataset.locale || 'en-US';
 
   const fmt = (n: number, d: number) =>
@@ -169,7 +166,11 @@ const items = [
     el.textContent = fmt(v, Number(el.dataset.decimals || 0)) + (el.dataset.suffix || '');
   };
 
-  if (!reduced && nums.length) {
+  const renderTargets = () => {
+    for (const el of nums) render(el, Number(el.dataset.target));
+  };
+
+  if (!motionQuery.matches && nums.length) {
     /* R49-D4「任何一帧都是海报」:起点 0 曾让快滚用户只带走一屏「0 设备/0 国家」(截图包实证);
        起点改 70% 终值、时长 1200→800——中间帧永远是像样的数字 */
     for (const el of nums) render(el, Number(el.dataset.target) * 0.7);
@@ -180,6 +181,10 @@ const items = [
         const t0 = performance.now();
         const DUR = 800;
         const tick = (now: number) => {
+          if (motionQuery.matches) {
+            renderTargets();
+            return;
+          }
           const p = Math.min(1, (now - t0) / DUR);
           const ease = 1 - Math.pow(1 - p, 3);
           for (const el of nums) render(el, Number(el.dataset.target) * (0.7 + 0.3 * ease));
@@ -190,6 +195,12 @@ const items = [
       { threshold: 0.4 },
     );
     io.observe(root!);
+    motionQuery.addEventListener('change', (event) => {
+      if (event.matches) {
+        io.disconnect();
+        renderTargets();
+      }
+    });
   }
 
   // SSE 热更新:断连静默重试交给 EventSource 自身;数据坏(非有限数)忽略该字段(宁旧勿假)
@@ -200,13 +211,18 @@ const items = [
         try {
           const data: unknown = JSON.parse(ev.data);
           if (typeof data !== 'object' || data === null) return;
+          const changed: Record<string, number> = {};
           for (const el of nums) {
             const v = (data as Record<string, unknown>)[el.dataset.key || ''];
             if (typeof v === 'number' && Number.isFinite(v)) {
               el.dataset.target = String(v);
               render(el, v);
+              changed[el.dataset.key || ''] = v;
             }
           }
+          const state = window as unknown as { __xLiveStats?: Record<string, number> };
+          state.__xLiveStats = { ...state.__xLiveStats, ...changed };
+          document.dispatchEvent(new CustomEvent('x:stats-update', { detail: state.__xLiveStats }));
         } catch {
           /* 坏帧忽略,保留旧值 */
         }

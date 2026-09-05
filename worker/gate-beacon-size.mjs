@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /* 体积门(plan T4-AC3):埋点脚本 gzip ≤2KB——守「零框架 JS/性能预算」承诺。
-   实测形态:metrics.ts 无 import → Astro 将其内联进每页 HTML(更优:零额外请求、DNT 判断更早)。
+   实测形态:Astro 将 metrics.ts 及其静态依赖打包内联进每页 HTML(零额外请求、DNT 判断更早)。
    门做两件事:①从 dist/index.html 抽出含 'doNotTrack'+'/api/e' 双标记的内联 <script>,gzip ≤2048;
    ②全站每个 index.html 恰含 1 份(缺=没挂上,多=重复注入)。用法:node gate-beacon-size.mjs(先 build)。 */
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
+import { runInNewContext } from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -50,6 +51,55 @@ if (scripts.length !== 1) {
   const ok = bytes <= LIMIT;
   console.log(`${ok ? '✓' : '✗'} 埋点内联脚本 gzip=${bytes}B(上限 ${LIMIT}B)`);
   if (!ok) fails++;
+
+  // ③ 执行实际产物，而非读取 TypeScript 声明：共享 import 必须被 Astro 打包，长 Unicode path 必须安全落进 envelope。
+  const sent = [];
+  let flush;
+  class ProbeBlob {
+    constructor(parts) { this.parts = parts; }
+  }
+  const longPath = `/${'😀'.repeat(60)}`;
+  const context = {
+    navigator: {
+      doNotTrack: '0',
+      sendBeacon: (_url, body) => {
+        sent.push(JSON.parse(body.parts.join('')));
+        return true;
+      },
+    },
+    location: { pathname: longPath, search: '', hostname: 'example.test' },
+    document: {
+      documentElement: { lang: 'en' },
+      referrer: '',
+      visibilityState: 'visible',
+      addEventListener() {},
+      getElementById() { return null; },
+      querySelectorAll() { return []; },
+    },
+    matchMedia: () => ({ matches: false }),
+    setInterval: (callback) => { flush = callback; return 1; },
+    addEventListener() {},
+    IntersectionObserver: class { observe() {} unobserve() {} },
+    PerformanceObserver: class { observe() {} },
+    Blob: ProbeBlob,
+    fetch: () => Promise.resolve({ ok: true }),
+    URL,
+    URLSearchParams,
+    TextEncoder,
+    innerHeight: 900,
+  };
+  try {
+    runInNewContext(scripts[0], context);
+    flush?.();
+    const pv = sent.flatMap((batch) => batch.events ?? []).find((event) => event.t === 'pv');
+    const expectedPath = `/${'😀'.repeat(49)}`;
+    const contractOk = pv?.path === expectedPath && Buffer.byteLength(pv.path, 'utf8') <= 200;
+    console.log(`${contractOk ? '✓' : '✗'} 实际产物可执行共享合同且 path ≤200 UTF-8B`);
+    if (!contractOk) fails++;
+  } catch (error) {
+    console.error(`✗ 实际埋点产物执行失败:${error instanceof Error ? error.message : String(error)}`);
+    fails++;
+  }
 }
 // ② 覆盖:每页恰 1 份
 let missing = 0;

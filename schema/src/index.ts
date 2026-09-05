@@ -5,3 +5,5 @@ export * from './manifest.js';
 export * from './validators.js';
 export * from './materialize.js';
 export * from './diff.js';
+export * from './utf8.js';
+export * from './event-contract.js';

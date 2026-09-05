@@ -3,6 +3,7 @@ import { useState } from 'react';
 // @ts-expect-error 禁用词单源
 import { scanForbidden } from '../../../scripts/forbidden-patterns.mjs';
 import { useDraft, type Tri } from '../lib/use-draft';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { AutoTextarea } from '../lib/auto-textarea';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -15,14 +16,14 @@ const fromInput = (v: string) => (v ? new Date(v).toISOString() : undefined);
 
 export default function AnnouncementPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [e, setE] = useState<Partial<Ann>>({});
   const [textE, setTextE] = useState<Partial<Tri>>({});
+  const dirty = Object.keys(e).length > 0 || Object.keys(textE).length > 0;
+  const { draft, saving, conflict, clearConflict, save, reload } = useDraft(dirty);
 
   if (!draft) return <section><h2>公告条</h2><div className="skl" style={{ height: 80 }} /></section>;
 
   const a: Ann = { ...draft.announcement, ...e, text: { ...draft.announcement.text, ...textE } };
-  const dirty = Object.keys(e).length > 0 || Object.keys(textE).length > 0;
   const now = Date.now();
   /* 窗口态一律人话:此前混着 disabled / scheduled / expired 这类机器词直出(实景走查 P1) */
   const winState = !a.enabled ? '未启用' : !a.startsAt || !a.endsAt ? '缺起止时间' : now < Date.parse(a.startsAt) ? '已排期(还没到展示时间)' : now > Date.parse(a.endsAt) ? '已过期(展示时间已过)' : '展示中';
@@ -89,11 +90,16 @@ export default function AnnouncementPage() {
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={!dirty || saving || errs.length > 0}
           onClick={async () => {
+            const submitted = submissionSnapshot(e);
+            const submittedText = submissionSnapshot(textE);
             const ok = await save((d) => {
-              Object.assign(d.announcement, e);
-              Object.assign(d.announcement.text, textE);
+              Object.assign(d.announcement, submitted);
+              Object.assign(d.announcement.text, submittedText);
             });
-            if (ok) { setE({}); setTextE({}); }
+            if (ok) {
+              setE((current) => retainPostSubmit(current, submitted, {}));
+              setTextE((current) => retainPostSubmit(current, submittedText, {}));
+            }
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

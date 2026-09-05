@@ -1,4 +1,4 @@
-// T1 冒烟:app 可响应 + D1 迁移建齐 16 表 + KV 可读写(plan T1-AC2)。
+// T1 冒烟:app 可响应 + D1 迁移建齐当前全部表 + KV 可读写(plan T1-AC2)。
 import { env } from 'cloudflare:test';
 import { describe, expect, it } from 'vitest';
 import { app } from '../src/index';
@@ -7,7 +7,7 @@ const EXPECTED_TABLES = [
   'config_versions', 'config_draft', 'audit',
   'auth_account', 'sessions', 'login_throttle',
   'raw_events',
-  'daily_traffic', 'daily_cta', 'daily_section', 'daily_faq', 'daily_learn',
+  'daily_traffic', 'daily_visitors', 'daily_dimensions', 'daily_cta', 'daily_section', 'daily_faq', 'daily_learn',
   'daily_vitals', 'daily_errors', 'daily_blocked', 'daily_bot',
 ];
 

@@ -13,12 +13,15 @@ export default defineConfig(async () => {
             TEST_MIGRATIONS: migrations,
             // 测试提速:KDF 迭代降到 1k(正确性与 600k 同构,迭代数是配置值;性能非测试对象)
             KDF_ITER: '1000',
+            PUBLISH_RUNNER_TOKEN: 'test-service-secret-with-at-least-32-characters',
+            PUBLISH_EXECUTION_MODE: 'local',
           },
         },
       }),
     ],
     test: {
       setupFiles: ['./test/apply-migrations.ts'],
+      include: ['test/**/*.spec.ts'],
     },
   };
 });

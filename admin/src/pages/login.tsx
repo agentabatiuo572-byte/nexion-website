@@ -1,7 +1,7 @@
 /* 登录页(CON01 ⑤⑥:默认/加载/报错/锁定倒计时四态) */
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ApiError, api } from '../api';
+import { advanceAuthGeneration, ApiError, api } from '../api';
 import { lockoutText, useLockout } from '../lib/use-lockout';
 
 export default function Login() {
@@ -19,6 +19,7 @@ export default function Login() {
     setErr('');
     try {
       await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ password: pw }) });
+      advanceAuthGeneration();
       nav(sp.get('back') || '/', { replace: true });
     } catch (ex) {
       if (lock.capture(ex)) {

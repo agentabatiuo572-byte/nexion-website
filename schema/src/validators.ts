@@ -145,7 +145,8 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
     for (const loc of LOCALES) if (!a.text[loc].trim()) errors.push({ path: `announcement.text.${loc}`, rule: 'untranslated', message: '启用的公告三语必填' });
     if (!a.startsAt || !a.endsAt) errors.push({ path: 'announcement', rule: 'window', message: '启用的公告须有起止时间' });
     else if (Date.parse(a.endsAt) <= Date.parse(a.startsAt)) errors.push({ path: 'announcement.endsAt', rule: 'window', message: '结束时间须晚于开始' });
-    if (a.href && !/^(https:\/\/|\/)/.test(a.href)) errors.push({ path: 'announcement.href', rule: 'url', message: '须为 https 或站内路径' });
+    /* `//host/path` 与 `/\\host/path` 都会被浏览器解释成跨站导航，不能冒充站内路径。 */
+    if (a.href && !/^(https:\/\/|\/(?![\\/]))/.test(a.href)) errors.push({ path: 'announcement.href', rule: 'url', message: '须为 https 或单斜杠开头的站内路径' });
   }
 
   // 9) 页脚(CON10-E2)与 SEO 长度软警(CON10-E1)

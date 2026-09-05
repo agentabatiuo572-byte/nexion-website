@@ -1,0 +1,115 @@
+---
+import { useT, type Locale } from '../../i18n';
+import { renderLegalMarkdown } from '../../lib/legal-markdown';
+import { SITE_CONFIG } from '../../lib/site-config';
+
+interface Props {
+  locale: Locale;
+  document: 'terms' | 'privacy' | 'appPrivacy';
+  fallbackTitle: string;
+}
+
+const { locale, document, fallbackTitle } = Astro.props;
+const t = useT(locale);
+const configured = SITE_CONFIG.legal?.[document];
+const localMarkdown = configured?.md[locale]?.trim() ?? '';
+const englishMarkdown = configured?.md.en?.trim() ?? '';
+const markdown = localMarkdown || englishMarkdown;
+const fellBackToEnglish = locale !== 'en' && !localMarkdown && Boolean(englishMarkdown);
+const rendered = renderLegalMarkdown(markdown);
+const title = rendered.title || fallbackTitle;
+---
+
+<main class="legal" lang={fellBackToEnglish ? 'en' : locale}>
+  {fellBackToEnglish && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
+  <h1 class="x-display">{title}</h1>
+  {configured?.updatedAt && <p class="updated x-mono"><time datetime={configured.updatedAt}>{configured.updatedAt}</time></p>}
+  <div class="sheet x-tile x-tile-calm legal-markdown" set:html={rendered.html} />
+</main>
+
+<style>
+  .legal {
+    position: relative;
+    z-index: 1;
+    max-width: calc(780 * var(--uc));
+    margin-top: calc(84 * var(--uc));
+    padding: calc(46 * var(--uc)) var(--x-pad) calc(40 * var(--uc));
+  }
+  .prevails {
+    border: 1px solid var(--x-line);
+    color: var(--x-ink-dim);
+    line-height: 1.2;
+    padding: calc(10 * var(--uc)) calc(16 * var(--uc));
+    margin: 0 0 calc(20 * var(--uc));
+  }
+  h1 {
+    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
+    color: var(--x-ink);
+    margin: 0 0 calc(14 * var(--uc));
+  }
+  .updated {
+    color: var(--x-ink-dim);
+    line-height: 1.2;
+    margin: 0 0 calc(30 * var(--uc));
+  }
+  .sheet {
+    padding: clamp(20px, 2.6vw, calc(34 * var(--uc)));
+    margin-top: calc(8 * var(--uc));
+  }
+  .legal-markdown :global(h2),
+  .legal-markdown :global(h3),
+  .legal-markdown :global(h4),
+  .legal-markdown :global(h5),
+  .legal-markdown :global(h6) {
+    font-family: var(--x-font-display);
+    font-size: clamp(18px, 1.9vw, calc(24 * var(--uc)));
+    font-weight: 500;
+    line-height: 1.1;
+    color: var(--x-ink);
+    margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
+    letter-spacing: -0.02em;
+  }
+  .legal-markdown :global(h2:first-child),
+  .legal-markdown :global(h3:first-child) {
+    margin-top: 0;
+  }
+  .legal-markdown :global(p),
+  .legal-markdown :global(li),
+  .legal-markdown :global(th),
+  .legal-markdown :global(td) {
+    font-family: var(--x-font-mono);
+    color: var(--x-ink-dim);
+    font-size: calc(12 * var(--uc));
+    line-height: 1.85;
+    text-wrap: pretty;
+  }
+  .legal-markdown :global(p) {
+    margin: 0 0 calc(12 * var(--uc));
+  }
+  .legal-markdown :global(ul),
+  .legal-markdown :global(ol) {
+    margin: 0 0 calc(16 * var(--uc));
+    padding-left: calc(26 * var(--uc));
+  }
+  .legal-markdown :global(a) {
+    color: var(--x-ink);
+    text-decoration: underline;
+    text-underline-offset: calc(3 * var(--uc));
+  }
+  .legal-markdown :global(.table-wrap) {
+    max-width: 100%;
+    overflow-x: auto;
+    margin-bottom: calc(16 * var(--uc));
+  }
+  .legal-markdown :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .legal-markdown :global(th),
+  .legal-markdown :global(td) {
+    padding: calc(8 * var(--uc));
+    border: 1px solid var(--x-line-soft);
+    text-align: left;
+    vertical-align: top;
+  }
+</style>

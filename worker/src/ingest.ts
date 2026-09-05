@@ -2,6 +2,9 @@ import { Hono } from 'hono';
 import type { Env } from './env';
 import { BatchSchema } from './events';
 import { createLimiter } from './ratelimit';
+import { isBotUserAgent } from './bot';
+import { METRIC_TEXT_BYTES } from '../../schema/src/event-contract';
+import { truncateUtf8 } from '../../schema/src/utf8';
 
 /* 采集接口(PRD CON15-A1/E1/E2/E3):畸形 4xx 丢弃、限速 429、匿名化在此完成。
    隐私硬约束:IP 只在本函数瞬时参与去重哈希,不落库不落日志。 */
@@ -14,8 +17,6 @@ export function resetRateLimiter(): void {
   limiter.reset();
 }
 const rateLimited = (ip: string, now: number) => limiter.hit(ip, now);
-
-const BOT_RE = /bot|crawl|spider|slurp|headless|python|curl|wget|monitor|preview|scan|lighthouse/i;
 
 /** 访客日内去重 id:sha256(盐+日+IP+UA) 截 16hex。盐 00:00 UTC 随日期轮换 → 跨日不可关联(CON03-③)。 */
 export async function hashUid(salt: string, day: string, ip: string, ua: string): Promise<string> {
@@ -35,8 +36,9 @@ ingestRoutes.post('/', async (c) => {
   if (!parsed.success) return c.json({ error: 'bad-payload' }, 400); // E2:丢弃,客户端不重试
 
   const ua = c.req.header('user-agent') ?? '';
-  const bot = BOT_RE.test(ua) ? 1 : 0;
-  const country = (c.req.raw.cf?.country as string | undefined) ?? c.req.header('cf-ipcountry') ?? 'XX';
+  const bot = isBotUserAgent(ua) ? 1 : 0;
+  const rawCountry = (c.req.raw.cf?.country as string | undefined) ?? c.req.header('cf-ipcountry') ?? 'XX';
+  const country = truncateUtf8(rawCountry.toUpperCase(), METRIC_TEXT_BYTES.country) || 'XX';
   const day = new Date(now).toISOString().slice(0, 10);
   const uid = await hashUid(c.env.BEACON_SALT ?? 'no-salt', day, ip, ua);
 

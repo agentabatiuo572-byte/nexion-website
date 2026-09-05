@@ -3,17 +3,23 @@ import type { Env } from './env';
 
 /** 动作字典(PRD CON14-③,封闭枚举:新动作必须加进这里,审计覆盖测试按它遍历) */
 export const AUDIT_ACTIONS = [
+  'auth.setup.attempt',
+  'auth.setup.fail',
   'auth.setup',
+  'login.attempt',
   'login.success',
   'login.fail',
   'auth.logout',
   'admin.rollup',
   'config.save',
   'geo.update',
+  'geo.update.attempt',
+  'geo.update.applied',
   'bypass.issue',
   'config.publish',
   'config.publish.live',
   'config.publish.failed',
+  'config.publish.unknown',
   'config.publish.cancel',
   /* 被并发挡下的发起。不建版本行(否则会造出清不掉的假红条),但要留一行审计——
      否则「谁在什么时候试图发布过、被谁挡了」在系统里彻底查不到(第四轮 P2-4)。 */
@@ -31,14 +37,33 @@ export interface AuditEntry {
   actor?: string;
 }
 
+/** Fixed guard for the draft-upgrade transaction; callers cannot supply SQL. */
+export interface AuditUpgradeGuard { configUpgradeKey: string; configUpgradeNonce: string }
+
+export function prepareAudit(db: D1Database, e: AuditEntry, guard?: AuditUpgradeGuard): D1PreparedStatement {
+  const values = [Date.now(), e.actor ?? 'admin', e.action, e.target ?? null, e.before ?? null, e.after ?? null, e.reason ?? null];
+  const insert = 'INSERT INTO audit (ts, actor, action, target, before_summary, after_summary, reason) ';
+  if (guard) return db.prepare(insert +
+    `SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7
+       WHERE EXISTS (SELECT 1 FROM config_draft_upgrades AS u JOIN config_draft AS d ON d.id=u.draft_id
+                       WHERE u.draft_id=1 AND u.upgrade_key=?8 AND u.commit_nonce=?9 AND d.draft_rev=u.upgraded_rev)`,
+  ).bind(...values, guard.configUpgradeKey, guard.configUpgradeNonce);
+  return db.prepare(insert + 'VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)').bind(...values);
+}
+
+/** 放在有条件状态更新之后的同一 D1 batch 中：只有紧邻更新真正命中时才写审计。
+ * SQLite changes() 在该连接上指向前一条语句；审计失败会让整批事务一起回滚。 */
+export function prepareAuditAfterPreviousChange(db: D1Database, e: AuditEntry): D1PreparedStatement {
+  const values = [Date.now(), e.actor ?? 'admin', e.action, e.target ?? null, e.before ?? null, e.after ?? null, e.reason ?? null];
+  return db.prepare(
+    `INSERT INTO audit (ts, actor, action, target, before_summary, after_summary, reason)
+     SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7 WHERE changes() > 0`,
+  ).bind(...values);
+}
+
 /** 唯一写入口。append-only:全仓不存在 UPDATE/DELETE audit 的语句(CON14-E2 由路由审计测试守)。 */
 export async function writeAudit(db: D1Database, e: AuditEntry): Promise<void> {
-  await db
-    .prepare(
-      'INSERT INTO audit (ts, actor, action, target, before_summary, after_summary, reason) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)',
-    )
-    .bind(Date.now(), e.actor ?? 'admin', e.action, e.target ?? null, e.before ?? null, e.after ?? null, e.reason ?? null)
-    .run();
+  await prepareAudit(db, e).run();
 }
 
 export interface AuditRow {

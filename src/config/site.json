@@ -172,5 +172,31 @@
   "footer": {
     "social": [],
     "contactEmail": ""
+  },
+  "legal": {
+    "terms": {
+      "md": {
+        "en": "",
+        "vi": "",
+        "zh": ""
+      },
+      "updatedAt": ""
+    },
+    "privacy": {
+      "md": {
+        "en": "",
+        "vi": "",
+        "zh": ""
+      },
+      "updatedAt": ""
+    },
+    "appPrivacy": {
+      "md": {
+        "en": "",
+        "vi": "",
+        "zh": ""
+      },
+      "updatedAt": ""
+    }
   }
 }

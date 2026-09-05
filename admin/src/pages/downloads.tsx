@@ -1,6 +1,7 @@
 /* 下载入口(CON05 ⑤⑥):三入口 URL/开关 + 即时探活(预警不阻断,永不自动下架)。高敏模块。 */
 import { useState } from 'react';
-import { api, toast } from '../api';
+import { ApiError, api, toast } from '../api';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { fieldName } from '../lib/human-path';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
@@ -12,14 +13,15 @@ const ROWS = [
 ] as const;
 
 type ProbeItem = { ok?: boolean; status?: number; note?: string; skipped?: boolean };
-type Probe = Record<string, ProbeItem> & { at?: number };
+type Probe = Partial<Record<(typeof ROWS)[number][0], ProbeItem>> & { at?: number; draftRev: number };
 
 export default function DownloadsPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, saving, conflict, save, reload } = useDraft();
   const [edits, setEdits] = useState<Record<string, { url?: string; enabled?: boolean }>>({});
   const [probe, setProbe] = useState<Probe | null>(null);
   const [probing, setProbing] = useState(false);
+  const dirty = Object.keys(edits).length > 0;
+  const { draft, saving, conflict, save, reload, draftRev } = useDraft(dirty);
 
   if (!draft) return <section><h2>下载入口</h2><div className="skl" style={{ height: 80 }} /></section>;
 
@@ -31,14 +33,32 @@ export default function DownloadsPage() {
     if (c.url && !/^https:\/\/.+/.test(c.url)) return [`${fieldName(k)}:须为 https 完整链接`];
     return [];
   });
-  const dirty = Object.keys(edits).length > 0;
+  const visibleProbe = !dirty && probe?.draftRev === draftRev ? probe : null;
 
   async function doProbe() {
+    if (dirty || draftRev === undefined) return;
+    const checkedRevision = draftRev;
     setProbing(true);
     try {
-      setProbe(await api<Probe>('/api/config/probe-downloads', { method: 'POST', body: '{}' }));
-    } catch {
-      toast('探活请求失败');
+      const result = await api<Probe>('/api/config/probe-downloads', {
+        method: 'POST',
+        body: JSON.stringify({ expectedDraftRev: checkedRevision }),
+      });
+      if (result.draftRev !== checkedRevision) {
+        setProbe(null);
+        toast(`探活结果属于草稿 r${result.draftRev}，不是当前看到的 r${checkedRevision}；已丢弃并刷新`);
+        await reload();
+        return;
+      }
+      setProbe({ ...result, draftRev: checkedRevision });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409 && error.body.error === 'draft-changed') {
+        setProbe(null);
+        toast('草稿已在别处更新，未执行旧版本探活；已刷新，请重新核对');
+        await reload();
+      } else {
+        toast('探活请求失败');
+      }
     } finally {
       setProbing(false);
     }
@@ -48,10 +68,11 @@ export default function DownloadsPage() {
     <section>
       <h2>下载入口 <span className="pill warn">高敏 · 发布须理由</span></h2>
       <div className="note info">未配置或关闭的入口,站上会显示「即将推出」并禁用点击,不会出现打不开的链接;改动保存进草稿,经「发布」过全部机器门后生效。</div>
+      <div className="note info">“立即探活”只检查服务器里的<b>已保存草稿</b>。本页有未保存改动时需先保存或放弃，避免把旧链接结果贴到新输入旁。</div>
       {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试</button></div>}
       {ROWS.map(([k, label, ph]) => {
         const c = cur(k);
-        const p = probe?.[k];
+        const p = visibleProbe?.[k] as ProbeItem | undefined;
         return (
           <div className="card" key={k} data-field={`downloads.${k}`} style={{ marginBottom: 10 }}>
             <div className="row">
@@ -78,11 +99,16 @@ export default function DownloadsPage() {
       {errs.map((e, i) => <div className="note bad" key={i}>{e}</div>)}
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={!dirty || errs.length > 0 || saving}
-          onClick={async () => { if (await save((d) => { for (const [k, m] of Object.entries(edits)) Object.assign(d.downloads[k as 'ios'], m); })) setEdits({}); }}>
+          onClick={async () => {
+            const submitted = submissionSnapshot(edits);
+            if (await save((d) => { for (const [k, m] of Object.entries(submitted)) Object.assign(d.downloads[k as 'ios'], m); })) {
+              setEdits((current) => retainPostSubmit(current, submitted, {}));
+            }
+          }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>
-        <button className="btn" disabled={probing} onClick={doProbe}>{probing ? '探活中…' : '立即探活'}</button>
-        {probe?.at && <span className="kv">最近核验 {new Date(probe.at).toLocaleTimeString('zh-CN', { hour12: false })}</span>}
+        <button className="btn" disabled={probing || dirty} title={dirty ? '先保存或放弃本页改动；探活检查的是已保存草稿' : '检查已保存草稿里的三个入口'} onClick={doProbe}>{probing ? '探活中…' : '立即探活（已保存草稿）'}</button>
+        {visibleProbe?.at && <span className="kv">已保存草稿 r{visibleProbe.draftRev} · 最近核验 {new Date(visibleProbe.at).toLocaleTimeString('zh-CN', { hour12: false })}</span>}
       </div>
     </section>
   );

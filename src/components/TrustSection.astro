@@ -378,15 +378,19 @@ const MEANS = [1, 2, 3] as const;
     border-radius: 999px;
     /* 1.45em 而非 1lh:字身单位会在字体就绪前锁死在兜底值(R50 判据);
        1.45 是本元素 line-height 的同值直写。 */
-    padding: calc((var(--x-touch) - 1.45em) / 2) calc(16 * var(--uc));
+    padding: calc((var(--x-touch) - 1.2em) / 2) calc(16 * var(--uc));
     font-weight: 700; /* 全站体例:按钮 700(tokens 排版尺子) */
     display: inline-block;
     text-align: center;
     text-decoration: none;
     transition: opacity 0.2s;
   }
+  .vcta:lang(vi) {
+    padding-block: calc((var(--x-touch) - 1.45em) / 2);
+  }
   .vcta:lang(zh) {
     line-height: 1.6; /* x-label 与 x-mono 同基座,取同一 zh 档(型类只有 vi 分支) */
+    padding-block: calc((var(--x-touch) - 1.6em) / 2);
   }
   .vcta:hover {
     opacity: 0.85;

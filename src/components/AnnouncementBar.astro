@@ -1,0 +1,155 @@
+---
+/* [FEAT-CON09] 全站公告：配置随静态产物发布，生效窗口与关闭记忆在浏览器按 UTC 判断。 */
+import { useT, type Locale } from '../i18n';
+import { SITE_CONFIG } from '../lib/site-config';
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = useT(locale);
+const announcement = SITE_CONFIG.announcement;
+const text = announcement.text[locale]?.trim();
+const renderable = announcement.enabled && Boolean(text) && Boolean(announcement.id);
+const externalHref = announcement.href?.startsWith('https://');
+---
+
+{
+  renderable && (
+    <aside
+      id="x-announcement"
+      class="announcement"
+      data-id={announcement.id}
+      data-starts-at={announcement.startsAt ?? ''}
+      data-ends-at={announcement.endsAt ?? ''}
+      hidden
+    >
+      <div class="inner">
+        {announcement.href ? (
+          <a
+            class="message"
+            href={announcement.href}
+            title={text}
+            target={externalHref ? '_blank' : undefined}
+            rel={externalHref ? 'noopener noreferrer' : undefined}
+          >{text}<span aria-hidden="true"> ↗</span></a>
+        ) : (
+          <span class="message" title={text}>{text}</span>
+        )}
+        <button type="button" class="close" aria-label={t('trust.certClose')} data-announcement-close>
+          <span aria-hidden="true">×</span>
+        </button>
+      </div>
+    </aside>
+  )
+}
+
+<script is:inline>
+  (function () {
+    var root = document.getElementById('x-announcement');
+    if (!root) return;
+    var dismissKey = 'x-announcement-dismissed';
+    var timer = 0;
+
+    function dismissed() {
+      try { return sessionStorage.getItem(dismissKey) === root.dataset.id; }
+      catch (_) { return false; }
+    }
+
+    function timeValue(value) {
+      if (!value) return null;
+      var parsed = Date.parse(value);
+      return isFinite(parsed) ? parsed : null;
+    }
+
+    function syncOffset() {
+      var screenHeight = root.hidden ? 0 : root.getBoundingClientRect().height;
+      var canvas = document.querySelector('.x-canvas');
+      var zoom = canvas && canvas.offsetWidth ? canvas.getBoundingClientRect().width / canvas.offsetWidth : 1;
+      if (!(zoom > 0) || !isFinite(zoom)) zoom = 1;
+      document.documentElement.style.setProperty('--x-announcement-screen-h', screenHeight + 'px');
+      document.documentElement.style.setProperty('--x-announcement-h', screenHeight / zoom + 'px');
+    }
+
+    function refresh() {
+      clearTimeout(timer);
+      var now = Date.now();
+      var starts = timeValue(root.dataset.startsAt);
+      var ends = timeValue(root.dataset.endsAt);
+      var inWindow = (starts === null || now >= starts) && (ends === null || now < ends);
+      root.hidden = dismissed() || !inWindow;
+      requestAnimationFrame(syncOffset);
+
+      var next = starts !== null && now < starts ? starts : ends !== null && now < ends ? ends : null;
+      if (next !== null) timer = setTimeout(refresh, Math.min(2147483647, Math.max(20, next - now + 20)));
+    }
+
+    root.querySelector('[data-announcement-close]')?.addEventListener('click', function () {
+      try { sessionStorage.setItem(dismissKey, root.dataset.id || ''); } catch (_) { /* 会话存储不可用时只关闭本页 */ }
+      root.hidden = true;
+      syncOffset();
+    });
+    addEventListener('resize', function () { requestAnimationFrame(syncOffset); }, { passive: true });
+    if ('ResizeObserver' in window) new ResizeObserver(syncOffset).observe(root);
+    refresh();
+  })();
+</script>
+
+<style>
+  .announcement {
+    position: fixed;
+    inset: 0 0 auto;
+    z-index: 45;
+    background: var(--x-accent);
+    color: var(--x-on-accent);
+    border-bottom: 1px solid rgb(var(--x-bg-rgb) / 0.22);
+  }
+  .announcement[hidden] {
+    display: none;
+  }
+  .inner {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding-inline: max(12px, var(--x-pad));
+  }
+  .message {
+    display: inline-block;
+    min-height: 44px;
+    padding-block: calc((44px - 1.6em) / 2);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: inherit;
+    font-family: var(--x-font-mono);
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.6;
+    text-decoration: none;
+  }
+  a.message:hover,
+  a.message:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.25em;
+  }
+  .close {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    display: inline-grid;
+    place-items: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: 24px/1 var(--x-font-display);
+    cursor: pointer;
+  }
+  .close:hover,
+  .close:focus-visible {
+    background: rgb(var(--x-bg-rgb) / 0.12);
+  }
+</style>

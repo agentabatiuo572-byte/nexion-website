@@ -11,6 +11,7 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+const scaleTemplate = t('social.scaleLine');
 
 interface Testimonial {
   name: string;
@@ -27,7 +28,7 @@ const TESTIMONIALS: Testimonial[] = [];
       <span class="x-mono-lg" data-tw>{t('social.kicker')}</span>
     </p>
     <div class="disp x-display">
-      <h2 data-lr>
+      <h2 data-lr data-scale-template={scaleTemplate} data-locale={locale}>
         {t('social.scaleLine', { devices: fmtStat(STATS_SNAPSHOT.activeDevices, 0, locale), countries: STATS_SNAPSHOT.countries })}
       </h2>
     </div>
@@ -49,6 +50,33 @@ const TESTIMONIALS: Testimonial[] = [];
     }
   </div>
 </section>
+
+<script is:inline>
+  /* StatsBar 在同页更早位置按访问日重算后把原始值放到 window；这里在 fx 拆行前同步整句。 */
+  (function () {
+    var el = document.querySelector('#social [data-scale-template]');
+    var live = window.__xLiveStats;
+    if (!el) return;
+    var tag = el.dataset.locale === 'vi' ? 'vi-VN' : el.dataset.locale === 'zh' ? 'zh-CN' : 'en-US';
+    var fmt = function (n) {
+      return n >= 999500
+        ? (n / 1000000).toLocaleString(tag, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'
+        : n >= 99950
+          ? (n / 1000).toLocaleString(tag, { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + 'K'
+          : n.toLocaleString(tag);
+    };
+    var render = function (stats) {
+      if (typeof stats.activeDevices !== 'number' || typeof stats.countries !== 'number') return;
+      el.textContent = el.dataset.scaleTemplate
+        .replace('{devices}', fmt(stats.activeDevices))
+        .replace('{countries}', fmt(stats.countries));
+    };
+    if (live) render(live);
+    document.addEventListener('x:stats-update', function (event) {
+      render(event.detail || {});
+    });
+  })();
+</script>
 
 <style>
   .social {

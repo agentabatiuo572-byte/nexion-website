@@ -3,15 +3,19 @@
    管辖条款已按 O2 资料包填充(Colorado, USA)。
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题)、meta 行挂 .x-mono、小标题行高 1.1;英文正文标 lang=en。 */
 import { useT, type Locale } from '../../i18n';
+import { SITE_CONFIG } from '../../lib/site-config';
+import LegalDocument from './LegalDocument.astro';
 
 interface Props {
   locale: Locale;
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+const configured = SITE_CONFIG.legal?.terms;
+const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.en?.trim());
 ---
 
-<main class="legal" lang="en">
+{hasConfigured ? <LegalDocument locale={locale} document="terms" fallbackTitle="Terms of Service" /> : <main class="legal" lang="en">
   {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">Terms of Service</h1>
   <p class="updated x-mono">Last updated: 2026-08-20</p>
@@ -58,7 +62,7 @@ const t = useT(locale);
   <h2>8. Governing law</h2>
   <p>These terms are governed by the laws of the State of Colorado, United States. The Site is operated by NexGrid LTD, 1670 Bwayroad, Denver, CO 80202, United States.</p>
   </div>
-</main>
+</main>}
 
 <style>
   .legal {

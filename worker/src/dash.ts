@@ -1,6 +1,12 @@
 import { Hono } from 'hono';
+import { METRIC_CONVERSION_CTA_IDS } from '../../schema/src/event-contract';
 import type { Env } from './env';
 import { loadRules } from './geo';
+import {
+  ROLLUP_VERSION,
+  VALID_HUMAN_BEACON_EVENT_SQL,
+  VALID_HUMAN_BLOCKED_EVENT_SQL,
+} from './rollup';
 
 /* 驾驶舱聚合(PRD CON03)。口径全部照 ③ 字典,不在此处新造定义:
    · 北极星转化率 = 当期 cta 点击「访客数」÷ 当期 UV(不是点击数÷UV)
@@ -12,9 +18,123 @@ import { loadRules } from './geo';
 
 const DAY_MS = 86_400_000;
 const dayStr = (t: number) => new Date(t).toISOString().slice(0, 10);
+const sqlText = (value: string) => `'${value.replaceAll("'", "''")}'`;
+const CONVERSION_CTA_SQL = METRIC_CONVERSION_CTA_IDS.map(sqlText).join(', ');
+
+interface SectionError { error: true }
+type Maybe<T> = T | SectionError;
+
+interface UniqueCoverage {
+  hasData: boolean;
+  global: boolean;
+  dimensions: boolean;
+}
+
+/** A new table can exist while old aggregate dates are still absent from it; absence must not become a displayed zero. */
+async function uniqueCoverage(db: D1Database, from: string, to: string): Promise<UniqueCoverage> {
+  const activityTables = ['daily_traffic', 'daily_cta', 'daily_section', 'daily_faq', 'daily_vitals', 'daily_errors', 'daily_page', 'daily_learn', 'daily_bot'] as const;
+  // D1 limits compound SELECT terms; each nested group has at most five.
+  const dateQueries = activityTables.map((table) => 'SELECT DISTINCT date FROM ' + table + ' WHERE date BETWEEN ?1 AND ?2' + (table === 'daily_bot' ? ' AND human_pv > 0' : ''));
+  const activitySql = 'SELECT date FROM (' + dateQueries.slice(0, 5).join(' UNION ') + ') UNION SELECT date FROM (' + dateQueries.slice(5).join(' UNION ') + ')';
+  const dates = await db.prepare(activitySql).bind(from, to).all<{ date: string }>();
+  const requiredDates = new Set(dates.results.map((row) => row.date));
+  const activityDates = requiredDates.size;
+
+  let visitorDates = 0;
+  try {
+    visitorDates = (await db.prepare('SELECT COUNT(*) AS n FROM daily_visitors WHERE date BETWEEN ?1 AND ?2')
+      .bind(from, to).first<{ n: number }>())?.n ?? 0;
+  } catch {
+    return activityDates === 0
+      ? { hasData: false, global: true, dimensions: true }
+      : { hasData: true, global: false, dimensions: false };
+  }
+
+  if (activityDates === 0 && visitorDates === 0) return { hasData: false, global: true, dimensions: true };
+
+  try {
+    const visitors = await db.prepare('SELECT date, rollup_version FROM daily_visitors WHERE date BETWEEN ?1 AND ?2')
+      .bind(from, to).all<{ date: string; rollup_version: number }>();
+    const coveredDates = new Set(visitors.results.filter((row) => row.rollup_version === ROLLUP_VERSION).map((row) => row.date));
+    if (visitors.results.some((row) => row.rollup_version !== ROLLUP_VERSION) || [...requiredDates].some((date) => !coveredDates.has(date))) {
+      return { hasData: true, global: false, dimensions: false };
+    }
+  } catch {
+    return { hasData: true, global: false, dimensions: false };
+  }
+
+  // Every human beacon supplies country; FAQ also supplies locale and vit supplies device.
+  // Page/learn/human-bot summaries prove PV existed, so all PV dimensions must exist.
+  // Recover exact values only where aggregates retain them (traffic and page locale).
+  try {
+    const missing = await db.prepare(`
+      WITH traffic_required AS (
+        SELECT DISTINCT traffic.date, fields.key AS dimension, CAST(fields.value AS TEXT) AS value
+        FROM daily_traffic AS traffic,
+             json_each(json_object(
+               'locale', traffic.locale,
+               'country', traffic.country,
+               'device', traffic.device,
+               'ref_class', traffic.ref_class
+             )) AS fields
+        WHERE traffic.date BETWEEN ?1 AND ?2
+      ), required_values AS (
+        SELECT date, dimension, value FROM traffic_required
+        UNION
+        SELECT cta.date, 'locale', cta.locale
+        FROM daily_cta AS cta
+        WHERE cta.date BETWEEN ?1 AND ?2
+        UNION
+        SELECT date, 'locale', locale FROM daily_page WHERE date BETWEEN ?1 AND ?2
+      ), required_kinds AS (
+        SELECT date, 'country' AS dimension FROM daily_visitors WHERE date BETWEEN ?1 AND ?2 AND uv > 0
+        UNION
+        SELECT date, 'locale' FROM daily_faq WHERE date BETWEEN ?1 AND ?2
+        UNION
+        SELECT date, 'device' FROM daily_vitals WHERE date BETWEEN ?1 AND ?2
+        UNION
+        SELECT date, fields.value FROM (
+          SELECT date FROM daily_page WHERE date BETWEEN ?1 AND ?2
+          UNION SELECT date FROM daily_learn WHERE date BETWEEN ?1 AND ?2
+          UNION SELECT date FROM daily_bot WHERE date BETWEEN ?1 AND ?2 AND human_pv > 0
+        ), json_each('["locale","device","ref_class"]') AS fields
+      ), missing_required AS (
+        SELECT required.date, required.dimension, required.value
+        FROM required_values AS required
+        LEFT JOIN daily_dimensions AS dimensions
+          ON dimensions.date = required.date
+         AND dimensions.dimension = required.dimension
+         AND dimensions.value = required.value
+        WHERE dimensions.date IS NULL
+      ), missing_kinds AS (
+        SELECT required.date, required.dimension FROM required_kinds AS required
+        WHERE NOT EXISTS (
+          SELECT 1 FROM daily_dimensions AS dimensions
+          WHERE dimensions.date = required.date AND dimensions.dimension = required.dimension
+        )
+      ), missing_all AS (
+        SELECT visitors.date
+        FROM daily_visitors AS visitors
+        WHERE visitors.date BETWEEN ?1 AND ?2
+          AND NOT EXISTS (SELECT 1 FROM daily_dimensions AS dimensions WHERE dimensions.date = visitors.date)
+      )
+      SELECT (SELECT COUNT(*) FROM missing_required)
+           + (SELECT COUNT(*) FROM missing_kinds)
+           + (SELECT COUNT(*) FROM missing_all) AS n
+    `).bind(from, to).first<{ n: number }>();
+    return { hasData: true, global: true, dimensions: (missing?.n ?? 0) === 0 };
+  } catch {
+    return { hasData: true, global: true, dimensions: false };
+  }
+}
+
+function requireCoverage(coverage: Maybe<UniqueCoverage>, field: 'global' | 'dimensions'): UniqueCoverage {
+  if ('error' in coverage || !coverage[field]) throw new Error('analytics summary unavailable');
+  return coverage;
+}
 
 /** 分组独立执行:任一组抛错只影响它自己 */
-async function section<T>(fn: () => Promise<T>): Promise<T | { error: true }> {
+async function section<T>(fn: () => Promise<T>): Promise<Maybe<T>> {
   try {
     return await fn();
   } catch {
@@ -32,53 +152,113 @@ dashRoutes.get('/', async (c) => {
   const prevFrom = dayStr(now - (2 * days - 1) * DAY_MS);
   const prevTo = dayStr(now - days * DAY_MS);
   const db = c.env.DB;
+  const [currentCoverage, previousCoverage] = await Promise.all([
+    section(() => uniqueCoverage(db, from, today)),
+    section(() => uniqueCoverage(db, prevFrom, prevTo)),
+  ]);
 
-  // ---- 总览 + 环比(上一个等长周期)----
-  const overview = await section(async () => {
-    const sum = async (a: string, b: string) =>
-      (await db
-        .prepare('SELECT COALESCE(SUM(pv),0) pv, COALESCE(SUM(uv),0) uv, COALESCE(SUM(sessions),0) sessions FROM daily_traffic WHERE date BETWEEN ?1 AND ?2')
-        .bind(a, b)
-        .first<{ pv: number; uv: number; sessions: number }>())!;
-    const cta = async (a: string, b: string) =>
-      (await db
-        .prepare('SELECT COALESCE(SUM(clicks),0) clicks, COALESCE(SUM(uniq),0) uniq FROM daily_cta WHERE date BETWEEN ?1 AND ?2')
-        .bind(a, b)
-        .first<{ clicks: number; uniq: number }>())!;
-    const [cur, prev, curCta, prevCta] = await Promise.all([sum(from, today), sum(prevFrom, prevTo), cta(from, today), cta(prevFrom, prevTo)]);
-    const byCta = (
-      await db
-        .prepare('SELECT cta_id, COALESCE(SUM(clicks),0) clicks FROM daily_cta WHERE date BETWEEN ?1 AND ?2 GROUP BY cta_id ORDER BY clicks DESC')
-        .bind(from, today)
-        .all<{ cta_id: string; clicks: number }>()
-    ).results;
-    /* 🔴 转化率口径:uniq 是「按 (日, cta, 语言) 去重的访客数」之和,跨日/跨键会重复计人,
-       因此它是**上界**而非精确唯一访客;当期 UV 同理是各日 uv 之和(跨日重复计)。
-       两者同为「按日相加」的口径,比值在同口径下可比,但不等于「唯一访客转化率」——
-       面板必须标注口径,不做假精确(数字可信不自曝)。 */
-    const rate = cur.uv > 0 ? curCta.uniq / cur.uv : null;
-    const prevRate = prev.uv > 0 ? prevCta.uniq / prev.uv : null;
-    return {
-      pv: cur.pv, uv: cur.uv, sessions: cur.sessions,
-      ctaClicks: curCta.clicks, ctaVisitors: curCta.uniq, byCta,
-      starRate: rate, starRatePrev: prevRate,
-      deltaUv: prev.uv > 0 ? (cur.uv - prev.uv) / prev.uv : null,
-      deltaCta: prevCta.clicks > 0 ? (curCta.clicks - prevCta.clicks) / prevCta.clicks : null,
-      hasData: cur.pv > 0 || cur.uv > 0,
-    };
-  });
+  const trafficTotals = async (a: string, b: string, coverage: UniqueCoverage) => {
+    if (!coverage.hasData) return { pv: 0, uv: 0, sessions: 0 };
+    const [traffic, visitors] = await Promise.all([
+      db.prepare('SELECT COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2')
+        .bind(a, b).first<{ pv: number }>(),
+      db.prepare('SELECT COALESCE(SUM(uv),0) uv, COALESCE(SUM(sessions),0) sessions FROM daily_visitors WHERE date BETWEEN ?1 AND ?2')
+        .bind(a, b).first<{ uv: number; sessions: number }>(),
+    ]);
+    return { pv: traffic?.pv ?? 0, uv: visitors?.uv ?? 0, sessions: visitors?.sessions ?? 0 };
+  };
+  const conversionTotals = async (a: string, b: string, coverage: UniqueCoverage) => {
+    if (!coverage.hasData) return { uv: 0, ctaVisitors: 0 };
+    const row = await db.prepare(`
+      SELECT COALESCE(SUM(uv),0) uv, COALESCE(SUM(cta_visitors),0) ctaVisitors,
+             COALESCE(SUM(CASE WHEN uv < 0 OR cta_visitors < 0 OR cta_visitors > uv THEN 1 ELSE 0 END),0) invalidRows
+      FROM daily_visitors WHERE date BETWEEN ?1 AND ?2
+    `).bind(a, b).first<{ uv: number; ctaVisitors: number; invalidRows: number }>();
+    const uv = row?.uv ?? 0;
+    const ctaVisitors = row?.ctaVisitors ?? 0;
+    if ((row?.invalidRows ?? 0) > 0 || ctaVisitors > uv) throw new Error('invalid conversion summary');
+    return { uv, ctaVisitors };
+  };
+  const clickTotals = async (a: string, b: string) => (
+    await db.prepare(`
+      SELECT COALESCE(SUM(clicks),0) clicks FROM daily_cta
+      WHERE date BETWEEN ?1 AND ?2 AND cta_id IN (${CONVERSION_CTA_SQL})
+    `).bind(a, b).first<{ clicks: number }>()
+  )?.clicks ?? 0;
+
+  // ---- 总览三卡:流量、下载、转化各自失败 ----
+  const [traffic, downloads, conversion] = await Promise.all([
+    section(async () => {
+      const current = requireCoverage(currentCoverage, 'global');
+      const previous = requireCoverage(previousCoverage, 'global');
+      const [cur, prev] = await Promise.all([
+        trafficTotals(from, today, current),
+        trafficTotals(prevFrom, prevTo, previous),
+      ]);
+      return {
+        ...cur,
+        deltaUv: prev.uv > 0 ? (cur.uv - prev.uv) / prev.uv : null,
+        hasData: current.hasData,
+      };
+    }),
+    section(async () => {
+      const [cur, prev, byCta] = await Promise.all([
+        clickTotals(from, today),
+        clickTotals(prevFrom, prevTo),
+        db.prepare(`
+          SELECT cta_id, COALESCE(SUM(clicks),0) clicks FROM daily_cta
+          WHERE date BETWEEN ?1 AND ?2 AND cta_id IN (${CONVERSION_CTA_SQL})
+          GROUP BY cta_id ORDER BY clicks DESC
+        `).bind(from, today).all<{ cta_id: string; clicks: number }>(),
+      ]);
+      return {
+        ctaClicks: cur,
+        byCta: byCta.results,
+        deltaCta: prev > 0 ? (cur - prev) / prev : null,
+      };
+    }),
+    section(async () => {
+      const current = requireCoverage(currentCoverage, 'global');
+      const previous = requireCoverage(previousCoverage, 'global');
+      const [cur, prev] = await Promise.all([
+        conversionTotals(from, today, current),
+        conversionTotals(prevFrom, prevTo, previous),
+      ]);
+      return {
+        ctaVisitors: cur.ctaVisitors,
+        starRate: cur.uv > 0 ? cur.ctaVisitors / cur.uv : null,
+        starRatePrev: prev.uv > 0 ? prev.ctaVisitors / prev.uv : null,
+      };
+    }),
+  ]);
+  const overview = { traffic, downloads, conversion };
 
   // ---- 趋势(按日)----
   const trend = await section(async () => {
+    const coverage = requireCoverage(currentCoverage, 'global');
+    if (!coverage.hasData) return [];
     const t = (
       await db
-        .prepare('SELECT date, COALESCE(SUM(pv),0) pv, COALESCE(SUM(uv),0) uv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2 GROUP BY date ORDER BY date')
+        .prepare(`WITH traffic AS (
+          SELECT date, COALESCE(SUM(pv),0) pv
+          FROM daily_traffic WHERE date BETWEEN ?1 AND ?2 GROUP BY date
+        ), dates AS (
+          SELECT date FROM traffic
+          UNION
+          SELECT date FROM daily_visitors WHERE date BETWEEN ?1 AND ?2
+        )
+        SELECT dates.date, COALESCE(traffic.pv,0) pv, COALESCE(visitors.uv,0) uv
+        FROM dates
+        LEFT JOIN traffic ON traffic.date = dates.date
+        LEFT JOIN daily_visitors AS visitors ON visitors.date = dates.date
+        ORDER BY dates.date`)
         .bind(from, today)
         .all<{ date: string; pv: number; uv: number }>()
     ).results;
     const cta = (
       await db
-        .prepare('SELECT date, COALESCE(SUM(clicks),0) clicks FROM daily_cta WHERE date BETWEEN ?1 AND ?2 GROUP BY date')
+        .prepare(`SELECT date, COALESCE(SUM(clicks),0) clicks FROM daily_cta
+          WHERE date BETWEEN ?1 AND ?2 AND cta_id IN (${CONVERSION_CTA_SQL}) GROUP BY date`)
         .bind(from, today)
         .all<{ date: string; clicks: number }>()
     ).results;
@@ -88,47 +268,49 @@ dashRoutes.get('/', async (c) => {
 
   // ---- 漏斗:访客 → 滚达下载区 → 滚达信任区 → CTA 点击 ----
   const funnel = await section(async () => {
-    const uv = (await db.prepare('SELECT COALESCE(SUM(uv),0) uv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ uv: number }>())!.uv;
+    const coverage = requireCoverage(currentCoverage, 'global');
+    if (!coverage.hasData) return { uv: 0, download: 0, trust: 0, cta: 0 };
+    const totals = await conversionTotals(from, today, coverage);
     const secOf = async (id: string) =>
       (await db.prepare('SELECT COALESCE(SUM(uniq),0) n FROM daily_section WHERE date BETWEEN ?1 AND ?2 AND section_id = ?3').bind(from, today, id).first<{ n: number }>())!.n;
     const [download, trust] = await Promise.all([secOf('download'), secOf('trust')]);
-    const ctaUniq = (await db.prepare('SELECT COALESCE(SUM(uniq),0) n FROM daily_cta WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number }>())!.n;
-    return { uv, download, trust, cta: ctaUniq };
+    return { uv: totals.uv, download, trust, cta: totals.ctaVisitors };
   });
 
   // ---- 分语言:占比 + 各自转化率(越南市场运营关键)----
   const locales = await section(async () => {
-    const t = (
-      await db
-        .prepare('SELECT locale, COALESCE(SUM(uv),0) uv, COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2 GROUP BY locale')
-        .bind(from, today)
-        .all<{ locale: string; uv: number; pv: number }>()
-    ).results;
-    const cta = (
-      await db
-        .prepare('SELECT locale, COALESCE(SUM(uniq),0) uniq FROM daily_cta WHERE date BETWEEN ?1 AND ?2 GROUP BY locale')
-        .bind(from, today)
-        .all<{ locale: string; uniq: number }>()
-    ).results;
-    const cm = new Map(cta.map((r) => [r.locale, r.uniq]));
+    const coverage = requireCoverage(currentCoverage, 'dimensions');
+    if (!coverage.hasData) return [];
+    const t = (await db.prepare(`
+      SELECT value AS locale, COALESCE(SUM(uv),0) uv, COALESCE(SUM(pv),0) pv,
+             COALESCE(SUM(cta_visitors),0) ctaVisitors
+      FROM daily_dimensions
+      WHERE date BETWEEN ?1 AND ?2 AND dimension = 'locale'
+      GROUP BY value
+    `).bind(from, today).all<{ locale: string; uv: number; pv: number; ctaVisitors: number }>()).results;
+    if (t.some((row) => row.ctaVisitors < 0 || row.ctaVisitors > row.uv)) {
+      throw new Error('invalid locale conversion summary');
+    }
     const total = t.reduce((s, r) => s + r.uv, 0);
     return t
-      .map((r) => ({ locale: r.locale, uv: r.uv, pv: r.pv, share: total ? r.uv / total : 0, rate: r.uv ? (cm.get(r.locale) ?? 0) / r.uv : null }))
+      .map((r) => ({ ...r, share: total ? r.uv / total : 0, rate: r.uv ? r.ctaVisitors / r.uv : null }))
       .sort((a, b) => b.uv - a.uv);
   });
 
   // ---- 来源 / 国家 / 设备 ----
-  const dims = await section(async () => {
-    const group = async (col: string) =>
-      (
-        await db
-          .prepare(`SELECT ${col} AS k, COALESCE(SUM(uv),0) uv, COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2 GROUP BY ${col} ORDER BY uv DESC LIMIT 20`)
-          .bind(from, today)
-          .all<{ k: string; uv: number; pv: number }>()
-      ).results;
-    const [sources, countries, devices] = await Promise.all([group('ref_class'), group('country'), group('device')]);
-    return { sources, countries, devices };
+  const dimension = (kind: 'ref_class' | 'country' | 'device') => section(async () => {
+    const coverage = requireCoverage(currentCoverage, 'dimensions');
+    if (!coverage.hasData) return [];
+    return (await db.prepare(`
+      SELECT value AS k, COALESCE(SUM(uv),0) uv, COALESCE(SUM(pv),0) pv
+      FROM daily_dimensions WHERE date BETWEEN ?1 AND ?2 AND dimension = ?3
+      GROUP BY value ORDER BY uv DESC LIMIT 20
+    `).bind(from, today, kind).all<{ k: string; uv: number; pv: number }>()).results;
   });
+  const [sources, countries, devices] = await Promise.all([
+    dimension('ref_class'), dimension('country'), dimension('device'),
+  ]);
+  const dims = { sources, countries, devices };
 
   /* ---- 内容四榜:各自独立成组(复测 R2-P2「没真拆」:此前四榜同在一个 section 里,
      任一张表出问题四张卡一起黑,而其余三张表是健康的)。隔离粒度必须与展示粒度一致。 ---- */
@@ -164,14 +346,17 @@ dashRoutes.get('/', async (c) => {
     const errRow = (
       await db.prepare('SELECT COALESCE(SUM(count),0) n, COUNT(*) rows FROM daily_errors WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ n: number; rows: number }>()
     )!;
-    const nf = (
-      await db.prepare('SELECT path, COALESCE(SUM(hits),0) hits FROM daily_notfound WHERE date BETWEEN ?1 AND ?2 GROUP BY path ORDER BY hits DESC LIMIT 10').bind(from, today).all<{ path: string; hits: number }>()
-    ).results;
+    const [nf, nfTotal] = await Promise.all([
+      db.prepare('SELECT path, COALESCE(SUM(hits),0) hits FROM daily_notfound WHERE date BETWEEN ?1 AND ?2 GROUP BY path ORDER BY hits DESC LIMIT 10')
+        .bind(from, today).all<{ path: string; hits: number }>(),
+      db.prepare('SELECT COALESCE(SUM(hits),0) hits, COUNT(*) rows FROM daily_notfound WHERE date BETWEEN ?1 AND ?2')
+        .bind(from, today).first<{ hits: number; rows: number }>(),
+    ]);
     return {
       latest,
       errors: errRow.rows > 0 ? errRow.n : null,
-      notFound: nf,
-      notFoundTotal: nf.length > 0 ? nf.reduce((s, r) => s + r.hits, 0) : null,
+      notFound: nf.results,
+      notFoundTotal: (nfTotal?.rows ?? 0) > 0 ? (nfTotal?.hits ?? 0) : null,
     };
   });
 
@@ -223,18 +408,24 @@ dashRoutes.get('/', async (c) => {
   // ---- 今日实时预览(E2:直查原始事件,标注口径以次日汇总为准)----
   const todayLive = await section(async () => {
     const t0 = Date.parse(`${today}T00:00:00.000Z`);
-    const row = (await db
-      .prepare("SELECT COUNT(*) pv, COUNT(DISTINCT uid) uv FROM raw_events WHERE type='pv' AND ts >= ?1 AND IFNULL(json_extract(payload,'$.bot'),0) = 0")
+    const row = (await db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN source.type = 'pv' THEN 1 ELSE 0 END),0) pv,
+        COUNT(DISTINCT source.uid) uv,
+        COALESCE(SUM(CASE
+          WHEN source.type = 'cta' AND json_extract(source.payload, '$.cta') IN (${CONVERSION_CTA_SQL}) THEN 1
+          ELSE 0
+        END),0) cta
+      FROM raw_events AS source
+      WHERE source.ts >= ?1 AND (${VALID_HUMAN_BEACON_EVENT_SQL})
+    `)
       .bind(t0)
-      .first<{ pv: number; uv: number }>())!;
-    // 🔴 cta 同样要排 bot(验收 P1-2:此前只有 pv 过滤,同一张卡内 UV 排 bot、点击不排,
-    //    与日汇总口径(rollup 对 cta 明确 if(isBot) break)也不一致 → 爬虫刷一波今天暴涨明天掉回)
-    const cta = (await db
-      .prepare("SELECT COUNT(*) n FROM raw_events WHERE type='cta' AND ts >= ?1 AND IFNULL(json_extract(payload,'$.bot'),0) = 0")
-      .bind(t0)
-      .first<{ n: number }>())!.n;
-    const blocked = (await db.prepare("SELECT COUNT(*) n FROM raw_events WHERE type='blocked' AND ts >= ?1").bind(t0).first<{ n: number }>())!.n;
-    return { ...row, cta, blocked };
+      .first<{ pv: number; uv: number; cta: number }>())!;
+    const blocked = (await db.prepare(`
+      SELECT COUNT(*) n FROM raw_events AS source
+      WHERE source.ts >= ?1 AND (${VALID_HUMAN_BLOCKED_EVENT_SQL})
+    `).bind(t0).first<{ n: number }>())!.n;
+    return { ...row, blocked };
   });
 
   return c.json({ range: days, from, to: today, overview, trend, funnel, locales, dims, content, quality, health, todayLive });

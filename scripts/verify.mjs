@@ -71,9 +71,16 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 /* ── 门 3:部署门(PRD §6-4:PENDING 标记 / Legal 缺失禁生产)── */
 {
   const detail = [];
+  const siteConfig = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
+  const configuredAppPrivacy = siteConfig.legal?.appPrivacy;
+  const configuredAppPrivacyReady = Boolean(configuredAppPrivacy?.md?.en?.trim()) &&
+    !Object.values(configuredAppPrivacy.md).some((value) => String(value).includes('PENDING-TRUST-ASSETS'));
   const files = walk(SRC, ['.astro', '.ts', '.tsx', '.json', '.md']);
   for (const f of files) {
-    if (readFileSync(f, 'utf8').includes('PENDING-TRUST-ASSETS')) detail.push(`${rel(f)}: 信任资料未填充(PENDING-TRUST-ASSETS)`);
+    if (!readFileSync(f, 'utf8').includes('PENDING-TRUST-ASSETS')) continue;
+    /* App 隐私组件保留空配置时的既有占位正文；后台已提供完整正文后该 fallback 不会进入产物。 */
+    if (configuredAppPrivacyReady && rel(f) === 'src/components/legal/LegalAppPrivacy.astro') continue;
+    detail.push(`${rel(f)}: 信任资料未填充(PENDING-TRUST-ASSETS)`);
   }
   for (const page of ['legal/privacy', 'legal/terms', 'legal/app-privacy']) {
     const found = ['.astro', '.md'].some((ext) => existsSync(join(SRC, 'pages', `${page}${ext}`)));
@@ -287,6 +294,26 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 results.push(canvasUnitGate(SRC, rel));
 results.push(regexEscapeGate(ROOT, rel));
 
+/* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
+   这里覆盖静态文本门看不见的公告/SEO/footer/Legal/FAQ 与跨日、动态偏好、焦点、history。 */
+{
+  const r = spawnSync(
+    process.execPath,
+    [
+      '--import',
+      pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href,
+      join(ROOT, 'scripts', 'gate-site-behavior.mjs'),
+    ],
+    { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
+  );
+  const out = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').filter(Boolean);
+  results.push({
+    gate: 'site-behavior(配置消费/运行时)',
+    pass: r.status === 0,
+    detail: r.status === 0 ? [] : out.slice(-30).map((line) => line.trim()),
+  });
+}
+
 /* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
    同型两次都是「写进去了但从未生效,而且没有任何反馈」:
    ① 同一条规则里写了两个 max-width(新值在前旧值在后),「已修」从未生效;
@@ -375,13 +402,15 @@ results.push(regexEscapeGate(ROOT, rel));
     ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
     ['regex-escape', ['scripts/test-regex-escape.mjs']],
+    ['site-behavior', ['--import', './worker/register-ts-ext.mjs', 'scripts/gate-site-behavior.mjs', '--self-test']],
     // git 层两道门的红测(2026-09-03 Tier 1-⑧,node --test 体例,成功行是「# pass N」):pre-push full 门 / pre-commit S 级门
     ['githooks-pre-push', ['.githooks/verify-before-push.test.mjs']],
     ['githooks-pre-commit', ['.githooks/guard-mainline-commit.test.mjs']],
   ];
   const detail = [];
   for (const [name, argv] of SUITES) {
-    const r = spawnSync(process.execPath, [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)], { cwd: ROOT, encoding: 'utf8' });
+    const command = argv[0].startsWith('--') ? argv : [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)];
+    const r = spawnSync(process.execPath, command, { cwd: ROOT, encoding: 'utf8' });
     if (r.status !== 0) {
       const tail = (r.stdout || '').trim().split('\n').filter((l) => /❌|FAIL|失败/.test(l)).slice(0, 4);
       detail.push(`${name} 的红测没过(exit ${r.status})——该门的判据已失去红测保护`, ...tail.map((l) => '  ' + l.trim()));

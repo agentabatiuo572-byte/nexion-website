@@ -13,7 +13,7 @@ async function login(): Promise<string> {
   const res = await app.request('/api/auth/login', { method: 'POST', headers: IP, body: JSON.stringify({ password: PW }) }, env);
   return `nx_sid=${(res.headers.get('set-cookie') ?? '').match(/nx_sid=([^;]+)/)?.[1]}`;
 }
-const J = (cookie: string) => ({ cookie, 'content-type': 'application/json' });
+const J = (cookie: string) => ({ cookie, 'content-type': 'application/json', authorization:'Bearer test-service-secret-with-at-least-32-characters' });
 
 /** 改一处非高敏文案,制造「有改动」 */
 async function makeChange(cookie: string, value = '改动一下') {
@@ -23,7 +23,14 @@ async function makeChange(cookie: string, value = '改动一下') {
   const res = await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
   expect(res.status).toBe(200);
 }
-const post = (cookie: string, p: string, body: unknown = {}) => app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify(body) }, env);
+const post = async (cookie: string, p: string, body: unknown = {}) => {
+  const payload = {runnerId:'test-runner',...(body as object)} as Record<string, unknown>;
+  if (p === '/api/publish' && payload.fromVersion === undefined && !Object.hasOwn(payload, 'draftRev')) {
+    const preflight = await app.request('/api/publish/preflight', {headers:{cookie}}, env);
+    if (preflight.ok) payload.draftRev = ((await preflight.json()) as {draftRev:number}).draftRev;
+  }
+  return app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify(payload) }, env);
+};
 const status = async (cookie: string) => (await (await app.request('/api/publish/status', { headers: { cookie } }, env)).json()) as any;
 
 /* 🔴 上线核验的测试替身(2026-09-01 复验 P0-A)。
@@ -45,11 +52,11 @@ const envWithStamp = (stamp: { versionId: number; stamp: string; configSha?: str
   ASSETS: { fetch: async () => (stamp ? new Response(JSON.stringify(stamp), { status: 200 }) : new Response('not found', { status: 404 })) },
 });
 const postAs = (e: unknown, cookie: string, p: string, body: unknown = {}) =>
-  app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify(body) }, e as typeof env);
+  app.request(p, { method: 'POST', headers: J(cookie), body: JSON.stringify({runnerId:'test-runner',...(body as object)}) }, e as typeof env);
 
 /** 领单拿到本次一次性口令(执行器的第一步) */
 async function claim(cookie: string): Promise<{ versionId: number; stamp: string }> {
-  const j = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: { versionId: number; stamp: string } | null };
+  const j = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: JSON.stringify({runnerId:'test-runner'}) }, env)).json()) as { job: { versionId: number; stamp: string } | null };
   expect(j.job).not.toBeNull();
   return { versionId: j.job!.versionId, stamp: j.job!.stamp };
 }
@@ -66,6 +73,9 @@ async function runPipeline(cookie: string, versionId: number) {
 }
 
 beforeEach(async () => {
+  await env.DB.prepare('DELETE FROM publish_runner').run();
+  await env.DB.prepare('DELETE FROM publish_dispatch').run();
+  await env.DB.prepare('INSERT INTO publish_runner(runner_id,last_seen_at) VALUES(?1,?2)').bind('availability',Date.now()).run();
   for (const t of ['audit', 'sessions', 'login_throttle', 'auth_account', 'config_versions', 'config_draft', 'publish_lock', 'publish_steps'])
     await env.DB.prepare(`DELETE FROM ${t}`).run();
 });
@@ -262,7 +272,11 @@ describe('CON13 发布流水线', () => {
     expect(soon.status).toBe(409); // 刚有动静,不许中止
     expect(((await soon.json()) as any).error).toBe('runner-still-alive');
     // 把最后动静推到 13 分钟前 = 执行器失联
-    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 13 * 60_000, r.versionId).run();
+    const stale = Date.now() - 13 * 60_000;
+    await env.DB.batch([
+      env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(stale, r.versionId),
+      env.DB.prepare('UPDATE publish_lock SET claimed_at=?1,expires_at=?2 WHERE version_id=?3').bind(stale,stale+15*60_000,r.versionId),
+    ]);
     expect((await post(cookie, '/api/publish/cancel', { force: true })).status).toBe(400); // 必须写理由
     const okRes = await post(cookie, '/api/publish/cancel', { force: true, reason: '执行器所在机器断电' });
     expect(okRes.status).toBe(200);
@@ -273,8 +287,8 @@ describe('CON13 发布流水线', () => {
     const cookie = await login();
     await makeChange(cookie);
     await post(cookie, '/api/publish');
-    const next = async () => (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: unknown };
-    const [a, b] = await Promise.all([next(), next()]);
+    const next = async (runnerId: string) => (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: JSON.stringify({runnerId}) }, env)).json()) as { job: unknown };
+    const [a, b] = await Promise.all([next('runner-a'), next('runner-b')]);
     expect([a.job, b.job].filter(Boolean)).toHaveLength(1);
   });
 
@@ -333,7 +347,7 @@ describe('CON13 发布流水线', () => {
     const job = await claim(cookie); // 第一个执行器领到
     expect(job.versionId).toBe(r.versionId);
     await post(cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'materialize', status: 'running' }); // 第一个执行器开工
-    const second = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: '{}' }, env)).json()) as { job: unknown; note?: string };
+    const second = (await (await app.request('/api/publish/next', { method: 'POST', headers: J(cookie), body: JSON.stringify({runnerId:'second-runner'}) }, env)).json()) as { job: unknown; note?: string };
     expect(second.job).toBeNull();
     expect(second.note).toBe('already-claimed');
   });
@@ -680,7 +694,11 @@ describe('CON13 发布流水线', () => {
     expect((await post(cookie, '/api/publish/cancel')).status).toBe(409);
 
     // ④ 失联超阈值 → 报 force,且带理由能真中止
-    await env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(Date.now() - 13 * 60_000, r2.versionId).run();
+    const stale = Date.now() - 13 * 60_000;
+    await env.DB.batch([
+      env.DB.prepare('UPDATE publish_steps SET started_at=?1, ended_at=NULL WHERE version_id=?2').bind(stale,r2.versionId),
+      env.DB.prepare('UPDATE publish_lock SET claimed_at=?1,expires_at=?2 WHERE version_id=?3').bind(stale,stale+15*60_000,r2.versionId),
+    ]);
     expect((await status(cookie)).cancelable).toBe('force');
     expect((await post(cookie, '/api/publish/cancel', { force: true, reason: '执行器所在机器断电' })).status).toBe(200);
     expect(r1.versionId).not.toBe(r2.versionId);

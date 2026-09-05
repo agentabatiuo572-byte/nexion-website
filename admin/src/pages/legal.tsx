@@ -1,6 +1,7 @@
 /* Legal(CON11 ⑤⑥):三文档 × 三语 Markdown + 白名单预览(标题/段落/列表/链接/强调——
    预览器只认这些,不渲染任何 HTML=白名单 by construction;服务端保存时另剥危险节点)。高敏。 */
 import { useState, type ReactNode } from 'react';
+import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { useDraft } from '../lib/use-draft';
 import { useFocusField } from '../lib/use-focus-field';
 
@@ -49,16 +50,16 @@ function mdLite(src: string): ReactNode {
 
 export default function LegalPage() {
   useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
-  const { draft, saving, conflict, clearConflict, save, reload } = useDraft();
   const [doc, setDoc] = useState<'terms' | 'privacy' | 'appPrivacy'>('terms');
   const [loc, setLoc] = useState<'en' | 'vi' | 'zh'>('en');
   const [edits, setEdits] = useState<Record<string, string>>({});
+  const dirty = Object.keys(edits).length > 0;
+  const { draft, saving, conflict, clearConflict, save, reload } = useDraft(dirty);
 
   if (!draft) return <section><h2>Legal</h2><div className="skl" style={{ height: 80 }} /></section>;
 
   const key = `${doc}.${loc}`;
   const v = edits[key] ?? draft.legal[doc].md[loc];
-  const dirty = Object.keys(edits).length > 0;
   const pending = v.includes('PENDING-TRUST-ASSETS');
   // 直接算不缓存:早退分支之后禁挂钩子(#310 实踩);md-lite 单文档渲染开销可忽略
   const preview = mdLite(v);
@@ -92,13 +93,14 @@ export default function LegalPage() {
       <div className="row" style={{ marginTop: 12 }}>
         <button className="btn primary" disabled={!dirty || saving}
           onClick={async () => {
+            const submitted = submissionSnapshot(edits);
             const ok = await save((d) => {
-              for (const [k2, val] of Object.entries(edits)) {
+              for (const [k2, val] of Object.entries(submitted)) {
                 const [dd, ll] = k2.split('.') as ['terms', 'en'];
                 d.legal[dd].md[ll] = val;
               }
             });
-            if (ok) setEdits({});
+            if (ok) setEdits((current) => retainPostSubmit(current, submitted, {}));
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>

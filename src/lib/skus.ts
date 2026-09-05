@@ -20,7 +20,7 @@ export interface WebSku {
 /* 单源 = 官网后台配置物化(2026-08-31 CON07/CON16 接管):src/config/site.json 只含
    visible=true 的 SKU,已按控制台排序;结构由 schema zod 上游担保(status 枚举/字段全)。
    改阵容/价格走控制台(产品事实字段=高敏,须与 App PRD §7.1 一致),禁在此手改。 */
-import site from '../config/site.json';
+import { SITE_CONFIG as site } from './site-config';
 
 export const SKUS: WebSku[] = site.skus as WebSku[];
 

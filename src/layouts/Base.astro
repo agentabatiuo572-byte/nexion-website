@@ -15,8 +15,10 @@ import bvpLatin500 from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-5
 import '../styles/tokens.css';
 import SiteNav from '../components/SiteNav.astro';
 import SiteFooter from '../components/SiteFooter.astro';
+import AnnouncementBar from '../components/AnnouncementBar.astro';
 import { useT } from '../i18n';
 import { locales, type Locale } from '../i18n';
+import { SITE_CONFIG } from '../lib/site-config';
 
 interface Props {
   locale: Locale;
@@ -34,9 +36,21 @@ const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
 const urlFor = (l: Locale) => new URL(withSlash(l === 'en' ? path : `/${l}${path}`), site).href;
 /* 首屏标题字体预载:缩短首屏那档字重(500)的就绪时间——fx 的标题引擎每个标题只等自身字重,拍锚开场钟 */
 const preloadFonts = locale === 'vi' ? [bvpVi500, bvpLatin500] : [funnel500];
+const normalizedPath = withSlash(path);
+const seoPageId = ({
+  '/': 'home',
+  '/learn/': 'learn',
+  '/nex/': 'nex',
+  '/legal/privacy/': 'legal-privacy',
+  '/legal/terms/': 'legal-terms',
+  '/legal/app-privacy/': 'legal-app-privacy',
+} as Record<string, string>)[normalizedPath];
+const configuredSeo = !noindex && seoPageId ? SITE_CONFIG.seo.pages[seoPageId] : undefined;
+const resolvedTitle = configuredSeo?.title[locale]?.trim() || title;
+const resolvedDescription = configuredSeo?.description[locale]?.trim() || description;
 /* 页标题体例:不含品牌名的标题统一追加后缀(zh「学习中心」这类本语 key 不含 NexGrid),含的不重复 */
 const t = useT(locale);
-const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
+const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolvedTitle} — NexGrid`;
 ---
 
 <!doctype html>
@@ -55,14 +69,14 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     {preloadFonts.map((href) => <link rel="preload" as="font" type="font/woff2" href={href} crossorigin />)}
     <title>{fullTitle}</title>
-    <meta name="description" content={description} />
+    <meta name="description" content={resolvedDescription} />
     {noindex && <meta name="robots" content="noindex" />}
     {!noindex && <link rel="canonical" href={urlFor(locale)} />}
     {!noindex && locales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
     {!noindex && <link rel="alternate" hreflang="x-default" href={urlFor('en')} />}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
-    <meta property="og:description" content={description} />
+    <meta property="og:description" content={resolvedDescription} />
     <meta property="og:url" content={urlFor(locale)} />
     <meta property="og:image" content={new URL('/og.png', site).href} />
     <meta property="og:image:width" content="1200" />
@@ -114,6 +128,7 @@ const fullTitle = title.includes('NexGrid') ? title : `${title} — NexGrid`;
     {/* 跳至正文:导航里有 10 个可聚焦件,没有这条链接的话,键盘用户每换一页都要按 10 次 Tab 才够到内容。
         只在获得焦点时出现(默认挪出屏外,不占版面)。目标挂在画布壳上 —— 每条路由的内容都在它里面。 */}
     <a class="x-skip" href="#main">{t('nav.skip')}</a>
+    <AnnouncementBar locale={locale} />
     <SiteNav locale={locale} path={noindex ? '/' : path} inPageAnchors={!noindex && path === '/'} neutralLang={noindex} />
     <div class="x-frame">
       <div class="x-canvas" id="main" tabindex="-1">

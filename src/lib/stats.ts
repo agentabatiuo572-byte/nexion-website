@@ -6,7 +6,7 @@
    出处见官网后台 PRD CON06);上线前主人在控制台真值化——R49-F1 生产门拦截仍等于锚值的快照。
    R45(主人拍板 B8):千分位/小数点随语言;价格(USD)保持国际 $ 写法,见 skus.ts。 */
 import { grownValue, type StatsGrowth } from '../../schema/src/stats-growth';
-import site from '../config/site.json';
+import { SITE_CONFIG as site } from './site-config';
 import type { Locale } from '../i18n';
 
 export interface PlatformStats {
@@ -24,6 +24,14 @@ export interface PlatformStats {
    不各写一遍(本项目反复踩过的那一族)。 */
 const growth = site.stats.growth as StatsGrowth | undefined;
 const now = Date.now();
+/** 后台保存的起算日基数。浏览器跨日重算必须直接使用它，不能从已取整快照逆推。 */
+export const STATS_BASE: PlatformStats = {
+  activeDevices: site.stats.activeDevices,
+  activeJobs: site.stats.activeJobs,
+  nodes: site.stats.nodes,
+  countries: site.stats.countries,
+  uptime: site.stats.uptime,
+};
 export const STATS_SNAPSHOT: PlatformStats = {
   activeDevices: grownValue(site.stats.activeDevices, 'activeDevices', growth, now),
   activeJobs: grownValue(site.stats.activeJobs, 'activeJobs', growth, now),

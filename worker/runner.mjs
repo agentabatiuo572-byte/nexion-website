@@ -1,196 +1,190 @@
 #!/usr/bin/env node
-/* 发布执行器(V1-dev 本机版;Phase C 的 CI 版走同一 §5.4 契约)。
-   领任务 → 物化配置 → 站上全部机器门 → 生产构建 → 原子切换,逐步回报。
-   🔴 铁则:门红即停,不回报 swap ok —— 线上保持旧版。执行器无权跳过任何一步。
-   用法:npm run publish:runner -- --api http://127.0.0.1:8787 --cookie "nx_sid=..." [--once]
-   为什么门跑在物化产物上:配置错误必须以「站上门」的口径被拦,而不是另造一套判据。 */
-import { execFileSync, spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+/* 机器发布执行器：Bearer 领单 → 私有副本物化 → 全门 → 组装 → 已验证快照切换。
+   local 常驻由启动器管理；production 由定向 GitHub workflow 运行。
+   密钥只从 PUBLISH_RUNNER_TOKEN 读取，不接受 cookie，也没有任意 shell 指令开关。 */
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, writeFileSync, renameSync, rmSync } from 'node:fs';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { setTimeout as delay } from 'node:timers/promises';
+import { acquireLock, parseOptions, createApi, startLease, runCommand, createWorkspace, childEnvironment } from './lib/runner-core.mjs';
+import { runGates, runNpm, runSourceBaseline, validateMaterialized } from './lib/runner-gates.mjs';
+import { parseJsonc } from './lib/read-jsonc.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const SITE = path.join(here, '..');
-const arg = (k, d) => {
-  const i = process.argv.indexOf(k);
-  return i >= 0 ? process.argv[i + 1] : d;
-};
-const API = arg('--api', 'http://127.0.0.1:8787');
-const COOKIE = arg('--cookie', '');
-const ONCE = process.argv.includes('--once');
-const POLL_MS = 3000;
+const SITE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const STOP = new AbortController();
+for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => STOP.abort(new Error(`执行器收到 ${signal}，发布已中断`)));
 
-/* 网络抖动重试:质检门里的生产构建会重写 dist,而 wrangler dev 监视该目录 → 自动重启 →
-   正在写的连接被掐断(实测 ECONNABORTED)。回报不能因此丢失,否则版本卡在「发布中」。 */
-const api = async (p, init = {}, attempt = 1) => {
+async function main() {
+  const options = parseOptions(process.argv.slice(2));
+  const hash = createHash('sha256').update(SITE.toLowerCase()).digest('hex').slice(0, 20);
+  const stateDir = path.join(tmpdir(), `nexgrid-publisher-${hash}`);
+  const lock = await acquireLock(stateDir);
   try {
-    const res = await fetch(`${API}${p}`, { ...init, headers: { 'content-type': 'application/json', cookie: COOKIE, ...(init.headers ?? {}) } });
-    const body = await res.json().catch(() => ({}));
-    // 🔴 409 是「被服务端拒绝」(锁过期/顺序不对/已被领走),不是成功——此前当成功继续往下跑,
-    //    会让执行器在服务端已经拒收的情况下自顾自推进(验收 P2)
-    if (!res.ok) {
-      const err = new Error(`${p} → ${res.status} ${JSON.stringify(body).slice(0, 200)}`);
-      err.status = res.status;
-      err.rejected = res.status === 409 || res.status === 400 || res.status === 401;
-      throw err;
+  const recordPath = path.join(stateDir, 'job.json');
+  const runnerPath = path.join(stateDir, 'identity');
+  const runnerId = existsSync(runnerPath) ? readFileSync(runnerPath, 'utf8').trim() : randomUUID();
+  if (!/^[a-zA-Z0-9-]{16,80}$/.test(runnerId)) throw new Error('执行器持久身份损坏');
+  writeFileSync(runnerPath, `${runnerId}\n`, { mode: 0o600 });
+  const api = createApi(options);
+  let record = existsSync(recordPath) ? JSON.parse(readFileSync(recordPath, 'utf8')) : null;
+  let backoff = 1000;
+  const redact = (value) => {
+    let text = String(value);
+    for (const secret of [options.token, record?.stamp, process.env.CLOUDFLARE_API_TOKEN]) if (secret) text = text.split(secret).join('[redacted]');
+    return text.slice(-6000);
+  };
+  const log = (message) => console.log(`[publisher ${new Date().toISOString()}] ${redact(message)}`);
+  const save = (changes) => {
+    record = { ...record, ...changes, updatedAt: Date.now() };
+    const staging = `${recordPath}.tmp`;
+    writeFileSync(staging, `${JSON.stringify(record)}\n`, { mode: 0o600 });
+    renameSync(staging, recordPath);
+  };
+  const clear = () => { rmSync(recordPath, { force: true }); record = null; };
+  const wait = async (ms) => { try { await delay(ms, undefined, { signal: STOP.signal }); } catch { /* 停机信号由循环处理。 */ } };
+  const machineState = () => api(`/api/publish/runner-state?runnerId=${encodeURIComponent(runnerId)}`, undefined, STOP.signal);
+  const checkEnvironment = (state) => {
+    if (options.mode === 'production' ? !['prod', 'production'].includes(state.environment) : state.environment !== 'dev') throw new Error(`执行模式 ${options.mode} 与 API 环境 ${String(state.environment)} 不符，拒绝领取或切换`);
+  };
+  const report = async (step, status, extra = {}) => {
+    const result = await api('/api/publish/step', { versionId: record.versionId, stamp: record.stamp, runnerId, step, status, ...extra });
+    if (!result.ok) throw new Error(`服务端没有确认 ${step}/${status}`);
+    return result;
+  };
+  const closeInterrupted = async (detail) => {
+    if (!record) return;
+    if (record.api && record.api !== options.api) throw new Error('中断单属于另一 API 地址；必须连接原地址收口，拒绝猜测归属');
+    if (!record.stamp) {
+      const state = await machineState();
+      if (state.activeVersion) {
+        // 只为拿回响应丢失的口令；API 保证已开始任何步骤的任务不重派。
+        const response = await api('/api/publish/next', { runnerId, versionId: state.activeVersion });
+        if (!response.job?.stamp) throw new Error(`领取响应中断，v${state.activeVersion} 无法证明安全归属，等待服务端租约过期收口`);
+        save({ versionId: response.job.versionId, stamp: response.job.stamp });
+      } else { clear(); return; }
     }
-    return body;
-  } catch (e) {
-    if (e.rejected || attempt >= 5) throw e; // 服务端明确拒绝不重试
-    await new Promise((r) => setTimeout(r, 1000 * attempt));
-    return api(p, init, attempt + 1);
-  }
-};
+    try {
+      const result = await api('/api/publish/runner-fail', { versionId: record.versionId, stamp: record.stamp, runnerId: record.runnerId || runnerId, detail: redact(detail) });
+      if (!result.ok) throw new Error('服务端未确认中断单已收口');
+      log(result.live ? `v${record.versionId} 已由服务端核实上线，恢复记录已收口` : result.unknown ? `v${record.versionId} 切换结果待核实，已封住后续发布` : `v${record.versionId} 中断记录已收口，不会自动重复执行`);
+      clear();
+    } catch (error) {
+      if (error.status === 409 || error.status === 404) {
+        log(`v${record.versionId} 已不归当前执行器，保留中断记录并停止旧单`);
+        renameSync(recordPath, path.join(stateDir, `interrupted-${Date.now()}.json`));
+        record = null;
+      } else throw error;
+    }
+  };
 
-/* 🔴 被中止就自己退场(第五轮 P1-6)。
-   强制中止只在服务端放开这次发布,**碰不到本进程**——worker 没有停掉本机进程的能力。
-   若本进程还在闷头跑,就会出现「运营以为已经中止、于是重新发起」与「旧执行器还在写文件」
-   同时成立,而 V1 的整个设计前提是单执行器。
-   所以由执行器**自己**每一步开工前确认「这单还是我的吗」;不是了就干净退出,
-   把「请先手工关掉它」从文档约定变成程序行为。 */
-async function stillMine(versionId, stamp) {
-  try {
-    const s = await api('/api/publish/status');
-    if (s.activeVersion === versionId) return true;
-    console.log(`■ v${versionId} 已不在进行中(可能被强制中止或已超时),执行器退出,不再写任何文件`);
-    return false;
-  } catch {
-    return true; // 查不到就按「还是我的」继续:宁可多跑一步,也不因为一次网络抖动放弃已跑完的门链
+  async function runJob(job) {
+    if (!Number.isSafeInteger(job.versionId) || job.versionId <= 0 || typeof job.stamp !== 'string' || !job.stamp || !job.config) throw new Error('领取响应缺少合法版本、配置或归属口令');
+    save({ versionId: job.versionId, stamp: job.stamp, runnerId, step: 'materialize', childPid: null, phase: 'claimed' });
+    const lease = startLease((signal) => api('/api/publish/heartbeat', { runnerId, versionId: job.versionId, stamp: job.stamp }, signal));
+    const signal = AbortSignal.any([STOP.signal, lease.signal]);
+    let workspace;
+    const commandOptions = { signal, onChild: (pid) => save({ childPid: pid }), env: childEnvironment() };
+    const begin = async (step) => {
+      signal.throwIfAborted(); await lease.check(); save({ step, phase: 'running' }); await report(step, 'running');
+    };
+    const passed = async (step) => { signal.throwIfAborted(); await lease.check(); await report(step, 'ok'); save({ phase: 'ok' }); };
+    try {
+      await lease.ready;
+      await begin('materialize');
+      workspace = await createWorkspace(SITE, path.join(stateDir, 'jobs'), commandOptions);
+      save({ workspace: workspace.root });
+      const site = workspace.site;
+      const baseline = await runSourceBaseline(site, commandOptions);
+      if (!baseline.ok) throw new Error(`源码种子基线未通过：${baseline.tail}`);
+      const { materializeI18n, materializeSiteJson } = await import(pathToFileURL(path.join(site, 'schema/src/materialize.ts')).href);
+      const manifest = JSON.parse(await readFile(path.join(site, 'worker/seed/copy-manifest.json'), 'utf8'));
+      for (const loc of ['en', 'vi', 'zh']) await writeFile(path.join(site, `src/i18n/${loc}.json`), materializeI18n(job.config, manifest, loc));
+      await mkdir(path.join(site, 'src/config'), { recursive: true });
+      await writeFile(path.join(site, 'src/config/site.json'), materializeSiteJson(job.config));
+      const materialized = await validateMaterialized(site, job.config);
+      if (!materialized.ok) throw new Error(`${materialized.gate}：${materialized.tail}`);
+      await passed('materialize');
+      await begin('gates');
+      log(`v${job.versionId} 正在隔离副本执行完整发布门`);
+      const gates = await runGates(site, options.mode, commandOptions);
+      if (!gates.ok) throw new Error(`门未通过(${gates.gate})：${gates.tail}`);
+      await passed('gates');
+      await begin('build');
+      const built = await runNpm(['run', 'build:console'], { ...commandOptions, cwd: site });
+      if (built.code !== 0 || built.aborted) throw new Error(`控制台构建失败：${built.output}`);
+      await passed('build');
+      let deployment;
+      if (options.mode === 'production') {
+        const declared = parseJsonc(readFileSync(path.resolve(options.wranglerConfig), 'utf8'), 'PUBLISH_WRANGLER_CONFIG');
+        if (!['prod', 'production'].includes(declared.vars?.ENVIRONMENT)) throw new Error('指定部署配置不是 production 环境');
+        const { writeProductionConfig } = await import(pathToFileURL(path.join(site, 'worker/production-config.mjs')).href);
+        deployment = writeProductionConfig({ outputFile: path.join(workspace.root, 'wrangler.production.json'), env: process.env, projectRoot: site });
+      }
+      await begin('swap');
+      const state = await machineState(); checkEnvironment(state);
+      if (state.activeVersion !== job.versionId) throw new Error('服务端已不再确认本次任务归属，禁止切换');
+      await lease.check(); signal.throwIfAborted();
+      const promoted = await runCommand(process.execPath, [path.join(site, 'worker/promote.mjs'), '--source', path.join(site, 'dist'), '--live', path.join(options.mode === 'production' ? site : SITE, 'dist-live'), '--materialized-root', site, '--version', String(job.versionId)], { ...commandOptions, cwd: site, env: { ...childEnvironment(), PUBLISH_STAMP: job.stamp } });
+      if (promoted.code !== 0 || promoted.aborted) throw new Error(`快照准备或提升失败：${promoted.output}`);
+      if (options.mode === 'production') {
+        await lease.check();
+        const deployed = await runCommand(process.execPath, [path.join(site, 'worker/node_modules/wrangler/bin/wrangler.js'), 'deploy', '--config', deployment.outputFile, '--assets', path.join(site, 'dist-live')], { ...commandOptions, cwd: path.join(site, 'worker') });
+        if (deployed.code !== 0 || deployed.aborted) throw new Error(`公网部署未被证明成功：${deployed.output}`);
+      }
+      // 切换期间 API 可短暂重启。只重放终态汇报，不重做部署。
+      signal.throwIfAborted();
+      lease.stop();
+      for (let attempt = 0; ; attempt++) {
+        try { await report('swap', 'ok'); break; }
+        catch (error) {
+          if ([400, 401, 403, 404, 409].includes(error.status) || attempt >= 5) throw error;
+          await wait(1000 * (attempt + 1));
+        }
+      }
+      log(`v${job.versionId} ${options.mode === 'production' ? '公网部署' : '本地快照'}已由服务端核实`);
+      clear(); return true;
+    } catch (error) {
+      log(`v${job.versionId} 停止：${redact(error.message)}`);
+      lease.stop(); save({ phase: 'interrupted', childPid: null });
+      try { await closeInterrupted(error.message); } catch (failure) { log(`中断状态待网络恢复后收口：${failure.message}`); }
+      return false;
+    } finally {
+      lease.stop();
+      if (workspace) await workspace.cleanup();
+    }
   }
-}
-/** 上报要带本次领单口令:服务端据此确认是「领过单的那个执行器」在说话 */
-const report = (versionId, step, status, stamp, extra = {}) => api('/api/publish/step', { method: 'POST', body: JSON.stringify({ versionId, step, status, stamp, ...extra }) });
 
-/* 门 = 站上 13 门 + worker 自己的一致性门。
-   🔴 后半截是 2026-09-01 复验 P1-C/P1-5 补的:伺服目录那道断言写对了,却**不在任何自动链里**——
-   只有人手敲 `npm run gate:config` 才跑,发布流水线一次都不会碰它。
-   门不在链上 = 门不存在。而它守的恰恰是「线上伺服的是已发布快照」这条 P0 修法的唯一支点,
-   所以必须在每次发布时都真跑一遍。 */
-function runGates() {
-  const r = spawnSync('npm', ['run', 'verify'], { cwd: SITE, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-  let out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  /* 🔴 退出码文件读不到 = **门没跑起来**,不是「用进程码兜一下」就完事(第十轮独立验收 P1)。
-     上一版无条件回读该文件,而它是上一次运行留下的:verify 崩在启动阶段时文件还在、值还是 0,
-     于是「门根本没跑」被报成「门全绿」。verify-preamble 每次开跑先把它置 2,
-     所以读不到只有一个解释:那一步压根没执行到。 */
-  let code;
-  const codePath = path.join(SITE, '.verify-exit.code');
-  try {
-    code = Number(readFileSync(codePath, 'utf8').trim());
-    if (!Number.isFinite(code)) throw new Error('内容不是数字');
-  } catch (e) {
-    out += `\n---- 门链判据缺席 ----\n读不到 ${codePath}(${String(e).slice(0, 80)})——门没跑起来,一律判红`;
-    return { ok: false, gate: 'verify-not-run', tail: out.split('\n').slice(-25).join('\n') };
-  }
-  let gate = /✗\s+([a-z0-9-]+)/i.exec(out)?.[1] ?? null;
-
-  if (code === 0) {
-    /* 🔴 门与测试**必须在链上**(第十轮独立验收 P1:实测八处孤儿)。
-       「门不在链上 = 门不存在」——只在「我记得跑」的时候才跑的检查,等于没有。
-       上一版这里只有两道门 + 两条自检,而下面这些当时全是孤儿:
-       **worker 的全套单元测试**(发布流水线自己的正确性,一次都没在发布时跑过)、
-       产物无关性门、字节级静态对照、埋点体积、种子等价、以及各门的红测套件。
-       ⚠️ 只列**真实存在**的入口:上一版我在 `test:gates` 里对两个根本没有 `--self-test`
-       实现的脚本传了该参数,它们把未知参数忽略、跑的是主门,而我把输出条数当成了自检条数
-       ——「55 条自检全绿」里有 5 条是假的。凡加一行到这张表,先确认那个入口真的存在。 */
-    for (const [name, cmd, args, cwd] of [
-      ['jsonc-reader-红测', 'node', ['lib/test-read-jsonc.mjs'], here],
-      ['exit-finally-红测', 'node', ['lib/test-exit-skips-finally.mjs'], here],
-      ['config-consistency-自检', 'node', ['gate-config-consistency.mjs', '--self-test'], here],
-      ['console-copy-自检', 'node', ['gate-console-copy.mjs', '--self-test'], here],
-      ['css-shadowed-红测', 'node', ['scripts/test-css-shadowed.mjs'], SITE],
-      ['render-fit-自检', 'node', ['scripts/gate-render-fit.mjs', '--self-test'], SITE],
-      ['worker-单测', 'npx', ['vitest', 'run'], here],
-      ['config-consistency', 'node', ['gate-config-consistency.mjs'], here],
-      ['console-copy', 'node', ['gate-console-copy.mjs'], here],
-      ['equivalence', 'node', ['--import', './register-ts-ext.mjs', 'gate-equivalence.mjs'], here],
-      ['beacon-size', 'node', ['gate-beacon-size.mjs'], here],
-    ]) {
-      const w = spawnSync(cmd, args, { cwd, shell: true, encoding: 'utf8', maxBuffer: 32 * 1024 * 1024 });
-      out += `\n---- ${name} ----\n${(w.stdout ?? '').split('\n').slice(-8).join('\n')}${w.stderr ?? ''}`;
-      if (w.status !== 0) {
-        code = w.status ?? 1;
-        gate = name;
-        break;
+    log(`启动 ${options.mode} 执行器，API ${options.api}，身份 ${runnerId}`);
+    while (!STOP.signal.aborted) {
+      try {
+        if (record) {
+          await closeInterrupted('执行器中断后恢复；原发布单不自动重跑');
+          if (options.once) { process.exitCode = 1; break; }
+        }
+        const state = await machineState(); checkEnvironment(state);
+        await api('/api/publish/heartbeat', { runnerId }, STOP.signal);
+        save({ phase: 'claiming', runnerId, versionId: options.versionId ?? null, stamp: null, childPid: null, api: options.api });
+        const next = await api('/api/publish/next', { runnerId, ...(options.versionId ? { versionId: options.versionId } : {}) }, STOP.signal);
+        if (next.job) {
+          log(`领取 v${next.job.versionId}`);
+          const ok = await runJob(next.job);
+          if (options.once) { process.exitCode = ok ? 0 : 1; break; }
+        } else {
+          clear();
+          if (options.once) { log(options.versionId ? '指定版本没有可领取任务' : '无待处理任务'); process.exitCode = options.versionId ? 1 : 0; break; }
+        }
+        backoff = 1000; await wait(3000);
+      } catch (error) {
+        if (STOP.signal.aborted) break;
+        log(error.message);
+        if (options.once) { process.exitCode = 1; break; }
+        await wait(backoff); backoff = Math.min(backoff * 2, 30000);
       }
     }
-  }
-  return { ok: code === 0, gate, tail: out.split('\n').slice(-25).join('\n') };
+  } finally { await lock.release(); }
 }
 
-async function runJob(job) {
-  const { versionId, config, stamp } = job;
-  // ① 物化:配置 → 站消费物(与种子同一物化器,零第二实现)
-  await report(versionId, 'materialize', 'running', stamp);
-  try {
-    const { materializeI18n, materializeSiteJson } = await import('../schema/src/materialize.ts');
-    const manifest = JSON.parse(readFileSync(path.join(here, 'seed/copy-manifest.json'), 'utf8'));
-    for (const loc of ['en', 'vi', 'zh']) {
-      writeFileSync(path.join(SITE, `src/i18n/${loc}.json`), materializeI18n(config, manifest, loc));
-    }
-    mkdirSync(path.join(SITE, 'src/config'), { recursive: true });
-    writeFileSync(path.join(SITE, 'src/config/site.json'), materializeSiteJson(config));
-    await report(versionId, 'materialize', 'ok', stamp);
-  } catch (e) {
-    await report(versionId, 'materialize', 'failed', stamp, { detail: String(e).slice(0, 500) });
-    return;
-  }
-
-  // ② 站上全部机器门(必须在物化后的产物上跑)。门要跑五六分钟,开跑前先确认这单还是自己的。
-  if (!(await stillMine(versionId, stamp))) return;
-  await report(versionId, 'gates', 'running', stamp);
-  const gates = runGates();
-  if (!gates.ok) {
-    await report(versionId, 'gates', 'failed', stamp, { gate: gates.gate, detail: gates.tail });
-    console.log(`✗ 门红(${gates.gate ?? '见日志'}),线上保持旧版;工作树已物化的内容请按需 git checkout`);
-    return;
-  }
-  await report(versionId, 'gates', 'ok', stamp);
-
-  // ③ 生产构建(verify 内含构建,这里做控制台组装与产物就位)
-  await report(versionId, 'build', 'running', stamp);
-  try {
-    execFileSync('npm', ['run', 'build:console'], { cwd: SITE, shell: true, stdio: 'pipe' });
-    await report(versionId, 'build', 'ok', stamp);
-  } catch (e) {
-    await report(versionId, 'build', 'failed', stamp, { detail: String(e).slice(0, 500) });
-    return;
-  }
-
-  /* ④ 原子切换:把已过门的 dist 提升为线上快照 dist-live(worker 伺服的是后者)。
-     🔴 这一步之前,线上一直是上一版——门跑到一半时未过门的内容不会对外(验收 P0-3 的修法本体)。
-     🔴 一次性口令原样透传给 promote,由它写进快照里的上线印记;服务端标 live 前会回读核实
-        (复验 P0-A:光有序列校验挡不住「照合法顺序全报一遍」,必须让上线依赖一件
-         纯 HTTP 调用者做不到的事——往文件系统里落一个文件)。 */
-  // 切换是唯一会动线上快照的一步:动手前再确认一次这单还是自己的,别在已被中止后还去改线上
-  if (!(await stillMine(versionId, stamp))) return;
-  await report(versionId, 'swap', 'running', stamp);
-  try {
-    execFileSync('node', ['promote.mjs', '--version', String(versionId), '--stamp', String(stamp ?? '')], { cwd: here, stdio: 'pipe' });
-    await report(versionId, 'swap', 'ok', stamp);
-    console.log(`✓ v${versionId} 已上线(dist-live 已更新)`);
-  } catch (e) {
-    await report(versionId, 'swap', 'failed', stamp, { detail: `快照提升失败:${String(e).slice(0, 400)}` });
-    console.log('✗ 快照提升失败,线上保持旧版');
-  }
-}
-
-async function loop() {
-  for (;;) {
-    const { job } = await api('/api/publish/next', { method: 'POST', body: '{}' });
-    if (job) {
-      console.log(`▶ 领到发布任务 v${job.versionId}`);
-      await runJob(job);
-      if (ONCE) return;
-    } else if (ONCE) {
-      console.log('无待处理任务');
-      return;
-    }
-    await new Promise((r) => setTimeout(r, POLL_MS));
-  }
-}
-
-loop().catch((e) => {
-  console.error('执行器异常:', e);
-  process.exit(1);
-});
+main().catch((error) => { console.error(`发布执行器停止：${error.message}`); process.exitCode = 1; });

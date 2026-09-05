@@ -5,6 +5,7 @@
    (⚠️ 交底:该键是 WCAG 2.2.2 的暂停出口,删后自动播放动画仅剩系统「减少动态」一条豁免路径;
    fx 的 data-bg-toggle 监听保留为无害空转,后续要恢复只需把键加回来)。key 不变,零死链。 */
 import { useT, type Locale } from '../i18n';
+import { SITE_CONFIG } from '../lib/site-config';
 
 interface Props {
   locale: Locale;
@@ -12,7 +13,8 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
-const CONTACT = import.meta.env.PUBLIC_CONTACT_EMAIL ?? '';
+const CONTACT = SITE_CONFIG.footer.contactEmail.trim();
+const SOCIAL = SITE_CONFIG.footer.social.filter((item) => item.enabled && item.url.trim());
 const year = new Date().getFullYear();
 ---
 
@@ -42,6 +44,11 @@ const year = new Date().getFullYear();
           )}
         </p>
         <nav aria-label={t('footer.ariaLegal')}>
+          {SOCIAL.map((item) => (
+            <a class="x-mono x-dimlink" href={item.url} target="_blank" rel="noopener noreferrer">
+              {item.id}
+            </a>
+          ))}
           <a class="x-mono x-dimlink" href={`${prefix}/legal/privacy/`}>{t('footer.privacy')}</a>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/app-privacy/`}>{t('footer.appPrivacy')}</a>
           <a class="x-mono x-dimlink" href={`${prefix}/legal/terms/`}>{t('footer.terms')}</a>
@@ -55,7 +62,7 @@ const year = new Date().getFullYear();
     <p class="copy x-mono">
       © {year} NexGrid LTD. {t('footer.rights')}
       {/* R49-E2 拍板 7:恢复背景动画页内暂停出口(WCAG 2.2.2);fx 的 data-bg-toggle 监听一直在位 */}
-      <button type="button" class="bgtoggle x-mono" data-bg-toggle data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')}></button>
+      <button type="button" class="bgtoggle x-mono" data-bg-toggle data-label-pause={t('footer.pauseBg')} data-label-play={t('footer.playBg')} data-label-reduced={t('footer.reducedBg')}></button>
     </p>
   </div>
 </footer>
@@ -135,7 +142,7 @@ const year = new Date().getFullYear();
     border-radius: calc(999 * var(--uc));
     padding: calc(5 * var(--uc)) calc(12 * var(--uc));
     margin-left: calc(14 * var(--uc));
-    min-height: max(28px, calc(32 * var(--uc)));
+    min-height: var(--x-touch);
     cursor: pointer;
     transition:
       color 0.2s,

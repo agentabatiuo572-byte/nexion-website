@@ -3,6 +3,7 @@ import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 import type { SiteConfig } from '../../schema/src/index.js';
+import currentSeed from '../seed/site-config.seed.json';
 
 const IP = { 'cf-connecting-ip': '203.0.113.9', 'content-type': 'application/json' };
 const PW = 'config-suite-pass!';
@@ -52,7 +53,7 @@ describe('CON04/CON13 配置模型', () => {
     expect(o.dirty).toBe(0);
     expect(Object.keys(o.draft.payload.copy.en).length).toBeGreaterThan(150); // 177 键
     expect(o.draft.payload.skus.length).toBe(7);
-    expect(o.draft.payload.faq.items.length).toBe(9);
+    expect(o.draft.payload.faq.items.length).toBe(currentSeed.faq.items.length);
   });
 
   it('A1 存草稿:改 vi 值 → dirty 计数 + 审计 config.save;GET 回读一致', async () => {
@@ -153,7 +154,7 @@ describe('CON04/CON13 配置模型', () => {
     expect((await app.request('/api/config/mint-id', { method: 'POST', headers: J(cookie), body: JSON.stringify({ kind: 'x' }) }, env)).status).toBe(400);
     const o = await getOverview(cookie);
     const p = structuredClone(o.draft.payload);
-    for (const it of p.faq.items.slice(0, 7)) (it as { deleted?: boolean }).deleted = true; // 剩 2 可见
+    for (const it of p.faq.items.slice(0, -2)) (it as { deleted?: boolean }).deleted = true; // 剩 2 可见
     (p.faq.items[0] as { q: { zh: string } }).q.zh = ''; // 回收区条目缺译不该被拦
     const v = await app.request('/api/config/validate', { method: 'POST', headers: J(cookie), body: JSON.stringify({ payload: p }) }, env);
     const body = (await v.json()) as { errors: Array<{ rule: string; path: string }> };

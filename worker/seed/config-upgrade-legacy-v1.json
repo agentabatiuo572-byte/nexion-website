@@ -1,0 +1,353 @@
+{
+  "sourceCommit": "33e15c5eeba07310187fdda3ad9ba502827f2b6b",
+  "copyKeys": [
+    "site.name",
+    "site.tagline",
+    "site.description",
+    "nav.how",
+    "nav.devices",
+    "nav.trust",
+    "nav.learn",
+    "nav.nex",
+    "nav.launchH5",
+    "nav.download",
+    "nav.ariaMain",
+    "nav.ariaMenu",
+    "nav.skip",
+    "nav.ariaLanguage",
+    "hero.title",
+    "hero.subtitle",
+    "hero.scrollHint",
+    "hero.note",
+    "hero.subtitle2",
+    "hero.note2",
+    "download.ios",
+    "download.android",
+    "stats.activeDevices",
+    "stats.activeJobs",
+    "stats.nodes",
+    "stats.countries",
+    "stats.uptime",
+    "stats.asOf",
+    "path.title",
+    "path.headline",
+    "path.cat1",
+    "path.cat2",
+    "path.freeTitle",
+    "path.freeDesc",
+    "path.freeCta",
+    "path.scaleTitle",
+    "path.scaleDesc",
+    "path.scaleLink",
+    "path.note",
+    "how.title",
+    "how.head1",
+    "how.head2",
+    "how.cat1",
+    "how.cat2",
+    "how.cat3",
+    "how.step1Title",
+    "how.step1Desc",
+    "how.step2Title",
+    "how.step2Desc",
+    "how.step3Title",
+    "how.step3Desc",
+    "how.verifyLink",
+    "devices.title",
+    "devices.subtitle",
+    "devices.free",
+    "devices.multiplierLabel",
+    "devices.classicBadge",
+    "devices.comingBadge",
+    "devices.cta",
+    "trust.title",
+    "trust.pocTitle",
+    "trust.pocBody1",
+    "trust.pocBody2",
+    "trust.certMsbAlt",
+    "trust.certCoAlt",
+    "trust.card1",
+    "trust.card2",
+    "trust.card3",
+    "trust.card4",
+    "trust.card5",
+    "trust.certZoom",
+    "trust.certClose",
+    "trust.openOriginal",
+    "social.kicker",
+    "social.scaleLine",
+    "social.rolesLine",
+    "mission.kicker",
+    "mission.title",
+    "mission.lead",
+    "mission.f1",
+    "mission.f2",
+    "mission.f3",
+    "mission.f4",
+    "mission.f5",
+    "mission.f6",
+    "nex.teaserTitle",
+    "nex.teaser.whatTitle",
+    "nex.teaser.whatDesc",
+    "nex.teaser.earnTitle",
+    "nex.teaser.earnDesc",
+    "nex.teaser.useTitle",
+    "nex.teaser.useDesc",
+    "nex.teaserCta",
+    "nex.pageTag",
+    "nex.pageTitle",
+    "nex.pageLead",
+    "nex.compareTitle",
+    "nex.cmpProp",
+    "nex.cmpType",
+    "nex.cmpTypeUsdt",
+    "nex.cmpTypeNex",
+    "nex.cmpVol",
+    "nex.cmpVolUsdt",
+    "nex.cmpVolNex",
+    "nex.cmpUse",
+    "nex.cmpUseUsdt",
+    "nex.cmpUseNex",
+    "nex.sourcesTitle",
+    "nex.src1Title",
+    "nex.src1Desc",
+    "nex.src2Title",
+    "nex.src2Desc",
+    "nex.src3Title",
+    "nex.src3Desc",
+    "nex.src4Title",
+    "nex.src4Desc",
+    "nex.usesTitle",
+    "nex.use1Title",
+    "nex.use1Desc",
+    "nex.use2Title",
+    "nex.use2Desc",
+    "nex.use3Title",
+    "nex.use3Desc",
+    "nex.use4Title",
+    "nex.use4Desc",
+    "nex.use5Title",
+    "nex.use5Desc",
+    "nex.mechTitle",
+    "nex.mech1Title",
+    "nex.mech1Desc",
+    "nex.mech2Title",
+    "nex.mech2Desc",
+    "nex.faqTitle",
+    "nex.faq1Q",
+    "nex.faq1A",
+    "nex.faq2Q",
+    "nex.faq2A",
+    "nex.faq3Q",
+    "nex.faq3A",
+    "nex.faq4Q",
+    "nex.faq4A",
+    "nex.getApp",
+    "nex.whitepaper",
+    "learn.title",
+    "learn.subtitle",
+    "learn.homeTitle",
+    "learn.browseAll",
+    "learn.backToList",
+    "learn.untranslated",
+    "learn.enOnly",
+    "learn.appVersionLabel",
+    "learn.topics.start",
+    "learn.topics.earn",
+    "learn.topics.devices",
+    "learn.topics.wallet",
+    "learn.topics.team",
+    "learn.topics.nex",
+    "learn.related",
+    "learn.toc",
+    "faq.title",
+    "final.title",
+    "footer.privacy",
+    "footer.terms",
+    "footer.contact",
+    "footer.rights",
+    "footer.ariaLegal",
+    "footer.pauseBg",
+    "footer.playBg",
+    "footer.appPrivacy",
+    "footer.legalLine",
+    "footer.forTeams",
+    "footer.forTeamsCta",
+    "legal.enPrevails",
+    "notfound.title",
+    "notfound.body",
+    "notfound.home"
+  ],
+  "copyDefaults": {
+    "en": {
+      "hero.note": "Your idle devices run AI tasks.\nYou get paid in USDT.",
+      "trust.card1": "NexGrid LTD is incorporated in the State of Colorado, USA (coloradosos.gov) as a Colorado corporation, Entity ID 20221592644. It is authorized to issue 100,000,000 common shares and operates the NexGrid global distributed compute sharing platform.",
+      "trust.card2": "The company registration record can be looked up on the Colorado Secretary of State website.",
+      "trust.card3": "NexGrid LTD has completed MSB (Money Services Business) registration with FinCEN, the Financial Crimes Enforcement Network of the U.S. Department of the Treasury — registration number 31000329265856 — under the Bank Secrecy Act regulatory framework.",
+      "trust.card4": "MSB (Money Services Business) is the U.S. federal registration regime for money-services companies. Completing MSB registration means the company is registered with FinCEN as required by law, carries the corresponding compliance obligations, and may lawfully conduct money-services business within that framework.",
+      "trust.card5": "The MSB registration record can be looked up on FinCEN's website.",
+      "mission.lead": "Clients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
+      "nex.mech2Desc": "30% of platform fees are permanently burned, reducing supply over time."
+    },
+    "vi": {
+      "hero.subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán hàng đầu thế giới.",
+      "hero.note": "Thiết bị nhàn rỗi của bạn chạy tác vụ AI.\nBạn được trả bằng USDT.",
+      "trust.card1": "NexGrid LTD được thành lập tại bang Colorado, Hoa Kỳ (coloradosos.gov), là công ty Colorado, mã thực thể 20221592644, được phép phát hành 100.000.000 cổ phần phổ thông, vận hành nền tảng chia sẻ năng lực tính toán phân tán toàn cầu NexGrid.",
+      "trust.card2": "Hồ sơ đăng ký công ty có thể tra cứu trên trang web Thư ký Bang Colorado.",
+      "trust.card3": "NexGrid LTD đã hoàn tất đăng ký MSB (Dịch vụ tiền tệ) với FinCEN — Mạng lưới Thực thi Tội phạm Tài chính thuộc Bộ Tài chính Hoa Kỳ — số đăng ký 31000329265856, theo khung pháp lý Đạo luật Bảo mật Ngân hàng.",
+      "trust.card4": "MSB (Dịch vụ tiền tệ) là chế độ đăng ký liên bang của Hoa Kỳ dành cho doanh nghiệp dịch vụ tiền tệ. Hoàn tất đăng ký MSB nghĩa là doanh nghiệp đã đăng ký với FinCEN theo luật định, chịu các nghĩa vụ tuân thủ tương ứng và có thể hoạt động dịch vụ tiền tệ hợp pháp trong khung đó.",
+      "trust.card5": "Đăng ký MSB có thể tra cứu trên trang web của FinCEN.",
+      "mission.lead": "Khách hàng trả tiền để chạy khối lượng công việc AI trên năng lực này.\nCác lĩnh vực dưới đây cho thấy công việc đó đi về đâu.",
+      "nex.mech2Desc": "30% phí nền tảng bị đốt vĩnh viễn, giảm nguồn cung theo thời gian."
+    },
+    "zh": {
+      "hero.note": "闲置设备承接 AI 任务,收益以 USDT 结算。",
+      "trust.card1": "NexGrid LTD 于美国科罗拉多州（coloradosos.gov）注册成立，为科罗拉多州公司，实体编号 20221592644，授权发行 1 亿股普通股，运营 NexGrid 全球分布式算力共享平台。",
+      "trust.card2": "公司注册信息可在科罗拉多州州务卿官网查询。",
+      "trust.card3": "NexGrid LTD 已在美国财政部金融犯罪执法网络（FinCEN）完成 MSB（货币服务业务）登记，登记编号 31000329265856，按《银行保密法》相关法规接受 FinCEN 监管框架约束。",
+      "trust.card4": "MSB（货币服务业务）是美国联邦层面对货币服务类企业的监管登记制度。完成 MSB 登记意味着企业已依法向 FinCEN 登记并承担相应合规义务，可在该框架下依法开展货币服务类业务。",
+      "trust.card5": "MSB 登记信息可在 FinCEN 官网查询。",
+      "mission.lead": "客户付费在这份算力上运行 AI 工作负载。\n下面的领域就是这些工作的去向。",
+      "nex.mech2Desc": "平台手续费的 30% 被永久销毁，供应随时间减少。"
+    }
+  },
+  "faq": {
+    "items": [
+      {
+        "id": "q1",
+        "q": {
+          "en": "What is NexGrid?",
+          "vi": "NexGrid là gì?",
+          "zh": "NexGrid 是什么？"
+        },
+        "a": {
+          "en": "A distributed AI compute network. Idle phones and dedicated devices run AI tasks, and their owners get paid for the work completed.",
+          "vi": "Một mạng lưới tính toán AI phân tán. Điện thoại nhàn rỗi và thiết bị chuyên dụng chạy tác vụ AI, chủ sở hữu được trả cho công việc hoàn thành.",
+          "zh": "一个分布式 AI 算力网络。闲置手机与专用设备承接 AI 任务，设备主人按完成的工作获得报酬。"
+        },
+        "sort": 1,
+        "visible": true
+      },
+      {
+        "id": "q2",
+        "q": {
+          "en": "How do I earn?",
+          "vi": "Tôi kiếm thu nhập thế nào?",
+          "zh": "我怎么获得收益？"
+        },
+        "a": {
+          "en": "Install the app, connect your phone's idle compute, and tasks run automatically. You can scale up later with dedicated devices. Real-time earnings show inside the app.",
+          "vi": "Cài ứng dụng, kết nối năng lực nhàn rỗi của điện thoại, tác vụ chạy tự động. Sau này có thể mở rộng với thiết bị chuyên dụng. Thu nhập theo thời gian thực hiển thị trong ứng dụng.",
+          "zh": "装上 App，连接手机闲置算力，任务自动运行。之后可以用专用设备扩大规模。实时收益在 App 内可查。"
+        },
+        "sort": 2,
+        "visible": true
+      },
+      {
+        "id": "q3",
+        "q": {
+          "en": "Do I have to spend money to start?",
+          "vi": "Có phải bỏ tiền để bắt đầu không?",
+          "zh": "开始需要花钱吗？"
+        },
+        "a": {
+          "en": "No. The phone tier is free — no hardware, no deposit. Paid devices are optional and add compute capacity.",
+          "vi": "Không. Bậc điện thoại miễn phí — không phần cứng, không đặt cọc. Thiết bị trả phí là tùy chọn để tăng năng lực.",
+          "zh": "不需要。手机档完全免费——无硬件、无押金。付费设备是可选项，用于增加算力。"
+        },
+        "sort": 3,
+        "visible": true
+      },
+      {
+        "id": "q4",
+        "q": {
+          "en": "How do I know the earnings are real?",
+          "vi": "Làm sao biết thu nhập là thật?",
+          "zh": "怎么知道收益是真实的？"
+        },
+        "a": {
+          "en": "Every completed task generates a Proof-of-Compute receipt recorded on the platform ledger with on-chain attestation. Your app shows the full receipt trail for every payout.",
+          "vi": "Mỗi tác vụ hoàn thành tạo biên nhận Proof-of-Compute ghi vào sổ cái nền tảng kèm chứng thực on-chain. Ứng dụng hiển thị toàn bộ chuỗi biên nhận cho từng lần chi trả.",
+          "zh": "每个完成的任务都会生成 Proof-of-Compute 收据，记录于平台账本并附链上存证。App 内可查看每笔结算的完整收据链路。"
+        },
+        "sort": 4,
+        "visible": true
+      },
+      {
+        "id": "q5",
+        "q": {
+          "en": "What does datacenter hosting mean?",
+          "vi": "Đặt tại trung tâm dữ liệu nghĩa là gì?",
+          "zh": "机房托管是什么意思？"
+        },
+        "a": {
+          "en": "Dedicated devices run in professional datacenters — no shipping, no home setup. Your device activates shortly after purchase and appears in your app.",
+          "vi": "Thiết bị chuyên dụng chạy trong trung tâm dữ liệu chuyên nghiệp — không vận chuyển, không lắp đặt tại nhà. Thiết bị kích hoạt ngay sau khi mua và xuất hiện trong ứng dụng.",
+          "zh": "专用设备运行在专业数据中心——无需物流、无需在家安装。购买后设备很快激活并出现在你的 App 里。"
+        },
+        "sort": 5,
+        "visible": true
+      },
+      {
+        "id": "q6",
+        "q": {
+          "en": "How do withdrawals work?",
+          "vi": "Rút tiền thế nào?",
+          "zh": "提现怎么操作？"
+        },
+        "a": {
+          "en": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step.",
+          "vi": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước.",
+          "zh": "收益以 USDT 在 App 内结算，你把 USDT 提现到自己的钱包。App 会一步步引导你完成。"
+        },
+        "sort": 6,
+        "visible": true
+      },
+      {
+        "id": "q7",
+        "q": {
+          "en": "Will it drain my battery or overheat my phone?",
+          "vi": "Có làm hao pin hay nóng máy không?",
+          "zh": "会不会耗电、让手机发热？"
+        },
+        "a": {
+          "en": "It's managed — work is scheduled to respect battery and heat, so plugged-in, cool devices do more. You can turn phone compute off anytime in the app.",
+          "vi": "Luôn trong tầm kiểm soát — tác vụ được lên lịch theo mức pin và nhiệt độ: thiết bị đang cắm sạc và mát sẽ nhận nhiều việc hơn. Bạn có thể tắt tính năng này bất cứ lúc nào trong ứng dụng.",
+          "zh": "不会失控——任务调度会顾及电量与温度：插电、低温的设备承接更多；手机算力可随时在 App 内关闭。"
+        },
+        "sort": 7,
+        "visible": true
+      },
+      {
+        "id": "q8",
+        "q": {
+          "en": "Which countries is NexGrid available in?",
+          "vi": "NexGrid dùng được ở những quốc gia nào?",
+          "zh": "哪些国家和地区可用？"
+        },
+        "a": {
+          "en": "The sign-up flow in the app decides availability — it is the authoritative check for your region.",
+          "vi": "Phạm vi khả dụng do luồng đăng ký trong ứng dụng quyết định — đó là bước kiểm tra chính thức cho khu vực của bạn.",
+          "zh": "可用范围以 App 内注册流程为准——你所在的地区能不能用，以它的判定为准。"
+        },
+        "sort": 8,
+        "visible": true
+      },
+      {
+        "id": "q9",
+        "q": {
+          "en": "Are there any fees?",
+          "vi": "Có mất phí gì không?",
+          "zh": "有哪些费用？"
+        },
+        "a": {
+          "en": "Starting is free. USDT withdrawals carry a network confirmation fee, shown on the withdrawal screen before you confirm; you can burn NEX to offset it.",
+          "vi": "Bắt đầu hoàn toàn miễn phí. Rút USDT có một khoản phí xác nhận mạng, hiển thị rõ trên màn hình rút trước khi bạn xác nhận; có thể đốt NEX để bù khoản phí này.",
+          "zh": "开始是免费的。USDT 提现有一笔网络确认费，提现页会在确认前明示；持有 NEX 可销毁抵扣。"
+        },
+        "sort": 9,
+        "visible": true
+      }
+    ]
+  }
+}
