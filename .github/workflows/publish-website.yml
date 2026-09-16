@@ -28,7 +28,6 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       PUBLISH_D1_DATABASE_ID: ${{ vars.PUBLISH_D1_DATABASE_ID }}
       PUBLISH_KV_NAMESPACE_ID: ${{ vars.PUBLISH_KV_NAMESPACE_ID }}
-      PUBLISH_WRANGLER_CONFIG: ${{ runner.temp }}/nexgrid-publish/wrangler.production.json
     steps:
       - name: Check out the immutable triggering revision
         uses: actions/checkout@v4
@@ -48,7 +47,10 @@ jobs:
       - name: Validate the requested version
         run: node -e 'const v = process.env.PUBLISH_VERSION_ID; if (!/^[1-9][0-9]*$/.test(v ?? "") || !Number.isSafeInteger(Number(v))) { console.error("A positive integer versionId is required"); process.exit(1); }'
       - name: Generate the dedicated production configuration
-        run: node worker/production-config.mjs --output "$PUBLISH_WRANGLER_CONFIG"
+        run: |
+          export PUBLISH_WRANGLER_CONFIG="$RUNNER_TEMP/nexgrid-publish/wrangler.production.json"
+          echo "PUBLISH_WRANGLER_CONFIG=$PUBLISH_WRANGLER_CONFIG" >> "$GITHUB_ENV"
+          node worker/production-config.mjs --output "$PUBLISH_WRANGLER_CONFIG"
       - name: Install locked dependencies
         run: |
           npm ci

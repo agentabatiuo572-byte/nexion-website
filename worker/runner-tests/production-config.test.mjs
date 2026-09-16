@@ -23,6 +23,13 @@ const base = {
   env: { preview: { vars: { PASSWORD: 'do-not-copy-nested' } } },
 };
 
+test('job environment does not reference the step-only runner context', () => {
+  const workflow = readFileSync(new URL('../../.github/workflows/publish-website.yml', import.meta.url), 'utf8');
+  const jobEnv = workflow.match(/^    env:\r?\n((?:      .*\r?\n)+)/m)?.[1];
+  assert.ok(jobEnv, 'the publication job environment must be inspected');
+  assert.doesNotMatch(jobEnv, /\brunner\s*(?:\.|\[)/);
+});
+
 test('requires every production resource and API origin', () => {
   for (const key of Object.keys(env)) {
     const incomplete = { ...env };
