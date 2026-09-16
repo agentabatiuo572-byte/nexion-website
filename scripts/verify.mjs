@@ -1,32 +1,88 @@
 #!/usr/bin/env node
 /* NexGrid website verify 门骨架(T1 先立门后写页)。
    门源:官网 PRD §1.4(合规红线)+ §6(验收标准)。
-   用法:node scripts/verify.mjs [--prod]
+   用法:node scripts/verify.mjs [--prod] [--built-dist-sha <sha256>]
    --prod = 部署门升为阻断(PENDING 标记/Legal 缺失 exit 2);默认仅告警。
    退出码写 .verify-exit.code(外部判定读文件不读管道——PLAN 全局纪律)。 */
 import { readFileSync, writeFileSync, readdirSync, statSync, existsSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { execFile, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
 import { regexEscapeGate } from './gate-regex-escape.mjs';
 import { scanForbidden } from './forbidden-patterns.mjs';
+import { i18nParity } from './gate-i18n-parity.mjs';
+import { LOCALES } from '../schema/src/locales.ts';
+import { resolveEnabledLocales, localizedPath } from '../src/lib/locale-policy.ts';
+import { directoryDigest, assertDigest } from '../worker/lib/runner-artifacts.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
+/* 增量裁剪:发布器对纯文案改动只实测变化的 HTML 路由(--routes a,b,c)。
+   只透传给三个运行时几何/版面门；覆盖面断言(sitemap↔产物)与内容门永远全量。 */
+const routesIndex = process.argv.indexOf('--routes');
+const routesArgument = routesIndex >= 0 ? process.argv[routesIndex + 1] : null;
+const ROUTE_SCOPE = routesArgument?.split(',').map(route => route.trim()).filter(Boolean).join(',') || null;
+const scopedArgs = (base) => (ROUTE_SCOPE ? [...base, '--routes', ROUTE_SCOPE] : base);
+const scopeSuffix = ROUTE_SCOPE ? '·路由裁剪' : '';
 const results = [];
+export async function runGate(name, command, args, options = {}) {
+  // 发布遇到阻断就结束；手动 verify 仍汇总全部问题，不拿未执行的门冒充通过。
+  if (process.argv.includes('--fail-fast')) {
+    const failed = results.find((result) => !result.pass);
+    if (failed) {
+      console.error(`[verify] ✗ ${failed.gate}\n${failed.detail.join('\n')}\n[verify] 发布检查已停止，后续检查未执行。`);
+      process.exit(2);
+    }
+  }
+  console.log(`[verify] 开始检查：${name}`);
+  console.log('[publish-progress] ' + JSON.stringify({ detail: `正在检查：${name}` }));
+  const startedAt = Date.now();
+  const result = await new Promise((resolveResult) => {
+    const child = execFile(command, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
+      resolveResult({ status: error ? (typeof error.code === 'number' ? error.code : null) : 0, stdout, stderr, error, signal: error?.signal ?? null });
+    });
+    // 实时反馈与判定原文各有用途；execFile 仍保留完整两路输出和缓冲上限。
+    child.stdout.on('data', (chunk) => process.stdout.write(chunk));
+    child.stderr.on('data', (chunk) => process.stderr.write(chunk));
+  });
+  console.log(`[verify] 结束检查：${name}，耗时 ${Math.round((Date.now() - startedAt) / 1000)} 秒，exit ${result.status}`);
+  return result;
+}
+async function verify() {
 // 置红的正主是 npm script 里先跑的 verify-preamble.mjs(独立进程,门模块语法错也拦得住);
 // 这里再写一次,给「直接 node scripts/verify.mjs」的调用方兜底
 writeFileSync(join(ROOT, '.verify-exit.code'), '2');
+if (routesIndex >= 0 && (routesArgument === undefined || routesArgument.startsWith('--'))) {
+  console.error('[verify] --routes 缺少路由参数；如需全量检查，请省略 --routes。');
+  process.exit(2);
+}
+if (routesIndex >= 0 && !ROUTE_SCOPE) console.log('[verify] 空路由范围：版面门回退全量，本次证据仍记 scoped。');
 
 /* 推主线门(2026-09-03 Tier 1-⑧,.githooks/verify-before-push.mjs)读 .verify-cache/last-run.json 判「要推的树有没有 full 绿」:
-   本仓 verify 只有一档,全程即 full。开跑时记一次树指纹(HEAD + status + diff --stat),结束再算一次 ——
+   指定 --routes 只记 scoped，不能替代 full。开跑时记一次树指纹(HEAD + status + diff --stat),结束再算一次 ——
    跑的过程中树动了(treeMoved)= 结论不锚定任何一棵树,pre-push 会拒;dirty = 跑时有未提交改动,绿的是「HEAD + 私活」不是任何提交。 */
 const gitOut = (...a) => { const r = spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8' }); return r.status === 0 ? (r.stdout || '').trim() : ''; };
 const treeFingerprint = () => createHash('sha1').update([gitOut('rev-parse', 'HEAD'), gitOut('status', '--porcelain'), gitOut('diff', '--stat')].join('\n')).digest('hex');
 const startFingerprint = treeFingerprint();
+
+// 所有正式产物门读同一份 dist；发布执行器用完整摘要声明其已构建，独立 verify 则先构建。
+let artifact;
+try {
+  const at = process.argv.indexOf('--built-dist-sha');
+  if (at >= 0) artifact = assertDigest(join(ROOT, 'dist'), process.argv[at + 1]);
+  else {
+    const built = spawnSync('npm', ['run', 'build'], { cwd: ROOT, encoding: 'utf8', shell: process.platform === 'win32' });
+    if (built.status !== 0) throw new Error(`正式官网构建失败：${built.error?.message || built.stderr || built.stdout}`);
+    artifact = directoryDigest(join(ROOT, 'dist'));
+  }
+  console.log(`[verify] 正式官网产物 SHA-256 ${artifact.sha256}`);
+} catch (error) {
+  console.error(`[verify] ✗ site-build: ${error.message}`);
+  process.exit(2);
+}
 
 function walk(dir, exts, out = []) {
   for (const name of readdirSync(dir)) {
@@ -52,19 +108,12 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   results.push({ gate: 'forbidden-words', pass: hits.length === 0, detail: hits });
 }
 
-/* ── 门 2:三语 key parity(PRD §6-2)────────────────────────── */
+/* ── 门 2:全部语言 key parity，启用语言文案完整(PRD §6-2)── */
 {
-  const keysOf = (obj, prefix = '') =>
-    Object.entries(obj).flatMap(([k, v]) =>
-      typeof v === 'object' && v !== null ? keysOf(v, `${prefix}${k}.`) : [`${prefix}${k}`],
-    );
-  const dicts = {};
-  for (const l of ['en', 'vi', 'zh']) dicts[l] = new Set(keysOf(JSON.parse(readFileSync(join(SRC, 'i18n', `${l}.json`), 'utf8'))));
-  const detail = [];
-  for (const l of ['vi', 'zh']) {
-    for (const k of dicts.en) if (!dicts[l].has(k)) detail.push(`${l} 缺 key: ${k}`);
-    for (const k of dicts[l]) if (!dicts.en.has(k)) detail.push(`${l} 多出 key: ${k}(en 无)`);
-  }
+  const dictionaries = Object.fromEntries(LOCALES.map((locale) => [locale,
+    JSON.parse(readFileSync(join(SRC, 'i18n', `${locale}.json`), 'utf8'))]));
+  const siteConfig = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
+  const detail = i18nParity(dictionaries, siteConfig.enabledLocales);
   results.push({ gate: 'i18n-parity', pass: detail.length === 0, detail });
 }
 
@@ -82,9 +131,11 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     if (configuredAppPrivacyReady && rel(f) === 'src/components/legal/LegalAppPrivacy.astro') continue;
     detail.push(`${rel(f)}: 信任资料未填充(PENDING-TRUST-ASSETS)`);
   }
-  for (const page of ['legal/privacy', 'legal/terms', 'legal/app-privacy']) {
-    const found = ['.astro', '.md'].some((ext) => existsSync(join(SRC, 'pages', `${page}${ext}`)));
-    if (!found) detail.push(`缺 Legal 页: src/pages/${page}.(astro|md)`);
+  for (const locale of resolveEnabledLocales(siteConfig.enabledLocales)) {
+    for (const page of ['legal/privacy', 'legal/terms', 'legal/app-privacy']) {
+      const route = localizedPath(locale, page);
+      if (!existsSync(join(ROOT, 'dist', route, 'index.html'))) detail.push(`缺 Legal 构建页: ${route}`);
+    }
   }
   // 非 --prod 只告警不拦(开发期必然半成品);--prod 阻断
   results.push({ gate: 'deploy-gate' + (PROD ? '' : '(warn-only)'), pass: detail.length === 0 || !PROD, warn: !PROD && detail.length > 0, detail });
@@ -297,7 +348,7 @@ results.push(regexEscapeGate(ROOT, rel));
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
    这里覆盖静态文本门看不见的公告/SEO/footer/Legal/FAQ 与跨日、动态偏好、焦点、history。 */
 {
-  const r = spawnSync(
+  const r = await runGate('网站内容与交互',
     process.execPath,
     [
       '--import',
@@ -321,7 +372,7 @@ results.push(regexEscapeGate(ROOT, rel));
    两次都是独立评审逐像素量出来的,肉眼与「我改了」的记忆都发现不了。
    判据与红测见 gate-css-shadowed.mjs / test-css-shadowed.mjs(红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const r = await runGate('CSS 声明', process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
   results.push({
     gate: 'css-shadowed(死声明)',
@@ -330,12 +381,12 @@ results.push(regexEscapeGate(ROOT, rel));
   });
 }
 
-/* ── 第七门:画布几何(运行时,自建自起产物) ──
+/* ── 第七门:画布几何(运行时,复用入口已构建的正式产物) ──
    前六门全是静态文本/token 检查,没有一门看渲染盒子——R39 的「正文被挤成 33px」
    在六门全绿的情况下溜进产物,靠人肉才发现。判据与红测见 gate-canvas-geometry.mjs。
-   代价:本门要构建+起预览+真渲染,verify 因此从「秒级」变成「分钟级」。 */
+   本门自起静态服务和真浏览器，不再改写正式 dist。 */
 {
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-canvas-geometry.mjs')], {
+  const r = await runGate('画布几何', process.execPath, scopedArgs([join(ROOT, 'scripts', 'gate-canvas-geometry.mjs'), '--no-build']), {
     cwd: ROOT,
     encoding: 'utf8',
   });
@@ -347,9 +398,9 @@ results.push(regexEscapeGate(ROOT, rel));
     //      而机器读的 .verify-exit.code 写的是 0 —— 两条结论相反,且仓规指定读文件。
     //      要放行须显式 --allow-not-run。
     const allow = process.argv.includes('--allow-not-run');
-    results.push({ gate: 'canvas-geometry(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+    results.push({ gate: `canvas-geometry(运行时${scopeSuffix})`, pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
-    results.push({ gate: 'canvas-geometry(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+    results.push({ gate: `canvas-geometry(运行时${scopeSuffix})`, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
 }
 
@@ -359,18 +410,18 @@ results.push(regexEscapeGate(ROOT, rel));
    这一族在 R44、R45 连续两轮由独立评审逐字量出来,两轮都是「治了几处、漏了同族其余处」。
    本门的三条判据全部**构造性**,不依赖任何手写清单——路由从产物枚举、视口从产物 CSS 的断点推导、
    墨高用 canvas 逐行实测(上一版三张手写清单各漏一块:漏 9 条路由、漏窄屏、漏了 Be Vietnam Pro 的字身)。
-   放在 canvas-geometry 之后:那一门已经把 dist 构建好,本门自带静态服务直接伺服 dist,不再重复构建。
+   自带静态服务直接伺服入口已构建的同一份 dist，不再重复构建。
    判据、豁免与自检见 gate-render-fit.mjs(`--self-test`,红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-render-fit.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const r = await runGate('各语言与屏幕尺寸的页面布局', process.execPath, scopedArgs([join(ROOT, 'scripts', 'gate-render-fit.mjs')]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
-  const detail = out.filter((l) => !/^\[render-fit\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
+  const detail = out.filter((l) => !/^\[render-fit\] ✓/.test(l) && !/^\[publish-progress\]/.test(l)).map((l) => l.replace(/^\s*/, ''));
   if (r.status === 3) {
     // 与 canvas-geometry 同体例:跑不起来 ≠ 放行,NOT-RUN 一律算红,要放行须显式 --allow-not-run
     const allow = process.argv.includes('--allow-not-run');
-    results.push({ gate: 'render-fit(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+    results.push({ gate: `render-fit(运行时${scopeSuffix})`, pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
-    results.push({ gate: 'render-fit(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+    results.push({ gate: `render-fit(运行时${scopeSuffix})`, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
 }
 
@@ -378,17 +429,23 @@ results.push(regexEscapeGate(ROOT, rel));
    9e24b27 的兜底栅格 max-width 漏进编舞档:包含块 1440→1120,卡锚 27.43%→21.3%、
    卡宽 45.14%→35.1%、侵入左栏文字 29-89px —— 当时十门全绿,主人肉眼抓到。
    本门守两层:任一滚动相位零侵入 + 卡宽/卡锚相对钉屏区必须是规格百分比(直接钉包含块缩水这个根)。
-   复用 canvas-geometry 已构建的 dist;红测:对 R46 坏产物 60 条全响(2026-08-27 实录)。 */
+   复用入口已构建的 dist;红测:对 R46 坏产物 60 条全响(2026-08-27 实录)。 */
 {
-  const r = spawnSync(process.execPath, [join(ROOT, 'scripts', 'gate-deck-clearance.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const r = await runGate('设备叠卡布局', process.execPath, scopedArgs([join(ROOT, 'scripts', 'gate-deck-clearance.mjs')]), { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
   const detail = out.filter((l) => !/^\[deck\] ✓/.test(l)).map((l) => l.replace(/^\s*/, ''));
   if (r.status === 3) {
     const allow = process.argv.includes('--allow-not-run');
-    results.push({ gate: 'deck-clearance(运行时)', pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
+    results.push({ gate: `deck-clearance(运行时${scopeSuffix})`, pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
-    results.push({ gate: 'deck-clearance(运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+    results.push({ gate: `deck-clearance(运行时${scopeSuffix})`, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
+}
+
+// Button contrast is checked on every built route, including the old-token red controls.
+{
+  const r = await runGate('按钮轮廓与状态回归', process.execPath, [join(ROOT, 'scripts', 'gate-xbtn.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  results.push({ gate: 'xbtn(运行时边框/状态)', pass: r.status === 0, detail: r.status === 0 ? [] : [(r.stderr || r.stdout || 'NOT-RUN').trim()] });
 }
 
 /* ── 门自检:各门自带的红绿表必须真在跑 ──
@@ -398,8 +455,16 @@ results.push(regexEscapeGate(ROOT, rel));
    只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
 {
   const SUITES = [
+    ['built-routes', ['scripts/test-built-routes.mjs']],
+    ['forbidden-locales', ['scripts/test-forbidden-locales.mjs']],
+    ['i18n-parity', ['scripts/test-i18n-parity.mjs']],
+    ['locale-policy', ['scripts/test-locale-policy.mjs']],
     ['canvas-hazard', ['scripts/gate-canvas-unit.mjs', '--self-test']],
+    ['canvas-geometry-lifecycle', ['scripts/test-canvas-geometry-lifecycle.mjs']],
     ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
+    ['ui-layout', ['scripts/check-ui-layout.mjs', '--self-test']],
+    ['line-reveal', ['scripts/test-line-reveal.mjs', '--self-test']],
+    ['hash-navigation', ['scripts/test-hash-navigation.mjs']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
     ['regex-escape', ['scripts/test-regex-escape.mjs']],
     ['site-behavior', ['--import', './worker/register-ts-ext.mjs', 'scripts/gate-site-behavior.mjs', '--self-test']],
@@ -410,7 +475,7 @@ results.push(regexEscapeGate(ROOT, rel));
   const detail = [];
   for (const [name, argv] of SUITES) {
     const command = argv[0].startsWith('--') ? argv : [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)];
-    const r = spawnSync(process.execPath, command, { cwd: ROOT, encoding: 'utf8' });
+    const r = await runGate(`检查程序自测：${name}`, process.execPath, command, { cwd: ROOT, encoding: 'utf8' });
     if (r.status !== 0) {
       const tail = (r.stdout || '').trim().split('\n').filter((l) => /❌|FAIL|失败/.test(l)).slice(0, 4);
       detail.push(`${name} 的红测没过(exit ${r.status})——该门的判据已失去红测保护`, ...tail.map((l) => '  ' + l.trim()));
@@ -434,6 +499,14 @@ results.push(regexEscapeGate(ROOT, rel));
   results.push({ gate: `gate-self-tests(${SUITES.length} 套红测)`, pass: detail.length === 0, detail });
 }
 
+// 变体测试必须隔离构建；任何门改写正式 dist 都使整轮结论失效。
+try {
+  assertDigest(join(ROOT, 'dist'), artifact.sha256);
+  results.push({ gate: 'artifact-unchanged', pass: true, detail: [] });
+} catch (error) {
+  results.push({ gate: 'artifact-unchanged', pass: false, detail: [error.message] });
+}
+
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {
@@ -453,9 +526,13 @@ writeFileSync(join(ROOT, '.verify-exit.code'), String(code));
 try {
   mkdirSync(join(ROOT, '.verify-cache'), { recursive: true });
   writeFileSync(join(ROOT, '.verify-cache', 'last-run.json'), JSON.stringify({
-    mode: 'full', verdict: code === 0 && notRun === 0 ? 'pass' : 'fail', at: new Date().toISOString(),
+    mode: routesIndex >= 0 ? 'scoped' : 'full', routes: ROUTE_SCOPE?.split(',') ?? null,
+    verdict: code === 0 && notRun === 0 ? 'pass' : 'fail', at: new Date().toISOString(),
     headTree: gitOut('rev-parse', 'HEAD^{tree}'), dirty: gitOut('status', '--porcelain') !== '', treeMoved: treeFingerprint() !== startFingerprint,
-    gates: results.length, failed, notRun,
+    gates: results.length, failed, notRun, artifact,
   }, null, 2) + '\n');
 } catch { /* 写不了缓存不影响门结论,只是推主线时要重跑 */ }
 process.exit(code);
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await verify();

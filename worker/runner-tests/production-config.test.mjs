@@ -61,7 +61,7 @@ test('fixes the production target, relocates all build paths and preserves bindi
   assert.equal(config.account_id, env.CLOUDFLARE_ACCOUNT_ID);
   assert.equal(config.vars.ENVIRONMENT, 'production');
   assert.equal(config.vars.PUBLISH_EXECUTION_MODE, 'github');
-  assert.equal(config.vars.PUBLISH_GITHUB_REPOSITORY, 'jasonukkd/nexgrid-website');
+  assert.equal(config.vars.PUBLISH_GITHUB_REPOSITORY, 'agentabatiuo572-byte/nexion-website');
   assert.equal(config.vars.PUBLISH_GITHUB_WORKFLOW, 'publish-website.yml');
   assert.equal(config.vars.PUBLISH_GITHUB_REF, 'main');
   assert.equal(config.main, path.join(root, 'worker/src/index.ts'));

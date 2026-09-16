@@ -171,7 +171,9 @@ function Start-LocalSupervisor([string]$Name) {
     if (Get-OwnedSupervisor $Name) { Write-Host "[reuse] $Name supervisor"; return }
     $stamp = Get-Date -Format 'yyyyMMdd-HHmmss-fff'
     $arguments = "-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File `"$LauncherPath`" -Service $Name"
-    $started = Start-Process -FilePath $WindowsPowerShell -ArgumentList $arguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $LocalDir "$Name-$stamp.out.log") -RedirectStandardError (Join-Path $LocalDir "$Name-$stamp.err.log") -PassThru
+    $aiEnvironment = Remove-AiProcessEnvironment
+    try { $started = Start-Process -FilePath $WindowsPowerShell -ArgumentList $arguments -WorkingDirectory $RepoRoot -WindowStyle Hidden -RedirectStandardOutput (Join-Path $LocalDir "$Name-$stamp.out.log") -RedirectStandardError (Join-Path $LocalDir "$Name-$stamp.err.log") -PassThru }
+    finally { Restore-AiProcessEnvironment $aiEnvironment }
     $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($started.Id)" -ErrorAction Stop
     if (-not $process -or -not (Test-LauncherProcess $process $Name)) { throw "The $Name supervisor exited before its identity could be saved." }
     Save-SupervisorRecord $Name $process
@@ -281,7 +283,7 @@ function Ensure-PublishRunner([string]$Token, [int]$TimeoutSeconds = 45) {
 
 function Invoke-PublishRunner {
     $secretPath = Join-Path $LocalDir 'publish-runner-token.dpapi'
-    $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN')
+    $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN') + @([Environment]::GetEnvironmentVariables('Process').Keys | Where-Object { $_ -match '^(AI_|OPENAI_)' })
     $previous = @{}
     foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process') }
     try {

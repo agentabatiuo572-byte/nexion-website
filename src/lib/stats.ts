@@ -8,6 +8,7 @@
 import { grownValue, type StatsGrowth } from '../../schema/src/stats-growth';
 import { SITE_CONFIG as site } from './site-config';
 import type { Locale } from '../i18n';
+import { localeNumberTag } from './locale-policy';
 
 export interface PlatformStats {
   activeDevices: number;
@@ -54,7 +55,7 @@ export function statsMode(): StatsMode {
 
 /** 数字格式的 BCP-47 标签:vi 千分位 `.` 小数 `,`;zh/en 同 en-US 分组 */
 export function localeTag(locale: Locale): string {
-  return locale === 'vi' ? 'vi-VN' : locale === 'zh' ? 'zh-CN' : 'en-US';
+  return localeNumberTag(locale);
 }
 
 /** 数字展示:<100K 千分位;≥99,950 起 K/M 化(阈值语义同 App compactNumber,防 999.9K 假进位) */

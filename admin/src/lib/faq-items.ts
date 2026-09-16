@@ -1,4 +1,5 @@
 import type { Tri } from './use-draft';
+import { emptyTranslation } from './locale-editor';
 
 export interface FaqItemValue {
   id: string;
@@ -18,6 +19,6 @@ export function appendMintedFaqItem(
   const latest = current ?? fallback;
   return [
     ...latest,
-    { id, q: { en: '', vi: '', zh: '' }, a: { en: '', vi: '', zh: '' }, sort: latest.length + 1, visible: true },
+    { id, q: emptyTranslation(), a: emptyTranslation(), sort: latest.length + 1, visible: true },
   ];
 }

@@ -74,6 +74,16 @@ afterEach(() => {
 });
 
 describe('Shell safety flows', () => {
+  it.each([null, { dbLive: 1, snapshot: 1, tampered: ['admin/index.html'] }])('reports failed publication without guaranteeing the live site is unaffected (drift=%j)', async (drift) => {
+    mocks.api.mockImplementation((path: string) => Promise.resolve(path === '/api/config'
+      ? { ...overview, drift, lastPublishFailed: { id: 2, reason: '发布服务中断或超时', at: Date.now() } }
+      : {}));
+    render(<RouterProvider router={makeRouter()} />);
+    const banner = await screen.findByText(/上次发布失败\(v2\)/);
+    expect(banner.textContent).not.toContain('未受影响');
+    expect(banner.textContent).toContain(drift ? '线上内容需核查' : '当前记录的线上版本为 v1');
+  });
+
   it('keeps the page open and reports an active session only after /api/me confirms it', async () => {
     mocks.api.mockImplementation((path: string) => {
       if (path === '/api/me') return Promise.resolve({});
@@ -85,6 +95,7 @@ describe('Shell safety flows', () => {
     const router = makeRouter();
     render(<RouterProvider router={router} />);
     await screen.findByText('编辑页面');
+    expect(screen.getByRole('link', { name: /查看官网/ }).getAttribute('href')).toBe(window.location.origin + '/');
 
     fireEvent.click(screen.getByRole('button', { name: /退出/ }));
     await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('退出请求未完整成功；回读确认会话仍然有效，请重试'));
@@ -230,10 +241,12 @@ describe('Shell safety flows', () => {
 });
 
 // Real Shell DOM + production CSS, measured in Chromium; jsdom cannot measure flex layout.
-it('lays mobile navigation out in rows with 44px targets while preserving sidebar breakpoints', async () => {
+it('keeps navigation labels readable at every width and mobile targets at least 44px', async () => {
   mocks.api.mockResolvedValue(overview);
   const { container } = render(<RouterProvider router={makeRouter()} />);
   await screen.findByText('编辑页面');
+  fireEvent.click(screen.getByRole('button', { name: '打开导航' }));
+  expect(screen.getByRole('button', { name: '关闭导航' }).getAttribute('aria-expanded')).toBe('true');
   const require = createRequire(resolve(process.cwd(), '../package.json'));
   const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
@@ -241,7 +254,7 @@ it('lays mobile navigation out in rows with 44px targets while preserving sideba
     const page = await browser.newPage();
     const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8');
     await page.setContent('<style>' + css + '</style>' + container.innerHTML);
-    for (const width of [320, 375, 760, 761, 1023, 1024, 1440]) {
+    for (const width of [320, 375, 760, 761, 1023, 1024, 1440, 1920, 2560, 3840]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.getByRole('button', { name: '退出', exact: true }).count()).toBe(1);
       const result = await page.evaluate(() => {
@@ -250,6 +263,13 @@ it('lays mobile navigation out in rows with 44px targets while preserving sideba
         return {
           direction: getComputedStyle(aside).flexDirection,
           asideWidth: aside.getBoundingClientRect().width,
+          labelsFit: links.every((link) => {
+            const label = link.querySelector('.lbl');
+            if (!label) return false;
+            const range = document.createRange(); range.selectNodeContents(label);
+            const text = range.getBoundingClientRect(), box = link.getBoundingClientRect();
+            return text.left >= box.left && text.right <= box.right + 1 && text.top >= box.top && text.bottom <= box.bottom + 1;
+          }),
           boxes: links.map((link) => { const b = link.getBoundingClientRect(); return { x: b.x, y: b.y, width: b.width, height: b.height }; }),
           labelsHidden: links.filter((link) => link.querySelector('.lbl')).every((link) => getComputedStyle(link.querySelector('.lbl')!).display === 'none'),
           overflow: document.documentElement.scrollWidth > innerWidth,
@@ -257,15 +277,17 @@ it('lays mobile navigation out in rows with 44px targets while preserving sideba
       });
       expect(result.boxes.length).toBeGreaterThan(1);
       if (width <= 760) {
-        expect(result.direction).toBe('row');
+        expect(result.direction).toBe('column');
         expect(result.boxes.every((b) => b.width >= 44 && b.height >= 44)).toBe(true);
-        expect(new Set(result.boxes.map((b) => b.y)).size).toBeLessThan(result.boxes.length);
         expect(result.overflow).toBe(false);
       } else {
         expect(result.direction).toBe('column');
-        expect(result.asideWidth).toBe(width < 1024 ? 64 : 216);
+        expect(result.asideWidth).toBeGreaterThanOrEqual(220);
+        expect(result.asideWidth).toBeLessThan(width * .4);
+        expect(result.labelsFit).toBe(true);
+        expect(result.overflow).toBe(false);
       }
-      expect(result.labelsHidden).toBe(width < 1024);
+      expect(result.labelsHidden).toBe(false);
     }
   } finally { await browser.close(); }
 }, 20000);

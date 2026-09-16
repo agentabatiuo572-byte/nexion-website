@@ -11,5 +11,8 @@ describe('sameGeoRules', () => {
   it('confirms a response-loss write only when readback matches the attempted rule', () => {
     expect(sameGeoRules(rules(), rules())).toBe(true);
     expect(sameGeoRules({ ...rules(), enabled: false }, rules())).toBe(false);
+    const changed = rules();
+    changed.blockPage.title.ja = 'アクセス制限';
+    expect(sameGeoRules(changed, rules())).toBe(false);
   });
 });

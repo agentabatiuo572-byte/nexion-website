@@ -15,6 +15,7 @@ $LocalDir = Join-Path $RepoRoot '.local-start'
 $LauncherPath = Join-Path $RepoRoot 'start-website.ps1'
 $WindowsPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
 . (Join-Path $RepoRoot 'scripts/launcher-publish.ps1')
+. (Join-Path $RepoRoot 'scripts/launcher-ai.ps1')
 # A .cmd launched from PowerShell 7 can inherit its incompatible Security module.
 # Pin the built-in WinPS module before DPAPI commands are auto-loaded.
 if ($PSVersionTable.PSEdition -eq 'Desktop') {
@@ -69,7 +70,7 @@ function Read-LocalPassword([string]$Path) {
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer); $secure.Dispose() }
 }
 
-function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method = 'GET', $Body = $null, [string]$Cookie = '', [string]$BearerToken = '') {
+function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method = 'GET', $Body = $null, [string]$Cookie = '', [string]$BearerToken = '', [ValidateRange(1, 30)][int]$TimeoutSeconds = 15) {
     $uri = [Uri]($BaseUri.TrimEnd('/') + $Path)
     if ($uri.Scheme -ne 'http' -or $uri.Host -notin @('127.0.0.1', 'localhost', '[::1]')) { throw 'Only loopback HTTP is allowed.' }
     Add-Type -AssemblyName System.Net.Http
@@ -78,7 +79,7 @@ function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method = 'GET
     $handler.AllowAutoRedirect = $false
     $handler.UseCookies = $false
     $client = New-Object Net.Http.HttpClient($handler)
-    $client.Timeout = [TimeSpan]::FromSeconds(15)
+    $client.Timeout = [TimeSpan]::FromSeconds($TimeoutSeconds)
     $request = New-Object Net.Http.HttpRequestMessage((New-Object Net.Http.HttpMethod($Method)), $uri)
     if ($null -ne $Body) { $request.Content = New-Object Net.Http.StringContent(($Body | ConvertTo-Json -Compress), [Text.Encoding]::UTF8, 'application/json') }
     if ($Cookie) { [void]$request.Headers.TryAddWithoutValidation('Cookie', $Cookie) }
@@ -169,9 +170,9 @@ function Initialize-LocalAdmin([string]$BaseUri, [string]$CredentialPath, [strin
 
 function Get-ServiceDefinition([string]$Name) {
     switch ($Name) {
-        'site' { return @{ Name = 'site'; Port = 4321; Dir = $RepoRoot; Marker = (Join-Path $RepoRoot 'node_modules/astro/'); Url = 'http://localhost:4321/' } }
+        'site' { return @{ Name = 'site'; Port = 4321; Dir = $RepoRoot; Marker = (Join-Path $RepoRoot 'node_modules/astro/'); Url = 'http://127.0.0.1:4321/'; Arguments = @('run', 'dev', '--', '--host', '127.0.0.1') } }
         'api' { return @{ Name = 'api'; Port = 8787; Dir = (Join-Path $RepoRoot 'worker'); Marker = (Join-Path $RepoRoot 'worker/node_modules/'); Url = 'http://127.0.0.1:8787/api/health' } }
-        'admin' { return @{ Name = 'admin'; Port = 5175; Dir = (Join-Path $RepoRoot 'admin'); Marker = (Join-Path $RepoRoot 'admin/node_modules/'); Url = 'http://localhost:5175/admin/' } }
+        'admin' { return @{ Name = 'admin'; Port = 5175; Dir = (Join-Path $RepoRoot 'admin'); Marker = (Join-Path $RepoRoot 'admin/node_modules/'); Url = 'http://127.0.0.1:5175/admin/'; Arguments = @('run', 'dev', '--', '--host', '127.0.0.1', '--strictPort', '--base', '/') } }
     }
 }
 
@@ -255,10 +256,11 @@ function Ensure-LocalService([string]$Name) {
 
 function Invoke-Npm([string]$Directory, [string[]]$Arguments) {
     Push-Location -LiteralPath $Directory
+    $aiEnvironment = Remove-AiProcessEnvironment
     try {
         & (Get-Command npm.cmd -ErrorAction Stop).Source @Arguments
         if ($LASTEXITCODE -ne 0) { throw "npm failed in $Directory (exit $LASTEXITCODE)." }
-    } finally { Pop-Location }
+    } finally { Restore-AiProcessEnvironment $aiEnvironment; Pop-Location }
 }
 
 function Start-Website {
@@ -297,9 +299,11 @@ function Start-Website {
     if (@(Get-OwnedListener (Get-ServiceDefinition 'api')).Count -eq 0) { throw 'The local API stopped before initialization.' }
     $account = Initialize-LocalAdmin 'http://127.0.0.1:8787' (Join-Path $LocalDir 'admin-password.dpapi') -NonInteractive:$NonInteractive
     Ensure-PublishRunner $publish.Token
+    $publishedUrl = 'http://127.0.0.1:8787/'
     Write-Host ''
-    Write-Host 'Website: http://localhost:4321/'
-    Write-Host 'Console: http://localhost:5175/admin/'
+    Write-Host ('Published website: ' + $publishedUrl)
+    Write-Host ('Console: ' + (Get-ServiceDefinition 'admin').Url)
+    Write-Host ('Development preview: ' + (Get-ServiceDefinition 'site').Url)
     if ($account.Created) { Write-Host 'Administrator initialized and login verified.' }
     else { Write-Host 'Existing administrator preserved; login verified.' }
     if (-not $HidePassword) { Write-Host "Password: $($account.Password)" -ForegroundColor Yellow }
@@ -307,8 +311,8 @@ function Start-Website {
     Write-Host 'Services stay running after this launcher window closes.'
     Write-Host 'Publish executor is ready. Click Publish in the console to build, verify and update the local snapshot.'
     if (-not $NoBrowser) {
-        Start-Process 'http://localhost:4321/'
-        Start-Process 'http://localhost:5175/admin/'
+        Start-Process $publishedUrl
+        Start-Process (Get-ServiceDefinition 'admin').Url
     }
 }
 
@@ -330,9 +334,9 @@ if ($MyInvocation.InvocationName -ne '.') {
                 $env:WRANGLER_SEND_METRICS = 'false'
                 # Root dev asset base also serves /admin without a trailing slash after login.
                 # Production builds retain the configured /admin/ asset base.
-                if ($Service -eq 'admin') { Invoke-Npm $definition.Dir @('run', 'dev', '--', '--host', 'localhost', '--strictPort', '--base', '/') }
-                elseif ($Service -eq 'api') { Invoke-Npm $definition.Dir @('run', 'dev', '--', '--ip', '127.0.0.1', '--port', '8787') }
-                else { Invoke-Npm $definition.Dir @('run', 'dev') }
+                if ($Service -eq 'api') { Invoke-ApiSupervisor }
+                # localhost can resolve to an IPv6 loopback that Windows blocks.
+                else { Invoke-Npm $definition.Dir $definition.Arguments }
             }
         } else {
             $sha = [Security.Cryptography.SHA256]::Create()

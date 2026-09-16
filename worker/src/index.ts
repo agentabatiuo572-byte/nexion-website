@@ -1,7 +1,10 @@
 import { Hono } from 'hono';
 import type { Env } from './env';
 import { auditRoutes } from './audit';
-import { authRoutes, requireAuth } from './auth';
+import { authRoutes, requireAuth, timingSafeEqualHex } from './auth';
+import { aiRoutes } from './ai-routes';
+import { getAiConnectionState } from './ai-connection';
+import { translationsRoutes, drainTranslations } from './translations';
 import { configRoutes, probeDownloads } from './config';
 import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
@@ -13,13 +16,22 @@ import { dailyJob, isUtcDay, runDailyRollup } from './rollup';
 import { isBotUserAgent } from './bot';
 import { METRIC_TEXT_BYTES } from '../../schema/src/event-contract';
 import { truncateUtf8 } from '../../schema/src/utf8';
+import { pathLocale, publishedLocales } from './published-locales';
 
 /** 404 计数节流:同采集/拦截统计同档,防扫描器把 raw_events 写爆(计数因此为下限,面板标注) */
 const notFoundLimiter = createLimiter(60_000, 120);
 
 export const app = new Hono<{ Bindings: Env }>();
 
-// 🔴 区域屏蔽中间件:一切之前(CON12;/admin 与 /api 前缀在中间件内豁免——自锁保护)
+// Disabled locale paths stay unavailable even if an older asset remains during a local swap.
+app.use('*', async (c, next) => {
+  const path = new URL(c.req.url).pathname;
+  if (path === '/admin' || path.startsWith('/admin/') || path === '/api' || path.startsWith('/api/')) return next();
+  const locale = pathLocale(path);
+  if (locale !== 'en' && !(await publishedLocales(c.env)).includes(locale)) return c.text('Not found', 404);
+  return next();
+});
+// 🔴 区域屏蔽中间件(/admin 与 /api 前缀在中间件内豁免——自锁保护)
 app.use('*', geoMiddleware);
 
 app.get('/api/health', (c) =>
@@ -59,6 +71,28 @@ app.route('/api/publish', publishRoutes);
 app.use('/api/config', requireAuth);
 app.use('/api/config/*', requireAuth);
 app.route('/api/config', configRoutes);
+
+app.route('/api/ai', aiRoutes);
+app.route('/api/translations', translationsRoutes);
+
+// The local supervisor has its own narrowly scoped credential. Production uses cron.
+app.use('/api/internal/translations/*', async (c, next) => {
+  if (c.env.ENVIRONMENT !== 'dev') return c.json({ error: 'not-found' }, 404);
+  const secret = c.env.AI_TICK_TOKEN ?? '';
+  const supplied = c.req.header('authorization') ?? '';
+  if (secret.length < 32 || supplied.length > 1100 || !timingSafeEqualHex(supplied, `Bearer ${secret}`)) {
+    return c.json({ error: 'unauthorized' }, 401);
+  }
+  await next();
+});
+app.get('/api/internal/translations/bootstrap', async (c) => {
+  const state = await getAiConnectionState(c.env);
+  return c.json({ initialized: state.rootInitialized, hasCredential: state.configured, encryptionReady: state.encryptionReady });
+});
+app.post('/api/internal/translations/tick', async (c) => {
+  if ((await c.req.text()).length) return c.json({ error: 'empty-body-required' }, 400);
+  return c.json(await drainTranslations(c.env));
+});
 
 // 手动汇总/回填(运维面,审计留痕;日常由 cron 驱动)
 app.post('/api/admin/rollup', requireAuth, async (c) => {
@@ -135,7 +169,13 @@ app.all('*', async (c) => {
    声明了没人处理、或代码处理了没声明,都会红(复测 O11:此前用三元兜底,「6h 那条」在代码里
    根本没出现过,门只能靠硬编码断言咬住,换个合法频率就会为错误的理由变红)。 */
 const CRON_JOBS: Record<string, (env: Env) => Promise<void>> = {
-  '* * * * *': (env) => maintainPublishing(env),
+  '* * * * *': async (env) => {
+    const results = await Promise.allSettled([maintainPublishing(env), drainTranslations(env)]);
+    for (const [index, result] of results.entries()) {
+      // Do not log thrown provider responses or credentials.
+      if (result.status === 'rejected') console.error(index === 0 ? 'publish-maintenance-failed' : 'translation-maintenance-failed');
+    }
+  },
   // 每日 00:10 UTC:汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
   '10 0 * * *': (env) => dailyJob(env),
   // 每 6 小时:下载链接探活巡检(PRD CON03-③;结果落 probe_status,连续 2 次失败在驾驶舱红条)

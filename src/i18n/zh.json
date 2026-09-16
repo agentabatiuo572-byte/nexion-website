@@ -84,6 +84,11 @@
     }
   },
   "trust": {
+    "whitepaper": {
+      "title": "NexGrid 白皮书",
+      "summary": "了解产品结构、设备交付、任务核验与结算机制，以及安全设计和发展路线。",
+      "details": "v{version} · 英文版 · PDF"
+    },
     "title": "美国注册实体,欢迎自行查证。",
     "pocTitle": "收益如何被验证（Proof-of-Compute）",
     "pocBody1": "每个完成的任务都会生成一张推理收据——跑了什么、何时、收益多少。我们把每张收据记录进平台账本，并做链上存证。",

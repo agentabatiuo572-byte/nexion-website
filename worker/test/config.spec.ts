@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 import type { SiteConfig } from '../../schema/src/index.js';
 import currentSeed from '../seed/site-config.seed.json';
+import { ensureInit } from '../src/config';
+import { readDraftSnapshot, saveDraftPatch } from '../src/draft-write';
 
 const IP = { 'cf-connecting-ip': '203.0.113.9', 'content-type': 'application/json' };
 const PW = 'config-suite-pass!';
@@ -29,12 +31,48 @@ async function getOverview(cookie: string) {
 }
 
 beforeEach(async () => {
-  for (const t of ['audit', 'sessions', 'login_throttle', 'auth_account', 'config_versions', 'config_draft']) {
+  for (const t of ['translation_jobs', 'translation_state', 'audit', 'sessions', 'login_throttle', 'auth_account', 'config_versions', 'config_draft']) {
     await env.DB.prepare(`DELETE FROM ${t}`).run();
   }
 });
 
 describe('CON04/CON13 配置模型', () => {
+  it('fresh factory copy is seed-managed and its first source edit queues all target languages', async () => {
+    await Promise.all([ensureInit(env.DB), ensureInit(env.DB)]);
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM config_versions').first()).toEqual({ n: 1 });
+    const states = await env.DB.prepare("SELECT origin FROM translation_state WHERE field_id='/copy/hero.scrollHint'").all<{ origin: string }>();
+    expect(states.results).toHaveLength(8);
+    expect(states.results.every(s => s.origin === 'seed')).toBe(true);
+    const snapshot = await readDraftSnapshot(env.DB), config = JSON.parse(snapshot.payload) as SiteConfig;
+    const result = await saveDraftPatch(env.DB, { baseRevision: snapshot.draft_rev,
+      operations: [{ op: 'set', fieldId: '/copy/zh/hero.scrollHint', before: config.copy.zh['hero.scrollHint'], after: 'Explore the network' }] });
+    expect(result.queued).toBe(8);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM translation_jobs WHERE status='pending'").first()).toEqual({ n: 8 });
+  });
+
+  it('known factory provenance and the new draft are one atomic initialization', async () => {
+    await env.DB.prepare("CREATE TRIGGER reject_factory_state BEFORE INSERT ON translation_state BEGIN SELECT RAISE(ABORT,'factory-test-failure'); END").run();
+    try {
+      await expect(ensureInit(env.DB)).rejects.toThrow();
+      for (const table of ['config_versions', 'config_draft', 'translation_state']) expect(await env.DB.prepare(`SELECT COUNT(*) AS n FROM ${table}`).first()).toEqual({ n: 0 });
+    } finally { await env.DB.prepare('DROP TRIGGER reject_factory_state').run(); }
+  });
+
+  it('matching unknown historical copy is never retroactively claimed as factory-managed', async () => {
+    const payload = JSON.stringify(currentSeed), now = Date.now();
+    await env.DB.batch([
+      env.DB.prepare("INSERT INTO config_versions(status,payload,created_by,created_at) VALUES('live',?1,'legacy',?2)").bind(payload, now),
+      env.DB.prepare('INSERT INTO config_draft(id,payload,base_revision,updated_at,draft_rev) VALUES(1,?1,1,?2,1)').bind(payload, now),
+    ]);
+    await ensureInit(env.DB);
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM translation_state').first()).toEqual({ n: 0 });
+    const result = await saveDraftPatch(env.DB, { baseRevision: 1, operations: [{ op: 'set', fieldId: '/copy/zh/hero.scrollHint', before: currentSeed.copy.zh['hero.scrollHint'], after: 'Explore the network' }] });
+    expect(result.queued).toBe(0);
+    const states = await env.DB.prepare("SELECT origin FROM translation_state WHERE field_id='/copy/hero.scrollHint'").all<{ origin: string }>();
+    expect(states.results).toHaveLength(8);
+    expect(states.results.every(s => s.origin === 'manual')).toBe(true);
+  });
+
   it('CON02-③ 概览带 geo 只读状态(壳状态条第三 chip 的数据源;包④挂账关账)', async () => {
     const cookie = await login();
     const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as {

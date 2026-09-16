@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ApiError, api, toast } from '../api';
 import { AutoTextarea } from '../lib/auto-textarea';
+import { TextLimitHint } from '../lib/text-limit-hint';
 import { sameGeoRules } from '../lib/geo-rules';
 import { ISO_COUNTRIES, countryName } from '../lib/iso-countries';
 import { useShell, useUnsavedChanges } from '../shell';
+import { LOCALES, LOCALE_NAMES, LocalePair, LocaleToolbar, SOURCE_LOCALE, useLocaleWorkspace } from '../lib/locale-editor';
+import { useFocusField } from '../lib/use-focus-field';
+import { publishedSiteUrl } from '../lib/published-site';
+import type { SiteConfigView, Tri } from '../lib/use-draft';
 
 interface Rules {
   enabled: boolean;
   countries: string[];
-  blockPage: { title: { zh: string; en: string }; body: { zh: string; en: string } };
+  blockPage: { title: Partial<Tri>; body: Partial<Tri> };
   updatedAt?: number;
   updatedBy?: string;
   updateOperationId?: string;
@@ -62,6 +67,7 @@ type ConfirmBox = {
 };
 
 export default function GeoPage() {
+  const language = useLocaleWorkspace();
   const { reload: reloadShell, overview: shellOverview, failed: shellFailed } = useShell();
   const [st, setSt] = useState<GeoState | null>(null);
   const [failed, setFailed] = useState(false);
@@ -110,6 +116,7 @@ export default function GeoPage() {
     void load();
     return () => { stateReadGeneration.current += 1; };
   }, [load]);
+  useFocusField(undefined, !!st);
 
   if (failed) return <section><h2>区域屏蔽</h2><div className="note bad">状态获取失败 <button className="btn ghost sm" onClick={() => void load()}>重试</button></div></section>;
   if (!st) return <section><h2>区域屏蔽</h2><div className="skl" style={{ height: 80 }} /></section>;
@@ -119,9 +126,12 @@ export default function GeoPage() {
   const writable = st.authority.status === 'ready' && !st.degraded;
   /* 拦截页文案的长度约束(CON12-③ ≤300)在**界面这一层**就拦住,
      而不是放行到最后再由服务端回一句错误码。 */
-  const tooLong = (['zh', 'en'] as const)
-    .filter((l) => r.blockPage.body[l].length > 300)
-    .map((l) => `${l === 'zh' ? '中文' : '英文'}正文超出 ${r.blockPage.body[l].length - 300} 字(上限 300)`);
+  const textErrors = LOCALES.flatMap((locale) => (['title', 'body'] as const).flatMap((field) => {
+    const length = (r.blockPage[field][locale] ?? '').length;
+    const limit = field === 'title' ? 120 : 300;
+    if (locale === SOURCE_LOCALE && !r.blockPage[field][locale]?.trim()) return [`中文${field === 'title' ? '标题' : '正文'}必填，其它语言留空时会使用它`];
+    return length > limit ? [`${LOCALE_NAMES[locale]}${field === 'title' ? '标题' : '正文'}超出 ${length - limit} 字(上限 ${limit})`] : [];
+  }));
   const set = (patch: Partial<Rules>) => setDraft({ ...structuredClone(r), ...patch });
 
   function openApplyConfirmation(rules: Rules, authority: ReadyGeoAuthority): void {
@@ -240,7 +250,7 @@ export default function GeoPage() {
       await acceptApplied(
         currentState.rules,
         result.rules,
-        'D1 权威规则已建立，边缘规则已物化',
+        '现有规则已确认并保存，访问节点已同步',
         result.authority,
       );
     } catch (ex) {
@@ -250,9 +260,9 @@ export default function GeoPage() {
          让页面展示服务端刚确认过的候选。 */
       const outcome = await readBack(currentState.rules);
       if (outcome.outcome === 'applied') {
-        await acceptReadyReadback(currentState.rules, outcome.state, '迁移响应未确认，但重新读取确认 D1 权威规则已建立');
+        await acceptReadyReadback(currentState.rules, outcome.state, '未收到确认响应，但重新读取已确认：现有规则已保存');
       } else if (outcome.outcome === 'different') {
-        await acceptReadyReadback(currentState.rules, outcome.state, '重新读取确认 D1 权威已由其他操作建立，当前规则与页面候选不同');
+        await acceptReadyReadback(currentState.rules, outcome.state, '重新读取已确认：其他操作已保存规则，内容与刚才显示的不同');
       } else if (outcome.outcome === 'pending') {
         await acceptPending(currentState.rules, outcome.state);
       } else if (outcome.outcome === 'bootstrap-required') {
@@ -297,18 +307,18 @@ export default function GeoPage() {
         body: JSON.stringify({ action: 'reconcile', operationId, reason: '重新物化 D1 权威规则并完成待处理操作' }),
       });
       if (result.authority?.status !== 'ready') throw new Error('recovery response missing ready authority');
-      const observation = result.observed === 'target' ? '边缘已是目标值'
-        : result.observed === 'current' ? '边缘仍是旧值，现已重放'
-          : result.observed === 'unavailable' ? '读取边缘值失败，已按 D1 权威重放'
-            : '边缘值无法匹配，已按 D1 权威重放';
-      await acceptApplied(currentState.rules, result.rules, `恢复完成：${observation}`, result.authority);
+      const observation = result.observed === 'target' ? '访问节点已是最新规则'
+        : result.observed === 'current' ? '访问节点原为旧规则，现已同步为已保存的规则'
+          : result.observed === 'unavailable' ? '未能读取访问节点原有规则，现已重新同步已保存的规则'
+            : '访问节点原有规则不一致，现已重新同步已保存的规则';
+      await acceptApplied(currentState.rules, result.rules, `同步完成：${observation}`, result.authority);
     } catch (ex) {
       const code = ex instanceof ApiError ? String(ex.body.error ?? '') : 'network';
       const outcome = await readBack(currentState.rules);
       if (outcome.outcome === 'applied') {
-        await acceptReadyReadback(currentState.rules, outcome.state, '恢复响应未确认，但重新读取确认 D1 权威规则已就绪');
+        await acceptReadyReadback(currentState.rules, outcome.state, '未收到同步响应，但重新读取已确认：规则已恢复就绪');
       } else if (outcome.outcome === 'different') {
-        await acceptReadyReadback(currentState.rules, outcome.state, '重新读取确认待恢复操作已结束，D1 权威规则随后又被更新');
+        await acceptReadyReadback(currentState.rules, outcome.state, '重新读取已确认：待处理操作已结束，规则随后又被其他操作更新');
       } else if (outcome.outcome === 'pending') {
         await acceptPending(currentState.rules, outcome.state);
       } else if (outcome.outcome === 'bootstrap-required') {
@@ -365,7 +375,7 @@ export default function GeoPage() {
         || result.authority.version !== version
         || result.authority.currentFingerprint !== currentFingerprint
       ) throw new Error('ready rematerialization response changed authority');
-      await acceptApplied(currentState.rules, result.rules, '当前 D1 权威版本已重新物化到边缘 KV', result.authority);
+      await acceptApplied(currentState.rules, result.rules, '已保存的规则已重新同步到访问节点', result.authority);
     } catch (ex) {
       const code = ex instanceof ApiError ? String(ex.body.error ?? '') : 'network';
       const next = await refreshPreservingDraft();
@@ -387,7 +397,7 @@ export default function GeoPage() {
         await acceptReadyReadback(
           currentState.rules,
           next,
-          '恢复响应未确认，但重新读取确认当前 D1 权威版本的边缘物化已一致',
+          '未收到同步响应，但重新读取已确认：访问节点与已保存的规则一致',
         );
       } else if (next) {
         await syncShell(next.rules, next.degraded);
@@ -455,7 +465,7 @@ export default function GeoPage() {
           await acceptReadyReadback(
             writeFail.attempted,
             next,
-            '已重新读取：当前 D1 权威版本的边缘物化已一致',
+            '已重新读取：访问节点与已保存的规则一致',
           );
         }
       } else {
@@ -486,18 +496,18 @@ export default function GeoPage() {
         writeFail.attempted,
         outcome.state,
         writeFail.kind === 'bootstrap'
-          ? '已重新读取：D1 权威规则确实已经建立'
+          ? '已重新读取：现有规则确实已经保存'
           : writeFail.kind === 'recovery'
             ? '已重新读取：待恢复操作确实已经完成'
             : writeFail.kind === 'ready-recovery'
-              ? '已重新读取：当前 D1 权威版本的边缘物化已一致'
+              ? '已重新读取：访问节点与已保存的规则一致'
             : '已重新读取：本次规则确实已经生效',
       );
     } else if (outcome.outcome === 'pending') {
       await acceptPending(writeFail.attempted, outcome.state);
     } else if (outcome.outcome === 'different') {
       if (writeFail.kind === 'bootstrap' || writeFail.kind === 'recovery') {
-        await acceptReadyReadback(writeFail.attempted, outcome.state, '已重新读取：D1 权威状态已就绪，但规则已由其他操作更新');
+        await acceptReadyReadback(writeFail.attempted, outcome.state, '已重新读取：规则已就绪，当前内容已由其他操作更新');
       } else if (writeFail.kind === 'ready-recovery') {
         await syncShell(outcome.state.rules, outcome.state.degraded);
         setSt(outcome.state);
@@ -572,7 +582,7 @@ export default function GeoPage() {
         || result.authority.version !== attempt.expectedVersion + 1
         || !sameGeoRules(result.rules, attempted)
       ) throw new Error('geo update response does not identify this operation');
-      await acceptApplied(attempted, result.rules, 'D1 权威已提交，边缘物化已确认 · 约 1 分钟内全球生效', result.authority);
+      await acceptApplied(attempted, result.rules, '规则已保存并确认同步 · 约 1 分钟内全球生效', result.authority);
     } catch (ex) {
       const code = ex instanceof ApiError ? String(ex.body.error ?? '') : 'network';
       if (ex instanceof ApiError && ex.status === 409 && code === 'need-confirm-high-traffic') {
@@ -646,7 +656,7 @@ export default function GeoPage() {
             attempted,
             outcome.state,
             outcome.state.degraded
-              ? '写入响应丢失，但重新读取确认 D1 权威已由本次操作提交；边缘 KV 当前仍在传播或异常'
+              ? '未收到保存响应，但重新读取已确认：本次规则已保存，访问节点仍在同步或暂时异常'
               : '写入响应丢失，但重新读取确认规则已由本次操作写入并生效',
           );
         } else if (outcome.outcome === 'pending') {
@@ -696,7 +706,7 @@ export default function GeoPage() {
   async function getBypass() {
     try {
       const { url } = await api<{ url: string }>('/api/geo/bypass-token', { method: 'POST' });
-      window.open(url, '_blank', 'noopener');
+      window.open(publishedSiteUrl(url), '_blank', 'noopener');
       toast('已在新标签兑换 30 天直通并打开官网(从任何地区可预览;直通访问不计统计)');
     } catch {
       toast('直通签发失败,请重试');
@@ -704,8 +714,13 @@ export default function GeoPage() {
   }
 
   return (
-    <section>
-      <h2>区域屏蔽 <span className="pill warn">高敏 · 变更须理由</span></h2>
+    <section className="editor-page">
+      <header className="page-heading">
+        <span className="eyebrow">网站访问管理</span>
+        <h2>区域屏蔽 <span className="pill warn">即时生效 · 变更须理由</span></h2>
+        <p className="page-description">选择限制访问的国家和地区，并设置拦截页文案。控制台始终可访问。</p>
+      </header>
+      <div className="note warn"><b>本页应用后直接生效，不经过内容发布。</b> 确认并填写理由后提交，约 1 分钟内在全球生效。</div>
       {shellSyncFail && (
         <div className="note bad" role="status">
           规则状态已经在本页确认，但顶部全局状态暂时无法同步；旧的顶部状态已隐藏。
@@ -723,44 +738,50 @@ export default function GeoPage() {
       )}
       {st.authority.status === 'bootstrap-required' && (
         <div className="note warn" role="status" style={{ marginBottom: 12 }}>
-          <b>需要建立 D1 权威规则。</b>
+          <b>首次使用，请先确认现有规则。</b>
           <div className="kv" style={{ marginTop: 4 }}>
-            下方内容只是旧 KV 的迁移候选，尚不是权威版本。确认内容无误后，D1 插入事务会成为首次权威版本；候选读取失败时不能确认。
+            下方是读取到的原有规则，尚未保存到当前管理系统。核对无误后确认保存，再应用新改动；读取失败时请先联系维护人员恢复读取。
           </div>
+          <details className="inline-help"><summary>查看首次确认技术详情</summary><p className="kv">下方内容只是旧 KV 的迁移候选，尚不是权威版本。确认内容无误后，D1 插入事务会成为首次权威版本；候选读取失败时不能确认。</p></details>
           <button
             className="btn sm"
             style={{ marginTop: 8 }}
             disabled={applying || !st.authority.candidateFingerprint}
             onClick={() => void bootstrapAuthority()}
-          >{applying ? '迁移中…' : '确认现有规则并完成迁移'}</button>
+          >{applying ? '确认中…' : '确认并保存现有规则'}</button>
         </div>
       )}
       {st.authority.status === 'pending' && (
         <div className="note bad" role="status" style={{ marginBottom: 12 }}>
-          <b>D1 权威操作处于待恢复状态，不能断言边缘物化与审计已经收口。</b>
+          <b>规则已保存，待确认同步完成。</b>
           <div className="kv" style={{ marginTop: 4 }}>
-            操作 {st.authority.operationId} · 版本 {st.authority.version}。边缘 KV 可能尚未写入，也可能已写入但 applied 审计未完成；恢复会按同一个 D1 权威目标安全重放。
+            访问节点可能已收到规则，但同步及操作记录尚未全部确认。请重新同步，完成后才能应用新改动。
           </div>
+          <details className="inline-help"><summary>查看待同步技术详情</summary><p className="kv">D1 权威操作处于待恢复状态，不能断言边缘物化与审计已经收口。操作 {st.authority.operationId} · 版本 {st.authority.version}。边缘 KV 可能尚未写入，也可能已写入但 applied 审计未完成；恢复会按同一个 D1 权威目标安全重放。</p></details>
           <button className="btn sm" style={{ marginTop: 8 }} disabled={applying} onClick={() => void reconcilePending()}>
-            {applying ? '恢复中…' : '重新物化 D1 权威规则'}
+            {applying ? '同步中…' : '重新同步已保存规则'}
           </button>
         </div>
       )}
       {st.degraded && st.authority.status === 'bootstrap-required' && (
-        <div className="note bad">⚠ 旧 KV 候选读取失败，下方仅为安全兜底名单(仅 CN)；不能用它建立权威版本。</div>
+        <div className="note bad">无法读取原有规则。下方仅显示默认名单（中国大陆），不能据此确认保存；请联系维护人员恢复读取。
+          <details className="inline-help"><summary>查看读取异常技术详情</summary><p className="kv">旧 KV 候选读取失败，下方仅为安全兜底名单(仅 CN)；不能用它建立权威版本。</p></details>
+        </div>
       )}
       {st.degraded && st.authority.status === 'ready' && (
         <div className="note bad">
-          ⚠ D1 权威规则可读，但边缘 KV 通道当前不可达；请先恢复存储再应用变更。
+          <b>规则已保存，但暂时无法核对同步结果。</b>
+          <div className="kv">可尝试重新同步；确认恢复后才能应用新改动。持续异常时，请联系维护人员并提供技术详情。</div>
+          <details className="inline-help"><summary>查看同步异常技术详情</summary><p className="kv">D1 权威规则可读，但边缘 KV 通道当前不可达；请先恢复存储再应用变更。</p></details>
           <button className="btn sm" style={{ marginLeft: 8 }} disabled={applying} onClick={() => void rematerializeReady()}>
-            {applying ? '重新物化中…' : '重新物化当前 D1 权威规则'}
+            {applying ? '同步中…' : '重新同步当前规则'}
           </button>
         </div>
       )}
       <div className="card" style={{ marginBottom: 12 }}>
         <div className="row">
           <b>总开关</b>
-          <label className="tap44" title="总开关"><input type="checkbox" style={{ width: 18, height: 18 }} checked={r.enabled} onChange={(e) => set({ enabled: e.target.checked })} /></label>
+          <label className="tap44" title="总开关"><input aria-label="启用区域屏蔽" type="checkbox" style={{ width: '1.125rem', height: '1.125rem' }} checked={r.enabled} onChange={(e) => set({ enabled: e.target.checked })} /></label>
           {/* 🔴 「已生效」指的是「页面上这份 = 线上那份」,而不是「屏蔽正在生效」——
               上一版总开关关着时旁边也写「已生效」,而同屏状态条写「屏蔽 未启用」,同一件事两个词;
               降级态更糟:页面显示的根本不是真规则,那枚绿标却还写着已生效(第十轮 P2-4)。 */}
@@ -769,15 +790,15 @@ export default function GeoPage() {
           ) : dirty ? (
             <span className="pill warn">改动未应用</span>
           ) : st.authority.status === 'pending' ? (
-            <span className="pill warn">D1 已提交 · 边缘待恢复</span>
+            <span className="pill warn">已保存 · 待确认同步</span>
           ) : st.authority.status === 'bootstrap-required' ? (
-            <span className="pill warn">旧 KV 迁移候选 · 尚未成为权威</span>
+            <span className="pill warn">现有规则 · 待首次确认</span>
           ) : st.degraded ? (
-            <span className="pill warn">D1 权威可读 · 边缘通道异常</span>
+            <span className="pill warn">已保存 · 同步结果待核实</span>
           ) : (
             <span className="pill ok">
               {r.enabled ? '屏蔽生效中' : '屏蔽未启用'}
-              {st.rules.updatedAt ? ` · D1 权威一致(${new Date(st.rules.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })})` : ' · D1 权威一致'}
+              {st.rules.updatedAt ? ` · 已核对(${new Date(st.rules.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })})` : ' · 已核对'}
             </span>
           )}
           <span className="spacer" />
@@ -785,7 +806,7 @@ export default function GeoPage() {
             获取直通(从任何地区预览官网)
           </button>
         </div>
-        <p className="kv" style={{ marginTop: 6 }}>控制台永不受屏蔽；D1 是权威规则，KV 负责边缘物化(约 1 分钟全球生效)，不经内容发布链。</p>
+        <details className="inline-help" style={{ marginTop: 10 }}><summary>规则如何生效</summary><p className="kv">规则先保存到数据库（D1），再同步到各地访问节点（KV）。本页会核对同步结果，异常时暂停新改动并显示恢复入口。</p></details>
         {!st.bypassAvailable && (
           <div className="note warn" style={{ marginBottom: 0 }}>
             直通功能当前停用:部署时的直通密钥未配置,或仍是代码库里的开发默认值(运维手册里叫 BYPASS_SECRET)。上线前必须轮换成真密钥,否则任何人都能自行伪造直通凭证绕过屏蔽。
@@ -793,15 +814,15 @@ export default function GeoPage() {
         )}
       </div>
       <div className="card" style={{ marginBottom: 12 }}>
-        <h3>屏蔽名单(ISO 国家/地区码 · 选择不手输)</h3>
+        <h3>屏蔽名单 <span className="pill">{r.countries.length} 个国家 / 地区</span></h3>
         <div className="chipset">
           {r.countries.map((c) => (
             <span className="cchip" key={c} style={{ background: 'var(--surface2)', borderRadius: 99, padding: '7px 12px', display: 'inline-flex', gap: 8, alignItems: 'center' }}>
               {c} {countryName(c)}
-              <button style={{ color: 'var(--ink4)', minWidth: 22 }} title="移除(须应用变更生效)" onClick={() => set({ countries: r.countries.filter((x) => x !== c) })}>✕</button>
+              <button style={{ color: 'var(--ink4)', minWidth: '2.75rem', minHeight: '2.75rem' }} aria-label={`移除 ${countryName(c)}`} title="移除(须应用变更生效)" onClick={() => set({ countries: r.countries.filter((x) => x !== c) })}>✕</button>
             </span>
           ))}
-          <select value={addSel} style={{ width: 220 }} onChange={(e) => { const v = e.target.value; if (v && !r.countries.includes(v)) set({ countries: [...r.countries, v] }); setAddSel(''); }}>
+          <select aria-label="添加屏蔽国家或地区" value={addSel} style={{ width: '13.75rem' }} onChange={(e) => { const v = e.target.value; if (v && !r.countries.includes(v)) set({ countries: [...r.countries, v] }); setAddSel(''); }}>
             <option value="">+ 添加国家/地区…</option>
             {ISO_COUNTRIES.filter((c) => !r.countries.includes(c.code)).map((c) => (
               <option key={c.code} value={c.code}>{c.code} {c.name}</option>
@@ -811,32 +832,36 @@ export default function GeoPage() {
         <p className="kv" style={{ marginTop: 8 }}>⚠ CN 仅指中国大陆;HK/MO/TW 为独立代码,不会被连带,要连带须显式添加。名单为空+开启 = 不拦任何人。</p>
       </div>
       <div className="card" style={{ marginBottom: 12 }}>
-        <h3>拦截页文案(zh + en,内联渲染不引站内资源;HTTP 451)</h3>
-        <div className="grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-          {(['zh', 'en'] as const).map((l) => (
+        <h3>受限访客看到的内容</h3>
+        <p className="kv">中文标题和正文必填，其它语言留空时回退中文。标题最多 120 字符，正文最多 300 字符。此页应用规则后直接生效；网站语言开关仍需保存草稿并发布。</p>
+        <LocaleToolbar workspace={language} enabledLocales={(shellOverview?.draft?.payload as SiteConfigView | undefined)?.enabledLocales} optional={language.target !== SOURCE_LOCALE} immediate gaps={(['title', 'body'] as const).filter((field) => !r.blockPage[field][language.target]?.trim()).map((field) => ({ path: `geo.blockPage.${field}.${language.target}`, label: field === 'title' ? '拦截页标题' : '拦截页正文' }))} />
+        <LocalePair workspace={language} reference={language.reference ? <>{r.blockPage.title[language.reference] || <span lang="zh">标题尚未填写</span>}{'\n\n'}{r.blockPage.body[language.reference] || <span lang="zh">正文尚未填写</span>}</> : ''} label="拦截页">
+          {[language.target].map((l) => (
             <div key={l}>
-              <div className="field" style={{ margin: 0 }}><label>{l} 标题</label>
-                <input value={r.blockPage.title[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, title: { ...r.blockPage.title, [l]: e.target.value } } })} /></div>
+              <div className="field" style={{ margin: 0 }}><label htmlFor={`geo-title-${l}`}>{LOCALE_NAMES[l]}标题</label>
+                <input lang={l} id={`geo-title-${l}`} aria-describedby={`geo-title-${l}-length`} data-field={`geo.blockPage.title.${l}`} value={r.blockPage.title[l] ?? ''} onChange={(e) => set({ blockPage: { ...r.blockPage, title: { ...r.blockPage.title, [l]: e.target.value } } })} />
+                <TextLimitHint id={`geo-title-${l}-length`} fieldId={'/geo/blockPage/title/' + l} locale={l} value={r.blockPage.title[l] ?? ''} immediate /></div>
               {/* 🔴 就地计数 + 就地拦(第十轮独立验收 P1-8):上一版 label 写着「≤300」却
                   没有计数、没有红字、按钮照常可点,人一路走到最后一步才被一句
                   `bad-request` 打回,而那句话 2.6 秒就消失、也不说是哪一栏超了多少。 */}
-              <div className="field"><label>{l} 正文(≤300)
-                <span className="kv" style={{ marginLeft: 6, color: r.blockPage.body[l].length > 300 ? 'var(--bad)' : undefined }}>
-                  {r.blockPage.body[l].length}/300
+              <div className="field"><label htmlFor={`geo-body-${l}`}>{LOCALE_NAMES[l]}正文
+                <span className="kv" style={{ marginLeft: 6, color: (r.blockPage.body[l] ?? '').length > 300 ? 'var(--bad)' : undefined }}>
+                  系统长度 {(r.blockPage.body[l] ?? '').length}/300
                 </span>
               </label>
-                <AutoTextarea value={r.blockPage.body[l]} onChange={(e) => set({ blockPage: { ...r.blockPage, body: { ...r.blockPage.body, [l]: e.target.value } } })} /></div>
+                <AutoTextarea lang={l} id={`geo-body-${l}`} aria-describedby={`geo-body-${l}-length`} data-field={`geo.blockPage.body.${l}`} value={r.blockPage.body[l] ?? ''} onChange={(e) => set({ blockPage: { ...r.blockPage, body: { ...r.blockPage.body, [l]: e.target.value } } })} />
+                <TextLimitHint id={`geo-body-${l}-length`} fieldId={'/geo/blockPage/body/' + l} locale={l} value={r.blockPage.body[l] ?? ''} immediate /></div>
             </div>
           ))}
-        </div>
+        </LocalePair>
       </div>
       <div className="row" style={{ marginBottom: 16 }}>
         {/* 只有 D1 ready 且 KV 通道可达时允许新写。bootstrap/pending 先完成对应恢复，
             避免把一项未完成的物化任务再叠加成第二项。 */}
         <button
           className="btn primary"
-          disabled={!dirty || applying || !writable || tooLong.length > 0}
-          title={!writable ? '请先完成 D1 迁移或待处理物化，并确认边缘存储通道恢复' : tooLong.length ? tooLong.join(';') : ''}
+          disabled={!dirty || applying || !writable || textErrors.length > 0}
+          title={!writable ? '请先确认现有规则或重新同步，恢复后才能应用新改动' : textErrors.length ? textErrors.join(';') : ''}
           onClick={() => {
             if (st.authority.status === 'ready') openApplyConfirmation(r, st.authority);
           }}
@@ -847,32 +872,37 @@ export default function GeoPage() {
         {/* 禁用必须说明原因(不变量);发布页在同样情形下写「无改动可发布」,这里此前是空的 */}
         {!dirty && writable && <span className="kv">当前没有未应用的改动</span>}
       </div>
-      {tooLong.map((x, i) => <div className="note bad" key={i} style={{ marginBottom: 10 }}>{x}——请先缩短再应用</div>)}
+      {textErrors.map((x, i) => <div className="note bad" key={i} style={{ marginBottom: 10 }}>{x}——请修正后再应用</div>)}
 
       {/* 写入失败:常驻红条 + 重试(CON12-⑤)。改动仍在草稿里,重试就是再发一次同一份规则。 */}
       {writeFail && (
         <div className="note bad" style={{ marginBottom: 16 }}>
           <b>{writeFail.status === 'unknown'
             ? writeFail.kind === 'bootstrap'
-              ? '迁移结果暂时未知，当前无法读取 D1 权威状态。'
+              ? '首次确认结果暂时未知，请重新读取实际状态。'
               : writeFail.kind === 'recovery'
                 ? '恢复结果暂时未知，不能断言待处理操作仍未完成。'
                 : writeFail.kind === 'ready-recovery'
-                  ? '重新物化结果暂时未知，不能断言边缘规则已经恢复。'
+                  ? '同步结果暂时未知，当前无法确认访问节点是否恢复。'
                 : '应用结果暂时未知，不能断言线上仍是旧规则。'
             : writeFail.kind === 'bootstrap'
-              ? '迁移尚未完成。'
+              ? '现有规则尚未完成首次确认。'
               : writeFail.kind === 'recovery'
                 ? '恢复尚未完成。'
                 : writeFail.kind === 'ready-recovery'
-                  ? '当前 D1 权威版本尚未确认重新物化。'
+                  ? '已保存的规则尚未确认同步完成。'
                 : '本次规则没有生效。'}</b>
-          <div className="kv" style={{ marginTop: 4 }}>{writeFail.why}。你的改动还在这一页上,没有丢。</div>
+          <div className="kv" style={{ marginTop: 4 }}>本页改动已保留。{writeFail.status === 'unknown' ? '请先核实实际结果，再决定下一步。' : '请按上方状态提示处理，或重新读取线上规则后核对。'}</div>
+          <details className="inline-help">
+            <summary>查看本次操作技术详情</summary>
+            <p className="kv">{writeFail.why}</p>
+            <p className="kv mono" style={{ overflowWrap: 'anywhere' }}>错误码：{writeFail.code}{writeFail.operationId && ` · 操作 ID：${writeFail.operationId}`}</p>
+          </details>
           <div className="row" style={{ marginTop: 8 }}>
             {writeFail.status === 'unknown' ? (
               <button className="btn sm" disabled={applying} onClick={() => void verifyUnknown()}>{applying ? '读取中…' : '重新读取实际状态'}</button>
             ) : writeFail.kind === 'ready-recovery' && st.authority.status === 'ready' && st.degraded ? (
-              <button className="btn sm" disabled={applying} onClick={() => void rematerializeReady()}>{applying ? '重试中…' : '重试重新物化'}</button>
+              <button className="btn sm" disabled={applying} onClick={() => void rematerializeReady()}>{applying ? '重试中…' : '重试同步'}</button>
             ) : !writeFail.code.startsWith('geo-update-conflict')
               && !writeFail.code.startsWith('geo-update-recovery')
               && !writeFail.code.startsWith('geo-operation-id-conflict')
@@ -890,8 +920,6 @@ export default function GeoPage() {
                 })()}
               >放弃并重新读取线上规则</button>
             )}
-            <span className="spacer" />
-            <span className="kv mono" title="排查用的原始错误码">{writeFail.code}</span>
           </div>
         </div>
       )}
@@ -904,13 +932,13 @@ export default function GeoPage() {
             <div className="note bad">
               ⚠ 误伤护栏:{confirmBox.hot.map((h) => `${h.country} ${countryName(h.country)} 占近 7 天流量 ${(h.share * 100).toFixed(1)}%`).join(';')}——这是主要市场流量。
               <label className="row" style={{ marginTop: 8, gap: 8 }}>
-                <input type="checkbox" style={{ width: 16, height: 16 }} checked={confirmBox.ack} onChange={(ev) => setConfirmBox({ ...confirmBox, ack: ev.target.checked })} />
+                <input type="checkbox" style={{ width: '1rem', height: '1rem' }} checked={confirmBox.ack} onChange={(ev) => setConfirmBox({ ...confirmBox, ack: ev.target.checked })} />
                 我知道这会拦截主要市场流量
               </label>
             </div>
           )}
-          <div className="field"><label>理由(必填,≥8 字)</label>
-            <textarea value={confirmBox.reason} onChange={(ev) => setConfirmBox({ ...confirmBox, reason: ev.target.value })} placeholder="例:合规要求,上线前开启大陆屏蔽" /></div>
+          <div className="field"><label htmlFor="geo-reason">理由（必填，至少 8 字）</label>
+            <textarea id="geo-reason" value={confirmBox.reason} onChange={(ev) => setConfirmBox({ ...confirmBox, reason: ev.target.value })} placeholder="例:合规要求,上线前开启大陆屏蔽" /></div>
           <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button className="btn ghost" onClick={() => setConfirmBox(null)}>取消</button>
             <button className="btn primary" disabled={applying || (!!confirmBox.hot && !confirmBox.ack)} onClick={() => void apply()}>
@@ -920,9 +948,10 @@ export default function GeoPage() {
         </div>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(3,1fr)' }}>
-        <div className="card"><h3>今日拦截(实时)</h3><div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{st.stats.todayLive}</div><div className="kv">仅页面级请求;直通与资产不计。同一来源每分钟超 120 次的洪水流量会被采样记录,此时该数字是<b>下限</b></div></div>
-        <div className="card"><h3>近 7 天拦截</h3><div className="mono" style={{ fontSize: 26, fontWeight: 600 }}>{st.stats.blocked7}</div><div className="kv">占总请求 {(st.stats.shareOfRequests * 100).toFixed(1)}%(口径:拦截数 ÷ 拦截+人类访问)</div></div>
+      <h3 className="section-label">拦截概况</h3>
+      <div className="field-grid">
+        <div className="card"><h3>今日拦截(实时)</h3><div className="mono" style={{ fontSize: 'var(--text-metric)', fontWeight: 600 }}>{st.stats.todayLive}</div><div className="kv">仅页面级请求;直通与资产不计。同一来源每分钟超 120 次的洪水流量会被采样记录,此时该数字是<b>下限</b></div></div>
+        <div className="card"><h3>近 7 天拦截</h3><div className="mono" style={{ fontSize: 'var(--text-metric)', fontWeight: 600 }}>{st.stats.blocked7}</div><div className="kv">占总请求 {(st.stats.shareOfRequests * 100).toFixed(1)}%(口径:拦截数 ÷ 拦截+人类访问)</div></div>
         <div className="card">
           <h3>被拦区域 TopN(近 7 天)</h3>
           {st.stats.last7.length === 0 ? (

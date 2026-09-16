@@ -1,5 +1,9 @@
 {
   "schemaVersion": 1,
+  "enabledLocales": [
+    "en",
+    "vi"
+  ],
   "stats": {
     "activeDevices": 28432,
     "activeJobs": 4812,
@@ -90,6 +94,12 @@
     "text": {
       "en": "",
       "vi": "",
+      "es": "",
+      "pt": "",
+      "fr": "",
+      "de": "",
+      "ja": "",
+      "ko": "",
       "zh": ""
     }
   },
@@ -99,11 +109,23 @@
         "title": {
           "en": "NexGrid — Distributed AI compute. Earn from your idle devices.",
           "vi": "NexGrid — Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid — 分布式 AI 算力，让闲置设备产生收益。"
         },
         "description": {
           "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
           "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
         }
       },
@@ -111,11 +133,23 @@
         "title": {
           "en": "Learn NexGrid",
           "vi": "Học NexGrid",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "学习中心"
         },
         "description": {
           "en": "Short, practical guides to the app's core features — from first sign-up to withdrawals.",
           "vi": "Hướng dẫn ngắn gọn, thực dụng về các tính năng cốt lõi — từ đăng ký đầu tiên đến rút tiền.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "简短实用的核心功能教程——从首次注册到提现。"
         }
       },
@@ -123,11 +157,23 @@
         "title": {
           "en": "NEX — the network's utility token",
           "vi": "NEX — token tiện ích của mạng lưới",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NEX——网络的功能型代币"
         },
         "description": {
           "en": "A plain-language guide: what NEX is, how it's created, and what you can do with it.",
           "vi": "Hướng dẫn dễ hiểu: NEX là gì, được tạo ra thế nào, và bạn có thể làm gì với nó.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "一份大白话指南：NEX 是什么、怎么产生、你能用它做什么。"
         }
       },
@@ -135,11 +181,23 @@
         "title": {
           "en": "NexGrid",
           "vi": "NexGrid",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid"
         },
         "description": {
           "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
           "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
         }
       },
@@ -147,11 +205,23 @@
         "title": {
           "en": "NexGrid",
           "vi": "NexGrid",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid"
         },
         "description": {
           "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
           "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
         }
       },
@@ -159,11 +229,23 @@
         "title": {
           "en": "NexGrid",
           "vi": "NexGrid",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid"
         },
         "description": {
           "en": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free.",
           "vi": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí.",
+          "es": "",
+          "pt": "",
+          "fr": "",
+          "de": "",
+          "ja": "",
+          "ko": "",
           "zh": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
         }
       }
@@ -171,13 +253,19 @@
   },
   "footer": {
     "social": [],
-    "contactEmail": ""
+    "contactEmail": "compliance@nexgrid.ai"
   },
   "legal": {
     "terms": {
       "md": {
         "en": "",
         "vi": "",
+        "es": "",
+        "pt": "",
+        "fr": "",
+        "de": "",
+        "ja": "",
+        "ko": "",
         "zh": ""
       },
       "updatedAt": ""
@@ -186,17 +274,29 @@
       "md": {
         "en": "",
         "vi": "",
+        "es": "",
+        "pt": "",
+        "fr": "",
+        "de": "",
+        "ja": "",
+        "ko": "",
         "zh": ""
       },
       "updatedAt": ""
     },
     "appPrivacy": {
       "md": {
-        "en": "",
-        "vi": "",
-        "zh": ""
+        "en": "# NexGrid App Privacy Policy\n\n## 1. Scope and operator\n\nNexGrid LTD is responsible for the personal information described in this policy. This policy covers the NexGrid App and its H5 web application, including account services, device services, wallet functions and support. The marketing website has a separate [Website Privacy Policy](/legal/privacy/).\n\n## 2. Account and profile information\n\nWe process your telephone country code, phone number, password, verification codes and authentication records to register and authenticate your account, recover access and protect it. If you choose a supported external sign-in method, we process the sign-in result and account information supplied through that method to establish your session.\n\nWe process your account identifier, nickname, chosen avatar, display language and referral code or relationship to maintain your profile, attribute invitations and provide account features. An avatar is uploaded only when you choose to submit it. Optional profile information is not required to browse the marketing website.\n\n## 3. Transactions, devices and participation\n\nWhen you use account features, we process the associated orders, device allocations and activation status, balances, transaction amounts and times, transaction identifiers, payout addresses and networks, payment-method references, and request status. These records support account administration, settlement, reconciliation and help with disputed or failed transactions. A payment-method reference is different from a complete payment-card number.\n\nWe also process participation records for tasks, rewards, learning activities, invitations, team relationships and rankings. Developer-access applications include company, email and proposed use case; community-event applications include city, event date, budget and category. These details are used to provide the selected feature and review the application.\n\nDevice assessment can send model, brand, operating system, processor and memory information, graphics capability, pixel density, network reachability and latency, battery level and charging state where available. We use these observations to assess device capability and provide device services; some measurements may be unavailable on a particular platform.\n\n## 4. Connection, security and usage information\n\nConnections expose technical information such as IP address and browser or device information to the service. Account security features process session identifiers, device names and activity times. Device security reports can include a device identifier, model, operating system, browser or user agent, first-seen and installation times, session counts, foreground duration and automation or display-anomaly signals. These support access control, abuse detection and service availability decisions.\n\nApp usage analytics send page routes, visit duration, clicked element or page area, relative click coordinates, event and session identifiers, device category, language and timestamps. They help us understand navigation and improve the service. The analytics event fields do not include form text; page-route values omit query strings and fragments. This does not mean that account activity is anonymous or that the separate App follows the marketing website's analytics settings.\n\n## 5. Support and Nova\n\nWhen you contact support, we process your message, ticket subject and category, conversation identifiers, timestamps and follow-up records to handle the request. Nova processes the text you send, your selected language, conversation and message identifiers, replies and conversation history to provide AI-assisted responses. Human support and Nova have separate conversation threads.\n\nOnly include information needed for the request. Do not send passwords, verification codes, wallet private keys or recovery phrases in a support or Nova message. Information about any external AI processor and its handling of conversation data forms part of the processing arrangements described in section 8.\n\n## 6. Device access and local storage\n\nChoosing an avatar can open the camera or image picker. Saving a generated poster or proof image can use the device's photo-saving function. Copy actions write the selected address, link or text to the clipboard. System and network information is used for device assessment and interface operation. The access available depends on the operating system and the feature selected.\n\nWhere the operating system requests permission, you can decline or later change it in system settings; the corresponding camera, image-selection or saving feature may then be unavailable. Permission settings do not themselves erase information already submitted.\n\nThe App uses local storage and session mechanisms for sign-in state, preferences, device identification, pending operations and account-scoped state. Clearing browser or App storage removes local data but does not delete the server account, cancel a transaction or complete an account-deletion request. Signing out is also different from account deletion.\n\n## 7. Sharing and visibility\n\nRelevant team features display member identifiers, names or nicknames, avatars, rank and relationship information to other members with access to those features. Invitation and sharing actions can disclose the information included in the generated link or image to its recipients. Review that content before sharing it.\n\nTransactions submitted to a public blockchain disclose transaction information, including addresses and transaction identifiers, to that network. Public blockchain records are outside NexGrid's ability to erase or alter.\n\nPersonnel handling account operations, security or support process information needed for those tasks. Service providers involved in hosting, authentication, message delivery, payments or AI processing may process information required for the service they supply. Following an external link or using an external sign-in or payment service also subjects that interaction to the relevant provider's privacy terms.\n\n## 8. US processing\n\nOur service providers are based in the United States, and information handled for the App is stored and processed there. Accessing the App from another country involves transferring information to the United States. The external links and public blockchain records described in section 7 are governed by their respective services and networks.\n\nWe use information to deliver requested services, maintain security, meet applicable obligations and, where required, act on consent. Our policy requires access to be limited to personnel and providers who need it for the stated purpose, with appropriate access controls, protected transmission and secure disposal. Providers processing information on our behalf must follow our instructions and equivalent confidentiality and security requirements. We do not authorize them to sell App personal information, use it for their own advertising, or train general-purpose AI models on Nova conversations. We do not sell App personal information or share it for cross-context behavioral advertising.\n\nRequests from public authorities are assessed for a valid legal basis and limited to the information required. Where applicable law requires additional safeguards for an international transfer, our policy requires those safeguards to be in place. Contact us for information about the providers and transfer arrangements relevant to your request.\n\n## 9. Retention and account deletion\n\nThe following retention policy applies to information held by us and processors acting on our behalf. For ordinary records, use the earlier of the category's limit and the applicable accepted-deletion or account-deletion cleanup deadline. Backups and specific exception records follow their separate rules below.\n\n- Account and profile information, device and participation records: while needed to provide the account's services; after account deletion is completed, retain for one calendar month, then delete or irreversibly anonymize. Information held during that month is not used for account-facing features.\n- Ordinary usage analytics, connection and security logs: up to 90 days from collection. At that point, delete or irreversibly anonymize them. Statistics that no longer identify or permit re-identification of an individual may be kept longer.\n- Support tickets and Nova conversation history: up to 12 months after the last interaction, including for tickets that remain open, for follow-up and service continuity. The earlier-deletion rule above applies. Records needed for a continuing investigation must qualify for a documented exception below.\n- Backups: after deletion from active systems, residual copies expire within a further 90 days. They are restricted to recovery and security purposes, not ordinary use. If restored, applicable deletions must be reapplied before the data returns to ordinary use.\n- Financial, transaction, dispute and security-incident records: retain only the necessary records for an applicable statutory period or a documented unresolved claim, investigation or legal hold. For records subject to a five-year financial-recordkeeping rule, that period runs from the event specified by the applicable rule; it is not a five-year rule for every account field. Review exception records at least annually and delete or irreversibly anonymize them when the reason ends and applicable periods expire. A hold does not extend retention of unrelated information.\n\nIf an exception prevents deletion, we explain the affected categories, reason and applicable period or criteria, unless disclosure is legally prohibited. Public blockchain records remain subject to section 7. Local data remains on the device until cleared or removed through the relevant App, browser or operating-system controls.\n\nTo request account deletion, open Me → Security → Submit account-deletion request and verify your current password. The request is reviewed by the service; signing out after submission is not proof that deletion has completed. Pending withdrawals can prevent submission. Review the asset consequences shown in the confirmation before proceeding. For privacy requests or when you cannot access the account, use the contact in section 12.\n\n## 10. Requests and choices\n\nYou can use the available profile and security settings to change profile information, manage sessions and submit an account-deletion request. You may also email us, including without access to the App, to request account or personal-information deletion, access, correction or a copy of your information. Depending on applicable law, you may request portability, restriction of processing, object to processing, withdraw consent, or appeal a decision. Withdrawing consent does not affect prior lawful processing; an optional feature that needs the information may stop working.\n\nWe may need information sufficient to verify the account and understand the request. Our response target is within 30 days of receipt; if a lawful extension is needed, we explain the reason and expected timing within the applicable initial period. We explain restrictions on a request and how to seek review. You may contact the relevant privacy regulator and will not be treated unfairly for exercising applicable privacy rights. Do not email a password or verification code.\n\n## 11. Age and updates\n\nThe service is intended for people aged 18 or older. If personal information has been provided by a child, contact us so the matter can be investigated and addressed. We update this policy when the described practices change and identify the revision date on this page.\n\n## 12. Contact\n\nFor NexGrid App privacy and data requests, contact NexGrid LTD at [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai). Include the nature of the request and an account contact or identifier sufficient to locate the account; do not include account secrets.\n",
+        "vi": "# Chính sách quyền riêng tư của ứng dụng NexGrid\n\n## 1. Phạm vi và đơn vị vận hành\n\nNexGrid LTD chịu trách nhiệm xử lý thông tin cá nhân được mô tả trong chính sách này. Chính sách áp dụng cho ứng dụng NexGrid và ứng dụng web H5, bao gồm tài khoản, dịch vụ thiết bị, ví và hỗ trợ. Trang web giới thiệu có [Chính sách quyền riêng tư riêng](/vi/legal/privacy/).\n\n## 2. Tài khoản và hồ sơ\n\nChúng tôi xử lý mã quốc gia, số điện thoại, mật khẩu, mã xác minh và hồ sơ xác thực để đăng ký, đăng nhập, khôi phục quyền truy cập và bảo vệ tài khoản. Khi bạn chọn phương thức đăng nhập bên ngoài được hỗ trợ, chúng tôi xử lý kết quả đăng nhập và thông tin tài khoản được cung cấp qua phương thức đó để tạo phiên đăng nhập.\n\nChúng tôi xử lý mã tài khoản, biệt danh, ảnh đại diện đã chọn, ngôn ngữ hiển thị và mã hoặc quan hệ giới thiệu để duy trì hồ sơ, ghi nhận lời mời và cung cấp tính năng tài khoản. Ảnh đại diện chỉ được tải lên khi bạn chọn gửi ảnh. Việc duyệt trang web giới thiệu không yêu cầu những thông tin hồ sơ tùy chọn này.\n\n## 3. Giao dịch, thiết bị và hoạt động\n\nKhi bạn dùng tính năng tài khoản, chúng tôi xử lý đơn hàng, việc phân bổ và kích hoạt thiết bị, số dư, số tiền và thời gian giao dịch, mã giao dịch, địa chỉ và mạng nhận tiền, tham chiếu phương thức thanh toán cùng trạng thái yêu cầu. Các hồ sơ này phục vụ quản lý tài khoản, thanh toán, đối soát và xử lý giao dịch tranh chấp hoặc thất bại. Tham chiếu phương thức thanh toán không đồng nghĩa với số thẻ đầy đủ.\n\nChúng tôi cũng xử lý hồ sơ tham gia nhiệm vụ, phần thưởng, hoạt động học tập, lời mời, quan hệ nhóm và xếp hạng. Đơn xin quyền truy cập dành cho nhà phát triển gồm công ty, email và mục đích sử dụng; đơn tổ chức sự kiện cộng đồng gồm thành phố, ngày tổ chức, ngân sách và loại sự kiện. Thông tin được dùng để cung cấp tính năng đã chọn và xét duyệt đơn.\n\nĐánh giá thiết bị có thể gửi mẫu máy, thương hiệu, hệ điều hành, thông tin bộ xử lý và bộ nhớ, khả năng đồ họa, mật độ điểm ảnh, trạng thái kết nối và độ trễ mạng, mức pin và trạng thái sạc nếu có. Các thông tin này phục vụ đánh giá khả năng thiết bị và cung cấp dịch vụ thiết bị. Một số phép đo có thể không có trên từng nền tảng.\n\n## 4. Kết nối, bảo mật và thông tin sử dụng\n\nKết nối cung cấp cho dịch vụ thông tin kỹ thuật như địa chỉ IP và thông tin trình duyệt hoặc thiết bị. Tính năng bảo mật tài khoản xử lý mã phiên, tên thiết bị và thời gian hoạt động. Báo cáo bảo mật thiết bị có thể gồm mã thiết bị, mẫu máy, hệ điều hành, trình duyệt hoặc chuỗi nhận dạng phần mềm, thời điểm xuất hiện lần đầu và cài đặt, số phiên, thời gian hoạt động ở nền trước cùng dấu hiệu tự động hóa hoặc hiển thị bất thường. Các dữ liệu này hỗ trợ kiểm soát truy cập, phát hiện lạm dụng và quyết định khả năng cung cấp dịch vụ.\n\nPhân tích sử dụng ứng dụng gửi đường dẫn trang, thời gian lưu lại, phần tử hoặc vùng được nhấn, tọa độ nhấn tương đối, mã sự kiện và phiên, loại thiết bị, ngôn ngữ và thời gian. Dữ liệu giúp hiểu cách điều hướng và cải thiện dịch vụ. Các trường sự kiện không chứa nội dung biểu mẫu; đường dẫn trang bỏ tham số truy vấn và phần fragment. Điều này không có nghĩa hoạt động tài khoản là ẩn danh hoặc ứng dụng dùng thiết lập phân tích của trang web giới thiệu.\n\n## 5. Hỗ trợ và Nova\n\nKhi bạn liên hệ hỗ trợ, chúng tôi xử lý tin nhắn, tiêu đề và loại phiếu hỗ trợ, mã hội thoại, thời gian và hồ sơ xử lý để giải quyết yêu cầu. Nova xử lý văn bản bạn gửi, ngôn ngữ đã chọn, mã hội thoại và tin nhắn, câu trả lời cùng lịch sử hội thoại để cung cấp phản hồi có AI hỗ trợ. Hỗ trợ viên và Nova sử dụng các luồng hội thoại riêng.\n\nChỉ cung cấp thông tin cần thiết cho yêu cầu. Không gửi mật khẩu, mã xác minh, khóa riêng của ví hoặc cụm từ khôi phục trong tin nhắn hỗ trợ hoặc Nova. Thông tin về bên xử lý AI bên ngoài và cách bên đó xử lý dữ liệu hội thoại thuộc phần 8.\n\n## 6. Truy cập thiết bị và lưu trữ cục bộ\n\nChọn ảnh đại diện có thể mở máy ảnh hoặc trình chọn ảnh. Lưu áp phích hoặc ảnh chứng nhận được tạo có thể dùng chức năng lưu ảnh của thiết bị. Thao tác sao chép ghi địa chỉ, liên kết hoặc văn bản đã chọn vào bộ nhớ tạm. Thông tin hệ thống và mạng phục vụ đánh giá thiết bị và vận hành giao diện. Quyền truy cập khả dụng phụ thuộc hệ điều hành và tính năng được chọn.\n\nKhi hệ điều hành yêu cầu quyền, bạn có thể từ chối hoặc thay đổi sau trong cài đặt hệ thống; tính năng chụp, chọn hoặc lưu ảnh tương ứng có thể không hoạt động. Thay đổi quyền không tự xóa thông tin đã gửi.\n\nỨng dụng dùng lưu trữ cục bộ và cơ chế phiên cho trạng thái đăng nhập, tùy chọn, nhận dạng thiết bị, thao tác đang chờ và trạng thái riêng từng tài khoản. Xóa dữ liệu trình duyệt hoặc ứng dụng chỉ xóa dữ liệu cục bộ, không xóa tài khoản máy chủ, hủy giao dịch hay hoàn tất yêu cầu xóa tài khoản. Đăng xuất cũng khác với xóa tài khoản.\n\n## 7. Chia sẻ và phạm vi hiển thị\n\nCác tính năng nhóm liên quan hiển thị mã thành viên, tên hoặc biệt danh, ảnh đại diện, cấp bậc và quan hệ cho những thành viên có quyền truy cập. Mời và chia sẻ có thể cung cấp thông tin trong liên kết hoặc ảnh được tạo cho người nhận. Hãy kiểm tra nội dung trước khi chia sẻ.\n\nGiao dịch gửi lên blockchain công khai tiết lộ thông tin giao dịch, gồm địa chỉ và mã giao dịch, cho mạng đó. NexGrid không thể xóa hoặc sửa hồ sơ blockchain công khai.\n\nNhân sự phụ trách vận hành tài khoản, bảo mật hoặc hỗ trợ xử lý thông tin cần thiết cho công việc. Nhà cung cấp lưu trữ, xác thực, gửi tin, thanh toán hoặc xử lý AI có thể xử lý thông tin cần thiết cho dịch vụ của họ. Khi truy cập liên kết ngoài hoặc dùng dịch vụ đăng nhập hay thanh toán bên ngoài, tương tác đó cũng chịu chính sách quyền riêng tư của nhà cung cấp tương ứng.\n\n## 8. Xử lý tại Hoa Kỳ\n\nCác nhà cung cấp dịch vụ của chúng tôi đặt tại Hoa Kỳ; thông tin được xử lý cho ứng dụng được lưu trữ và xử lý tại Hoa Kỳ. Truy cập ứng dụng từ quốc gia khác liên quan đến việc chuyển thông tin tới Hoa Kỳ. Các liên kết bên ngoài và hồ sơ blockchain công khai ở phần 7 tuân theo quy tắc của dịch vụ và mạng tương ứng.\n\nChúng tôi dùng thông tin để cung cấp dịch vụ được yêu cầu, duy trì bảo mật, thực hiện nghĩa vụ áp dụng và xử lý dựa trên sự đồng ý khi cần. Chính sách yêu cầu chỉ nhân sự và nhà cung cấp cần thông tin cho mục đích đã nêu được truy cập, với biện pháp kiểm soát truy cập, bảo vệ truyền dữ liệu và hủy dữ liệu an toàn phù hợp. Bên xử lý thay mặt chúng tôi phải tuân theo chỉ dẫn cùng yêu cầu bảo mật và giữ bí mật tương đương. Chúng tôi không cho phép họ bán thông tin cá nhân của ứng dụng, dùng cho quảng cáo riêng hoặc huấn luyện mô hình AI đa dụng bằng hội thoại Nova. Chúng tôi không bán thông tin cá nhân của ứng dụng hoặc chia sẻ thông tin đó cho quảng cáo hành vi xuyên ngữ cảnh.\n\nYêu cầu từ cơ quan công quyền được xem xét về căn cứ pháp lý hợp lệ và giới hạn ở thông tin cần thiết. Khi luật áp dụng yêu cầu biện pháp bổ sung cho chuyển dữ liệu quốc tế, chính sách yêu cầu thực hiện các biện pháp đó. Hãy liên hệ để biết nhà cung cấp và cách chuyển dữ liệu liên quan đến yêu cầu của bạn.\n\n## 9. Lưu giữ và xóa tài khoản\n\nChính sách lưu giữ sau áp dụng cho thông tin do chúng tôi và bên xử lý thay mặt chúng tôi nắm giữ. Với hồ sơ thông thường, áp dụng thời điểm sớm hơn giữa giới hạn của loại dữ liệu và hạn xử lý yêu cầu xóa được chấp nhận hoặc hạn dọn dữ liệu khi xóa tài khoản. Bản sao lưu và hồ sơ ngoại lệ cụ thể tuân theo quy tắc riêng dưới đây.\n\n- Tài khoản, hồ sơ, thiết bị và hồ sơ tham gia: giữ trong thời gian cần để cung cấp dịch vụ tài khoản; sau khi hoàn tất xóa tài khoản, giữ một tháng theo lịch rồi xóa hoặc ẩn danh không thể đảo ngược. Trong tháng đó, dữ liệu không được dùng cho tính năng phục vụ tài khoản.\n- Phân tích sử dụng thông thường, nhật ký kết nối và bảo mật: tối đa 90 ngày từ khi thu thập, sau đó xóa hoặc ẩn danh không thể đảo ngược. Thống kê không còn nhận dạng hoặc cho phép nhận dạng lại cá nhân có thể được giữ lâu hơn.\n- Phiếu hỗ trợ và lịch sử Nova: tối đa 12 tháng từ lần tương tác cuối, kể cả phiếu chưa đóng, để theo dõi và duy trì dịch vụ; áp dụng quy tắc xóa sớm hơn ở trên. Hồ sơ cần cho điều tra tiếp diễn phải đáp ứng ngoại lệ cụ thể có ghi nhận dưới đây.\n- Bản sao lưu: sau khi xóa khỏi hệ thống đang hoạt động, bản sao còn lại hết hạn trong tối đa 90 ngày nữa, chỉ phục vụ khôi phục và bảo mật, không dùng thường xuyên. Nếu khôi phục, phải áp dụng lại các thao tác xóa liên quan trước khi đưa dữ liệu trở lại sử dụng thường xuyên.\n- Hồ sơ tài chính, giao dịch, tranh chấp và sự cố bảo mật: chỉ giữ hồ sơ cần thiết trong thời hạn luật định áp dụng hoặc cho khiếu nại, điều tra hay yêu cầu tạm ngừng xóa theo pháp luật còn hiệu lực và có ghi nhận. Với hồ sơ thuộc quy tắc lưu giữ tài chính năm năm, thời hạn tính từ sự kiện do quy tắc tương ứng quy định; không áp dụng năm năm cho mọi trường dữ liệu tài khoản. Rà soát ngoại lệ ít nhất hàng năm và xóa hoặc ẩn danh không thể đảo ngược khi lý do chấm dứt và thời hạn áp dụng hết. Việc tạm ngừng xóa không kéo dài thời hạn của thông tin không liên quan.\n\nNếu ngoại lệ ngăn việc xóa, chúng tôi giải thích loại dữ liệu, lý do và thời hạn hoặc tiêu chí áp dụng, trừ khi pháp luật cấm tiết lộ. Hồ sơ blockchain công khai tuân theo phần 7. Dữ liệu cục bộ còn trên thiết bị cho tới khi được xóa bằng chức năng tương ứng của ứng dụng, trình duyệt hoặc hệ điều hành.\n\nĐể yêu cầu xóa tài khoản, vào Tôi → Bảo mật → Gửi yêu cầu xóa tài khoản và xác minh mật khẩu hiện tại. Dịch vụ xét duyệt yêu cầu; đăng xuất sau khi gửi không chứng minh việc xóa đã hoàn tất. Lệnh rút tiền đang xử lý có thể ngăn việc gửi yêu cầu. Hãy xem hậu quả đối với tài sản trên màn hình xác nhận trước khi tiếp tục. Với yêu cầu riêng tư hoặc khi không truy cập được tài khoản, dùng thông tin liên hệ ở phần 12.\n\n## 10. Yêu cầu và lựa chọn\n\nBạn có thể dùng cài đặt hồ sơ và bảo mật hiện có để thay đổi hồ sơ, quản lý phiên và gửi yêu cầu xóa tài khoản. Bạn cũng có thể gửi email để yêu cầu xóa tài khoản hoặc thông tin cá nhân, truy cập, chỉnh sửa hay nhận bản sao thông tin mà không cần truy cập ứng dụng. Tùy luật áp dụng, bạn có thể yêu cầu chuyển dữ liệu, hạn chế hoặc phản đối xử lý, rút lại sự đồng ý hay yêu cầu xem xét lại quyết định. Rút lại sự đồng ý không ảnh hưởng việc xử lý hợp pháp trước đó; tính năng tùy chọn cần thông tin đó có thể ngừng hoạt động.\n\nChúng tôi có thể cần thông tin đủ để xác minh tài khoản và hiểu yêu cầu. Mục tiêu phản hồi là trong 30 ngày từ khi nhận yêu cầu; nếu cần gia hạn hợp pháp, chúng tôi giải thích lý do và thời gian dự kiến trong thời hạn ban đầu áp dụng. Chúng tôi giải thích hạn chế và cách yêu cầu xem xét lại. Bạn có thể liên hệ cơ quan quản lý quyền riêng tư liên quan và sẽ không bị đối xử bất công vì thực hiện quyền riêng tư áp dụng. Không gửi mật khẩu hoặc mã xác minh qua email.\n\n## 11. Độ tuổi và cập nhật\n\nDịch vụ dành cho người từ 18 tuổi. Nếu trẻ em đã cung cấp thông tin cá nhân, hãy liên hệ để chúng tôi điều tra và xử lý. Chúng tôi cập nhật chính sách khi cách xử lý thay đổi và ghi ngày sửa đổi trên trang này.\n\n## 12. Liên hệ\n\nĐối với quyền riêng tư và yêu cầu dữ liệu trong ứng dụng NexGrid, liên hệ NexGrid LTD qua [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai). Hãy nêu yêu cầu cùng thông tin liên hệ hoặc mã đủ để tìm tài khoản; không gửi bí mật tài khoản.\n",
+        "es": "",
+        "pt": "",
+        "fr": "",
+        "de": "",
+        "ja": "",
+        "ko": "",
+        "zh": "# NexGrid App 隐私政策\n\n## 1. 适用范围与运营主体\n\nNexGrid LTD 负责本政策所述个人信息处理。本政策适用于 NexGrid App 及其 H5 网页应用，覆盖账号服务、设备服务、钱包功能与客服。营销官网适用单独的[官网隐私政策](/zh/legal/privacy/)。\n\n## 2. 账号与个人资料\n\n我们处理电话国家码、手机号、密码、验证码和认证记录，用于注册、登录、恢复访问及保护账号。选择受支持的外部登录方式时，我们处理该方式提供的登录结果与账号信息，以建立登录会话。\n\n我们处理账号标识、昵称、选择的头像、显示语言、邀请码或推荐关系，用于维护资料、归属邀请及提供账号功能。头像仅在主动选择提交时上传。浏览营销官网不要求提供这些可选资料。\n\n## 3. 交易、设备与活动信息\n\n使用账号功能时，我们处理相关订单、设备分配与激活状态、余额、交易金额与时间、交易标识、收款地址与网络、支付方式引用及申请状态，用于账号管理、结算、对账及处理争议或失败交易。支付方式引用不等于完整银行卡号。\n\n我们还处理任务、奖励、学习活动、邀请、团队关系与排名的参与记录。开发者接入申请包含公司、邮箱与使用场景；社区活动申请包含城市、活动日期、预算与类别。这些资料用于提供所选功能并审核申请。\n\n设备评估可发送可用的型号、品牌、操作系统、处理器与内存信息、图形能力、像素密度、网络连通性与延迟、电量及充电状态，用于评估设备能力并提供设备服务。部分平台可能无法提供某些测量值。\n\n## 4. 连接、安全与使用信息\n\n连接服务时，服务会接收到 IP 地址及浏览器或设备信息等技术资料。账号安全功能处理会话标识、设备名称与活动时间。设备安全报告可包含设备标识、型号、操作系统、浏览器或客户端标识、首次出现与安装时间、会话次数、前台时长，以及自动化或显示异常信号，用于访问控制、防滥用与服务可用性判断。\n\nApp 使用统计发送页面路径、停留时长、点击元素或页面区域、相对点击坐标、事件与会话标识、设备类别、语言及时间戳，用于了解导航行为并改进服务。统计事件字段不包含表单正文；页面路径去除查询参数与片段。这不代表账号活动匿名，也不代表 App 沿用营销官网的统计设置。\n\n## 5. 客服与 Nova\n\n联系客服时，我们处理消息、工单标题与类别、会话标识、时间及后续处理记录，用于处理请求。Nova 处理发送的文字、所选语言、会话与消息标识、回复及会话历史，以提供 AI 辅助答复。人工客服与 Nova 使用独立会话。\n\n请仅提供处理请求所需的信息，不要在客服或 Nova 消息中发送密码、验证码、钱包私钥或恢复助记词。外部 AI 处理方及其处理会话数据的安排属于第 8 节的处理说明。\n\n## 6. 设备访问与本地存储\n\n选择头像可打开相机或图片选择器；保存生成的海报或证明图片可使用设备的图片保存功能；复制操作向剪贴板写入所选地址、链接或文字。系统与网络信息用于设备评估及界面运行。实际可用的访问方式取决于操作系统与所选功能。\n\n操作系统请求权限时，可以拒绝或随后在系统设置中调整；相应拍照、选图或保存功能可能因此不可用。调整权限本身不会删除已经提交的信息。\n\nApp 使用本地存储及会话机制保存登录状态、偏好、设备标识、待处理操作及按账号隔离的状态。清除浏览器或 App 存储只删除本地数据，不会删除服务端账号、取消交易或完成账号注销。退出登录也不等于注销账号。\n\n## 7. 共享与可见范围\n\n相关团队功能向有权访问的成员展示成员标识、姓名或昵称、头像、等级与关系信息。邀请和分享操作会向接收者披露生成链接或图片中包含的信息，请在分享前检查内容。\n\n提交到公共区块链的交易会向该网络披露地址、交易标识等交易信息。NexGrid 无法擦除或修改公共区块链记录。\n\n处理账号运营、安全或客服的人员会处理履行相应工作所需的信息。参与托管、认证、消息投递、支付或 AI 处理的服务提供方可能处理提供对应服务所需的信息。访问外部链接或使用外部登录、支付服务时，该项交互也适用对应提供方的隐私条款。\n\n## 8. 美国境内处理\n\n我们的服务提供方位于美国，为 App 处理的信息在美国存储和处理。从其他国家访问 App 涉及将信息传输至美国。第 7 节所述外部链接和公共区块链记录适用各自服务与网络的规则。\n\n我们使用信息提供所请求的服务、维护安全、履行适用义务，并在需要时基于同意进行处理。本政策要求仅向为上述目的确有需要的人员与提供方开放访问，并采用适当的访问控制、受保护的传输和安全清理措施。代表我们处理信息的提供方必须遵循我们的指令及同等的保密和安全要求；我们不授权其出售 App 个人信息、用于自身广告，或使用 Nova 会话训练通用 AI 模型。我们不出售 App 个人信息，也不为跨场景行为广告共享该信息。\n\n对公共机关的请求，我们核实其有效法律依据，并限制在所需信息范围内。适用法律对国际传输要求额外保护时，本政策要求落实相应保护。可联系我们了解与请求相关的提供方及传输安排。\n\n## 9. 保留与账号注销\n\n我们及代表我们处理信息的提供方适用以下保留政策。普通记录按各类别期限与适用的已接受删除请求或账号注销清理期限中较早者处理；备份及具体例外记录分别适用下述规则。\n\n- 账号、个人资料、设备及活动记录：在提供账号服务所需期间保留；注销完成后保留 1 个自然月，随后删除或进行不可逆匿名化。该月内不用于面向账号的功能。\n- 普通使用统计、连接和安全日志：从收集起最多保留 90 天，随后删除或进行不可逆匿名化。已无法识别或重新识别个人的汇总统计可保留更久。\n- 客服工单及 Nova 会话历史：从最后一次互动起最多保留 12 个月，包括尚未关闭的工单，用于跟进与服务连续性，并适用上述较早删除规则。继续调查所需资料必须符合下述有记录的具体例外。\n- 备份：从活动系统删除后，残留副本最多再保留 90 天，仅限恢复与安全用途，不作日常使用。恢复备份后，须先重新执行适用的删除操作，再恢复日常使用。\n- 财务、交易、争议及安全事件记录：仅对适用法定期限，或有记录的未结索赔、调查、依法暂停删除事项保留必要资料。确属五年财务记录保存规则的记录，从对应规则指定的事件起计算；不将五年期限套用于全部账号字段。至少每年复核例外记录，原因结束且适用期限届满后删除或不可逆匿名化；暂停删除不延长无关信息的保留。\n\n如例外导致无法删除，我们会说明受影响的类别、原因及期限或判断标准，法律禁止披露的除外。公共区块链记录依第 7 节处理。本地数据保留在设备上，直至通过相应 App、浏览器或操作系统控制清除或移除。\n\n申请注销可进入“我的 → 安全 → 提交账号注销申请”，验证当前密码后提交。申请由服务端审核；提交后退出登录不代表删除已经完成。在途提现可能阻止提交申请，请先查看确认界面列出的资产处置后果。隐私请求或无法访问账号时，可使用第 12 节联系方式。\n\n## 10. 请求与选择\n\n可以使用现有个人资料与安全设置修改资料、管理登录会话及提交注销申请。也可通过邮件请求删除账号或个人信息、访问、更正或取得信息副本，无需先进入 App。依适用法律，还可请求数据可携带、限制处理、反对处理、撤回同意或对决定提出复核。撤回同意不影响此前合法进行的处理；依赖该信息的可选功能可能停止工作。\n\n我们可能需要足以验证账号并理解请求的信息。我们的答复目标是收到请求后 30 天内；如需依法延期，会在适用的初始期限内说明理由及预计时间。我们会说明请求限制及复核方式。可以向相关隐私监管机构提出问题，行使适用隐私权利不会受到不公平对待。请勿通过邮件发送密码或验证码。\n\n## 11. 年龄与政策更新\n\n本服务面向年满 18 周岁的人士。如有儿童提供个人信息，请联系我们调查处理。数据处理方式变化时，我们会更新本政策，并在页面标明修订日期。\n\n## 12. 联系方式\n\n有关 NexGrid App 隐私及数据请求，请通过 [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai) 联系 NexGrid LTD。请说明请求事项，并提供足以定位账号的联系信息或账号标识，不要附上账号机密。\n"
       },
-      "updatedAt": ""
+      "updatedAt": "2026-09-06"
     }
   }
 }

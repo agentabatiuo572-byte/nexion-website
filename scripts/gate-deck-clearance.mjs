@@ -11,6 +11,7 @@ import { createServer } from 'node:http';
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, extname } from 'node:path';
+import { readBuiltPages, homeRoutes, parseRoutesArg, scopeRoutes } from './gate-built-routes.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const argv = process.argv.slice(2);
@@ -20,6 +21,12 @@ const DIST = di >= 0 ? argv[di + 1] : join(ROOT, 'dist');
 if (!existsSync(join(DIST, 'index.html'))) {
   console.log(`[deck] NOT-RUN:dist 不存在(${DIST}),先构建`);
   process.exit(3);
+}
+const scope = scopeRoutes(homeRoutes(readBuiltPages(DIST)), parseRoutesArg(argv));
+const HOME = scope.pages;
+if (scope.scoped && HOME.length === 0) {
+  console.log(`[deck] ✓ 路由裁剪:生成首页无变化,跳过实测(0/${scope.total})`);
+  process.exit(0);
 }
 let chromium;
 for (const anchor of [join(ROOT, 'package.json')]) {
@@ -60,8 +67,8 @@ const browser = await chromium.launch();
 try {
   for (const W of [1440, 1920]) {
     const page = await browser.newPage({ viewport: { width: W, height: 900 } });
-    for (const loc of ['', 'vi/']) {
-      await page.goto(`http://127.0.0.1:${PORT}/${loc}`, { waitUntil: 'networkidle' });
+    for (const loc of HOME) {
+      await page.goto(`http://127.0.0.1:${PORT}${loc}`, { waitUntil: 'networkidle' });
       await page.waitForTimeout(1200);
       const decked = await page.evaluate(() => {
         const sec = document.getElementById('devices');
@@ -129,5 +136,5 @@ if (fails.length) {
   for (const f of fails) console.log(`[deck] ✗ ${f}`);
   process.exit(2);
 }
-console.log(`[deck] ✓ ${checked} 采样(en+vi × 1440/1920 × 5 相位)全部:零侵入 · 锚 27.43% · 卡宽 45.14%`);
+console.log(`[deck] ✓ ${checked} 采样(${HOME.length} 个生成首页 × 1440/1920 × 5 相位)全部:零侵入 · 锚 27.43% · 卡宽 45.14%${scope.scoped ? ` · 路由裁剪(${HOME.length}/${scope.total})` : ''}`);
 process.exit(0);

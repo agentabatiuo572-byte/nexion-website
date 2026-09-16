@@ -1065,7 +1065,11 @@ function initHashNavigation() {
        改为实测导航条高度,单位天然一致。 */
     const navBottom = document.querySelector('.site-nav')?.getBoundingClientRect().bottom ?? 0;
     const top = el.getBoundingClientRect().top + window.scrollY - navBottom - 10;
-    if (lenisInst && !reduced) lenisInst.scrollTo(top);
+    if (lenisInst && !reduced) {
+      // details 刚展开时自动尺寸观察尚未刷新；不能按旧文档高度截断本次跳转。
+      lenisInst.resize();
+      lenisInst.scrollTo(top);
+    }
     else window.scrollTo({ top, behavior: 'auto' });
     // hash 没变就不 push:连点同一个锚点曾让 history 每次 +1(与原生片段导航口径不同,back 要按 N 次)
     let currentId = location.hash.slice(1);
@@ -1126,14 +1130,6 @@ function initLineReveal() {
     return;
   }
 
-  const splitWords = (text: string, lang: string): string[] => {
-    if (lang.startsWith('zh') && 'Segmenter' in Intl) {
-      const seg = new (Intl as unknown as { Segmenter: new (l: string, o: object) => { segment(t: string): Iterable<{ segment: string }> } }).Segmenter('zh', { granularity: 'word' });
-      return [...seg.segment(text)].map((s) => s.segment);
-    }
-    return text.split(/(\s+)/).filter((s) => s.length);
-  };
-
   /* 每个宿主一份状态:原文(重建要用)、是否已播(播完已还原成纯文本,重建无意义)、在途的观察器/定时器 */
   type LR = { original: string; played: boolean; io?: IntersectionObserver; timer?: number };
   const st = new Map<HTMLElement, LR>();
@@ -1157,37 +1153,29 @@ function initLineReveal() {
     st.set(el, s);
     const original = s.original;
     const plainH = el.offsetHeight; // 拆行前的高度:动画期锁住,版面零位移
-    const lang = document.documentElement.lang || 'en';
-    // 词包 span → 按 rect.top 归行
-    el.textContent = '';
-    const words = splitWords(original, lang);
-    const spans = words.map((w) => {
-      const s = document.createElement('span');
-      s.textContent = w;
-      if (!/^\s+$/.test(w)) s.style.display = 'inline-block';
-      el.appendChild(s);
-      return s;
-    });
-    const lines: HTMLSpanElement[][] = [];
-    let lastTop = -1e9;
-    for (const s of spans) {
-      // R42:空白块保持 inline(行盒高),词块是 inline-block(内容盒高),两者 rect.top 实测差 7px,
-      // 超过 2px 阈值 ⇒ 每个空白开一新「行」、其后每个词再开一新「行」,标题被裂成「一词一行」的词梯。
-      // 实测后果:首屏标题载入后 2.4 秒内高 531px(应 212px),33 路由 75 个标题全中。
-      // 空白不参与归行判定,跟着前一行走即可。
-      if (/^\s+$/.test(s.textContent || '')) {
-        if (lines.length) lines[lines.length - 1].push(s);
-        continue;
+    // 直接读取原文的自然行;临时 inline-block 分词会破坏不可换行字符和 text-wrap:balance。
+    const text = document.createTextNode(original);
+    el.replaceChildren(text);
+    const range = document.createRange();
+    const lines: string[] = [];
+    let lastTop: number | undefined;
+    let start = 0;
+    let offset = 0;
+    for (const char of original) {
+      range.setStart(text, offset);
+      range.setEnd(text, offset + char.length); // 按码点前进,Range 偏移仍是 UTF-16。
+      const rect = range.getBoundingClientRect();
+      if (rect.width && rect.height && !/^\s+$/.test(char)) {
+        if (lastTop !== undefined && Math.abs(rect.top - lastTop) > 2) {
+          lines.push(original.slice(start, offset));
+          start = offset;
+        }
+        lastTop = rect.top;
       }
-      const top = Math.round(s.getBoundingClientRect().top);
-      if (Math.abs(top - lastTop) > 2) {
-        lines.push([]);
-        lastTop = top;
-      }
-      lines[lines.length - 1].push(s);
+      offset += char.length;
     }
-    /* 词块量完行就改回 inline:inline-block 在 <1 行高下会把行盒撑高,拆行/复原各一次布局位移(vi 首页 CLS 的主因) */
-    for (const s of spans) s.style.display = '';
+    // 空白/零宽字符留在原文切片里;连续换行仍在相应行的文本中,不会丢失空行。
+    lines.push(original.slice(start));
     el.textContent = '';
     /* R45:可访问文本走视觉隐藏节点(aria-label 在 div/p 这类无角色宿主上是 ARIA 禁止用法) */
     const sr = document.createElement('span');
@@ -1204,7 +1192,7 @@ function initLineReveal() {
       /* 首屏(load 模式)逐行错拍 176ms 对齐参考站实测的 176.5;正文块保持 90 ——
          参考站正文是逐行独立触发、错拍随滚速浮动(实测 50–150),我方固定值反而更稳。 */
       inner.style.setProperty('--lrd', `${li * (el.dataset.lr === 'load' ? 176 : 90)}ms`);
-      for (const s of lines[li]) inner.appendChild(s);
+      inner.textContent = lines[li];
       outer.appendChild(inner);
       el.appendChild(outer);
       inners.push(inner);
@@ -1228,7 +1216,7 @@ function initLineReveal() {
       );
       const last = inners[inners.length - 1];
       const restore = () => {
-        if (el.textContent === original) return;
+        if (!el.querySelector('.lr-inner')) return;
         el.textContent = original; // 还原原始文本(a11y/选中/SEO 一致性)
         el.style.height = '';
         notifyHeroCopyLayout(el);
@@ -1320,7 +1308,7 @@ function initType() {
     for (const el of els) el.classList.add('tw-done');
     return;
   }
-  const zh = (document.documentElement.lang || '').startsWith('zh');
+  const zh = /^(zh|ja|ko)(-|$)/.test(document.documentElement.lang || '');
   const originals = new Map<HTMLElement, string>();
   const finish = (el: HTMLElement, text = originals.get(el) ?? el.textContent ?? '') => {
     el.textContent = text;
@@ -1678,20 +1666,22 @@ function initScramble() {
     return ch; // 标点/符号不扰动
   };
   for (const el of els) {
-    const original = el.textContent ?? '';
+    // Animate the label only when a control also contains an icon.
+    const label = el.querySelector<HTMLElement>('[data-scr-label]') ?? el;
+    const original = label.textContent ?? '';
     if (!original.trim()) continue;
     const chars = [...original]; // 码点级拆分(vi 声调字 NFC 单码点,安全)
-    el.setAttribute('aria-label', original.trim());
+    if (!el.hasAttribute('aria-label')) el.setAttribute('aria-label', original.trim());
     let raf = 0;
     let frame = 0;
     const stop = (restore: boolean) => {
       cancelAnimationFrame(raf);
       raf = 0;
-      if (restore) el.textContent = original;
+      if (restore) label.textContent = original;
     };
     const run = () => {
       const settled = Math.min(Math.floor(frame / 4), chars.length);
-      el.textContent = chars.map((c, i) => (i < settled ? c : scrambleChar(c))).join('');
+      label.textContent = chars.map((c, i) => (i < settled ? c : scrambleChar(c))).join('');
       frame++;
       if (settled < chars.length) raf = requestAnimationFrame(run);
       else raf = 0;

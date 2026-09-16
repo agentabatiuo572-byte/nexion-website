@@ -47,7 +47,9 @@ const t = useT(locale);
   .hero {
     position: relative;
     z-index: 1;
-    height: max(640px, calc(900 * var(--u)));
+    /* 首屏不能随宽度长出折叠线；视口高度先除 zoom，换回画布单位。 */
+    height: auto;
+    min-height: min(max(640px, calc(900 * var(--u))), calc(100svh / var(--x-zoom)));
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -82,7 +84,7 @@ const t = useT(locale);
     letter-spacing: -0.03em; /* 参考站滚动提示同为 −0.03em(它的 12px 字距分两类,这一类保留) */
     font-size: max(12px, calc(12 * var(--u)));
   }
-  .scroll-hint:lang(zh) {
+  .scroll-hint:is(:lang(zh), :lang(ja), :lang(ko)) {
     font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 竖线=琥珀顶亮、向下淡出 10%;粗细 2px 起随画布放大(主人 R16 加粗) */
@@ -106,7 +108,7 @@ const t = useT(locale);
     white-space: pre-line; /* 文案内 \n 生效(en/vi 两行制,主人 R12/R13) */
     font-size: max(12px, calc(12 * var(--u)));
   }
-  .note:lang(zh) {
+  .note:is(:lang(zh), :lang(ja), :lang(ko)) {
     font-size: max(12.5px, calc(12.5 * var(--u)));
   }
   /* 内容簇:右置列,标题左对齐、副题/下载键贴列右缘。
@@ -122,7 +124,7 @@ const t = useT(locale);
   .cluster:lang(vi) {
     width: calc(950.4 * var(--u));
   }
-  .cluster:lang(zh) {
+  .cluster:is(:lang(zh), :lang(ja), :lang(ko)) {
     width: calc(725 * var(--u));
   }
   /* 标题:i18n 文案带 \n 强制「NexGrid」独行(pre-line);
@@ -137,6 +139,37 @@ const t = useT(locale);
   }
   h1:lang(zh) {
     font-size: max(48px, calc(115.2 * var(--u)));
+  }
+  /* IOTA-inspired silver grain. Repeat by line so long translations retain the same finish.
+     The reveal engine temporarily replaces text with transformed .lr-inner spans. */
+  @supports (background-clip: text) {
+    h1,
+    h1 :global(.lr-inner) {
+      background-image:
+        linear-gradient(to bottom, var(--x-white) 12%, color-mix(in srgb, var(--x-white) 88%, transparent) 30%, transparent 85%),
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Cpath fill='white' opacity='.18' filter='url(%23n)' d='M0 0h160v160H0z'/%3E%3C/svg%3E"),
+        linear-gradient(color-mix(in srgb, var(--x-white) 40%, var(--x-bg)), color-mix(in srgb, var(--x-white) 40%, var(--x-bg)));
+      background-size: 100% calc(1em * var(--x-mega-leading)), 160px 160px, 100% 100%;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    h1:has(.lr-inner) {
+      background-image: none;
+    }
+  }
+  @media print {
+    h1,
+    h1 :global(.lr-inner) {
+      background-image: none;
+      -webkit-text-fill-color: currentColor;
+    }
+  }
+  @media screen and (forced-colors: active) {
+    h1,
+    h1 :global(.lr-inner) {
+      background-image: none;
+      -webkit-text-fill-color: CanvasText;
+    }
   }
   /* 右下双层组:首句亮 + 次句暗一档小一档,右缘对齐成一组(09-01 起装品牌口号套装) */
   .subs {
@@ -235,6 +268,9 @@ const t = useT(locale);
     h1:lang(zh) {
       font-size: clamp(44px, 14vw, calc(68 * var(--uc)));
     }
+    h1:lang(ja) {
+      font-size: clamp(36px, 11vw, calc(60 * var(--uc)));
+    }
   }
   /* 矮视口档(手机横放,也含被压扁的桌面窗口)。三条约束互相牵制,必须一起满足:
        ① 上内衬**从导航实高派生**,不写死 —— 导航高随宽度分档(画布单位 ≤860 是 54、>860 是 74),
@@ -247,6 +283,7 @@ const t = useT(locale);
   @media (max-height: 520px) {
     .hero {
       height: auto; /* 接管桌面定高:>860 宽的矮窗口不走上面的竖屏档 */
+      min-height: 0;
       padding-top: calc(var(--x-chrome-h) + 22 * var(--uc));
       padding-bottom: calc(24 * var(--uc)); /* 画布像素:本块不再限宽,svh 会在 ≥1440 被 zoom 二次放大 */
     }

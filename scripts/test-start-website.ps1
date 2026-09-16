@@ -91,6 +91,20 @@ try {
     . $script:LauncherUnderTest
     Initialize-PrivateDirectory $script:TemporaryRoot
 
+    foreach ($name in @('site', 'admin')) {
+        Invoke-Test ($name + ': launch and readiness use the same explicit IPv4 loopback') {
+            $definition = Get-ServiceDefinition $name
+            $uri = [Uri]$definition.Url
+            $arguments = @($definition.Arguments)
+            $hostIndex = [Array]::IndexOf($arguments, '--host')
+            Assert-True ($uri.Host -ceq '127.0.0.1' -and $uri.Port -eq $definition.Port) 'Readiness URL depends on localhost resolution.'
+            Assert-True ($hostIndex -ge 0 -and $arguments[$hostIndex + 1] -ceq $uri.Host) 'Server binding differs from its readiness URL.'
+            if ($name -eq 'admin') {
+                Assert-True ($arguments -contains '--strictPort' -and ($arguments -join ' ').EndsWith('--base /')) 'Admin lost fixed-port or post-login asset routing.'
+            }
+        }
+    }
+
     Set-TestFunction 'Invoke-LocalApi' {
         param([string]$BaseUri, [string]$Path, [string]$Method = 'GET', $Body = $null, [string]$Cookie = '')
         Assert-True ($BaseUri -eq 'http://127.0.0.1:18787') 'Unexpected API destination.'
@@ -685,7 +699,7 @@ try {
         $script:RunnerApiStatus = 200
     }
     Invoke-Test 'Runner receives the dedicated secret but no administrator password or cookie' {
-        $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN')
+        $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN', 'AI_CREDENTIAL_ENCRYPTION_KEY', 'AI_TICK_TOKEN', 'OPENAI_API_KEY', 'ai_future_secret')
         $previous = @{}
         foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process'); [Environment]::SetEnvironmentVariable($name, 'synthetic-inherited-value', 'Process') }
         Set-TestFunction 'Invoke-Npm' {
@@ -693,6 +707,7 @@ try {
             Assert-True ($Directory -ieq (Join-Path $RepoRoot 'worker') -and ($Arguments -join ' ') -ceq 'run publish:runner') 'Runner command contains unexpected arguments.'
             Assert-True ($env:PUBLISH_RUNNER_TOKEN -ceq (Read-LocalPassword (Join-Path $LocalDir 'publish-runner-token.dpapi')) -and $env:PUBLISH_API_URL -ceq 'http://127.0.0.1:8787') 'Runner did not receive its own dedicated configuration.'
             foreach ($name in @('PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN')) { Assert-True (-not [Environment]::GetEnvironmentVariable($name, 'Process')) 'Administrator credentials leaked to the runner environment.' }
+            Assert-True (@([Environment]::GetEnvironmentVariables('Process').Keys | Where-Object { $_ -match '^(AI_|OPENAI_)' }).Count -eq 0) 'AI credentials leaked to the runner environment.'
         }
         try {
             Invoke-PublishRunner
@@ -717,7 +732,7 @@ try {
         Ensure-PublishRunner $script:ExpectedPublishToken
         Assert-True ($script:RunnerChecks -eq 2 -and $script:SupervisorRequests -eq 1) 'Runner readiness ignored its heartbeat or spawned duplicates.'
     }
-    Invoke-Test 'One-click startup initializes the account and automatically starts publishing' {
+    Invoke-Test 'One-click startup preserves NoBrowser and opens the published site and console' {
         $fixture = New-PublishFixture 'whole-startup'
         foreach ($relative in @('node_modules/astro/bin/astro.mjs', 'admin/node_modules/vite/bin/vite.js', 'worker/node_modules/wrangler/bin/wrangler.js', 'schema/node_modules/zod/package.json', 'dist-live/index.html', 'dist-live/admin/index.html')) {
             $path = Join-Path $fixture.Root $relative
@@ -730,6 +745,8 @@ try {
         $script:HidePassword = $true
         $script:NonInteractive = $true
         $script:StartupEvents = New-Object 'Collections.Generic.List[string]'
+        $script:OpenedUrls = New-Object 'Collections.Generic.List[string]'
+        Set-TestFunction 'Start-Process' { param([string]$FilePath); $script:OpenedUrls.Add($FilePath) }
         Set-TestFunction 'Initialize-PublishConfiguration' { $script:StartupEvents.Add('publish-config'); return @{ Token = 'synthetic-dedicated-publish-token-for-startup' } }
         Set-TestFunction 'Ensure-LocalService' { param([string]$Name); $script:StartupEvents.Add($Name) }
         Set-TestFunction 'Ensure-PublishApi' { $script:StartupEvents.Add('api-authenticated') }
@@ -737,6 +754,7 @@ try {
         Set-TestFunction 'Ensure-PublishRunner' { $script:StartupEvents.Add('runner-ready') }
         Start-Website
         Assert-True (($script:StartupEvents -join ',') -ceq 'publish-config,api,api-authenticated,site,admin,admin-login,runner-ready') 'One-click startup omitted publish setup, API authentication, account verification, or the runner.'
+        Assert-True ($script:OpenedUrls.Count -eq 0) 'NoBrowser still opened a browser.'
         # Missing schema dependencies must install in that package using its lock.
         Remove-Item -LiteralPath (Join-Path $fixture.Root 'schema/node_modules/zod/package.json')
         $script:SchemaInstalls = 0
@@ -745,11 +763,275 @@ try {
             Assert-True ($Directory -ceq (Join-Path $script:RepoRoot 'schema') -and ($Arguments -join ' ') -ceq 'ci --no-audit --no-fund') 'Missing schema invoked an unexpected package or command.'
             $script:SchemaInstalls++
         }
+        $script:NoBrowser = $false
         Start-Website
         Assert-True ($script:SchemaInstalls -eq 1) 'Missing schema dependencies were not installed.'
+        Assert-True (($script:OpenedUrls -join ',') -ceq 'http://127.0.0.1:8787/,http://127.0.0.1:5175/admin/') 'Startup opened an unpublished preview instead of the published website and console.'
     }
+    Set-TestFunction 'Start-Process' { throw 'Regression tests must never start a process.' }
+    $script:NoBrowser = $true
     $script:RepoRoot = $script:RealRepoRoot
     $script:LocalDir = $script:RealLocalDir
+
+    Invoke-Test 'AI tick initializes durably without creating an unverified encryption root' {
+        $fixture = New-PublishFixture 'ai-first-tick'
+        $first = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+        $tickBytes = [IO.File]::ReadAllText($paths.Tick)
+        $varsBytes = [IO.File]::ReadAllText($paths.Vars)
+        Assert-True ($first.Token.Length -ge 32 -and $first.BootstrapAllowed -and -not $first.RootAvailable) 'Tick bootstrap did not wait for D1 inspection.'
+        Assert-True (-not (Test-Path -LiteralPath $paths.RootKey) -and -not (Test-Path -LiteralPath $paths.Marker)) 'An encryption root was created before D1 inspection.'
+        $again = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        Assert-True ($again.Token -ceq $first.Token -and [IO.File]::ReadAllText($paths.Tick) -ceq $tickBytes -and [IO.File]::ReadAllText($paths.Vars) -ceq $varsBytes) 'Repeated startup rotated or rewrote the tick secret.'
+        Assert-True ($tickBytes.IndexOf($first.Token, [StringComparison]::Ordinal) -lt 0 -and (Read-LocalPassword $paths.Tick) -ceq $first.Token) 'Tick recovery was not DPAPI protected.'
+        Assert-True (Get-Acl -LiteralPath $paths.Vars).AreAccessRulesProtected 'AI plaintext binding inherited access rules.'
+    }
+    Set-TestFunction 'Get-AiBootstrapState' {
+        param([string]$Token)
+        $script:AiBootstrapCalls++
+        if ($script:AiBootstrapMode -eq 'unavailable') { throw 'Synthetic bootstrap failure.' }
+        return @{ initialized = ($script:AiBootstrapMode -eq 'initialized'); hasCredential = ($script:AiBootstrapMode -eq 'credential'); encryptionReady = ($script:AiBootstrapMode -eq 'loaded' -and $script:AiBootstrapCalls -gt 1) }
+    }
+    Invoke-Test 'AI root requires empty D1 then persists once and proves actual Worker loading' {
+        $fixture = New-PublishFixture 'ai-root-fresh'
+        $config = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        $script:AiBootstrapMode = 'loaded'; $script:AiBootstrapCalls = 0
+        Assert-True (Complete-AiBootstrap $fixture.Root $fixture.Private $config) 'Runtime-confirmed root was not ready.'
+        $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+        $key = Read-LocalPassword $paths.RootKey
+        Assert-AiEncryptionKey $key
+        Assert-True ((Get-DevVariable ([IO.File]::ReadAllText($paths.Vars)) 'AI_CREDENTIAL_ENCRYPTION_KEY') -ceq $key -and (Test-Path -LiteralPath $paths.Marker)) 'Persisted root and Worker binding differ.'
+        $ciphertext = [IO.File]::ReadAllText($paths.RootKey); $vars = [IO.File]::ReadAllText($paths.Vars)
+        Assert-True ($ciphertext.IndexOf($key, [StringComparison]::Ordinal) -lt 0) 'Root recovery contains plaintext.'
+        $again = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        Assert-True ($again.RootAvailable -and -not $again.BootstrapAllowed -and [IO.File]::ReadAllText($paths.RootKey) -ceq $ciphertext -and [IO.File]::ReadAllText($paths.Vars) -ceq $vars) 'Repeated startup regenerated an existing encryption root.'
+    }
+    Invoke-Test 'AI root is never generated for initialized D1, ciphertext or unavailable bootstrap' {
+        foreach ($mode in @('initialized', 'credential', 'unavailable')) {
+            $fixture = New-PublishFixture ('ai-d1-' + $mode)
+            $config = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+            $script:AiBootstrapMode = $mode; $script:AiBootstrapCalls = 0
+            if ($mode -eq 'unavailable') { Assert-Throws { Complete-AiBootstrap $fixture.Root $fixture.Private $config } 'Synthetic bootstrap' }
+            else { Assert-True (-not (Complete-AiBootstrap $fixture.Root $fixture.Private $config)) 'Existing D1 encryption state was ignored.' }
+            $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+            Assert-True (-not (Test-Path -LiteralPath $paths.RootKey) -and -not (Test-Path -LiteralPath $paths.Marker) -and $null -eq (Get-DevVariable ([IO.File]::ReadAllText($paths.Vars)) 'AI_CREDENTIAL_ENCRYPTION_KEY')) 'A missing root was silently replaced.'
+        }
+    }
+    Invoke-Test 'Local initialization marker prevents root regeneration even with empty D1' {
+        $fixture = New-PublishFixture 'ai-missing-root'
+        [void](Initialize-AiLocalConfiguration $fixture.Root $fixture.Private)
+        $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+        Save-AiInitializationMarker $paths.Marker
+        $config = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        $script:AiBootstrapMode = 'empty'; $script:AiBootstrapCalls = 0
+        Assert-True (-not $config.BootstrapAllowed -and -not (Complete-AiBootstrap $fixture.Root $fixture.Private $config)) 'A local initialization marker was ignored.'
+        Assert-True (-not (Test-Path -LiteralPath $paths.RootKey)) 'Lost encryption root was silently regenerated.'
+    }
+    Invoke-Test 'Unloaded root does not claim readiness or restart the API' {
+        $fixture = New-PublishFixture 'ai-await-runtime'
+        $config = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+        $script:AiBootstrapMode = 'empty'; $script:AiBootstrapCalls = 0
+        Assert-True (-not (Complete-AiBootstrap $fixture.Root $fixture.Private $config) -and $config.Status -ceq 'awaiting-normal-api-restart') 'Disk persistence was mistaken for Worker loading.'
+        $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+        $ciphertext = [IO.File]::ReadAllText($paths.RootKey)
+        $script:AiBootstrapMode = 'loaded'
+        Assert-True (Complete-AiBootstrap $fixture.Root $fixture.Private $config) 'A later confirmed reload did not become ready.'
+        Assert-True ([IO.File]::ReadAllText($paths.RootKey) -ceq $ciphertext) 'A later runtime check rotated the root.'
+    }
+    Invoke-Test 'Root recovery restores exact DPAPI bytes and refuses mismatches or corrupted recovery' {
+        foreach ($mode in @('restore', 'mismatch', 'corrupt')) {
+            $fixture = New-PublishFixture ('ai-recovery-' + $mode)
+            [void](Initialize-AiLocalConfiguration $fixture.Root $fixture.Private)
+            $paths = Get-AiLocalPaths $fixture.Root $fixture.Private
+            $rootKey = [Convert]::ToBase64String((New-Object byte[] 32))
+            if ($mode -eq 'corrupt') { [IO.File]::WriteAllText($paths.RootKey, 'not-a-dpapi-envelope') }
+            else { Save-LocalPassword $paths.RootKey $rootKey }
+            if ($mode -eq 'mismatch') { Write-AiDevVariables $fixture.Root $fixture.Private @{ AI_CREDENTIAL_ENCRYPTION_KEY = [Convert]::ToBase64String(([byte[]](1..32))) } }
+            $before = [IO.File]::ReadAllText($paths.RootKey)
+            $config = Initialize-AiLocalConfiguration $fixture.Root $fixture.Private
+            if ($mode -eq 'restore') { Assert-True ($config.RootAvailable -and (Get-DevVariable ([IO.File]::ReadAllText($paths.Vars)) 'AI_CREDENTIAL_ENCRYPTION_KEY') -ceq $rootKey) 'Recovery changed the root bytes.' }
+            else { Assert-True (-not $config.RootAvailable -and -not $config.BootstrapAllowed -and $config.Status -ceq 'encryption-recovery-required') 'Invalid recovery was not isolated from website startup.' }
+            Assert-True ([IO.File]::ReadAllText($paths.RootKey) -ceq $before) 'Recovery silently overwrote existing ciphertext.'
+        }
+    }
+    Invoke-Test 'AI preparation refuses tracked private paths before writing secrets' {
+        $fixture = New-PublishFixture 'ai-tracked-vars'
+        [IO.File]::WriteAllText($fixture.Vars, 'CUSTOM_SETTING=synthetic')
+        & (Get-Command git.exe).Source -C $script:TemporaryRoot add --force -- $fixture.Vars
+        Assert-Throws { Initialize-AiLocalConfiguration $fixture.Root $fixture.Private } 'not ignored by Git'
+        Assert-True ([IO.File]::ReadAllText($fixture.Vars) -ceq 'CUSTOM_SETTING=synthetic' -and -not (Test-Path -LiteralPath (Join-Path $fixture.Private 'ai-tick-token.dpapi'))) 'Rejected private path received a secret.'
+    }
+    Invoke-Test 'AI preparation rejects a real linked private directory without touching its target' {
+        $fixture = New-PublishFixture 'ai-linked-private'
+        $target = Join-Path $fixture.Root 'untouched-target'
+        [void][IO.Directory]::CreateDirectory($target)
+        [void](New-Item -ItemType Junction -Path $fixture.Private -Target $target)
+        try {
+            Assert-Throws { Initialize-AiLocalConfiguration $fixture.Root $fixture.Private } 'link'
+            Assert-True (@(Get-ChildItem -LiteralPath $target -Force).Count -eq 0 -and -not (Test-Path -LiteralPath $fixture.Vars)) 'Linked directory rejection wrote a secret.'
+        } finally { Remove-Item -LiteralPath $fixture.Private -Force }
+    }
+    Set-Item -LiteralPath 'Function:script:Get-AiBootstrapState' -Value $script:SavedFunctions['Get-AiBootstrapState']
+    Set-TestFunction 'Get-VerifiedApiSupervisor' { return @{ ProcessId = $script:AiOwner } }
+    Set-TestFunction 'Invoke-LocalApi' {
+        param([string]$BaseUri, [string]$Path, [string]$Method, $Body, [string]$Cookie, [string]$BearerToken, [int]$TimeoutSeconds)
+        $script:AiHttpCalls++
+        Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and -not $Cookie -and $null -eq $Body -and $BearerToken -ceq 'synthetic-ai-tick-token-32-characters') 'AI request destination, body or authentication is incorrect.'
+        if ($Path -ceq '/api/internal/translations/tick') { Assert-True ($Method -ceq 'POST' -and $TimeoutSeconds -eq 30) 'Tick must be a 30 second bounded empty POST.'; return @{ Status = 200; Json = @{ skipped = $true } } }
+        Assert-True ($Path -ceq '/api/internal/translations/bootstrap' -and $Method -ceq 'GET' -and $TimeoutSeconds -eq 5) 'Bootstrap request is incorrect.'
+        return @{ Status = 200; Json = @{ initialized = $false; hasCredential = $false; encryptionReady = $script:AiReadyValue } }
+    }
+    Invoke-Test 'AI requests require the current supervisor before any bearer send' {
+        $script:AiHttpCalls = 0; $script:AiOwner = $PID + 1; $script:AiReadyValue = $false
+        Assert-Throws { Invoke-AiTranslationTick 'synthetic-ai-tick-token-32-characters' } 'not owned'
+        Assert-Throws { Get-AiBootstrapState 'synthetic-ai-tick-token-32-characters' } 'not owned'
+        Assert-True ($script:AiHttpCalls -eq 0) 'AI bearer was sent before ownership was proved.'
+        $script:AiOwner = $PID
+        [void](Get-AiBootstrapState 'synthetic-ai-tick-token-32-characters')
+        [void](Invoke-AiTranslationTick 'synthetic-ai-tick-token-32-characters')
+        Assert-True ($script:AiHttpCalls -eq 2) 'Owned API calls did not use their bounded contracts.'
+        $script:AiReadyValue = 'false'
+        Assert-Throws { Get-AiBootstrapState 'synthetic-ai-tick-token-32-characters' } 'unavailable'
+    }
+    Invoke-Test 'Real HttpClient sends empty bearer requests without cookies, redirects or unbounded waits' {
+        $fixture = New-PublishFixture 'ai-http-sentinel'
+        $serverPath = Join-Path $fixture.Root 'server.cjs'
+        $serverSource = @'
+const fs = require('node:fs');
+const http = require('node:http');
+const seen = [];
+const server = http.createServer((req, res) => {
+  let body = '';
+  req.on('data', chunk => body += chunk);
+  req.on('end', () => {
+    seen.push({ path: req.url, method: req.method, bearerMatches: req.headers.authorization === 'Bearer synthetic-ai-http-token', hasCookie: !!req.headers.cookie, bodyLength: body.length });
+    fs.writeFileSync('seen.json', JSON.stringify(seen));
+    if (req.url === '/redirect') { res.writeHead(302, { location: '/must-not-follow' }); res.end(); return; }
+    if (req.url === '/hung') return;
+    res.setHeader('content-type', 'application/json'); res.end('{"ok":true}');
+  });
+});
+server.listen(0, '127.0.0.1', () => fs.writeFileSync('port.txt', String(server.address().port)));
+'@
+        [IO.File]::WriteAllText($serverPath, $serverSource)
+        $info = New-Object Diagnostics.ProcessStartInfo
+        $info.FileName = (Get-Command node.exe).Source; $info.Arguments = '"' + $serverPath + '"'
+        $info.WorkingDirectory = $fixture.Root; $info.UseShellExecute = $false; $info.CreateNoWindow = $true
+        foreach ($name in @($info.EnvironmentVariables.Keys)) { if ($name -match '^(AI_|OPENAI_)') { $info.EnvironmentVariables.Remove($name) } }
+        $server = [Diagnostics.Process]::Start($info)
+        try {
+            $portPath = Join-Path $fixture.Root 'port.txt'; $deadline = [DateTime]::UtcNow.AddSeconds(10)
+            while (-not (Test-Path -LiteralPath $portPath) -and [DateTime]::UtcNow -lt $deadline) { [Threading.Thread]::Sleep(20) }
+            Assert-True (Test-Path -LiteralPath $portPath) 'Isolated HTTP fixture did not start.'
+            $baseUri = 'http://127.0.0.1:' + [IO.File]::ReadAllText($portPath)
+            $actualHttp = $script:SavedFunctions['Invoke-LocalApi']
+            $reply = & $actualHttp $baseUri '/tick' 'POST' $null '' 'synthetic-ai-http-token' 30
+            Assert-True ($reply.Status -eq 200) 'Real empty POST failed.'
+            $reply = & $actualHttp $baseUri '/redirect' 'POST' $null '' 'synthetic-ai-http-token' 30
+            Assert-True ($reply.Status -eq 302) 'HTTP redirect was followed.'
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            Assert-Throws { & $actualHttp $baseUri '/hung' 'POST' $null '' 'synthetic-ai-http-token' 1 } ''
+            Assert-True ($watch.Elapsed.TotalSeconds -lt 5) 'HTTP timeout was not enforced.'
+            $seen = [IO.File]::ReadAllText((Join-Path $fixture.Root 'seen.json')) | ConvertFrom-Json
+            Assert-True ($seen.Count -eq 3 -and ($seen.path -join ',') -ceq '/tick,/redirect,/hung') 'HTTP client sent an unexpected follow-up request.'
+            foreach ($request in $seen) { Assert-True ($request.method -ceq 'POST' -and $request.bearerMatches -and -not $request.hasCookie -and $request.bodyLength -eq 0) 'HTTP body or authentication leaked outside its contract.' }
+        } finally { if (-not $server.HasExited) { $server.Kill(); [void]$server.WaitForExit(5000) }; $server.Dispose() }
+    }
+    Invoke-Test 'Real npm API and build children cannot inherit AI or OpenAI environment secrets' {
+        $fixture = New-PublishFixture 'ai-process-sentinel'
+        [IO.File]::WriteAllText((Join-Path $fixture.Root 'worker/package.json'), '{"scripts":{"dev":"node probe.cjs"}}')
+        [IO.File]::WriteAllText((Join-Path $fixture.Root 'worker/probe.cjs'), 'require("node:fs").writeFileSync("probe.json",JSON.stringify({names:Object.keys(process.env).filter(n=>/^(AI_|OPENAI_)/i.test(n)),keep:process.env.KEEP_AI_TEST,args:process.argv.slice(2)}));console.log("safe-api-stdout-probe");console.error("safe-api-stderr-probe")')
+        $names = @('AI_CREDENTIAL_ENCRYPTION_KEY', 'AI_TICK_TOKEN', 'OPENAI_API_KEY', 'ai_future_secret', 'KEEP_AI_TEST')
+        $previous = @{}; $originalRoot = $script:RepoRoot; $originalPrivate = $script:LocalDir
+        foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process'); [Environment]::SetEnvironmentVariable($name, 'synthetic-ai-sentinel', 'Process') }
+        try {
+            $script:RepoRoot = $fixture.Root
+            $script:LocalDir = $fixture.Private
+            $child = Start-ApiChild
+            try { Assert-True ($child.WaitForExit(15000) -and $child.ExitCode -eq 0) 'Isolated npm API child failed.' } finally { if (-not $child.HasExited) { $child.Kill() }; $child.Dispose() }
+            $observed = [IO.File]::ReadAllText((Join-Path $fixture.Root 'worker/probe.json')) | ConvertFrom-Json
+            Assert-True ($observed.names.Count -eq 0 -and $observed.keep -ceq 'synthetic-ai-sentinel' -and ($observed.args -join ' ') -ceq '--ip 127.0.0.1 --port 8787') 'API child inherited AI secrets or changed its loopback command.'
+            $stdout = @(Get-ChildItem -LiteralPath $fixture.Private -Filter 'api-child-*.out.log'); $stderr = @(Get-ChildItem -LiteralPath $fixture.Private -Filter 'api-child-*.err.log')
+            Assert-True ($stdout.Count -eq 1 -and [IO.File]::ReadAllText($stdout[0].FullName).Contains('safe-api-stdout-probe') -and $stderr.Count -eq 1 -and [IO.File]::ReadAllText($stderr[0].FullName).Contains('safe-api-stderr-probe')) 'Hidden API child lost its runtime logs.'
+            & $script:SavedFunctions['Invoke-Npm'] -Directory (Join-Path $fixture.Root 'worker') -Arguments @('run', 'dev')
+            $observed = [IO.File]::ReadAllText((Join-Path $fixture.Root 'worker/probe.json')) | ConvertFrom-Json
+            Assert-True ($observed.names.Count -eq 0 -and $observed.keep -ceq 'synthetic-ai-sentinel') 'Ordinary build child inherited AI secrets.'
+            foreach ($name in $names) { Assert-True ([Environment]::GetEnvironmentVariable($name, 'Process') -ceq 'synthetic-ai-sentinel') 'Child startup changed its parent environment.' }
+        } finally { $script:RepoRoot = $originalRoot; $script:LocalDir = $originalPrivate; foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') } }
+    }
+    Invoke-Test 'Supervisor launch filters AI credentials and restores its parent environment after failure' {
+        $names = @('AI_CREDENTIAL_ENCRYPTION_KEY', 'AI_TICK_TOKEN', 'OPENAI_API_KEY', 'ai_future_secret')
+        $previous = @{}
+        foreach ($name in $names) { $previous[$name] = [Environment]::GetEnvironmentVariable($name, 'Process'); [Environment]::SetEnvironmentVariable($name, 'synthetic-supervisor-sentinel', 'Process') }
+        Set-TestFunction 'Get-OwnedSupervisor' { return $null }
+        Set-TestFunction 'Start-Process' {
+            Assert-True (@([Environment]::GetEnvironmentVariables('Process').Keys | Where-Object { $_ -match '^(AI_|OPENAI_)' }).Count -eq 0) 'AI credentials reached a new supervisor environment.'
+            throw 'Synthetic supervisor launch failure.'
+        }
+        try {
+            Assert-Throws { & $script:SavedFunctions['Start-LocalSupervisor'] 'api' } 'Synthetic supervisor launch failure'
+            foreach ($name in $names) { Assert-True ([Environment]::GetEnvironmentVariable($name, 'Process') -ceq 'synthetic-supervisor-sentinel') 'Failed supervisor launch did not restore its parent environment.' }
+        } finally { foreach ($name in $names) { [Environment]::SetEnvironmentVariable($name, $previous[$name], 'Process') } }
+    }
+    Set-TestFunction 'Initialize-AiLocalConfiguration' { $script:AiConfigCalls++; if ($script:AiConfigFails) { throw 'Synthetic configuration failure.' }; return [pscustomobject]@{ Token = 'synthetic'; Status = 'awaiting-runtime-check' } }
+    Set-TestFunction 'Get-OwnedListener' { return @() }
+    Set-TestFunction 'Start-ApiChild' { $script:AiChildStarts++; return $script:AiFakeChild }
+    Set-TestFunction 'Wait-ApiChild' { param($Child, [int]$Milliseconds); $script:AiWaits++; Assert-True ($Milliseconds -eq 1000) 'API supervision used an unbounded wait.'; return ($script:AiWaits -gt 131) }
+    Set-TestFunction 'Get-AiTickTime' { return ([DateTime]'2026-01-01T00:00:00Z').AddSeconds($script:AiWaits) }
+    Set-TestFunction 'Complete-AiBootstrap' { param($Root, $Private, $Config); $script:AiBootstrapChecks++; $Config.Status = 'ready'; return $true }
+    Set-TestFunction 'Invoke-AiTranslationTick' { $script:AiTicks.Add($script:AiWaits); if ($script:AiTicks.Count -eq 1) { throw 'Synthetic tick timeout.' }; return @{ skipped = $true } }
+    Invoke-Test 'API session ticks at most once per minute and disposes its child despite AI failure' {
+        foreach ($failure in @($false, $true)) {
+            $script:AiConfigFails = $failure; $script:AiChildStarts = 0; $script:AiWaits = 0; $script:AiDisposed = $false; $script:AiBootstrapChecks = 0
+            $script:AiTicks = New-Object 'Collections.Generic.List[int]'
+            $script:AiFakeChild = [pscustomobject]@{ ExitCode = 0 }
+            $script:AiFakeChild | Add-Member -MemberType ScriptMethod -Name Dispose -Value { $script:AiDisposed = $true }
+            $configuration = if ($failure) { $null } else { [pscustomobject]@{ Token = 'synthetic'; Status = 'awaiting-runtime-check' } }
+            Invoke-ApiSession $configuration
+            Assert-True ($script:AiChildStarts -eq 1 -and $script:AiDisposed) 'AI failure changed API child lifecycle or leaked the process handle.'
+            if ($failure) { Assert-True ($script:AiTicks.Count -eq 0) 'Unconfigured AI still sent ticks.' }
+            else { Assert-True (($script:AiTicks -join ',') -ceq '1,61,121' -and $script:AiBootstrapChecks -eq 1) 'Tick failure changed cadence or re-ran a completed bootstrap.' }
+        }
+        $script:AiConfigFails = $true; $script:AiChildStarts = 0; $script:AiWaits = 131; $script:AiFakeChild.ExitCode = 7
+        Assert-Throws { Invoke-ApiSession $null } 'exit 7'
+        Assert-True ($script:AiChildStarts -eq 1 -and $script:AiDisposed) 'API session hid a failed child or leaked its handle.'
+    }
+    Invoke-Test 'API supervisor retries normal and failed exits with capped backoff and initializes credentials once' {
+        foreach ($configurationFails in @($false, $true)) {
+            $script:AiConfigFails = $configurationFails; $script:AiConfigCalls = 0; $script:AiChildStarts = 0; $script:AiDisposedCount = 0
+            $script:AiRestartDelays = New-Object 'Collections.Generic.List[int]'
+            $script:AiLifecycle = New-Object 'Collections.Generic.List[string]'
+            $script:AiClock = [DateTime]'2026-01-01T00:00:00Z'
+            Set-TestFunction 'Get-AiTickTime' { return $script:AiClock }
+            Set-TestFunction 'Start-ApiChild' {
+                $script:AiChildStarts++; $script:AiLifecycle.Add('start')
+                $child = [pscustomobject]@{ ExitCode = if ($script:AiChildStarts % 2) { 7 } else { 0 } }
+                $child | Add-Member -MemberType ScriptMethod -Name Dispose -Value { $script:AiDisposedCount++; $script:AiLifecycle.Add('dispose') }
+                return $child
+            }
+            Set-TestFunction 'Wait-ApiChild' { param($Child, [int]$Milliseconds); if ($script:AiChildStarts -eq 7) { $script:AiClock = $script:AiClock.AddSeconds(60) }; return $true }
+            Set-TestFunction 'Start-Sleep' {
+                param([int]$Seconds)
+                $script:AiRestartDelays.Add($Seconds); $script:AiLifecycle.Add('sleep')
+                if ($script:AiRestartDelays.Count -eq 7) { throw 'End synthetic API supervisor loop.' }
+            }
+            Assert-Throws { Invoke-ApiSupervisor } 'End synthetic API supervisor loop'
+            Assert-True ($script:AiConfigCalls -eq 1 -and $script:AiChildStarts -eq 7 -and $script:AiDisposedCount -eq 7) 'API restart repeated credential setup, missed an exit or leaked a handle.'
+            Assert-True (($script:AiRestartDelays -join ',') -ceq '3,6,12,24,30,30,3') 'API restart busy-looped, exceeded its cap or failed to reset after a healthy session.'
+            Assert-True (($script:AiLifecycle -join ',') -ceq ((@('start,dispose,sleep') * 7) -join ',')) 'API restart began before disposal or backoff.'
+        }
+    }
+    Invoke-Test 'API supervisor preserves occupied ports and backs off without starting replacement children' {
+        foreach ($foreign in @($false, $true)) {
+            $script:AiConfigFails = $false; $script:AiConfigCalls = 0; $script:AiChildStarts = 0; $script:AiPortChecks = 0
+            $script:AiForeignPort = $foreign
+            $script:AiRestartDelays = New-Object 'Collections.Generic.List[int]'
+            Set-TestFunction 'Get-OwnedListener' { $script:AiPortChecks++; if ($script:AiForeignPort) { throw 'Port is occupied by another service.' }; return @{ OwningProcess = 72002 } }
+            Set-TestFunction 'Start-Sleep' { param([int]$Seconds); $script:AiRestartDelays.Add($Seconds); if ($script:AiRestartDelays.Count -eq 2) { throw 'End synthetic API supervisor loop.' } }
+            Assert-Throws { Invoke-ApiSupervisor } 'End synthetic API supervisor loop'
+            Assert-True ($script:AiPortChecks -eq 2 -and $script:AiChildStarts -eq 0 -and ($script:AiRestartDelays -join ',') -ceq '3,6') 'API restart ignored occupied port ownership or failed to back off.'
+        }
+    }
 } catch {
     $script:Failures.Add('Test harness: ' + $_.Exception.Message)
     Write-Host ('[FAIL] Test harness: ' + $_.Exception.Message)

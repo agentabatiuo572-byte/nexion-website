@@ -3,8 +3,10 @@
    管辖条款已按 O2 资料包填充(Colorado, USA)。
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题)、meta 行挂 .x-mono、小标题行高 1.1;英文正文标 lang=en。 */
 import { useT, type Locale } from '../../i18n';
+import { SOURCE_LOCALE } from '../../../schema/src/locales';
 import { SITE_CONFIG } from '../../lib/site-config';
 import LegalDocument from './LegalDocument.astro';
+import LegalToc from './LegalToc.astro';
 
 interface Props {
   locale: Locale;
@@ -12,7 +14,17 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const configured = SITE_CONFIG.legal?.terms;
-const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.en?.trim());
+const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md[SOURCE_LOCALE]?.trim() || configured?.md.en?.trim());
+const headings = [
+  '1. What this Site is',
+  '2. Informational content only',
+  '3. Digital assets',
+  '4. Intellectual property',
+  '5. Acceptable use',
+  '6. No warranty; limitation of liability',
+  '7. Changes',
+  '8. Governing law',
+].map((text, index) => ({ id: `legal-section-${index + 1}`, text }));
 ---
 
 {hasConfigured ? <LegalDocument locale={locale} document="terms" fallbackTitle="Terms of Service" /> : <main class="legal" lang="en">
@@ -20,14 +32,15 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
   <h1 class="x-display">Terms of Service</h1>
   <p class="updated x-mono">Last updated: 2026-08-20</p>
 
-  <div class="sheet x-tile x-tile-calm">
-  <h2>1. What this Site is</h2>
+  <LegalToc locale={locale} headings={headings} />
+  <div class="sheet x-copy x-tile x-tile-calm">
+  <h2 id={headings[0].id}>{headings[0].text}</h2>
   <p>
     The NexGrid marketing website (the "Site") provides information about the NexGrid platform and links to download
     the NexGrid application (the "App"). Use of the App is governed by the terms presented inside the App.
   </p>
 
-  <h2>2. Informational content only</h2>
+  <h2 id={headings[1].id}>{headings[1].text}</h2>
   <p>
     Content on the Site describes how the platform works. It is not financial, investment, tax, or legal advice, and it
     is not an offer or solicitation of any kind. Earnings on the platform vary with network demand, device performance,
@@ -35,31 +48,31 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     snapshots or live values as labeled.
   </p>
 
-  <h2>3. Digital assets</h2>
+  <h2 id={headings[2].id}>{headings[2].text}</h2>
   <p>
     References to USDT and NEX describe platform mechanics. Digital asset values can go down as well as up. Nothing on
     the Site should be read as a prediction of value.
   </p>
 
-  <h2>4. Intellectual property</h2>
+  <h2 id={headings[3].id}>{headings[3].text}</h2>
   <p>
     The Site's content, branding, and design are the property of the operator. You may not copy or reuse them for
     commercial purposes without permission.
   </p>
 
-  <h2>5. Acceptable use</h2>
+  <h2 id={headings[4].id}>{headings[4].text}</h2>
   <p>You may not attempt to disrupt the Site, scrape it at abusive volume, or misrepresent its content.</p>
 
-  <h2>6. No warranty; limitation of liability</h2>
+  <h2 id={headings[5].id}>{headings[5].text}</h2>
   <p>
     The Site is provided "as is" without warranties of any kind. To the maximum extent permitted by law, the operator is
     not liable for damages arising from use of the Site or reliance on its content.
   </p>
 
-  <h2>7. Changes</h2>
+  <h2 id={headings[6].id}>{headings[6].text}</h2>
   <p>We may update these terms; the "Last updated" date reflects the current version.</p>
 
-  <h2>8. Governing law</h2>
+  <h2 id={headings[7].id}>{headings[7].text}</h2>
   <p>These terms are governed by the laws of the State of Colorado, United States. The Site is operated by NexGrid LTD, 1670 Bwayroad, Denver, CO 80202, United States.</p>
   </div>
 </main>}
@@ -82,9 +95,9 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     margin: 0 0 calc(20 * var(--uc));
   }
   h1 {
-    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
+    font-size: clamp(32px, calc(54 * var(--u)), calc(54 * var(--uc)));
     color: var(--x-ink);
-    margin: 0 0 calc(14 * var(--uc)); /* 88 档标题降部与 meta 小字的呼吸(此前 8) */
+    margin: 0 0 calc(14 * var(--uc));
   }
   .updated {
     color: var(--x-ink-dim);
@@ -101,10 +114,7 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     letter-spacing: -0.02em; /* 24 档统一 -0.02em(与 FAQ 问题同) */
   }
   p {
-    font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
-    line-height: 1.85;
     margin: 0 0 calc(12 * var(--uc));
     text-wrap: pretty;
   }

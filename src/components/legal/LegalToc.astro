@@ -1,0 +1,53 @@
+---
+import { useT, type Locale } from '../../i18n';
+
+interface Props {
+  locale: Locale;
+  headings: { id: string; text: string }[];
+}
+const { locale, headings } = Astro.props;
+const t = useT(locale);
+---
+
+{headings.length > 1 && (
+  <details class="legal-toc x-tile x-tile-calm">
+    <summary class="x-label" lang={locale}>{t('learn.toc')}</summary>
+    <nav aria-label={t('learn.toc')}>
+      <ol role="list">
+        {headings.map((heading) => (
+          <li><a class="x-mono x-dimlink" href={`#${heading.id}`}>{heading.text}</a></li>
+        ))}
+      </ol>
+    </nav>
+  </details>
+)}
+
+<style>
+  .legal-toc {
+    margin: 0 0 calc(24 * var(--uc));
+    padding: 0 clamp(20px, calc(34 * var(--u)), calc(34 * var(--uc)));
+    color: var(--x-ink);
+  }
+  summary {
+    min-height: var(--x-touch);
+    padding: calc(16 * var(--uc)) 0;
+    cursor: pointer;
+  }
+  ol {
+    list-style: none;
+    margin: 0;
+    padding: 0 0 calc(16 * var(--uc));
+  }
+  li {
+    border-top: 1px solid var(--x-line);
+  }
+  a {
+    display: flex;
+    align-items: center;
+    min-height: var(--x-touch);
+    padding: calc(8 * var(--uc)) 0;
+    color: var(--x-ink);
+    text-decoration: none;
+    text-transform: none;
+  }
+</style>

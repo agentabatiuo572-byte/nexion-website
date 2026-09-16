@@ -18,4 +18,8 @@ export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_S
   PUBLISH_GITHUB_WORKFLOW?: string;
   PUBLISH_GITHUB_REF?: string;
   PUBLISH_GITHUB_TOKEN?: string;
+  AI_CREDENTIAL_ENCRYPTION_KEY?: string;
+  AI_ALLOWED_MODELS?: string;
+  /** Local API supervisor only; never shared with the publisher. */
+  AI_TICK_TOKEN?: string;
 };

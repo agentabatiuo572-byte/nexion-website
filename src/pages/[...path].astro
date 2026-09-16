@@ -1,0 +1,41 @@
+---
+import Base from '../layouts/Base.astro';
+import HomePage from '../components/HomePage.astro';
+import NexContent from '../components/nex/NexContent.astro';
+import LearnList from '../components/learn/LearnList.astro';
+import LearnArticle from '../components/learn/LearnArticle.astro';
+import LegalTerms from '../components/legal/LegalTerms.astro';
+import LegalPrivacy from '../components/legal/LegalPrivacy.astro';
+import LegalAppPrivacy from '../components/legal/LegalAppPrivacy.astro';
+import { siteRoutes, type SitePageProps } from '../lib/site-routes';
+import { learnOne } from '../lib/learn';
+import { useT } from '../i18n';
+
+export const getStaticPaths = siteRoutes;
+interface Props extends SitePageProps {}
+const { locale, kind, path, slug } = Astro.props;
+const t = useT(locale);
+const article = kind === 'article' ? await learnOne(locale, slug!) : null;
+if (kind === 'article' && !article) throw new Error(`Missing learn article: ${locale}/${slug}`);
+const title = kind === 'home' ? `${t('site.name')} — ${t('site.tagline')}`
+  : kind === 'nex' ? t('nex.pageTitle') : kind === 'learn' ? t('learn.title')
+  : kind === 'article' ? `${article!.entry.data.title} — NexGrid`
+  : kind === 'terms' ? `${t('footer.terms')} — NexGrid`
+  : kind === 'privacy' ? `${t('footer.privacy')} — NexGrid`
+  : ['en', 'vi', 'zh'].includes(locale) ? 'App Privacy Policy — NexGrid' : `${t('footer.appPrivacy')} — NexGrid`;
+// Existing English legal metadata fallbacks remain unchanged; configured SEO wins in Base.
+const description = kind === 'home' ? t('site.description') : kind === 'nex' ? t('nex.pageLead')
+  : kind === 'learn' ? t('learn.subtitle') : kind === 'article' ? article!.entry.data.description
+  : kind === 'terms' ? 'NexGrid website terms of service.' : kind === 'privacy' ? 'NexGrid website privacy policy.'
+  : locale === 'vi' ? 'Chính sách quyền riêng tư của ứng dụng NexGrid.'
+  : locale === 'zh' ? 'NexGrid App 隐私政策。' : 'Privacy policy for the NexGrid App.';
+---
+<Base locale={locale} title={title} description={description} path={path}>
+  {kind === 'home' && <HomePage locale={locale} />}
+  {kind === 'nex' && <NexContent locale={locale} />}
+  {kind === 'learn' && <LearnList locale={locale} />}
+  {kind === 'article' && article && <LearnArticle locale={locale} entry={article.entry} fallback={article.fallback} />}
+  {kind === 'terms' && <LegalTerms locale={locale} />}
+  {kind === 'privacy' && <LegalPrivacy locale={locale} />}
+  {kind === 'appPrivacy' && <LegalAppPrivacy locale={locale} />}
+</Base>

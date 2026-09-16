@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import type { Env } from './env';
 import { requireAuth, timingSafeEqualHex } from './auth';
+import { checkDraftUpgrade } from './config-upgrade';
 
 export const RUNNER_FRESH_MS = 60_000;
 export const RUNNER_ID = /^[a-zA-Z0-9_.:-]{1,100}$/;
@@ -18,7 +19,8 @@ export const requirePublishIdentity: MiddlewareHandler<{ Bindings: Env }> = asyn
   await next();
 };
 
-export async function executorState(env: Env, now = Date.now()) {
+/** Infrastructure availability also serves existing immutable jobs, independent of today's draft. */
+async function executionAvailability(env: Env, now = Date.now()) {
   const mode = env.PUBLISH_EXECUTION_MODE ?? 'unconfigured';
   const result = { mode, ready:false, reason:'发布服务尚未配置，请联系维护人员完成部署。', lastSeenAt:null as number | null };
   if ((env.PUBLISH_RUNNER_TOKEN ?? '').length < 32) return result;
@@ -39,10 +41,24 @@ export async function executorState(env: Env, now = Date.now()) {
   return result;
 }
 
+/** Accepting a new publication additionally requires the current draft to be compatible. */
+export async function executorState(env: Env, now = Date.now()) {
+  const result = await executionAvailability(env, now);
+  if ((env.PUBLISH_RUNNER_TOKEN ?? '').length < 32) return result;
+  const upgrade = await checkDraftUpgrade(env.DB);
+  if (upgrade.status === 'blocked' || upgrade.status === 'retry') {
+    result.ready = false;
+    result.reason = upgrade.status === 'blocked'
+      ? '配置有需要处理的冲突，发布服务准备尚未完成。草稿已保留。'
+      : '发布服务正在准备新版配置，请稍后重试。草稿已保留。';
+  }
+  return result;
+}
+
 /** A durable outbox, not the lifetime of the HTTP request, owns retries. Duplicate dispatches
  * are harmless: a fixed CI concurrency group plus the version's atomic claim serialize work. */
 export async function dispatchPending(env: Env, now = Date.now()) {
-  if (env.PUBLISH_EXECUTION_MODE !== 'github' || !(await executorState(env, now)).ready) return;
+  if (env.PUBLISH_EXECUTION_MODE !== 'github' || !(await executionAvailability(env, now)).ready) return;
   const due = await env.DB.prepare(
     `SELECT d.version_id FROM publish_dispatch d JOIN publish_lock l ON l.version_id=d.version_id
      WHERE l.claimed_at IS NULL AND l.expires_at>?1 AND d.next_attempt_at<=?1 AND d.state<>'failed' LIMIT 1`,

@@ -1,0 +1,44 @@
+.auth-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); background: var(--bg); }
+.auth-intro { position: relative; isolation: isolate; display: flex; flex-direction: column; padding: 2.375rem 9%; color: #f5f7f2; overflow: hidden; background: #141b16; }
+.auth-intro::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 15% 85%, #9edc1d12, transparent 60%), linear-gradient(110deg, transparent 50%, #ffffff03 50%); }
+.auth-intro::after { content: ''; position: absolute; width: 35rem; height: 35rem; right: -23.125rem; bottom: -20.625rem; border: 1px solid #9edc1d45; border-radius: 50%; box-shadow: 0 0 0 3.125rem #ffffff03, 0 0 0 6.25rem #ffffff02; z-index: -1; }
+.auth-logo { width: 11rem; height: 3.75rem; object-fit: contain; object-position: left; }
+.auth-story { margin: auto 0; padding: 4.25rem 0; }
+.auth-kicker { display: block; margin-bottom: 1.5rem; font-size: var(--text-sm); letter-spacing: .2em; color: #b8c3b6; }
+.auth-story h1 { font-size: clamp(2.25rem, 3.2vw, 3.5rem); font-weight: 600; letter-spacing: -.055em; line-height: 1.45; }
+.auth-story h1 em { font-style: normal; color: #b4e750; }
+.auth-story > p { margin-top: 1.5rem; color: #b8c3b6; line-height: 1.95; font-size: var(--text-body); }
+.auth-features { display: grid; gap: 1.125rem; margin-top: 2.625rem; font-size: var(--text-body); color: #dde4d9; }
+.auth-features > span { display: flex; align-items: center; gap: 0.75rem; }
+.auth-features svg { color: #b4e750; }
+.auth-footer { font-size: var(--text-sm); color: #a1ad9e; }
+.auth-main { min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; padding: 5rem 2rem; }
+.auth-form { width: 100%; max-width: 28rem; }
+.auth-lock { width: 3.25rem; height: 3.25rem; display: grid; place-items: center; border: 1px solid var(--border); background: var(--surface); color: var(--brand-ink); border-radius: 1rem; margin-bottom: 1.875rem; }
+.auth-form h1, .auth-form h2 { font-size: var(--text-metric); font-weight: 650; letter-spacing: -.04em; margin: 0.625rem 0 0.75rem; }
+.auth-description { color: var(--ink3); font-size: var(--text-body); margin-bottom: 2rem; line-height: 1.85; }
+.auth-form .field { margin: 1.125rem 0; }
+.auth-form .field label { font-size: var(--text-body); font-weight: 600; color: var(--ink2); margin-bottom: 0.5625rem; }
+.auth-form input { min-height: 3.5rem; background: var(--surface); }
+.password-field { position: relative; }
+.password-field input { padding-right: 3.25rem; }
+.password-toggle { position: absolute; right: 3px; top: 50%; transform:translateY(-50%); width: 2.75rem; height: 2.75rem; display: grid; place-items: center; color: var(--ink3); border-radius: 0.5rem; }
+.password-toggle:hover { background: var(--surface2); }
+.auth-submit { width: 100%; min-height: 3.125rem; margin-top: 0.5rem; justify-content: space-between; }
+.auth-setup-link { display: flex; gap: 0.375rem; justify-content: center; align-items: center; margin-top: 1.75rem; font-size: var(--text-sm); color: var(--ink3); }
+.auth-setup-link a { display: inline-flex; align-items: center; gap: 3px; min-height: 2.75rem; color: var(--ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; }
+.auth-help { text-align: center; margin-top: 0; }
+.auth-main-footer { position: absolute; bottom: 1.875rem; display: flex; align-items: center; gap: 0.4375rem; font-size: var(--text-sm); color: var(--ink3); }
+.auth-setup { min-height: 100dvh; display: grid; place-items: center; padding: 2.5rem 1.25rem; background: var(--bg); }
+.auth-setup .auth-form { max-width: 30rem; padding: 2.375rem; border: 1px solid var(--border); background: var(--surface); border-radius: 1.375rem; }
+@media (max-width: 900px) { .auth-intro { padding-inline: 9%; } .auth-story h1 { font-size: var(--text-metric); } }
+@media (max-width: 680px) {
+  .auth-page { grid-template-columns: minmax(0, 1fr); }
+  .auth-intro { padding: 1.125rem 1.5rem; }
+  .auth-logo { width: 8.8125rem; height: 3rem; }
+  .auth-story, .auth-footer { display: none; }
+  .auth-main { min-height: calc(100dvh - 5.25rem); padding: 2.625rem 1.5rem 4.75rem; }
+  .auth-lock { margin-bottom: 1.25rem; }
+  .auth-form h1, .auth-form h2 { font-size: var(--text-title); }
+  .auth-setup .auth-form { padding: 1.75rem 1.375rem; }
+}

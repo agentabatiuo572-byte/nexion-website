@@ -4,7 +4,7 @@
    三步改玻璃瓷砖(x-tile),瓷砖内保留「编号↔类目」两端行、48→24 档标题、等高线图、正文;
    打字机 / 行遮罩 / 进场 / 三列视差钩子(data-tw/lr/rv/plx)全部沿用,k 值不变。
    机制表述与 App PRD §1.1/§6 一致;不提具体金额(PRD §1.4-1)。
-   R45 的行内链 44 命中补高在玻璃版里改为常规行内链(瓷砖内行高 1.45,命中盒自然 ≥44 由 padding 保证)。 */
+   正文使用共享 x-copy；验证链接继续由 padding 保证至少 44px 的命中高度。 */
 import { useT, type Locale } from '../i18n';
 
 interface Props {
@@ -41,7 +41,7 @@ const ks = [0.057, 0.099, 0.138];
           <div class="stack">
             <h3 class="x-display" data-lr data-lr-delay={100 * (n - 1)}>{t(`how.step${n}Title`)}</h3>
             <img class="art" src={arts[n - 1]} alt="" width="1280" height="853" loading="lazy" decoding="async" />
-            <p class="x-mono body">
+            <p class="x-copy body">
               {t(`how.step${n}Desc`)}
               {n === 3 && (
                 <>
@@ -103,16 +103,18 @@ const ks = [0.057, 0.099, 0.138];
   /* 玻璃瓷砖列(R48;原「无盒开放列」退役):tile 自带边界,竖线随白带一起退场 */
   .step {
     padding: calc(30 * var(--uc)) calc(30 * var(--uc)) calc(34 * var(--uc));
-    display: flex;
-    flex-direction: column;
-    gap: max(32px, calc(56 * var(--u)));
+    /* 同排卡片共享四行，标题自然折行也不会推歪图片区；外层视差不变。 */
+    display: grid;
+    grid-row: span 4;
+    grid-template-rows: subgrid;
+    row-gap: calc(20 * var(--uc));
     will-change: transform;
     z-index: 1;
   }
   .metarow {
     display: flex;
     justify-content: space-between;
-    margin: 0;
+    margin: 0 0 calc(max(32px, calc(56 * var(--u))) - 20 * var(--uc));
     color: var(--x-ink-cap);
     white-space: nowrap;
   }
@@ -120,10 +122,7 @@ const ks = [0.057, 0.099, 0.138];
     color: var(--x-accent-hot); /* 黑区编号亮柠檬热档(与数据条序号同体例) */
   }
   .stack {
-    display: flex;
-    flex-direction: column;
-    gap: calc(20 * var(--uc));
-    align-items: stretch;
+    display: contents;
   }
   .stack h3 {
     font-size: max(22px, calc(30 * var(--u))); /* 瓷砖内标题降一档(瓷砖比开放列窄,48 档会两行起步) */
@@ -142,10 +141,8 @@ const ks = [0.057, 0.099, 0.138];
     color: var(--x-ink-cap);
     margin: 0;
     text-wrap: pretty;
-    line-height: 1.45; /* 瓷砖内正文回 1.45(玻璃版不追参考站 1.2 密排;vi/zh 型类分支照常覆写) */
   }
-  .stack .body:lang(zh) {
-    line-height: 1.6; /* 全站 CJK 行高不变量 */
+  .stack .body:is(:lang(zh), :lang(ja), :lang(ko)) {
     text-wrap: balance; /* CJK 短段孤行控制(R49 收线 D1:step2 曾 355px 整行下吊 3 字孤行) */
   }
   .vlink {
@@ -155,8 +152,7 @@ const ks = [0.057, 0.099, 0.138];
     display: block;
     width: fit-content;
     position: relative;
-    /* 44 命中盒:行高 1.45 行盒 17.4,内衬 (44−17.4)/2=13.3;负外边距与内衬同量对称抵消,
-       墨位与总高双零漂(R49 收线 D3:旧 -6/-20.6 只守总高,墨整体下沉 7.3px 顶破段内节奏)。 */
+    /* 内衬与负外边距同量抵消，扩大命中盒而不挪动正文；x-copy 行高下仍高于 44px。 */
     padding: calc(13.3 * var(--uc)) 0;
     margin: calc(-13.3 * var(--uc)) 0;
     transition: opacity 0.2s;

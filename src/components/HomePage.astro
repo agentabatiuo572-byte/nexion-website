@@ -1,0 +1,35 @@
+---
+import HeroSection from './hero/HeroSection.astro';
+import StatsBar from './StatsBar.astro';
+import WhySection from './WhySection.astro';
+import SocialSection from './SocialSection.astro';
+import MissionSection from './MissionSection.astro';
+import DevicesSection from './DevicesSection.astro';
+import HowSection from './HowSection.astro';
+import PathSection from './PathSection.astro';
+import TrustSection from './TrustSection.astro';
+import NexTeaser from './nex/NexTeaser.astro';
+import LearnTeaser from './learn/LearnTeaser.astro';
+import FaqSection from './FaqSection.astro';
+import FinalCta from './FinalCta.astro';
+import type { Locale } from '../i18n';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+---
+<main>
+  <HeroSection locale={locale} />
+  <StatsBar locale={locale} />
+  <WhySection locale={locale} />
+  <SocialSection locale={locale} />
+  <MissionSection locale={locale} />
+  <DevicesSection locale={locale} />
+  <div class="band-deep">
+    <HowSection locale={locale} />
+    <PathSection locale={locale} />
+    <TrustSection locale={locale} />
+    <NexTeaser locale={locale} />
+    <LearnTeaser locale={locale} />
+    <FaqSection locale={locale} />
+  </div>
+  <FinalCta locale={locale} />
+</main>

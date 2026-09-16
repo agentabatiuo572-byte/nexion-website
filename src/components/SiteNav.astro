@@ -5,7 +5,10 @@
    R45(主人 2026-08-26 拍板):底板由实底幕布改为**半透明磨砂**(backdrop blur + 半透明色);
    翻色:底板 0.25s 淡变、文字在亮度交叉点瞬切(B5 的目的=消灭同色窗);手机菜单点穿 / 汉堡过白带隐形 / Esc /
    横屏滚动 / 焦点陷阱 / Lenis 锁滚全修;内链统一尾斜杠;无 JS 手机端导航随流展开。 */
-import { useT, locales, type Locale } from '../i18n';
+import { useT, type Locale } from '../i18n';
+import { activeLocales } from '../lib/locales';
+import { localizedPath } from '../lib/locale-policy';
+import { LOCALE_NATIVE_NAMES } from '../../schema/src/locales';
 
 interface Props {
   locale: Locale;
@@ -19,15 +22,13 @@ const { locale, path = '/', inPageAnchors, neutralLang = false } = Astro.props;
 const t = useT(locale);
 const isHome = inPageAnchors ?? path === '/';
 const prefix = locale === 'en' ? '' : `/${locale}`;
-const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
 const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
 /* 内链统一尾斜杠(与 canonical / sitemap 同形;否则上线到规范化尾斜杠的托管每次内链多一跳 301) */
 const page = (p: string) => (p === '/' ? `${prefix}/` : `${prefix}${p}/`);
-const langHref = (l: Locale) => withSlash(l === 'en' ? path : `/${l}${path === '/' ? '/' : path}`);
+const langHref = (l: Locale) => localizedPath(l, path);
 
 import { DOWNLOAD_URLS } from '../lib/downloads';
 const H5_URL = DOWNLOAD_URLS.h5;
-const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
 ---
 
 <header class="site-nav" id="site-nav">
@@ -60,8 +61,15 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
           <a class="x-dimlink" data-scr href={page('/nex')}>{t('nav.nex')}</a>
         </div>
         <div class="row2">
-          <div class="lang" role="group" aria-label={t('nav.ariaLanguage')}>
-            {locales.map((l) => (
+          <details class="lang-picker">
+            <summary data-scr aria-label={t('nav.ariaLanguage')}>
+              <span data-scr-label>{LOCALE_NATIVE_NAMES[locale]}</span>
+              <svg class="lang-chevron" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                <path d="m4 6 4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </summary>
+            <div class="lang" role="group" aria-label={t('nav.ariaLanguage')}>
+            {activeLocales.map((l) => (
               <a
                 href={langHref(l)}
                 data-scr
@@ -70,10 +78,11 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
                 class:list={['x-dimlink', { active: !neutralLang && l === locale }]}
                 aria-current={!neutralLang && l === locale ? 'page' : undefined}
               >
-                {LANG_LABEL[l]}
+                {LOCALE_NATIVE_NAMES[l]}
               </a>
             ))}
-          </div>
+            </div>
+          </details>
           {H5_URL && (
             <a class="h5 x-dimlink" data-scr href={H5_URL} target="_blank" rel="noopener">
               {t('nav.launchH5')}
@@ -144,7 +153,8 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   /* R48.6:内页 0.9 特化档撤销 —— 那是给「内页白纸面板」防灰影立的,子页换玻璃暗面后
      全站统一 0.64 暗磨砂(x-inner 类本身保留在 Base,按需再分档)。 */
   .site-nav a,
-  .site-nav button {
+  .site-nav button,
+  .site-nav summary {
     pointer-events: auto;
   }
   nav {
@@ -229,6 +239,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     gap: max(16px, calc(26 * var(--u)));
   }
   .links a,
+  .lang-picker summary,
   .lang a,
   .h5 {
     font-family: var(--x-font-mono);
@@ -254,10 +265,27 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     align-items: center;
     gap: max(12px, calc(23 * var(--u)));
   }
+  .lang-picker { position: relative; }
+  .lang-picker summary { cursor: pointer; gap: 8px; list-style: none; padding-inline: 8px; }
+  .lang-picker summary::-webkit-details-marker { display: none; }
+  .lang-chevron { display: block; width: 16px; height: 16px; flex: none; }
   .lang {
-    display: flex;
-    gap: calc(10 * var(--uc));
+    position: absolute;
+    top: 100%;
+    right: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 4px 12px;
+    width: 272px;
+    padding: 12px;
+    border: 1px solid var(--x-glass-border);
+    border-radius: 12px;
+    background: rgb(var(--x-nav-tint) / var(--x-nav-a));
+    -webkit-backdrop-filter: blur(14px) saturate(1.15);
+    backdrop-filter: blur(14px) saturate(1.15);
+    color: inherit;
   }
+  .lang-picker:not([open]) .lang { display: none; }
   /* dim 档由 0.62 升到 0.78 —— 换半透明磨砂后 **两态都不够**,是同一个数值的两面:
        · 暗态:首屏 Mega 白标题从半透明底板下透上来,把该处底色抬到 ≈95 → 0.62 档只剩 3.98–4.47:1
               (≥1440 才犯,画布 zoom 从 1 开始放大、白块变大;vi 的 Mega 更厚最差)
@@ -267,7 +295,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
      实底幕布期这两种情况在物理上都不会发生。0.78 后:暗态 ≈4.7、中灰窗 ≈6.0、纯白带 ≈9.2。 */
   .lang a {
     /* 两个字母的标签命中宽只有 14.5px,低于 WCAG 2.2 AA 的 24 下限(高度已由 --x-touch 保到 44) */
-    min-width: var(--x-touch-aa);
+    min-width: var(--x-touch);
     justify-content: center;
     opacity: 0.82; /* 0.78 在暗态首屏大标题处只有 4.36(DPR2 的最亮 10% 芯像素踩线);
                       那一处的天花板是结构性的——0.64 暗磨砂压纯白字,底板最亮只到 ≈100,
@@ -368,6 +396,9 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       z-index: 55;
       background: var(--x-bg);
       color: var(--x-white);
+      --x-nav-tint: var(--x-bg-rgb);
+      --x-nav-a: 0.64;
+      --x-accent-ink: var(--x-accent);
       padding: calc(84 * var(--uc)) var(--x-pad) calc(32 * var(--uc));
       flex-direction: column;
       align-items: flex-start;
@@ -413,6 +444,8 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     .links {
       flex-direction: column;
       gap: calc(6 * var(--uc));
+      width: 100%;
+      min-width: 0;
     }
     .links a {
       font-family: var(--x-font-display);
@@ -420,6 +453,8 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       font-weight: 500;
       letter-spacing: -0.02em;
       text-transform: none;
+      white-space: normal;
+      overflow-wrap: anywhere;
       min-height: max(var(--x-touch), calc(52 * var(--uc))); /* 触达底线走 token(同文件其余处都走它);52 是本处版式想要的更高值 */
       padding-inline: 0;
       margin-inline: 0;
@@ -429,14 +464,19 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       align-items: flex-start;
       gap: calc(18 * var(--uc));
       margin-top: calc(6 * var(--uc));
+      max-width: 100%;
+    }
+    .lang-picker {
+      max-width: 100%;
     }
     .lang {
-      gap: calc(24 * var(--uc));
+      position: static;
+      width: min(272px, 100%);
     }
     .lang a {
       min-height: var(--x-touch);
       padding-inline: calc(10 * var(--uc));
-      margin-inline: calc(-10 * var(--uc));
+      margin-inline: 0;
     }
     .lang a.active {
       border-bottom: 0;
@@ -526,6 +566,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
       flex-direction: row;
       flex-wrap: wrap;
       gap: calc(6 * var(--uc)) calc(18 * var(--uc));
+      width: auto;
     }
     :global(html:not(.js)) .links a {
       font-family: var(--x-font-mono);
@@ -548,6 +589,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   const nav = document.getElementById('site-nav');
   const toggle = nav?.querySelector<HTMLButtonElement>('.menu-toggle');
   const menu = document.getElementById('nav-menu');
+  const languagePicker = nav?.querySelector<HTMLDetailsElement>('.lang-picker');
   const frame = document.querySelector<HTMLElement>('.x-frame');
   const isOpen = () => menu?.classList.contains('open') ?? false;
   let switchT = 0;
@@ -560,7 +602,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     menu?.classList.toggle('open', open);
     menu?.toggleAttribute('data-lenis-prevent', open); // 只在开着时放行菜单内滚动:常挂会让桌面导航上方的滚轮退化成原生瞬跳
     if (open) requestAnimationFrame(syncScrollable);
-    else menu?.classList.remove('can-scroll');
+    else { menu?.classList.remove('can-scroll'); if (languagePicker) languagePicker.open = false; }
     nav?.classList.toggle('menu-open', open);
     nav?.classList.add('menu-switch'); // 开关那一瞬的墨色切换不吃翻色延迟(关菜单曾白汉堡压亮板 167ms)
     clearTimeout(switchT);
@@ -571,6 +613,10 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     document.dispatchEvent(new Event(open ? 'x:scroll-lock' : 'x:scroll-unlock'));
   };
   toggle?.addEventListener('click', () => setOpen(!isOpen()));
+  languagePicker?.addEventListener('toggle', syncScrollable);
+  addEventListener('click', (event) => {
+    if (languagePicker?.open && !languagePicker.contains(event.target as Node)) languagePicker.open = false;
+  });
   // 菜单开着时视口跨过 860(平板旋转 / 拉宽窗口):汉堡消失但锁页态残留 → 整页冻结;跨断点即收口
   const mq = matchMedia('(max-width: 860px)');
   mq.addEventListener('change', () => {
@@ -582,7 +628,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   // 焦点陷阱另一半:汉堡上 Shift+Tab 回菜单末项(此前只管菜单内首尾,反向会逃到浏览器 chrome)
   toggle?.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || !e.shiftKey || !isOpen() || !menu) return;
-    const items = [...menu.querySelectorAll<HTMLElement>('a, button')].filter((el) => el.offsetParent !== null);
+    const items = [...menu.querySelectorAll<HTMLElement>('a, button, summary')].filter((el) => el.getClientRects().length > 0);
     if (!items.length) return;
     e.preventDefault();
     items[items.length - 1].focus();
@@ -591,6 +637,11 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
     if ((e.target as HTMLElement).closest('a')) setOpen(false);
   });
   addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && languagePicker?.open) {
+      languagePicker.open = false;
+      languagePicker.querySelector('summary')?.focus();
+      return;
+    }
     if (e.key === 'Escape' && isOpen()) {
       setOpen(false);
       toggle?.focus();
@@ -599,7 +650,7 @@ const LANG_LABEL: Record<Locale, string> = { en: 'EN', vi: 'VI', zh: '中文' };
   // Tab 在菜单内循环(末项 → 汉堡,首项 Shift+Tab → 汉堡)
   menu?.addEventListener('keydown', (e) => {
     if (e.key !== 'Tab' || !isOpen()) return;
-    const items = [...menu.querySelectorAll<HTMLElement>('a, button')].filter((el) => el.offsetParent !== null);
+    const items = [...menu.querySelectorAll<HTMLElement>('a, button, summary')].filter((el) => el.getClientRects().length > 0);
     if (!items.length) return;
     const first = items[0];
     const last = items[items.length - 1];

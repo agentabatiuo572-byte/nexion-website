@@ -2,6 +2,8 @@
    清单按【每语言】捕获叶子路径的**文件内顺序**——物化按原顺序回写,字节级等价的前提。
    集合背书命名空间(faq.qN·aN、devices.tagline.*)不入可编辑集,由集合模块物化回填。 */
 
+import { LOCALES, type Locale } from './locales.js';
+
 export type Nested = { [k: string]: string | Nested };
 
 export function flatten(obj: Nested, prefix = ''): Array<[string, string]> {
@@ -25,21 +27,22 @@ export interface LocaleManifest {
   /** 全部叶子路径,保留文件内顺序(含集合背书位) */
   paths: string[];
 }
-export interface CopyManifest {
-  en: LocaleManifest;
-  vi: LocaleManifest;
-  zh: LocaleManifest;
-  /** 可编辑集 = en 叶子 − 集合背书位(三语共用一个 key 集,parity 门保证) */
+export type CopyManifest = Record<Locale, LocaleManifest> & {
+  /** 可编辑集 = en 叶子 − 集合背书位(全部语言共用 key 集,parity 门保证) */
   editable: string[];
 }
 
-export function buildManifest(en: Nested, vi: Nested, zh: Nested): CopyManifest {
+export function buildManifest(dictionaries: Record<Locale, Nested>): CopyManifest;
+/** Compatibility for callers holding the historical three-language source fixture. */
+export function buildManifest(en: Nested, vi: Nested, zh: Nested): CopyManifest;
+export function buildManifest(source: Nested | Record<Locale, Nested>, vi?: Nested, zh?: Nested): CopyManifest {
+  const dictionaries = vi && zh
+    ? Object.fromEntries(LOCALES.map((locale) => [locale, locale === 'vi' ? vi : locale === 'zh' ? zh : source])) as Record<Locale, Nested>
+    : source as Record<Locale, Nested>;
   const paths = (o: Nested) => flatten(o).map(([p]) => p);
-  const enPaths = paths(en);
+  const enPaths = paths(dictionaries.en);
   return {
-    en: { paths: enPaths },
-    vi: { paths: paths(vi) },
-    zh: { paths: paths(zh) },
+    ...Object.fromEntries(LOCALES.map((locale) => [locale, { paths: paths(dictionaries[locale]) }])) as Record<Locale, LocaleManifest>,
     editable: enPaths.filter((p) => !isCollectionBacked(p)),
   };
 }

@@ -57,7 +57,7 @@ const TESTIMONIALS: Testimonial[] = [];
     var el = document.querySelector('#social [data-scale-template]');
     var live = window.__xLiveStats;
     if (!el) return;
-    var tag = el.dataset.locale === 'vi' ? 'vi-VN' : el.dataset.locale === 'zh' ? 'zh-CN' : 'en-US';
+    var tag = ({ vi: 'vi-VN', zh: 'zh-CN', en: 'en-US' })[el.dataset.locale] || el.dataset.locale || 'en-US';
     var fmt = function (n) {
       return n >= 999500
         ? (n / 1000000).toLocaleString(tag, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + 'M'

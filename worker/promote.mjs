@@ -17,6 +17,8 @@ import { cpSync, existsSync, renameSync, rmSync, readdirSync, statSync, lstatSyn
 import { createHash } from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { MATERIALIZED_FILES } from '../schema/src/locales.ts';
+import { directoryDigest, assertDigest } from './lib/runner-artifacts.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const STAMP = '.publish-stamp.json';
@@ -42,28 +44,16 @@ for (const p of [SRC, LIVE, TMP, OLD]) {
    这件事上等于没有。上线印记本身不参与指纹——它是搬运的产物,不是被搬运的内容。 */
 function fingerprint(dir) {
   if (!existsSync(dir)) return null;
-  const h = createHash('sha256');
-  let count = 0;
-  const walk = (d, base = '') => {
-    for (const n of readdirSync(d).sort()) {
-      if (base === '' && n === STAMP) continue;
-      const p = path.join(d, n);
-      if (statSync(p).isDirectory()) walk(p, `${base}/${n}`);
-      else {
-        h.update(`${base}/${n}\0`);
-        h.update(readFileSync(p));
-        count++;
-      }
-    }
-  };
-  walk(dir);
-  return { count, hash: h.digest('hex').slice(0, 16) };
+  const digest = directoryDigest(dir);
+  return { count: digest.files, hash: digest.sha256 };
 }
 
 if (!existsSync(SRC)) {
   console.error('✗ 缺 dist —— 先在站仓根 npm run build');
   process.exit(2);
 }
+const sourceDigest = directoryDigest(SRC);
+if (argOf('--expected-sha')) assertDigest(SRC, argOf('--expected-sha'));
 
 if (process.argv.includes('--check')) {
   const a = fingerprint(SRC);
@@ -130,10 +120,9 @@ function syncInPlace() {
    🔴 为什么要这一项(2026-09-01 复验 P1-4):只带版本号和口令,证明的是「有人落了个文件」,
    不是「落下的内容就是这一版」。服务端手里有同一个物化器,能自己算出这一版该物化成什么样,
    于是摘要一比就知道这份快照到底是不是照着这一版的配置构建的。 */
-/* 摘要覆盖**全部物化产物**(三语文案 + 站点配置),不只是 site.json。
+/* 摘要覆盖全部物化产物(九语文案 + 站点配置),不只是 site.json。
    🔴 只哈希 site.json 时,「只改文案」这个最常见的改动摘要完全不变,核验形同虚设(第四轮 P1-3)。
    拼接口径必须与服务端 expectedConfigSha 逐字节一致:路径 + NUL + 内容,以 NUL 相连,顺序固定。 */
-const MATERIALIZED_FILES = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'];
 function writeStamp(dir) {
   const versionId = Number(argOf('--version'));
   const stampToken = process.env.PUBLISH_STAMP || argOf('--stamp');
@@ -155,7 +144,7 @@ function writeStamp(dir) {
      ⚠️ 明确边界:这是**抽查**不是全量——只覆盖下面列出的锚点文件,
      动了别的资产仍然看不见。全量核验要求服务端遍历整个快照,代价与收益不成比例;
      锚点选的是「改了就一定影响访客看到什么」的那几个。 */
-  /* 锚点 = **全部 HTML 页面**(三语各页 + 404 + 控制台外壳)。
+  /* 锚点 = 全部 HTML 页面(已启用语言各页 + 404 + 控制台外壳)。
      🔴 第一版只记了 3 个文件(112 个里的 3 个、36 个页面里的 1 个),于是改中文首页、
      改全站样式表都照样 `drift=null`(第六轮 P1-3)。HTML 是访客真正读到的东西,
      全记下来也就几十条,代价可以忽略。
@@ -172,7 +161,7 @@ function writeStamp(dir) {
   };
   walkHtml(dir);
 
-  const body = JSON.stringify({ versionId, stamp: stampToken, configSha, anchors, at: new Date().toISOString() }) + '\n';
+  const body = JSON.stringify({ versionId, stamp: stampToken, configSha, anchors, artifact: directoryDigest(dir), at: new Date().toISOString() }) + '\n';
   writeFileSync(path.join(dir, STAMP), body);
   return versionId;
 }
@@ -195,6 +184,8 @@ try {
   rmSync(TMP, { recursive: true, force: true });
   rmSync(OLD, { recursive: true, force: true });
   cpSync(SRC, TMP, { recursive: true });
+  assertDigest(TMP, sourceDigest.sha256);
+  assertDigest(SRC, sourceDigest.sha256);
   writeStamp(TMP); // 印记随 staging 一起上位,和内容同一瞬间可见
   staged = true;
   if (existsSync(LIVE)) renameSync(LIVE, OLD);
@@ -215,16 +206,21 @@ try {
     restorePrevious();
     throw failure;
   }
-  rmSync(TMP, { recursive: true, force: true });
   console.log(`· 目录被占用(${e.code}),已改用就地同步(内容一致,少了换名那一瞬的原子性)`);
 }
 
-const f = fingerprint(LIVE);
-const s = fingerprint(SRC);
-if (f.hash !== s.hash || f.count !== s.count) {
+let f;
+try {
+  f = fingerprint(LIVE);
+  const s = fingerprint(SRC);
+  if (!f || !s || f.hash !== sourceDigest.sha256 || s.hash !== sourceDigest.sha256 || f.count !== s.count) throw new Error('提升后完整产物摘要与已验证产物不一致');
+} catch (error) {
   restorePrevious();
-  console.error(`✗ 提升后两者仍不一致:dist ${s.count}/${s.hash} vs dist-live ${f.count}/${f.hash}`);
-  process.exit(1);
+  throw error;
 }
-rmSync(OLD, { recursive: true, force: true });
+// 内容已核实切换成功；旧目录清理失败只留下恢复事项，不改写发布结果。
+for (const residue of [OLD, TMP]) {
+  try { rmSync(residue, { recursive: true, force: true }); }
+  catch (error) { console.warn(`· 快照已核实，残留目录清理待恢复：${path.basename(residue)} (${error.code || 'unknown'})`); }
+}
 console.log(`✓ 已上线:dist-live ← dist(${f.count} 文件 / ${f.hash})`);

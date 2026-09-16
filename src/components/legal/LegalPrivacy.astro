@@ -13,8 +13,10 @@
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题,与 /learn 同档)、meta 行挂 .x-mono、小标题行高 1.1;
    英文正文标 lang=en(vi/zh 路由的 html lang 是本语)。 */
 import { useT, type Locale } from '../../i18n';
+import { SOURCE_LOCALE } from '../../../schema/src/locales';
 import { SITE_CONFIG } from '../../lib/site-config';
 import LegalDocument from './LegalDocument.astro';
+import LegalToc from './LegalToc.astro';
 
 interface Props {
   locale: Locale;
@@ -22,7 +24,17 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const configured = SITE_CONFIG.legal?.privacy;
-const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.en?.trim());
+const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md[SOURCE_LOCALE]?.trim() || configured?.md.en?.trim());
+const headings = [
+  '1. Scope',
+  '2. What this Site collects',
+  '3. Cookies and browser storage',
+  '4. Server logs',
+  '5. External links',
+  '6. Availability by region',
+  '7. Changes',
+  '8. Contact',
+].map((text, index) => ({ id: `legal-section-${index + 1}`, text }));
 ---
 
 {hasConfigured ? <LegalDocument locale={locale} document="privacy" fallbackTitle="Privacy Policy" /> : <main class="legal" lang="en">
@@ -30,14 +42,15 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
   <h1 class="x-display">Privacy Policy</h1>
   <p class="updated x-mono">Last updated: 2026-09-01</p>
 
-  <div class="sheet x-tile x-tile-calm">
-  <h2>1. Scope</h2>
+  <LegalToc locale={locale} headings={headings} />
+  <div class="sheet x-copy x-tile x-tile-calm">
+  <h2 id={headings[0].id}>{headings[0].text}</h2>
   <p>
     This policy covers the NexGrid marketing website (the "Site"). The NexGrid application (the "App") has its own
     privacy policy, shown in the App — data practices inside the App are governed by that document, not this one.
   </p>
 
-  <h2>2. What this Site collects</h2>
+  <h2 id={headings[1].id}>{headings[1].text}</h2>
   <p>
     The Site has no visitor accounts and no forms. It does not use advertising trackers, and it loads no third-party
     analytics scripts.
@@ -60,7 +73,7 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     Individual records are deleted after 90 days. Only aggregate daily counts are kept after that.
   </p>
 
-  <h2>3. Cookies and browser storage</h2>
+  <h2 id={headings[2].id}>{headings[2].text}</h2>
   <p>
     Ordinary browsing sets no cookies. If you reach the Site through a regional access link, a single cookie is set for
     up to 30 days for the sole purpose of allowing that access; it carries no information about you. Administrators
@@ -74,20 +87,20 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     Your language choice is reflected in the address (for example /vi/ or /zh/) rather than stored on your device.
   </p>
 
-  <h2>4. Server logs</h2>
+  <h2 id={headings[3].id}>{headings[3].text}</h2>
   <p>
     Our hosting infrastructure may record standard technical logs (such as IP address, user agent, and requested URL)
     for security and operational purposes. These logs are retained only as long as operationally necessary and are not
     used to identify individuals.
   </p>
 
-  <h2>5. External links</h2>
+  <h2 id={headings[4].id}>{headings[4].text}</h2>
   <p>
     The Site links to app stores and to the NexGrid App. Once you leave the Site, the destination's own privacy terms
     apply.
   </p>
 
-  <h2>6. Availability by region</h2>
+  <h2 id={headings[5].id}>{headings[5].text}</h2>
   <p>
     The Site is not available in some regions. Availability is determined by the country associated with your
     connection.
@@ -97,10 +110,10 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     is recorded for them.
   </p>
 
-  <h2>7. Changes</h2>
+  <h2 id={headings[6].id}>{headings[6].text}</h2>
   <p>We may update this policy from time to time. The "Last updated" date above reflects the current version.</p>
 
-  <h2>8. Contact</h2>
+  <h2 id={headings[7].id}>{headings[7].text}</h2>
   <p>The Site is operated by NexGrid LTD, a Colorado corporation. Registered address: 1670 Bwayroad, Denver, CO 80202, United States.</p>
   </div>
 </main>}
@@ -123,9 +136,9 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     margin: 0 0 calc(20 * var(--uc));
   }
   h1 {
-    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
+    font-size: clamp(32px, calc(54 * var(--u)), calc(54 * var(--uc)));
     color: var(--x-ink);
-    margin: 0 0 calc(14 * var(--uc)); /* 88 档标题降部与 meta 小字的呼吸(此前 8) */
+    margin: 0 0 calc(14 * var(--uc));
   }
   .updated {
     color: var(--x-ink-dim);
@@ -142,10 +155,7 @@ const hasConfigured = Boolean(configured?.md[locale]?.trim() || configured?.md.e
     letter-spacing: -0.02em; /* 24 档统一 -0.02em(与 FAQ 问题同) */
   }
   p {
-    font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
-    line-height: 1.85;
     margin: 0 0 calc(12 * var(--uc));
     text-wrap: pretty;
   }

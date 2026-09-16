@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/index';
 import type { Env } from '../src/env';
-import { LOCALES, SiteConfigSchema, materializeI18n, materializeSiteJson, type SiteConfig } from '../../schema/src/index.js';
+import { LOCALES, MATERIALIZED_FILES, SiteConfigSchema, materializeI18n, materializeSiteJson, type SiteConfig } from '../../schema/src/index.js';
 import manifest from '../seed/copy-manifest.json';
 
 const secret = 'test-service-secret-with-at-least-32-characters';
@@ -35,7 +35,7 @@ async function sha(text: string) {
 async function servedEnv(identity: { versionId: number; stamp: string; runnerId: string }) {
   const row = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(identity.versionId).first<{ payload: string }>();
   const config = SiteConfigSchema.parse(JSON.parse(row!.payload));
-  const files = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'];
+  const files = MATERIALIZED_FILES;
   const contents = [...LOCALES.map((locale) => materializeI18n(config, manifest as never, locale)), materializeSiteJson(config)];
   const html = 'audit served valid publication';
   const stamp = {
@@ -55,7 +55,7 @@ async function servedEnv(identity: { versionId: number; stamp: string; runnerId:
 
 async function staleBuiltPublication() {
   const state = await overview();
-  state.draft.payload.copy.zh['hero.scrollHint'] = '取消并发回归';
+  state.draft.payload.copy.en['hero.scrollHint'] = '取消并发回归';
   expect((await save(state)).status).toBe(200);
   await post('/api/publish/heartbeat', { runnerId: 'audit-runner' });
   const preflight = await (await app.request('/api/publish/preflight', { headers: { cookie } }, local())).json() as { draftRev: number };
@@ -162,12 +162,12 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
 
   it('H02：发布只接受确认时绑定的草稿 revision，陈旧确认不建版本', async () => {
     const first = await overview();
-    first.draft.payload.copy.zh['hero.scrollHint'] = '确认版本甲';
+    first.draft.payload.copy.en['hero.scrollHint'] = '确认版本甲';
     expect((await save(first)).status).toBe(200);
     const preflight = await (await app.request('/api/publish/preflight', { headers: { cookie } }, local())).json() as { draftRev: number };
 
     const second = await overview();
-    second.draft.payload.copy.zh['hero.scrollHint'] = '另一标签未确认版本乙';
+    second.draft.payload.copy.en['hero.scrollHint'] = '另一标签未确认版本乙';
     expect((await save(second)).status).toBe(200);
     await post('/api/publish/heartbeat', { runnerId: 'audit-runner' });
 
@@ -183,12 +183,12 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
     expect(accepted.status).toBe(200);
     const { versionId } = await accepted.json() as { versionId: number };
     const version = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first<{ payload: string }>();
-    expect(JSON.parse(version!.payload).copy.zh['hero.scrollHint']).toBe('另一标签未确认版本乙');
+    expect(JSON.parse(version!.payload).copy.en['hero.scrollHint']).toBe('另一标签未确认版本乙');
   });
 
   it('H02 原子窗口：路由读完草稿后 revision 才变化，建版本事务仍拒绝', async () => {
     const confirmed = await overview();
-    confirmed.draft.payload.copy.zh['hero.scrollHint'] = '事务前确认版本甲';
+    confirmed.draft.payload.copy.en['hero.scrollHint'] = '事务前确认版本甲';
     expect((await save(confirmed)).status).toBe(200);
     const preflight = await (await app.request('/api/publish/preflight', { headers: { cookie } }, local())).json() as { draftRev: number };
     await post('/api/publish/heartbeat', { runnerId: 'audit-runner' });
@@ -202,7 +202,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
           if (!interleaved) {
             interleaved = true;
             const later = await overview();
-            later.draft.payload.copy.zh['hero.scrollHint'] = '事务窗口版本乙';
+            later.draft.payload.copy.en['hero.scrollHint'] = '事务窗口版本乙';
             expect((await save(later)).status).toBe(200);
           }
           return env.DB.batch(statements);
@@ -238,7 +238,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
   it('M10：config.save 审计失败时草稿与 revision 一并回滚', async () => {
     const state = await overview();
     const originalPayload = JSON.stringify(state.draft.payload);
-    state.draft.payload.copy.zh['hero.scrollHint'] = '审计失败不得保存';
+    state.draft.payload.copy.en['hero.scrollHint'] = '审计失败不得保存';
     await env.DB.prepare(
       "CREATE TRIGGER fail_config_save_audit BEFORE INSERT ON audit WHEN NEW.action='config.save' BEGIN SELECT RAISE(ABORT, 'injected-audit-failure'); END",
     ).run();
@@ -256,7 +256,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
 
   it('M10 同族：取消审计失败时版本状态和锁一并回滚', async () => {
     const state = await overview();
-    state.draft.payload.copy.zh['hero.scrollHint'] = '取消审计原子性';
+    state.draft.payload.copy.en['hero.scrollHint'] = '取消审计原子性';
     expect((await save(state)).status).toBe(200);
     await post('/api/publish/heartbeat', { runnerId: 'audit-runner' });
     const preflight = await (await app.request('/api/publish/preflight', { headers: { cookie } }, local())).json() as { draftRev: number };
@@ -278,7 +278,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
 
   it('M10 同族：失败审计失败时步骤、版本和锁一并回滚', async () => {
     const state = await overview();
-    state.draft.payload.copy.zh['hero.scrollHint'] = '失败审计原子性';
+    state.draft.payload.copy.en['hero.scrollHint'] = '失败审计原子性';
     expect((await save(state)).status).toBe(200);
     await post('/api/publish/heartbeat', { runnerId: 'audit-runner' });
     const preflight = await (await app.request('/api/publish/preflight', { headers: { cookie } }, local())).json() as { draftRev: number };
@@ -323,7 +323,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
     }
   });
 
-  it('H03：Legal 三文档 × 三语逐项进入 site.json，并保留日期和英文兜底判定所需的空白原值', async () => {
+  it('H03：Legal 三文档 × 九语逐项进入 site.json，并保留日期和英文兜底判定所需的空白原值', async () => {
     const failures: string[] = [];
     for (const doc of ['terms', 'privacy', 'appPrivacy'] as const) {
       for (const locale of LOCALES) {
@@ -349,7 +349,7 @@ describe('2026-09-05 服务端审计缺陷回归', () => {
     expect(output.legal.terms.md.en).toBe('# English fallback');
     expect(output.legal.terms.md.vi).toBe('  \n');
     expect(output.legal.terms.updatedAt).toBe('2026-09-05');
-  });
+  }, 15_000); // Nine languages make 27 real save/read pairs, three times the original coverage.
 
   it('H01 顺序一：强制取消先提交时，迟到执行器不能再把该版本上线', async () => {
     const { identity, served } = await staleBuiltPublication();

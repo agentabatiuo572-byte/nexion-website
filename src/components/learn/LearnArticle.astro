@@ -28,7 +28,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
   {fallback && <p class="notice x-mono">{t('learn.untranslated')}</p>}
   <a class="back x-mono x-dimlink" href={`${prefix}/learn/`}>← {t('learn.backToList')}</a>
   <article>
-    <h1 class="x-display">{entry.data.title}</h1>
+    <h1 class="x-display" lang={fallback ? 'en' : undefined}>{entry.data.title}</h1>
     <p class="meta x-mono">
       {t(`learn.topics.${entry.data.topic}`)} · <span class="nw">{t('learn.appVersionLabel')} {entry.data.appVersion}</span> ·{' '}
       <span class="nw">{entry.data.updatedAt}</span>
@@ -40,7 +40,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
           <ol role="list">
             {toc.map((h, n) => (
               <li>
-                <a class="x-mono x-dimlink" href={`#${h.slug}`}>
+                <a class="x-mono x-dimlink" href={`#${h.slug}`} lang={fallback ? 'en' : undefined}>
                   <span class="n">{String(n + 1).padStart(2, '0')}</span>
                   {h.text}
                 </a>
@@ -50,7 +50,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
         </nav>
       )
     }
-    <div class="prose x-tile x-tile-calm" lang={fallback ? 'en' : undefined}>
+    <div class="prose x-copy x-tile x-tile-calm" lang={fallback ? 'en' : undefined}>
       <Content />
     </div>
   </article>
@@ -62,7 +62,7 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
           {related.map((r) => (
             <a class="row x-dimlink" href={`${prefix}/learn/${r.slug}/`}>
               <span class="topic x-mono">{t(`learn.topics.${r.entry.data.topic}`)}</span>
-              <span class="name x-h24">{r.entry.data.title}</span>
+              <span class="name x-h24" lang={r.fallback ? 'en' : undefined}>{r.entry.data.title}</span>
               <span class="arr x-mono" aria-hidden="true">→</span>
             </a>
           ))}
@@ -175,15 +175,12 @@ const related = i < 0 ? [] : [all[(i + 1) % all.length], all[(i + 2) % all.lengt
     margin: calc(34 * var(--uc)) 0 calc(12 * var(--uc));
   }
   .prose :global(h2:lang(vi)),
-  .prose :global(h2:lang(zh)) {
+  .prose :global(h2:is(:lang(zh), :lang(ja), :lang(ko))) {
     line-height: 1.35; /* 同 LearnList h2 */
   }
   .prose :global(p),
   .prose :global(li) {
-    font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
-    line-height: 1.85;
     text-wrap: pretty;
   }
   .prose :global(ul) {

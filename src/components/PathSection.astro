@@ -40,7 +40,7 @@ const cards = [
               <span data-tw data-tw-delay={160 * i + 120}>{c.cat}</span>
             </p>
             <h3 class="x-display" data-lr data-lr-delay={100 * i}>{c.title}</h3>
-            <p class="desc x-mono">{c.desc}</p>
+            <p class="desc x-copy">{c.desc}</p>
             <a class:list={['xbtn', { solid: c.solid }]} href={c.href}>
               <span class="xbtn-ghost" aria-hidden="true">{c.cta} <span class="arr">→</span></span>
               <span class="xbtn-a">{c.cta} <span class="arr">→</span></span>
@@ -160,7 +160,6 @@ const cards = [
     margin: 0;
     max-width: calc(480 * var(--uc));
     text-wrap: pretty;
-    line-height: 1.45;
   }
   .note {
     color: var(--x-ink-dim);

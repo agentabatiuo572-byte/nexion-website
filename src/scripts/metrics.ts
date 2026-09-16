@@ -1,4 +1,5 @@
 import { truncateUtf8 } from '../../schema/src/utf8';
+import { isLocale } from '../../schema/src/locales';
 import {
   METRIC_SECTION_IDS,
   METRIC_TEXT_BYTES,
@@ -22,7 +23,8 @@ if (!DNT) {
   const Q: Ev[] = [];
   const path = truncateUtf8(location.pathname, METRIC_TEXT_BYTES.path);
   const lang = document.documentElement.lang || 'en';
-  const loc = lang.startsWith('vi') ? 'vi' : lang.startsWith('zh') ? 'zh' : 'en';
+  const code = lang.split('-')[0];
+  const loc = isLocale(code) ? code : 'en';
   const dev = matchMedia('(max-width: 767px)').matches ? 'm' : 'd';
 
   const send = () => {

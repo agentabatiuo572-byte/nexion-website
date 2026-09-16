@@ -3,12 +3,14 @@
    于是平台数字页把校验报错印成「activeDevices:须为正数」、下载入口页印成
    「ios:须为 https 完整链接」—— 而同一个仓里现成就有「活跃设备」「iOS 版」的映射,
    只是别的页面够不着。表放在页面里,别的页面就只能各写各的。 */
-/* 文案树的 18 个分组名(与 content.tsx 的 GROUPS 同一份,由 gate-console-copy 断言不漂)。
+/* 文案树分组名。内容页按实际数据枚举板块，发布页复用这里的名称。
    🔴 少了它,`copy.*` 这一族——红项与改动里**最大的一族**——只能翻出「文案 · 中文」两个词,
    后半截仍是英文 key(第十轮独立验收 P2-8:屏幕上是「文案 · 中文 · footer · legalLine」)。 */
+import { LOCALE_NAMES, isLocale } from '../../../schema/src/locales.ts';
+import { parseFieldTarget } from './field-target.ts';
 export const COPY_GROUPS: Record<string, string> = {
   hero: '首屏 Hero', download: '下载按钮文案', stats: '统计标签', path: '收益路径',
-  how: '工作原理', devices: '设备板块', trust: '信任板块', social: '社证',
+  how: '工作原理', why: '行业背景', devices: '设备板块', trust: '信任板块', social: '社证',
   mission: '使命', nex: 'NEX', learn: '学习中心', faq: 'FAQ 标题', final: '收尾 CTA',
   site: '站点信息(SEO 源)', nav: '导航', footer: '页脚', legal: '法务提示', notfound: '404 页',
 };
@@ -17,7 +19,8 @@ export const COPY_GROUPS: Record<string, string> = {
 export const fieldName = (key: string): string => FIELD_NAME[key] ?? COPY_GROUPS[key] ?? key;
 
 const AREA: Array<[RegExp, string]> = [
-  [/^copy\.(en|vi|zh)\./, '文案'],
+  [/^copy\./, '文案'],
+  [/^enabledLocales\b/, '前台语言设置'],
   [/^downloads\./, '下载入口'],
   [/^stats\./, '平台数字'],
   [/^skus\b/, '产品卡'],
@@ -27,7 +30,15 @@ const AREA: Array<[RegExp, string]> = [
   [/^footer\./, '页脚'],
   [/^legal\./, 'Legal 文本'],
 ];
-const LOCALE_NAME: Record<string, string> = { en: '英文', vi: '越南语', zh: '中文' };
+export const LOCALE_NAME: Record<string, string> = LOCALE_NAMES;
+
+/** 同模块的所有语言一起核对；未知区域保留原名，避免丢掉新字段。 */
+export function changeGroup(path: string): string {
+  path = parseFieldTarget(path).canonical;
+  const segments = path.split('.');
+  if (segments[0] === 'copy') return COPY_GROUPS[segments[2]] ?? segments[2] ?? '文案';
+  return AREA.find(([re]) => re.test(path))?.[1] ?? segments[0] ?? path;
+}
 /* 字段名 → 人话。
    🔴 第一版只剥掉了区域前缀,尾巴原样保留,于是:
    `产品卡 · skus[0].priceUSD` —— **人话行和下面的原文小字一模一样,等于没翻译**;
@@ -41,6 +52,7 @@ const FIELD_NAME: Record<string, string> = {
   url: '链接', enabled: '开关', ios: 'iOS 版', android: '安卓版', h5: '网页版',
   // 公告条 / SEO / 页脚
   text: '正文', startsAt: '开始时间', endsAt: '结束时间', title: '标题', description: '描述',
+  subtitle: '副标题', subtitle2: '补充说明', headline: '主标题', scrollHint: '滚动提示', note: '说明', note2: '补充提示',
   social: '社媒链接', contactEmail: '联系邮箱', id: '编号',
   // 平台数字(与各页面上的标签一致)。走查实景抓到过「平台数字 · nodes」漏在这里
   activeDevices: '活跃设备', activeJobs: '运行中任务', countries: '覆盖国家', uptime: '在线率',
@@ -57,12 +69,15 @@ const FIELD_NAME: Record<string, string> = {
 };
 /** 例:`skus[0].priceUSD` → 「产品卡 · 第 1 张 · 价格」;认不出的部分保留原样,不隐藏 */
 export function humanPath(path: string): string {
+  path = parseFieldTarget(path).canonical;
   const area = AREA.find(([re]) => re.test(path))?.[1];
   if (!area) return path;
   const loc = Object.keys(LOCALE_NAME).find((l) => path.startsWith(`copy.${l}.`) || path.endsWith(`.${l}`));
-  const parts = path
-    .replace(/^(copy\.(en|vi|zh)|[a-z]+)\.?/i, '') // 去区域前缀(含 copy.<语言>)
-    .replace(/\.(en|vi|zh)$/, '') // 去尾部语言
+  const segments = path.split('.');
+  if (segments[0] === 'copy' && isLocale(segments[1] ?? '')) segments.splice(1, 1);
+  if (isLocale(segments.at(-1) ?? '')) segments.pop();
+  const parts = segments.join('.')
+    .replace(/^[a-z]+\.?/i, '')
     .split('.')
     .flatMap((seg) => {
       const m = /^([a-zA-Z_$][\w$]*)?\[(\d+)\]$/.exec(seg);

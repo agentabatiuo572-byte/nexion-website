@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { LOCALES } from '../../schema/src/locales';
 import { utf8ByteLength } from '../../schema/src/utf8';
 import {
   METRIC_CTA_IDS,
@@ -22,7 +23,7 @@ const boundedText = (minBytes: number, maxBytes: number) => z.string().refine((v
 
 const path = boundedText(1, METRIC_TEXT_BYTES.path);
 const short = boundedText(0, METRIC_TEXT_BYTES.short);
-const locale = z.enum(['en', 'vi', 'zh']);
+const locale = z.enum(LOCALES);
 const dev = z.enum(['m', 'd']);
 const section = z.enum(METRIC_SECTION_IDS);
 const cta = z.enum(METRIC_CTA_IDS);

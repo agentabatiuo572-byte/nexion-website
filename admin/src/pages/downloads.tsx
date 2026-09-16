@@ -1,5 +1,6 @@
 /* 下载入口(CON05 ⑤⑥):三入口 URL/开关 + 即时探活(预警不阻断,永不自动下架)。高敏模块。 */
 import { useState } from 'react';
+import { TextLimitHint } from '../lib/text-limit-hint';
 import { ApiError, api, toast } from '../api';
 import { retainPostSubmit, submissionSnapshot } from '../lib/async-state';
 import { fieldName } from '../lib/human-path';
@@ -16,12 +17,12 @@ type ProbeItem = { ok?: boolean; status?: number; note?: string; skipped?: boole
 type Probe = Partial<Record<(typeof ROWS)[number][0], ProbeItem>> & { at?: number; draftRev: number };
 
 export default function DownloadsPage() {
-  useFocusField(); // 「去修复」带来的 ?focus=<字段> 由它定位并高亮
   const [edits, setEdits] = useState<Record<string, { url?: string; enabled?: boolean }>>({});
   const [probe, setProbe] = useState<Probe | null>(null);
   const [probing, setProbing] = useState(false);
   const dirty = Object.keys(edits).length > 0;
   const { draft, saving, conflict, save, reload, draftRev } = useDraft(dirty);
+  useFocusField(undefined, !!draft);
 
   if (!draft) return <section><h2>下载入口</h2><div className="skl" style={{ height: 80 }} /></section>;
 
@@ -65,10 +66,13 @@ export default function DownloadsPage() {
   }
 
   return (
-    <section>
-      <h2>下载入口 <span className="pill warn">高敏 · 发布须理由</span></h2>
-      <div className="note info">未配置或关闭的入口,站上会显示「即将推出」并禁用点击,不会出现打不开的链接;改动保存进草稿,经「发布」过全部机器门后生效。</div>
-      <div className="note info">“立即探活”只检查服务器里的<b>已保存草稿</b>。本页有未保存改动时需先保存或放弃，避免把旧链接结果贴到新输入旁。</div>
+    <section className="editor-page">
+      <header className="page-heading">
+        <span className="eyebrow">内容管理</span>
+        <h2>下载入口 <span className="pill warn">高敏 · 发布须理由</span></h2>
+        <p className="page-description">管理 iOS、Android 和 Web App 的访问入口。保存草稿后，完成发布才会在官网生效。</p>
+      </header>
+      <div className="note info">关闭入口后，App 下载按钮显示「即将推出」；Web App 入口隐藏。开启只代表草稿设置，不代表已经上线。</div>
       {conflict && <div className="note bad">草稿已在别处更新,本次保存被拒 <button className="btn ghost sm" onClick={() => { setEdits({}); reload(); }}>刷新后重试</button></div>}
       {ROWS.map(([k, label, ph]) => {
         const c = cur(k);
@@ -76,28 +80,32 @@ export default function DownloadsPage() {
         return (
           <div className="card" key={k} data-field={`downloads.${k}`} style={{ marginBottom: 10 }}>
             <div className="row">
-              <b style={{ width: 88 }}>{label}</b>
-              <span className={`pill ${c.enabled ? 'ok' : ''}`}>{c.enabled ? '已上线' : '未配置(站上显示「即将推出」并禁用)'}</span>
+              <b style={{ width: '5.5rem' }}>{label}</b>
+              <span className={`pill ${c.enabled ? 'brand' : ''}`}>{c.enabled ? '草稿已开启' : '草稿已关闭'}</span>
               {p && (p.skipped ? <span className="pill">未启用/未配置,不探</span> : p.ok ? <span className="pill ok">{/* enum-ok:这是 HTTP 状态码,原值就是要给人看的 */}可达 {p.status}</span> : <span className="pill bad">不可达({p.status || '超时'})</span>)}
               <span className="spacer" />
               {/* tap44:上下架是高敏动作,点歪就把下载入口关了(第十轮 P2-9) */}
               <label className="row tap44" style={{ gap: 6 }}>
-                <span className="kv">开启</span>
-                <input type="checkbox" style={{ width: 18, height: 18 }} checked={c.enabled}
+                <span className="kv">开启入口</span>
+                <input type="checkbox" style={{ width: '1.125rem', height: '1.125rem' }} checked={c.enabled}
+                  aria-label={`开启 ${label} 入口`}
                   onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], enabled: e.target.checked } }))} />
               </label>
             </div>
             <div className="field" style={{ marginBottom: 0 }}>
-              <input placeholder={ph} value={c.url} onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], url: e.target.value.trim() } }))} />
+              <label htmlFor={`download-${k}`}>{label} 链接</label>
+              <input id={`download-${k}`} aria-describedby={`download-${k}-length`} type="url" placeholder={ph} value={c.url} onChange={(e) => setEdits((s) => ({ ...s, [k]: { ...s[k], url: e.target.value.trim() } }))} />
+              <TextLimitHint id={`download-${k}-length`} fieldId={'/downloads/' + k + '/url'} locale="en" value={c.url} />
             </div>
             {c.enabled && p && !p.skipped && !p.ok && (
-              <div className="note warn" style={{ margin: '8px 0 0' }}>链接当前不可达——预警不阻断(商店未过审可先配);是否下架由您决定,系统永不自动下架。</div>
+              <div className="note warn" style={{ margin: '8px 0 0' }}>链接当前不可达。此提醒不阻断发布，系统不会自动关闭入口。</div>
             )}
           </div>
         );
       })}
       {errs.map((e, i) => <div className="note bad" key={i}>{e}</div>)}
-      <div className="row" style={{ marginTop: 12 }}>
+      <p className="kv">链接检查仅针对已保存草稿；有未保存改动时，请先保存。检查失败不会自动关闭入口。</p>
+      <div className="editor-actions">
         <button className="btn primary" disabled={!dirty || errs.length > 0 || saving}
           onClick={async () => {
             const submitted = submissionSnapshot(edits);
@@ -107,6 +115,7 @@ export default function DownloadsPage() {
           }}>
           {saving ? '保存中…' : '保存草稿'}
         </button>
+        <span className="kv">{dirty ? '本页有未保存改动' : '保存后仍需发布'}</span>
         <button className="btn" disabled={probing || dirty} title={dirty ? '先保存或放弃本页改动；探活检查的是已保存草稿' : '检查已保存草稿里的三个入口'} onClick={doProbe}>{probing ? '探活中…' : '立即探活（已保存草稿）'}</button>
         {visibleProbe?.at && <span className="kv">已保存草稿 r{visibleProbe.draftRev} · 最近核验 {new Date(visibleProbe.at).toLocaleTimeString('zh-CN', { hour12: false })}</span>}
       </div>

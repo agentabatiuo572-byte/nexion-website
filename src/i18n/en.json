@@ -84,6 +84,11 @@
     }
   },
   "trust": {
+    "whitepaper": {
+      "title": "NexGrid whitepaper",
+      "summary": "Explore the product structure, device delivery, task verification and settlement, security design, and development roadmap.",
+      "details": "v{version} · English edition · PDF"
+    },
     "title": "Registered in the U.S. Verify it yourself.",
     "pocTitle": "How earnings are verified (Proof-of-Compute)",
     "pocBody1": "Every completed task generates an inference receipt — what ran, when, and what it earned. We record each receipt on the platform ledger and attest it on-chain.",

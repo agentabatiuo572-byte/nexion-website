@@ -23,6 +23,18 @@ const result = (action: string, id: number) => ({
 });
 
 describe('audit filter requests', () => {
+  it('provides a named native button to expand and collapse a long change', async () => {
+    mocks.api.mockResolvedValue({ items: [{ ...result('config.save', 9).items[0], after_summary: '详细变更'.repeat(30) }], nextBefore: null });
+    render(<AuditPage />);
+    const button = await screen.findByRole('button', { name: '展开第 9 条变更' });
+    expect(button.tagName).toBe('BUTTON');
+    expect(button.getAttribute('aria-expanded')).toBe('false');
+    fireEvent.click(button);
+    expect(screen.getByRole('button', { name: '收起第 9 条变更' }).getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(screen.getByRole('button', { name: '收起第 9 条变更' }));
+    expect(screen.getByRole('button', { name: '展开第 9 条变更' }).getAttribute('aria-expanded')).toBe('false');
+  });
+
   it('renders the indeterminate publish outcome as stable operator-facing copy', async () => {
     mocks.api.mockResolvedValue(result('config.publish.unknown', 1));
 

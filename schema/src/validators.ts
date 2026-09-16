@@ -3,6 +3,7 @@
 import { scanForbidden as scanForbiddenShared } from '../../scripts/forbidden-patterns.mjs';
 import type { CopyManifest } from './manifest.js';
 import { MOCK_STAT_ANCHORS, SENSITIVE_COPY_PREFIXES, SiteConfigSchema, type SiteConfig, LOCALES } from './site-config.js';
+import { SOURCE_LOCALE } from './locales.js';
 
 /* 校验器(CON04/05/06/07/08/09 各 E 条的发布级判据汇总,单源:控制台保存、发布前置校验、
    物化脚本三处同 import)。errors = 发布阻断;warnings = 软警告(可存草稿可发布,面上提示)。 */
@@ -78,31 +79,31 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
     }
   }
 
-  // 3) 占位符守恒 + 换行结构软警(CON04-E2)
+  // 3) 占位符守恒 + 换行结构软警(CON04-E2):以撰写源语言为基准
   for (const k of manifest.editable) {
-    const en = c.copy.en[k] ?? '';
-    const enTokens = tokensOf(en);
-    for (const loc of ['vi', 'zh'] as const) {
+    const source = c.copy[SOURCE_LOCALE][k] ?? '';
+    const sourceTokens = tokensOf(source);
+    for (const loc of LOCALES.filter((locale) => locale !== SOURCE_LOCALE)) {
       const v = c.copy[loc][k] ?? '';
       if (!v) continue; // 缺译由 4) 报
-      for (const t of enTokens) if (!tokensOf(v).has(t)) errors.push({ path: `copy.${loc}.${k}`, rule: 'placeholder', message: `占位符 ${t} 缺失` });
-      if (en.includes('\n') && en.split('\n').length !== v.split('\n').length)
+      for (const t of sourceTokens) if (!tokensOf(v).has(t)) errors.push({ path: `copy.${loc}.${k}`, rule: 'placeholder', message: `占位符 ${t} 缺失` });
+      if (source.includes('\n') && source.split('\n').length !== v.split('\n').length)
         warnings.push({ path: `copy.${loc}.${k}`, rule: 'newline-shape', message: '换行结构与源语言不同(站上分行契约,请人工确认)' });
     }
   }
 
-  // 4) 三语 parity/缺译(CON04-E4:发布级)
+  // 4) 已启用语言缺译(CON04-E4:发布级);禁用不删除原内容。
   for (const k of manifest.editable)
-    for (const loc of LOCALES) if (!(c.copy[loc][k] ?? '').trim()) errors.push({ path: `copy.${loc}.${k}`, rule: 'untranslated', message: '缺译' });
+    for (const loc of c.enabledLocales) if (!(c.copy[loc][k] ?? '').trim()) errors.push({ path: `copy.${loc}.${k}`, rule: 'untranslated', message: '缺译' });
   for (const it of c.faq.items) {
     if (it.deleted) continue; // 回收区条目不参与缺译/禁用词的发布拦(物化不含它)
-    for (const loc of LOCALES) {
+    for (const loc of c.enabledLocales) {
       if (!it.q[loc].trim()) errors.push({ path: `faq.${it.id}.q.${loc}`, rule: 'untranslated', message: '缺译' });
       if (!it.a[loc].trim()) errors.push({ path: `faq.${it.id}.a.${loc}`, rule: 'untranslated', message: '缺译' });
     }
   }
   for (const s of c.skus)
-    for (const loc of LOCALES) if (!s.tagline[loc].trim()) errors.push({ path: `skus.${s.id}.tagline.${loc}`, rule: 'untranslated', message: '缺译' });
+    for (const loc of c.enabledLocales) if (!s.tagline[loc].trim()) errors.push({ path: `skus.${s.id}.tagline.${loc}`, rule: 'untranslated', message: '缺译' });
 
   // 5) 下载入口(CON05-E1/E3)
   for (const [k, d] of Object.entries(c.downloads)) {
@@ -142,7 +143,7 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   // 8) 公告(CON09-E1/E2)
   const a = c.announcement;
   if (a.enabled) {
-    for (const loc of LOCALES) if (!a.text[loc].trim()) errors.push({ path: `announcement.text.${loc}`, rule: 'untranslated', message: '启用的公告三语必填' });
+    for (const loc of c.enabledLocales) if (!a.text[loc].trim()) errors.push({ path: `announcement.text.${loc}`, rule: 'untranslated', message: '启用的公告须填写当前显示语言' });
     if (!a.startsAt || !a.endsAt) errors.push({ path: 'announcement', rule: 'window', message: '启用的公告须有起止时间' });
     else if (Date.parse(a.endsAt) <= Date.parse(a.startsAt)) errors.push({ path: 'announcement.endsAt', rule: 'window', message: '结束时间须晚于开始' });
     /* `//host/path` 与 `/\\host/path` 都会被浏览器解释成跨站导航，不能冒充站内路径。 */
@@ -186,7 +187,7 @@ const skuFactRe = /^skus(\.[^.[]+|\[\d+\])\.(name|priceUSD|multiplier|status)\b/
 export function sensitivePaths(changedPaths: string[]): string[] {
   return changedPaths.filter(
     (p) =>
-      SENSITIVE_COPY_PREFIXES.some((pre) => p.startsWith(`copy.en.${pre}`) || p.startsWith(`copy.vi.${pre}`) || p.startsWith(`copy.zh.${pre}`)) ||
+      LOCALES.some((locale) => SENSITIVE_COPY_PREFIXES.some((pre) => p.startsWith(`copy.${locale}.${pre}`))) ||
       p.startsWith('downloads.') ||
       p.startsWith('stats.') ||
       p.startsWith('legal.') ||

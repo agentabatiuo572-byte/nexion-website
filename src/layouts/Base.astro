@@ -17,7 +17,9 @@ import SiteNav from '../components/SiteNav.astro';
 import SiteFooter from '../components/SiteFooter.astro';
 import AnnouncementBar from '../components/AnnouncementBar.astro';
 import { useT } from '../i18n';
-import { locales, type Locale } from '../i18n';
+import { type Locale } from '../i18n';
+import { activeLocales } from '../lib/locales';
+import { localizedPath } from '../lib/locale-policy';
 import { SITE_CONFIG } from '../lib/site-config';
 
 interface Props {
@@ -33,7 +35,7 @@ const { locale, title, description, path = '/', noindex = false } = Astro.props;
 const site = Astro.site ?? new URL('https://nexgrid.ai');
 /* 与 @astrojs/sitemap 的目录型 URL 同形(此前无尾斜杠,同一页两种 URL 送给爬虫) */
 const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
-const urlFor = (l: Locale) => new URL(withSlash(l === 'en' ? path : `/${l}${path}`), site).href;
+const urlFor = (l: Locale) => new URL(localizedPath(l, path), site).href;
 /* 首屏标题字体预载:缩短首屏那档字重(500)的就绪时间——fx 的标题引擎每个标题只等自身字重,拍锚开场钟 */
 const preloadFonts = locale === 'vi' ? [bvpVi500, bvpLatin500] : [funnel500];
 const normalizedPath = withSlash(path);
@@ -54,7 +56,7 @@ const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolve
 ---
 
 <!doctype html>
-<html lang={locale} data-theme="dark" class:list={[{ 'x-inner': path !== '/' }]}>
+<html lang={locale} data-theme="dark" data-home={path === '/' && !noindex ? '' : undefined} class:list={[{ 'x-inner': path !== '/' }]}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -72,7 +74,7 @@ const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolve
     <meta name="description" content={resolvedDescription} />
     {noindex && <meta name="robots" content="noindex" />}
     {!noindex && <link rel="canonical" href={urlFor(locale)} />}
-    {!noindex && locales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
+    {!noindex && activeLocales.map((l) => <link rel="alternate" hreflang={l} href={urlFor(l)} />)}
     {!noindex && <link rel="alternate" hreflang="x-default" href={urlFor('en')} />}
     <meta property="og:type" content="website" />
     <meta property="og:title" content={fullTitle} />
@@ -108,7 +110,7 @@ const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolve
         h.style.setProperty('--x-vw', h.getBoundingClientRect().width + 'px');
         var nav = performance.getEntriesByType && performance.getEntriesByType('navigation')[0];
         var fresh = !nav || nav.type === 'navigate';
-        if (fresh && !location.hash && /^\/(vi\/?|zh\/?)?$/.test(location.pathname)) h.classList.add('x-boot');
+        if (fresh && !location.hash && h.dataset.home !== undefined) h.classList.add('x-boot');
       })();
     </script>
     {/* 交互引擎放 head:module 脚本本就 defer(不阻塞渲染),但放在 body 末尾时预扫描器最后才发现它,

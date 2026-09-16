@@ -1,9 +1,30 @@
 /* 控制台壳(CON02):导航五组 + 状态条三 chip + 失败红条 + 重试;当前位置高亮。 */
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { NavLink, Outlet, useBlocker, useLocation, useNavigate } from 'react-router-dom';
 import { advanceAuthGeneration, ApiError, api, toast, type Overview } from './api';
 import { failReasonLine } from './lib/fail-reason';
 import { shouldBlockNavigation } from './lib/unsaved-changes';
+import { Icon, type IconName } from './lib/icon';
+import { TranslationProvider } from './lib/translations';
+import { publishedSiteUrl } from './lib/published-site';
+
+function keepEditorFocusVisible(field: EventTarget | null): void {
+  if (!(field instanceof HTMLElement) || field.closest('.editor-actions')) return;
+  requestAnimationFrame(() => {
+    if (document.activeElement !== field) return;
+    const actions = field.closest('.editor-page')?.querySelector('.editor-actions');
+    if (!actions) return;
+    const box = field.getBoundingClientRect();
+    const bar = actions.getBoundingClientRect();
+    const bottom = Math.min(window.innerHeight, bar.top) - 12;
+    // Native focus scrolling does not account for the sticky bar or an already-focused field after resize.
+    if (box.top < 12 || box.bottom > bottom) {
+      window.scrollBy({ top: box.top - Math.max(12, (bottom - box.height) / 2), behavior: 'instant' });
+    }
+  });
+}
+
+const onEditorFocus = (event: SyntheticEvent<HTMLElement>) => keepEditorFocusVisible(event.target);
 
 interface ShellState {
   overview: Overview | null;
@@ -34,27 +55,29 @@ export function useUnsavedChanges(dirty: boolean): void {
   }, [dirty, setUnsavedChanges]);
 }
 
-const NAV: Array<{ group: string; items: Array<{ to: string; label: string; icon: string }> }> = [
-  { group: '', items: [{ to: '/', label: '驾驶舱', icon: '📊' }] },
+const NAV: Array<{ group: string; items: Array<{ to: string; label: string; icon: IconName }> }> = [
+  { group: '工作空间', items: [{ to: '/', label: '数据概览', icon: 'chart' }] },
   {
-    group: '内容',
+    group: '网站管理',
     items: [
-      { to: '/content', label: '文案树', icon: '✏️' },
-      { to: '/content/downloads', label: '下载入口', icon: '⬇️' },
-      { to: '/content/stats', label: '平台数字', icon: '🔢' },
-      { to: '/content/skus', label: '产品卡', icon: '🧱' },
-      { to: '/content/faq', label: 'FAQ', icon: '❓' },
-      { to: '/content/announcement', label: '公告条', icon: '📣' },
-      { to: '/content/seo', label: '联系方式与 SEO', icon: '🧭' },
-      { to: '/content/legal', label: 'Legal', icon: '📜' },
+      { to: '/content', label: '网站文案', icon: 'file' },
+      { to: '/content/languages', label: '语言设置', icon: 'globe' },
+      { to: '/ai', label: 'AI 翻译设置', icon: 'globe' },
+      { to: '/content/downloads', label: '下载入口', icon: 'download' },
+      { to: '/content/stats', label: '展示数字', icon: 'users' },
+      { to: '/content/skus', label: '产品卡片', icon: 'grid' },
+      { to: '/content/faq', label: '常见问题', icon: 'message' },
+      { to: '/content/announcement', label: '网站公告', icon: 'megaphone' },
+      { to: '/content/seo', label: '联系与搜索设置', icon: 'settings' },
+      { to: '/content/legal', label: '法律文档', icon: 'shield' },
     ],
   },
-  { group: '控制', items: [{ to: '/geo', label: '区域屏蔽', icon: '🌐' }] },
+  { group: '访问控制', items: [{ to: '/geo', label: '区域屏蔽', icon: 'globe' }] },
   {
-    group: '发布',
+    group: '发布管理',
     items: [
-      { to: '/publish', label: '发布与版本', icon: '🚀' },
-      { to: '/audit', label: '审计日志', icon: '🧾' },
+      { to: '/publish', label: '发布与版本', icon: 'arrow-up-right' },
+      { to: '/audit', label: '审计日志', icon: 'history' },
     ],
   },
 ];
@@ -69,6 +92,8 @@ export default function Shell() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutNotice, setLogoutNotice] = useState<string | null>(null);
   const [criticalRefresh, setCriticalRefresh] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const currentPage = NAV.flatMap((group) => group.items).find((item) => item.to === routeLocation.pathname);
   const allowNextNavigation = useRef(false);
   const reloadGeneration = useRef(0);
   const requiredExpectation = useRef<OverviewExpectation | null>(null);
@@ -85,7 +110,14 @@ export default function Shell() {
 
   useEffect(() => {
     allowNextNavigation.current = false;
+    setMenuOpen(false);
   }, [routeLocation.pathname]);
+
+  useEffect(() => {
+    const onResize = () => keepEditorFocusVisible(document.activeElement);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (blocker.state !== 'blocked') return;
@@ -187,14 +219,20 @@ export default function Shell() {
   return (
     <ShellCtx.Provider value={{ overview, failed, reload, setUnsavedChanges }}>
       <div className="shell" data-unsaved={hasUnsavedChanges ? 'true' : 'false'}>
-        <aside>
+        <div className="mobile-toolbar">
+          <span className="mobile-brand">NexGrid <span>官网后台</span></span>
+          <button className="icon-button" aria-label={menuOpen ? '关闭导航' : '打开导航'} aria-expanded={menuOpen} aria-controls="console-navigation" onClick={() => setMenuOpen((open) => !open)}><Icon name={menuOpen ? 'close' : 'menu'} /></button>
+        </div>
+        <a href="#workspace" className="skip-link">跳到页面内容</a>
+        <aside id="console-navigation" className={`sidebar ${menuOpen ? 'mobile-open' : ''}`}>
           <div className="brandrow">
-            <span className="dot" />
+            <img className="brand-mark" src={new URL('../../public/logo-mark-dark.webp', import.meta.url).href} alt="" />
             <div className="lbl">
-              <b style={{ fontSize: 14 }}>官网后台</b>
-              <div className="tag">SITE CONSOLE</div>
+              <b className="brand-name">NexGrid</b>
+              <div className="brand-caption">官网运营工作台</div>
             </div>
           </div>
+          <nav aria-label="主导航">
           {NAV.map((g) => (
             <div key={g.group || 'root'}>
               {g.group && <div className="navg"><span className="tag">{g.group}</span></div>}
@@ -203,19 +241,21 @@ export default function Shell() {
                   aria-label 给读屏器,title 给鼠标悬停;图标仍 aria-hidden(它不是信息)。 */}
               {g.items.map((it) => (
                 <NavLink key={it.to} to={it.to} end={it.to === '/' || it.to === '/content'} aria-label={it.label} title={it.label} className={({ isActive }) => `nav ${isActive ? 'on' : ''}`}>
-                  <span aria-hidden>{it.icon}</span>
+                  <Icon name={it.icon} size={19} />
                   <span className="lbl">{it.label}</span>
                   {it.to === '/publish' && (overview?.dirty ?? 0) > 0 && <span className="pill warn">{overview!.dirty}</span>}
                 </NavLink>
               ))}
             </div>
           ))}
+          </nav>
           <div style={{ flex: 1 }} />
-          <button className="nav" aria-label={loggingOut ? '退出中…' : '退出'} disabled={loggingOut} onClick={logout}>↩︎ <span className="lbl">{loggingOut ? '退出中…' : '退出'}</span></button>
+          <div className="sidebar-account"><span className="account-avatar">N</span><span className="lbl"><b>管理员</b><small>官网运营</small></span><button className="icon-button" title="退出登录" aria-label={loggingOut ? '退出中…' : '退出'} disabled={loggingOut} onClick={logout}><Icon name="logout" size={18} /></button></div>
         </aside>
-        <main className="content">
+        <main className="content" id="workspace" tabIndex={-1} onFocusCapture={onEditorFocus} onInputCapture={onEditorFocus}>
+          <header className="workspace-header"><div className="breadcrumb"><span>官网后台</span><Icon name="chevron-right" size={14} /><b>{currentPage?.label ?? '页面'}</b></div><a href={publishedSiteUrl()} target="_blank" rel="noreferrer" className="btn ghost sm">查看官网 <Icon name="arrow-up-right" size={16} /></a></header>
           {/* 线上内容与系统记录对不上:此前只在发布页显示,别的页面仍写「与线上一致」(第四轮 P1-6) */}
-          {!failed && !criticalRefresh && overview?.drift && (
+          {!isOnPublish && !failed && !criticalRefresh && overview?.drift && (
             <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
               {/* 两种形态说法不同:版本号不符 vs 版本号对得上但内容被改过。
                   此前只写前一种,于是被改动的情形会渲染出「记录里线上是 v11,快照来自 v11」这种自相矛盾的话(第六轮 P1-4)。 */}
@@ -229,11 +269,11 @@ export default function Shell() {
               <NavLink to="/publish" className="btn ghost sm">去处理</NavLink>
             </div>
           )}
-          {/* CON02-E2:上次发布失败的红条,常驻壳顶直到有一次成功发布把它顶掉 */}
-          {!failed && !criticalRefresh && overview?.lastPublishFailed && (
+          {/* 发布页集中显示当前阻断和历史失败，其余页面保留全局提醒。 */}
+          {!isOnPublish && !failed && !criticalRefresh && overview?.lastPublishFailed && (
             <div className="note bad" style={{ margin: '0 0 10px', display: 'flex', alignItems: 'center', gap: 10 }}>
               {/* 只给人话:壳顶这行没有排查场景,门名/原始报错留在发布页详情(lib/fail-reason 单源) */}
-              <span>上次发布失败(v{overview.lastPublishFailed.id}):{failReasonLine(overview.lastPublishFailed.reason)}　线上仍是 v{overview.liveVersion},未受影响。</span>
+              <span>上次发布失败(v{overview.lastPublishFailed.id}):{failReasonLine(overview.lastPublishFailed.reason)}　{overview.drift ? '线上内容需核查，请到发布页查看当前核验结果。' : `当前记录的线上版本为 v${overview.liveVersion}。`}</span>
               <NavLink to="/publish" className="btn ghost sm">去看详情</NavLink>
             </div>
           )}
@@ -246,11 +286,11 @@ export default function Shell() {
               </span>
             ) : overview ? (
               <>
-                <span className="chip">线上 <b>v{overview.liveVersion}</b></span>
+                <span className="chip"><span className="status-dot" />线上 <b>v{overview.liveVersion}</b></span>
                 {/* 🔴 「与线上一致」说的是**草稿 vs 线上版本**,可劈叉时它会和上方红条同屏矛盾
                     (红条:线上内容与系统记录对不上)。劈叉时把话说准:草稿没改动,但线上内容另有问题。 */}
                 <span className={`chip ${overview.dirty ? 'warnc' : overview.drift ? 'warnc' : ''}`}>
-                  {overview.dirty ? `草稿 · ${overview.dirty} 处未发布改动` : overview.drift ? '草稿无改动(线上内容另有问题,见上方红条)' : '与线上一致'}
+                  {overview.dirty ? `草稿 · ${overview.dirty} 处未发布改动` : overview.drift ? '草稿无改动，线上内容需核查' : '与线上一致'}
                 </span>
                 <NavLink to="/geo" className={`chip ${overview.geo?.degraded ? 'warnc' : ''}`} title="区域屏蔽(只读状态;点击进入规则面板)">
                   屏蔽 <b>{overview.geo ? (overview.geo.enabled ? `开启 · ${overview.geo.countries} 个地区` : '未启用') : '状态未知'}</b>
@@ -264,15 +304,15 @@ export default function Shell() {
             {/* 🔴 已经在发布页时,这个按钮点了什么都不会发生、也没有任何反馈(实景走查 P2-3)。
                 界面上的每个按钮都该要么有效、要么显式禁用并说明原因——「点了没反应」是最坏的一种。 */}
             {isOnPublish ? (
-              <button className="btn sm" disabled title="已经在发布页了">去发布</button>
+              <span className="kv">正在查看发布与版本</span>
             ) : (
-              <NavLink to="/publish" className="btn sm">去发布</NavLink>
+              <NavLink to="/publish" className="btn primary sm">检查并发布 <Icon name="arrow-up-right" size={16} /></NavLink>
             )}
           </div>
           {logoutNotice && <div className="note warn" role="status" style={{ marginBottom: 10 }}>{logoutNotice}</div>}
           {/* 会话未确认前不挂子页:避免未登录时子页各自发请求(见上方注释) */}
           {authed ? (
-            <Outlet />
+            <TranslationProvider draftRevision={overview?.draft.draftRev} onDraftChanged={reload}><Outlet /></TranslationProvider>
           ) : failed ? (
             <div className="note bad" style={{ marginTop: 12 }}>后台服务连不上,页面无法加载 <button className="btn ghost sm" onClick={() => { setFailed(false); location.reload(); }}>重试</button></div>
           ) : (

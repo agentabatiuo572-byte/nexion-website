@@ -16,6 +16,11 @@ admin/dist/
 .opencode/
 .pi/
 .verify-cache/
+.verify-tmp/
+.cache/
+.playwright-mcp/
+output/
+tmp/
 
 # Local launcher logs and Windows-encrypted administrator password
 .local-start/

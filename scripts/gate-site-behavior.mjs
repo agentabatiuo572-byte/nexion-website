@@ -8,16 +8,20 @@ import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
+import { createHash } from 'node:crypto';
+import { loadEnv } from 'vite';
 import { buildSeed } from '../worker/build-seed.mjs';
 import { materializeAll } from '../schema/src/materialize.ts';
 import { validateConfig } from '../schema/src/validators.ts';
 import { resolveDownloadUrl } from '../src/lib/download-policy.ts';
 import { renderLegalMarkdown } from '../src/lib/legal-markdown.ts';
+import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
+import { resolveEnabledLocales } from '../src/lib/locale-policy.ts';
+import { readBuiltPages } from './gate-built-routes.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASTRO = join(ROOT, 'node_modules', 'astro', 'bin', 'astro.mjs');
 const { chromium } = createRequire(import.meta.url)('playwright');
-const LOCALES = ['en', 'vi', 'zh'];
 let checks = 0;
 const failures = [];
 
@@ -64,19 +68,54 @@ function touchTargetsPass(heights) {
   return heights.length > 0 && heights.every((height) => height >= 43.5);
 }
 
+function pdfResponseMatches(status, contentType, body, expected) {
+  return status === 200 && contentType.split(';')[0].trim().toLowerCase() === 'application/pdf'
+    && body.subarray(0, 5).toString('ascii') === '%PDF-' && body.equals(expected);
+}
+
+function measureButtonLabels(links) {
+  return links.map((link) => {
+    const style = getComputedStyle(link);
+    const range = document.createRange();
+    range.selectNodeContents(link.querySelector('.xbtn-a'));
+    const zoom = link.getBoundingClientRect().width / link.offsetWidth;
+    return {
+      text: range.getBoundingClientRect().width,
+      available: (link.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)) * zoom,
+    };
+  });
+}
+
+function buttonLabelsFit(labels) {
+  return labels.length === 1 && labels.every(({ text, available }) => text <= available + 1);
+}
+
+function behaviorConfig(seed, siteConfig) {
+  return { ...structuredClone(seed), enabledLocales: resolveEnabledLocales(siteConfig.enabledLocales) };
+}
+
 function selfTest() {
   const { config: seed, manifest } = buildSeed();
+  const pdf = Buffer.from('%PDF-1.7\n%%EOF\n');
+  const html = Buffer.from('<html>not a PDF</html>');
   const protocolRelative = structuredClone(seed);
   protocolRelative.announcement = {
     id: 'PROTOCOL_RELATIVE',
     enabled: true,
-    text: { en: 'Notice', vi: 'Thong bao', zh: '公告' },
+    text: Object.fromEntries(LOCALES.map((locale) => [locale, 'Notice'])),
     href: '//external.example/path',
     startsAt: '2026-01-01T00:00:00.000Z',
     endsAt: '2027-01-01T00:00:00.000Z',
   };
   const protocolErrors = validateConfig(protocolRelative, manifest).errors;
   const cases = [
+    ...[['en', 'vi'], [...LOCALES], ['en', 'vi', 'zh']].map((locales) => [
+      `行为变体使用本单语言 ${locales.join('/')}`,
+      // 🔴 resolveEnabledLocales 按 LOCALES 义词序返回(2026-09-15):输入 ['en','vi'] 回 ['en','vi'] 碰巧同序,
+      // [...DEFAULT_ENABLED_LOCALES] 输入(en,zh,vi,…)回 (en,vi,…,zh) 必不等。比集合,不比顺序。
+      JSON.stringify([...behaviorConfig(seed, { enabledLocales: locales }).enabledLocales].sort()) === JSON.stringify([...locales].sort()),
+    ]),
+    ['未配置语言沿用默认九语', JSON.stringify([...behaviorConfig(seed, {}).enabledLocales].sort()) === JSON.stringify([...DEFAULT_ENABLED_LOCALES].sort())],
     ['三条 FAQ 好样本', ['B', 'C', 'A'].length === 3],
     ['固定十条坏样本被拒', Array.from({ length: 10 }).length !== 3],
     ['十一条不被截断', Array.from({ length: 11 }).length === 11],
@@ -124,6 +163,11 @@ function selfTest() {
     ['重复 hash 增长坏样本被拒', !historyDidNotGrow(7, 8)],
     ['44px 触达好样本', touchTargetsPass([44, 45.25])],
     ['32px 触达坏样本被拒', !touchTargetsPass([32, 44])],
+    ['PDF 响应与文件字节一致', pdfResponseMatches(200, 'application/pdf', pdf, pdf)],
+    ['PDF 非成功状态坏样本被拒', !pdfResponseMatches(404, 'application/pdf', pdf, pdf)],
+    ['HTML 伪装 PDF 坏样本被拒', !pdfResponseMatches(200, 'application/pdf', html, html)],
+    ['HTML 响应类型坏样本被拒', !pdfResponseMatches(200, 'text/html', pdf, pdf)],
+    ['PDF 错文件坏样本被拒', !pdfResponseMatches(200, 'application/pdf', pdf, Buffer.from('%PDF-1.4'))],
   ];
   for (const [name, pass] of cases) check(name, pass);
   if (failures.length) {
@@ -193,6 +237,7 @@ const MIME = {
   '.webp': 'image/webp',
   '.woff2': 'font/woff2',
   '.ico': 'image/x-icon',
+  '.pdf': 'application/pdf',
 };
 
 async function serve(dist) {
@@ -350,7 +395,9 @@ function sampleMobileHeroCopy(page) {
 
 try {
   const { config: seed, manifest } = buildSeed();
-  const core = structuredClone(seed);
+  const siteConfig = JSON.parse(readFileSync(join(ROOT, 'src/config/site.json'), 'utf8'));
+  const core = behaviorConfig(seed, siteConfig);
+  const enabledLocales = core.enabledLocales;
   core.faq.items = [
     faqItem('A', 30),
     faqItem('HIDDEN', 0, false),
@@ -398,9 +445,11 @@ try {
   core.legal = {
     terms: {
       md: {
+        ...Object.fromEntries(LOCALES.map((locale) => [locale, ''])),
         en: '\n\n# TERMS_EN_CANARY\n\n## Clause\n\nEnglish terms.',
         vi: '',
-        zh: '\n# TERMS_ZH_CANARY\n\n## 条款\n\n中文条款。',
+        // 🔴 回退链=本地→源语言→en(2026-09-15 staging v4 实锤):SOURCE_LOCALE=zh,
+        // vi 空时若 zh 有文会先渲染中文且无英文兜底提示。测 en 回退只留 en 有文。
       },
       updatedAt: '2099-01-02',
     },
@@ -426,7 +475,7 @@ try {
 
   const staticContext = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
   const page = await staticContext.newPage();
-  for (const locale of LOCALES) {
+  for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     const three = await faqData(page);
     check(`H04 ${locale} 三条 FAQ`, three.labels.length === 3, `实际 ${three.labels.length}`);
@@ -438,8 +487,76 @@ try {
     check(`H04 ${locale} 十一条不截断`, elevenFaq.labels.length === 11 && elevenFaq.json?.mainEntity?.length === 11, `DOM=${elevenFaq.labels.length}`);
   }
 
+  const whitepaperUrl = '/documents/nexgrid-whitepaper-v1.2-en.pdf';
+  const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '51946dc591b5535b3e39c3d70a0984a10f3f7e3238db173bd5172c62885eba23');
+  const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
+  check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
+    pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
+  ));
+  const nexWhitepaperUrl = loadEnv('production', ROOT, 'PUBLIC_').PUBLIC_WHITEPAPER_URL?.trim() || whitepaperUrl;
+  for (const locale of enabledLocales) {
+    await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
+    const whitepaper = page.locator('#trust [data-whitepaper]');
+    check(`白皮书 ${locale} Trust 入口唯一`, await whitepaper.count() === 1);
+    await whitepaper.scrollIntoViewIfNeeded();
+    check(`白皮书 ${locale} 无封面和下载按钮`, await whitepaper.locator('img, .whitepaper-cover, [download], .whitepaper-download').count() === 0
+      && await whitepaper.locator('a').count() === 1);
+    const title = (await whitepaper.locator('h3').innerText()).trim();
+    const details = (await whitepaper.locator('.whitepaper-details').textContent()).trim();
+    const expectedDetails = (core.copy[locale]['trust.whitepaper.details'] || '').replace('{version}', '1.2');
+    check(`白皮书 ${locale} 标题与英文版本说明`, title.length > 0
+      && title === core.copy[locale]['trust.whitepaper.title']
+      && details.length > 0 && details === expectedDetails && details.includes('1.2')
+      && !(await whitepaper.innerText()).includes('trust.whitepaper.'));
+    const read = whitepaper.locator('a.whitepaper-read');
+    check(`白皮书 ${locale} 阅读入口`, await read.isVisible()
+      && await read.getAttribute('href') === whitepaperUrl && await read.getAttribute('target') === '_blank'
+      && await read.getAttribute('hreflang') === 'en'
+      && (await read.getAttribute('rel') || '').split(' ').includes('noopener')
+      && (await read.locator('.xbtn-a').textContent()).includes(core.copy[locale]['nex.whitepaper']));
+    if (locale === enabledLocales[0]) {
+      const [reader, response] = await Promise.all([
+        page.waitForEvent('popup'),
+        staticContext.waitForEvent('response', { predicate: (response) => response.url() === `${coreUrl}${whitepaperUrl}`
+          && response.request().resourceType() === 'document' }),
+        read.click(),
+      ]);
+      check('白皮书 真实阅读打开PDF', response.status() === 200
+        && (response.headers()['content-type'] || '').startsWith('application/pdf'));
+      await reader.close();
+    }
+    const originalViewport = page.viewportSize();
+    await page.evaluate(() => document.fonts.ready);
+    for (const width of [320, 390, 600, 601, 860, 861, 1100, 1440, 1920]) {
+      await page.setViewportSize({ width, height: 1000 });
+      const labels = await whitepaper.locator('a').evaluateAll(measureButtonLabels);
+      check(`白皮书 ${locale} ${width}px 按钮文字完整`, buttonLabelsFit(labels), JSON.stringify(labels));
+      if (locale === enabledLocales[0] && width === 390) {
+        const label = read.locator('.xbtn-a');
+        const originalStyle = await label.getAttribute('style');
+        try {
+          await label.evaluate((element) => element.style.fontSize = '40px');
+          const overflow = await whitepaper.locator('a').evaluateAll(measureButtonLabels);
+          check('白皮书 检查能识别实际文字层溢出', !buttonLabelsFit(overflow), JSON.stringify(overflow));
+        } finally {
+          await label.evaluate((element, style) => {
+            if (style === null) element.removeAttribute('style');
+            else element.setAttribute('style', style);
+          }, originalStyle);
+        }
+      }
+    }
+    await page.setViewportSize(originalViewport);
+    await page.goto(`${coreUrl}${pagePath(locale, '/nex/')}`, { waitUntil: 'domcontentloaded' });
+    const nexRead = page.locator('a[data-whitepaper-read]');
+    check(`白皮书 ${locale} NEX 默认入口或环境覆盖`, await nexRead.count() === 1
+      && await nexRead.isVisible() && await nexRead.getAttribute('href') === nexWhitepaperUrl
+      && (nexWhitepaperUrl !== whitepaperUrl || await nexRead.getAttribute('hreflang') === 'en'));
+  }
+
   /* L01 的 hash 展开/聚焦是信息导航，不得被初始 reduced-motion 连带关闭。 */
-  for (const locale of LOCALES) {
+  for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     const refs = page.locator('#why .ink-ref a[href^="#why-src-"]');
     const refCount = await refs.count();
@@ -480,7 +597,7 @@ try {
     'legal-terms': '/legal/terms/',
     'legal-app-privacy': '/legal/app-privacy/',
   };
-  for (const locale of LOCALES) {
+  for (const locale of enabledLocales) {
     for (const [pageId, route] of Object.entries(seoRoutes)) {
       const html = readFileSync(htmlPath(coreDist, locale, route), 'utf8');
       check(`H03 SEO ${pageId}/${locale} title`, html.includes(`SEO_TITLE_${pageId}_${locale}`));
@@ -499,7 +616,7 @@ try {
   await page.reload({ waitUntil: 'domcontentloaded' });
   check('H03 新公告 id 重新显示', await page.locator('#x-announcement').isVisible());
 
-  for (const locale of LOCALES) {
+  for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     check(`H03 footer 邮箱 ${locale}`, (await page.locator('footer a[href="mailto:site-gate@example.com"]').count()) >= 1);
     check(`H03 footer 社媒 ${locale}`, (await page.locator('footer a[href="https://example.com/SOCIAL_CANARY"]').count()) === 1);
@@ -507,17 +624,17 @@ try {
   }
 
   const legalExpected = {
-    terms: { path: '/legal/terms/', date: '2099-01-02', en: 'TERMS_EN_CANARY', vi: 'TERMS_EN_CANARY', zh: 'TERMS_ZH_CANARY' },
-    privacy: { path: '/legal/privacy/', date: '2099-02-03', en: 'PRIVACY_en_CANARY', vi: 'PRIVACY_vi_CANARY', zh: 'PRIVACY_zh_CANARY' },
-    appPrivacy: { path: '/legal/app-privacy/', date: '2099-03-04', en: 'APP_PRIVACY_en_CANARY', vi: 'APP_PRIVACY_vi_CANARY', zh: 'APP_PRIVACY_zh_CANARY' },
+    terms: { path: '/legal/terms/', date: '2099-01-02', ...Object.fromEntries(LOCALES.map((locale) => [locale, 'TERMS_EN_CANARY'])) },
+    privacy: { path: '/legal/privacy/', date: '2099-02-03', ...Object.fromEntries(LOCALES.map((locale) => [locale, `PRIVACY_${locale}_CANARY`])) },
+    appPrivacy: { path: '/legal/app-privacy/', date: '2099-03-04', ...Object.fromEntries(LOCALES.map((locale) => [locale, `APP_PRIVACY_${locale}_CANARY`])) },
   };
   for (const [doc, expected] of Object.entries(legalExpected)) {
-    for (const locale of LOCALES) {
+    for (const locale of enabledLocales) {
       await page.goto(`${coreUrl}${pagePath(locale, expected.path)}`, { waitUntil: 'domcontentloaded' });
       const root = page.locator('main.legal');
       check(`H03 Legal ${doc}/${locale} 正文`, (await root.locator('h1').textContent())?.trim() === expected[locale]);
       check(`H03 Legal ${doc}/${locale} updatedAt`, (await root.locator('time').getAttribute('datetime')) === expected.date);
-      if (doc === 'terms' && locale === 'vi') check('H03 Legal 英文兜底提示', (await root.locator('.prevails').count()) === 1);
+      if (doc === 'terms' && locale !== 'en' && locale !== 'zh') check(`H03 Legal 英文兜底提示 ${locale}`, (await root.locator('.prevails').count()) === 1);
     }
   }
   await page.goto(`${coreUrl}/legal/app-privacy/`, { waitUntil: 'domcontentloaded' });
@@ -563,7 +680,7 @@ try {
     reducedMotion: 'no-preference',
   });
   const mobileCanvasPage = await mobileCanvasContext.newPage();
-  for (const locale of LOCALES) {
+  for (const locale of enabledLocales) {
     await mobileCanvasPage.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'networkidle' });
     await mobileCanvasPage.evaluate(() => document.fonts.ready);
     await mobileCanvasPage.waitForFunction(() => Number(window.__xbg?.renders) > 2);
@@ -643,8 +760,8 @@ try {
   const focusState = await motionPage.evaluate((id) => ({ active: document.activeElement?.id, open: document.getElementById(id)?.closest('details')?.open }), refId);
   check('L01 引注展开后焦点落到来源', focusState.active === refId && focusState.open === true, JSON.stringify(focusState));
 
-  for (const locale of ['vi', 'zh']) {
-    await motionPage.goto(`${coreUrl}/${locale}/learn/getting-started/`, { waitUntil: 'domcontentloaded' });
+  for (const { locale, route } of readBuiltPages(coreDist).filter(({ route }) => route.endsWith('/learn/getting-started/'))) {
+    await motionPage.goto(`${coreUrl}${route}`, { waitUntil: 'domcontentloaded' });
     const toc = motionPage.locator('.toc a[href^="#"]').first();
     await toc.click();
     await motionPage.waitForTimeout(30);
@@ -654,6 +771,18 @@ try {
     const twice = await motionPage.evaluate(() => history.length);
     check(`L02 ${locale} 同 Unicode hash 不重复压历史`, historyDidNotGrow(once, twice), `${once} → ${twice}`);
   }
+  await motionPage.goto(`${coreUrl}/`, { waitUntil: 'networkidle' });
+  await motionPage.waitForTimeout(650); // Match the shared hover engine's post-navigation arming delay.
+  const summary = motionPage.locator('.lang-picker summary');
+  const languageLabel = summary.locator('[data-scr-label]');
+  const originalLabel = await languageLabel.textContent();
+  const originalAria = await summary.getAttribute('aria-label');
+  await summary.hover();
+  await motionPage.waitForFunction((original) => document.querySelector('[data-scr-label]')?.textContent !== original, originalLabel);
+  check('语言按钮 hover 扰动文字且保留图标与无障碍名称',
+    await summary.locator('svg').count() === 1 && await summary.getAttribute('aria-label') === originalAria);
+  await motionPage.mouse.move(0, 400);
+  check('语言按钮移出后恢复原文', await languageLabel.textContent() === originalLabel);
   await motionContext.close();
 
   /* 三类审查实测失败的点击件，锁住三语与窄/桌面两档的 44px 触达高度。 */
@@ -661,7 +790,7 @@ try {
   const touchPage = await touchContext.newPage();
   for (const width of [390, 1440]) {
     await touchPage.setViewportSize({ width, height: 900 });
-    for (const locale of LOCALES) {
+    for (const locale of enabledLocales) {
       await touchPage.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
       await touchPage.evaluate(() => document.fonts.ready);
       const heights = await touchPage.evaluate(() => {
@@ -680,6 +809,31 @@ try {
       for (const [kind, values] of Object.entries(heights)) {
         check(`触达 ${locale}/${width} ${kind} ≥44px`, touchTargetsPass(values), JSON.stringify(values));
       }
+      if (width <= 860) await touchPage.locator('.menu-toggle').click();
+      const picker = touchPage.locator('.lang-picker');
+      const trigger = picker.locator('summary');
+      await trigger.focus();
+      await touchPage.keyboard.press('Enter');
+      const languageState = await picker.evaluate((element) => {
+        const trigger = element.querySelector('summary');
+        const icon = trigger.querySelector('svg').getBoundingClientRect();
+        const button = trigger.getBoundingClientRect();
+        const panel = element.querySelector('.lang');
+        const style = getComputedStyle(panel);
+        const rect = panel.getBoundingClientRect();
+        return {
+          open: element.open,
+          locales: [...panel.querySelectorAll('a')].map((link) => link.hreflang),
+          centered: Math.abs(icon.top + icon.height / 2 - button.top - button.height / 2) < 1,
+          translucent: style.backgroundColor.startsWith('rgba(') && Number(style.backgroundColor.split(',').at(-1).replace(')', '')) < 1,
+          blur: style.backdropFilter.includes('blur('),
+          fits: rect.left >= 0 && rect.right <= innerWidth,
+        };
+      });
+      check(`语言选择 ${locale}/${width} 仅显示启用项`, JSON.stringify(languageState.locales) === JSON.stringify(enabledLocales), JSON.stringify(languageState));
+      check(`语言选择 ${locale}/${width} 居中图标与透明磨砂弹层`, languageState.open && languageState.centered && languageState.translucent && languageState.blur && languageState.fits, JSON.stringify(languageState));
+      await touchPage.keyboard.press('Escape');
+      check(`语言选择 ${locale}/${width} Esc 收起并归还焦点`, await picker.getAttribute('open') === null && await trigger.evaluate((element) => element === document.activeElement));
     }
   }
 

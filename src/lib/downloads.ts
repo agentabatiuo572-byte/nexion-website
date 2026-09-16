@@ -9,3 +9,11 @@ export const DOWNLOAD_URLS = {
   android: resolveDownloadUrl(site.downloads.android, import.meta.env.PUBLIC_ANDROID_URL),
   h5: resolveDownloadUrl(site.downloads.h5, import.meta.env.PUBLIC_H5_URL),
 } as const;
+
+/* 官网使用与最新中文稿同版的英文白皮书，随静态站点发布。 */
+export const WHITEPAPER = {
+  url: '/documents/nexgrid-whitepaper-v1.2-en.pdf',
+  version: '1.2',
+  pages: 21,
+  language: 'en',
+} as const;

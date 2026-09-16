@@ -76,6 +76,7 @@ export interface Overview {
   /** CON02-E2:上次发布失败(且线上之后没再成功发布过)→ 壳顶红条 */
   lastPublishFailed: { id: number; reason: string; at: number } | null;
   draft: { payload: Record<string, unknown>; draftRev: number; updatedAt: number };
+  live?: { payload: Record<string, unknown> };
   dirty: number;
   changedPaths: string[];
   sensitiveChanged: string[];

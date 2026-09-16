@@ -27,10 +27,18 @@ const MACHINE_BITS = [
 ];
 
 export function splitFailReason(raw: string): FailReason {
+  // The executor wraps command output in a Chinese gate prefix; keep the log in details.
+  if (/^门未通过(?:\([^)]*\))?\s*[:：]/.test(raw)) {
+    return { human: '发布检查未通过，请查看详情中的失败原因', tech: raw, raw: true };
+  }
+  // 截尾日志可能丢失前缀且混有中文；先隔离长篇/多行原文，避免只摘出摘要而留下整段日志。
+  if (raw.length > 240 || /[\r\n]/.test(raw)) {
+    return { human: '构建或检查未通过，请展开技术详情', tech: raw, raw: true };
+  }
   const m = /^(.*?)(?:（|\()门[:：]\s*([a-z-]+)(?:）|\))\s*$/.exec(raw);
   if (m) return { human: m[1].trim(), tech: m[2], raw: false };
-  /* 整句没有一个中文字 → 是原始技术输出(Node/构建工具的报错一律不是中文) */
-  if (!/[一-鿿]/.test(raw)) return { human: '构建或执行过程报错(非文案问题)', tech: raw, raw: true };
+  /* 没有中文的错误也保留原文，供展开排查。 */
+  if (!/[一-鿿]/.test(raw)) return { human: '构建或检查未通过，请展开技术详情', tech: raw, raw: true };
   /* 🔴 中文句子里**嵌着**机器值,是上一版判据的盲区(2026-09-01 第十轮独立验收 P1-10)。
      实录:「上线核验未通过:…(内容摘要对不上:期望 4a34ea4d0279…,实际 80e1f4a84ab0…)」
      —— 有中文,于是整句(含两串十六进制)被判成人话,原样送上壳顶常驻红条与驾驶舱主视线。

@@ -17,11 +17,27 @@ export function AutoTextarea(props: TextareaHTMLAttributes<HTMLTextAreaElement>)
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    // 先归零再读,否则 scrollHeight 会被上一次撑开的高度锁住、只增不减
-    el.style.height = 'auto';
-    const want = el.scrollHeight;
-    el.style.height = `${Math.min(want, MAX_PX)}px`;
-    el.style.overflowY = want > MAX_PX ? 'auto' : 'hidden';
+    let width = 0;
+    const resize = () => {
+      // 先归零再读,否则 scrollHeight 会被上一次撑开的高度锁住、只增不减。
+      el.style.height = 'auto';
+      const want = el.scrollHeight;
+      el.style.height = `${Math.min(want, MAX_PX)}px`;
+      el.style.overflowY = want > MAX_PX ? 'auto' : 'hidden';
+      width = el.getBoundingClientRect().width;
+    };
+    resize();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(() => {
+      // 自己写入的高度也会触发观察；只在宽度变化时重新量，避免循环。
+      if (el.getBoundingClientRect().width !== width) resize();
+    });
+    observer?.observe(el);
+    // 容器封顶后宽度可能不变，但响应式字号仍随窗口变化。
+    window.addEventListener('resize', resize);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', resize);
+    };
   }, [props.value]);
   return <textarea ref={ref} rows={2} {...props} />;
 }

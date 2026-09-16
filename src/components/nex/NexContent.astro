@@ -2,11 +2,12 @@
 /* [FEAT-WEB10] /nex 轻页正文 — 蓝本 App PRD §11.3.1 合规裁剪:
    无价格行/无实时行情;上市信息只写可验证事实(v1 不列交易所);App 内第 5 用法的
    措辞按官网 PRD §1.4-3 中性化为「长期持有」(App 原措辞属投机语态,官网禁用);
-   App 内链一律改「下载 App」CTA。白皮书入口条件渲染(O6 无资产不渲染)。
+   App 内链一律改「下载 App」CTA。白皮书采用构建配置，未配置时指向随站发布的官网版 PDF。
    axiom 方向:display 大标题 + 细线表格/行列表 + 等宽正文。
    R45 B7:子页标题不再继承正文行高 1.6(display 档行高 ≤1.1);FAQ 规格与首页 FAQ 归一(字重/字距/编号色/记号色/行高)。 */
 import { useT, type Locale } from '../../i18n';
 import Icon from '../Icon.astro';
+import { WHITEPAPER } from '../../lib/downloads';
 
 interface Props {
   locale: Locale;
@@ -14,7 +15,7 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
-const WHITEPAPER_URL = import.meta.env.PUBLIC_WHITEPAPER_URL ?? '';
+const WHITEPAPER_URL = import.meta.env.PUBLIC_WHITEPAPER_URL?.trim() || WHITEPAPER.url;
 const sources = [1, 2, 3, 4] as const;
 const uses = [1, 2, 3, 4, 5] as const;
 const faqs = [1, 2, 3, 4] as const;
@@ -24,7 +25,7 @@ const faqs = [1, 2, 3, 4] as const;
   <header class="hero">
     <span class="tag x-label" data-rv>{t('nex.pageTag')}</span>
     <h1 class="x-display" data-rv style="--d:.08s">{t('nex.pageTitle')}</h1>
-    <p class="lead x-mono" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
+    <p class="lead x-copy" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
   </header>
 
   {/* R48.7 令②:氛围配图(gpt-image-2 生成,机房柠檬灯带;纯装饰 alt 空,不进 i18n) */}
@@ -53,7 +54,7 @@ const faqs = [1, 2, 3, 4] as const;
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
           <b class="x-h24">{t(`nex.src${n}Title`)}</b>
-          <span class="x-mono">{t(`nex.src${n}Desc`)}</span>
+          <span class="x-copy">{t(`nex.src${n}Desc`)}</span>
         </li>
       ))}
     </ul>
@@ -66,7 +67,7 @@ const faqs = [1, 2, 3, 4] as const;
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
           <b class="x-h24">{t(`nex.use${n}Title`)}</b>
-          <span class="x-mono">{t(`nex.use${n}Desc`)}</span>
+          <span class="x-copy">{t(`nex.use${n}Desc`)}</span>
         </li>
       ))}
     </ul>
@@ -77,11 +78,11 @@ const faqs = [1, 2, 3, 4] as const;
     <div class="mech">
       <article class="mcard" data-rv>
         <h3 class="x-h24">{t('nex.mech1Title')}</h3>
-        <p class="x-mono">{t('nex.mech1Desc')}</p>
+        <p class="x-copy">{t('nex.mech1Desc')}</p>
       </article>
       <article class="mcard" data-rv style="--d:.1s">
         <h3 class="x-h24">{t('nex.mech2Title')}</h3>
-        <p class="x-mono">{t('nex.mech2Desc')}</p>
+        <p class="x-copy">{t('nex.mech2Desc')}</p>
       </article>
     </div>
   </section>
@@ -95,7 +96,7 @@ const faqs = [1, 2, 3, 4] as const;
           <span class="q x-q">{t(`nex.faq${n}Q`)}</span>
           <span class="mark x-mono" aria-hidden="true">+</span>
         </summary>
-        <p class="x-mono">{t(`nex.faq${n}A`)}</p>
+        <p class="x-copy">{t(`nex.faq${n}A`)}</p>
       </details>
     ))}
   </section>
@@ -107,7 +108,7 @@ const faqs = [1, 2, 3, 4] as const;
       <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
     </a>
     {WHITEPAPER_URL && (
-      <a class="xbtn" href={WHITEPAPER_URL} target="_blank" rel="noopener">
+      <a class="xbtn" data-whitepaper-read href={WHITEPAPER_URL} hreflang={WHITEPAPER_URL === WHITEPAPER.url ? WHITEPAPER.language : undefined} target="_blank" rel="noopener noreferrer">
         <span class="xbtn-ghost" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
         <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr">↗</span></span>
         <span class="xbtn-b" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
@@ -243,7 +244,7 @@ const faqs = [1, 2, 3, 4] as const;
   }
   .mech {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(calc(260 * var(--uc)), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(260 * var(--uc))), 1fr));
     gap: clamp(16px, 2vw, calc(28 * var(--uc)));
   }
   .mcard {
@@ -313,10 +314,6 @@ const faqs = [1, 2, 3, 4] as const;
     color: var(--x-ink-cap);
     margin: 0 0 calc(20 * var(--uc)) calc(calc(30 * var(--uc)) + clamp(14px, 2vw, calc(28 * var(--uc))));
     text-wrap: pretty;
-    line-height: 1.45;
-  }
-  .faq > p:lang(zh) {
-    line-height: 1.6;
   }
   .faq .q {
     transition: opacity 0.2s;

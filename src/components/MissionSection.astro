@@ -121,7 +121,7 @@ const leadParas = t('mission.lead').split('\n');
   .body p:lang(vi) {
     white-space: normal; /* vi 句长必折,保自然折行 */
   }
-  .body:lang(zh) {
+  .body:is(:lang(zh), :lang(ja), :lang(ko)) {
     font-size: max(16.5px, calc(16.56 * var(--u)));
     line-height: 1.5; /* 与眉标同尺(R25 统一) */
     word-spacing: -0.36em; /* 等宽空格 0.61em → 视觉 0.25em,收中西混排空洞 */

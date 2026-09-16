@@ -2,8 +2,11 @@
 import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
-import { LOCALES, SiteConfigSchema, materializeI18n, materializeSiteJson } from '../../schema/src/index.js';
+import { LOCALES, MATERIALIZED_FILES, SiteConfigSchema, materializeI18n, materializeSiteJson } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
+import { enumerateTranslationFields } from '../../schema/src/draft-fields.js';
+import { commitDraftWrite, DRAFT_MANIFEST, readDraftSnapshot, saveDraftPatch } from '../src/draft-write';
+import { hashTranslationText, translationSourceHash } from '../src/translation-state';
 
 const IP = { 'cf-connecting-ip': '203.0.113.90', 'content-type': 'application/json' };
 const PW = 'publish-suite-pass!';
@@ -19,7 +22,7 @@ const J = (cookie: string) => ({ cookie, 'content-type': 'application/json', aut
 async function makeChange(cookie: string, value = '改动一下') {
   const o = (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as { draft: { payload: Record<string, any>; draftRev: number } };
   const p = structuredClone(o.draft.payload);
-  p.copy.zh['hero.scrollHint'] = value;
+  p.copy.en['hero.scrollHint'] = value;
   const res = await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: p, baseRevision: o.draft.draftRev }) }, env);
   expect(res.status).toBe(200);
 }
@@ -42,7 +45,7 @@ const status = async (cookie: string) => (await (await app.request('/api/publish
 async function shaOfVersion(versionId: number): Promise<string> {
   const row = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first<{ payload: string }>();
   const cfg = SiteConfigSchema.parse(JSON.parse(row!.payload));
-  const files = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'];
+  const files = MATERIALIZED_FILES;
   const parts = [...LOCALES.map((loc) => materializeI18n(cfg, manifestJson as never, loc)), materializeSiteJson(cfg)];
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(files.map((f, i) => f + '\0' + parts[i]).join('\0')));
   return Array.from(new Uint8Array(buf), (b) => b.toString(16).padStart(2, '0')).join('');
@@ -76,11 +79,87 @@ beforeEach(async () => {
   await env.DB.prepare('DELETE FROM publish_runner').run();
   await env.DB.prepare('DELETE FROM publish_dispatch').run();
   await env.DB.prepare('INSERT INTO publish_runner(runner_id,last_seen_at) VALUES(?1,?2)').bind('availability',Date.now()).run();
-  for (const t of ['audit', 'sessions', 'login_throttle', 'auth_account', 'config_versions', 'config_draft', 'publish_lock', 'publish_steps'])
+  for (const t of ['translation_jobs', 'translation_state', 'audit', 'sessions', 'login_throttle', 'auth_account', 'config_versions', 'config_draft', 'publish_lock', 'publish_steps'])
     await env.DB.prepare(`DELETE FROM ${t}`).run();
 });
 
 describe('CON13 发布流水线', () => {
+  async function changeManagedSource() {
+    const snapshot = await readDraftSnapshot(env.DB);
+    const config = SiteConfigSchema.parse(JSON.parse(snapshot.payload));
+    const field = enumerateTranslationFields(config, DRAFT_MANIFEST).find(f => f.fieldId === '/copy/hero.scrollHint' && f.targetLocale === 'vi')!;
+    const hash = await translationSourceHash(field);
+    const saved = await commitDraftWrite(env.DB, { snapshot, payload: config, translation: { jobs: [], states: [{
+      field_id: field.fieldId, target_locale: field.targetLocale, origin: 'ai', source_hash: hash, observed_source_hash: hash,
+      applied_value_hash: await hashTranslationText(field.target), generation: 1, deleted: 0, updated_at: Date.now(),
+    }] } });
+    await saveDraftPatch(env.DB, { baseRevision: saved.draftRev, operations: [{ op: 'set', fieldId: '/copy/zh/hero.scrollHint', before: field.source, after: 'Explore the network' }] });
+  }
+
+  it('stale machine translation blocks both preflight and direct publication of the current draft', async () => {
+    const cookie = await login(); await makeChange(cookie); await changeManagedSource();
+    const preflight = await app.request('/api/publish/preflight', { headers: { cookie } }, env);
+    const result = await preflight.json() as { ready: boolean; draftRev: number; errors: Array<{ rule: string }> };
+    expect(result.ready).toBe(false);
+    expect(result.errors.some(e => e.rule === 'translation-stale')).toBe(true);
+    const before = await env.DB.prepare('SELECT COUNT(*) AS n FROM config_versions').first();
+    const submitted = await post(cookie, '/api/publish', { draftRev: result.draftRev });
+    expect(submitted.status).toBe(409);
+    expect((await submitted.json() as { errors: Array<{ rule: string }> }).errors.some(e => e.rule === 'translation-stale')).toBe(true);
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM config_versions').first()).toEqual(before);
+    const validation = await post(cookie, '/api/config/validate');
+    expect((await validation.json() as { errors: Array<{ rule: string }> }).errors.some(e => e.rule === 'translation-stale')).toBe(true);
+  });
+
+  it('draft translation changes cannot block a previously accepted immutable publication', async () => {
+    const cookie = await login(); await makeChange(cookie);
+    const accepted = await post(cookie, '/api/publish');
+    expect(accepted.status).toBe(200);
+    const versionId = (await accepted.json() as { versionId: number }).versionId;
+    await changeManagedSource();
+    await runPipeline(cookie, versionId);
+    expect((await status(cookie)).versions.find((v: { id: number }) => v.id === versionId).status).toBe('live');
+  });
+
+  it('rollback validates its historical content without using current draft translation metadata', async () => {
+    const cookie = await login(); await makeChange(cookie);
+    const historical = (await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first<{ id: number }>())!;
+    await changeManagedSource();
+    const rollback = await post(cookie, '/api/publish', { fromVersion: historical.id, reason: 'Restore the reviewed historical copy' });
+    expect(rollback.status).toBe(200);
+    await runPipeline(cookie, (await rollback.json() as { versionId: number }).versionId);
+  });
+
+  it('语言选择只在发布后生效，回滚恢复新语言正文及中文开关且不改历史', async () => {
+    const cookie = await login();
+    const readConfig = async () => (await (await app.request('/api/config', { headers: { cookie } }, env)).json()) as { draft: { payload: import('../../schema/src/site-config.js').SiteConfig; draftRev: number }; live: { payload: import('../../schema/src/site-config.js').SiteConfig } };
+    let config = await readConfig();
+    const before = structuredClone(config.live.payload.enabledLocales);
+    config.draft.payload.enabledLocales = ['en', 'es', 'zh'];
+    config.draft.payload.copy.es['hero.scrollHint'] = 'Explorar la red';
+    expect((await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: config.draft.payload, baseRevision: config.draft.draftRev }) }, env)).status).toBe(200);
+    expect((await readConfig()).live.payload.enabledLocales).toEqual(before);
+    const first = await post(cookie, '/api/publish', { reason: 'Publish selected site languages' });
+    expect(first.status).toBe(200);
+    const firstId = (await first.json() as { versionId: number }).versionId;
+    await runPipeline(cookie, firstId);
+    const original = (await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(firstId).first<{ payload: string }>())!.payload;
+    expect((await readConfig()).live.payload.enabledLocales).toEqual(['en', 'es', 'zh']);
+    config = await readConfig(); config.draft.payload.enabledLocales = ['en'];
+    expect((await app.request('/api/config/draft', { method: 'PUT', headers: J(cookie), body: JSON.stringify({ payload: config.draft.payload, baseRevision: config.draft.draftRev }) }, env)).status).toBe(200);
+    const second = await post(cookie, '/api/publish', { reason: 'Hide optional languages temporarily' });
+    expect(second.status).toBe(200);
+    await runPipeline(cookie, (await second.json() as { versionId: number }).versionId);
+    expect((await readConfig()).live.payload.copy.es['hero.scrollHint']).toBe('Explorar la red');
+    expect((await readConfig()).live.payload.enabledLocales).toEqual(['en']);
+    const rollback = await post(cookie, '/api/publish', { fromVersion: firstId, reason: 'Restore the previous language selection' });
+    expect(rollback.status).toBe(200);
+    await runPipeline(cookie, (await rollback.json() as { versionId: number }).versionId);
+    expect((await readConfig()).live.payload.enabledLocales).toEqual(['en', 'es', 'zh']);
+    expect((await readConfig()).live.payload.copy.es['hero.scrollHint']).toBe('Explorar la red');
+    expect((await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(firstId).first<{ payload: string }>())!.payload).toBe(original);
+  });
+
   it('未登录一律 401', async () => {
     for (const p of ['/api/publish/preflight', '/api/publish/status']) expect((await app.request(p, {}, env)).status).toBe(401);
     expect((await app.request('/api/publish', { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' }, env)).status).toBe(401);
@@ -857,7 +936,11 @@ describe('CON13 上报转移表(192 格穷举)', () => {
   /** 造出「这一步之前的步骤都已 ok」的局面,再把本步与锁摆成指定状态 */
   async function setup(cookie: string, step: Step, rec: Recorded, lock: LockState, seq: number) {
     await makeChange(cookie, `表格用例-${step}-${rec}-${lock}-${seq}`);
-    const r = (await (await post(cookie, '/api/publish')).json()) as { versionId: number };
+    // The 192 real API rounds can exceed the runner's 60-second freshness window.
+    expect((await post(cookie, '/api/publish/heartbeat')).status).toBe(200);
+    const publication = await post(cookie, '/api/publish');
+    const r = (await publication.json()) as { versionId: number };
+    expect(publication.status, `matrix setup ${seq}: ${JSON.stringify(r)}`).toBe(200);
     const job = await claim(cookie);
     for (const prev of STEPS.slice(0, STEPS.indexOf(step))) {
       await env.DB
@@ -876,6 +959,19 @@ describe('CON13 上报转移表(192 格穷举)', () => {
     if (lock === 'expired') await env.DB.prepare('UPDATE publish_lock SET expires_at = ?1').bind(Date.now() - 1000).run();
     return { versionId: r.versionId, stamp: job.stamp };
   }
+
+  it('过期服务心跳拒绝建单，矩阵夹具经真实心跳续期后可重新领单', async () => {
+    const cookie = await login();
+    await makeChange(cookie, '过期服务心跳边界');
+    await env.DB.prepare('UPDATE publish_runner SET last_seen_at=?1').bind(Date.now() - 61_000).run();
+    const rejected = await post(cookie, '/api/publish');
+    expect(rejected.status).toBe(503);
+    expect(await rejected.json()).toMatchObject({ error: 'executor-unavailable' });
+    expect(await (await post(cookie, '/api/publish/next')).json()).toEqual({ job: null });
+    const resumed = await setup(cookie, 'materialize', 'none', 'ours', 0);
+    expect(resumed.stamp).toBeTruthy();
+    expect(await env.DB.prepare('SELECT version_id FROM publish_lock').first()).toEqual({ version_id: resumed.versionId });
+  });
 
   it('192 格逐格与转移表一致', async () => {
     const cookie = await login();

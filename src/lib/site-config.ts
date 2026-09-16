@@ -1,14 +1,12 @@
 import bundledSite from '../config/site.json';
 import { loadBuildFixture } from './build-fixture';
+import type { Locale } from '../../schema/src/locales';
 
-export interface LocalizedText {
-  en: string;
-  vi: string;
-  zh: string;
-}
+export type LocalizedText = Record<Locale, string>;
 
 export interface SiteConfig {
   schemaVersion: number;
+  enabledLocales?: Locale[];
   stats: {
     activeDevices: number;
     activeJobs: number;

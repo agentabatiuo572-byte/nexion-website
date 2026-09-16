@@ -10,6 +10,8 @@ import { isBotUserAgent } from './bot';
 import { SENTINEL_COUNTRY, isRealCountryCode } from '../../schema/src/countries';
 import { METRIC_TEXT_BYTES } from '../../schema/src/event-contract';
 import { truncateUtf8 } from '../../schema/src/utf8';
+import { LOCALES, SOURCE_LOCALE, type Locale } from '../../schema/src/locales';
+import { pathLocale, publishedLocales } from './published-locales';
 
 /* 区域屏蔽(PRD CON12)。两条通道原则(§2.3):规则由 D1 串行化、KV 边缘物化,不经发布链。
    自锁保护(E1):/admin 与 /api 前缀恒不拦(V1-dev 同域路径制;Phase C 子域后可收紧 /api 面);
@@ -25,7 +27,7 @@ import { truncateUtf8 } from '../../schema/src/utf8';
 export interface GeoRules {
   enabled: boolean;
   countries: string[];
-  blockPage: { title: { zh: string; en: string }; body: { zh: string; en: string } };
+  blockPage: { title: { zh: string } & Partial<Record<Locale, string>>; body: { zh: string } & Partial<Record<Locale, string>> };
   updatedAt?: number;
   updatedBy?: string;
   updateOperationId?: string;
@@ -174,8 +176,11 @@ function pathClass(p: string): string {
 const esc = (s: string): string =>
   s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-function blockPageHtml(r: GeoRules): string {
-  return `<!doctype html><html lang="zh"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(r.blockPage.title.en)}</title><style>html{background:#0a0a0b;color:#b9b9c0;font:15px/1.7 system-ui,sans-serif}body{display:flex;min-height:96vh;align-items:center;justify-content:center;margin:0;padding:20px}main{max-width:520px;text-align:center}h1{color:#f2f2f3;font-size:19px;margin:0 0 6px}p{margin:4px 0}</style></head><body><main><h1>${esc(r.blockPage.title.zh)}</h1><p>${esc(r.blockPage.body.zh)}</p><hr style="border:0;border-top:1px solid #232329;margin:14px 0"><h1 style="font-size:16px">${esc(r.blockPage.title.en)}</h1><p>${esc(r.blockPage.body.en)}</p></main></body></html>`;
+function blockPageHtml(r: GeoRules, requested: Locale): string {
+  /* 回退链:请求语言 → 撰写源语言 → 英语(历史存量只有英文时仍可渲染,不空白)。 */
+  const candidates = [requested, SOURCE_LOCALE, 'en' as Locale].filter((l, i, a) => a.indexOf(l) === i);
+  const locale = candidates.find((l) => r.blockPage.title[l]?.trim() && r.blockPage.body[l]?.trim()) ?? SOURCE_LOCALE;
+  return `<!doctype html><html lang="${locale}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(r.blockPage.title[locale] ?? '')}</title><style>html{background:#0a0a0b;color:#b9b9c0;font:15px/1.7 system-ui,sans-serif}body{display:flex;min-height:96vh;align-items:center;justify-content:center;margin:0;padding:20px}main{max-width:520px;text-align:center}h1{color:#f2f2f3;font-size:19px;margin:0 0 6px}p{margin:4px 0}</style></head><body><main><h1>${esc(r.blockPage.title[locale] ?? '')}</h1><p>${esc(r.blockPage.body[locale] ?? '')}</p></main></body></html>`;
 }
 
 /** 边缘拦截中间件——挂在一切路由之前(index.ts) */
@@ -205,7 +210,9 @@ export const geoMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, nex
         await log; // 测试环境无 ExecutionContext:同步等待
       }
     }
-    return c.html(blockPageHtml(rules), 451);
+    const enabled = await publishedLocales(c.env);
+    const requested = pathLocale(path);
+    return c.html(blockPageHtml(rules, enabled.includes(requested) ? requested : 'en'), 451);
   }
   return c.body(null, 451);
 };
@@ -251,10 +258,13 @@ bypassExchange.get('/', async (c) => {
 const HIGH_TRAFFIC_SHARE = 0.05; // E2 护栏:本次变为被拦的国家近 7 天流量占比 ≥5% 须显式确认
 
 /** PUT body 契约(L2:按 §3「一切写接口 zod 校验」补) */
-const TriPage = z.object({
-  title: z.object({ zh: z.string().min(1).max(120), en: z.string().min(1).max(120) }),
-  body: z.object({ zh: z.string().min(1).max(300), en: z.string().min(1).max(300) }),
-});
+const pageLanguages = (max: number) => z.object({
+  // Keep the historical property order: stored D1/KV fingerprints bind these exact bytes.
+  // 撰写源语言必填(SOURCE_LOCALE=zh),其余可选 —— 与后台_geo页“中文必填”一致。
+  zh: z.string().min(1).max(max), en: z.string().max(max).optional(),
+  ...Object.fromEntries(LOCALES.filter((locale) => locale !== 'zh' && locale !== 'en').map((locale) => [locale, z.string().max(max).optional()])) as Record<Exclude<Locale, 'zh' | 'en'>, z.ZodOptional<z.ZodString>>,
+}).strict();
+const TriPage = z.object({ title: pageLanguages(120), body: pageLanguages(300) }).strict();
 const GeoPutSchema = z.object({
   enabled: z.boolean(),
   /* 🔴 必须是真实 ISO 码且非兜底哨兵 XX(2026-08-31 第二路验收 P2):
@@ -272,10 +282,17 @@ const GeoPutSchema = z.object({
   }).optional(),
 });
 
+/* 存量读取容忍历史数据(写时只有英文必填)：中英任一必填，渲染侧回退链兜底。
+   属性顺序与 TriPage 一致，序列化指纹口径不变。 */
+const StoredPageLanguages = (max: number) => z.object({
+  zh: z.string().max(max).optional(), en: z.string().max(max).optional(),
+  ...Object.fromEntries(LOCALES.filter((locale) => locale !== 'zh' && locale !== 'en').map((locale) => [locale, z.string().max(max).optional()])) as Record<Exclude<Locale, 'zh' | 'en'>, z.ZodOptional<z.ZodString>>,
+}).strict().refine((p) => Boolean(p.zh?.trim() || p.en?.trim()), '拦截页至少保留一种语言正文');
+const StoredTriPage = z.object({ title: StoredPageLanguages(120), body: StoredPageLanguages(300) }).strict();
 const StoredGeoRulesSchema = z.object({
   enabled: z.boolean(),
   countries: z.array(z.string().refine(isRealCountryCode)).max(249),
-  blockPage: TriPage,
+  blockPage: StoredTriPage,
   updatedAt: z.number().finite().optional(),
   updatedBy: z.string().optional(),
   updateOperationId: z.string().optional(),

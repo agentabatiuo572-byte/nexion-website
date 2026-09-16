@@ -51,3 +51,26 @@ export function retainPostSubmit<T>(current: T, submitted: T, empty: T): T {
 }
 
 export const submissionSnapshot = <T>(value: T): T => structuredClone(value);
+
+/** Display fresh untouched fields while keeping a full collection's actual edits separate. */
+export function mergeWorkingValue<T>(baseline: T, working: T, latest: T): T {
+  if (sameValue(baseline, working)) return latest;
+  if (Array.isArray(baseline) && Array.isArray(working) && Array.isArray(latest)
+    && [...baseline, ...working, ...latest].every((item) => isPlainRecord(item) && typeof item.id === 'string')) {
+    const before = new Map(baseline.map((item) => [item.id, item]));
+    const current = new Map(latest.map((item) => [item.id, item]));
+    return [...working.map((item) => before.has(item.id) && current.has(item.id)
+      ? mergeWorkingValue(before.get(item.id), item, current.get(item.id)) : item),
+    ...latest.filter((item) => !before.has(item.id) && !working.some((entry) => entry.id === item.id))] as T;
+  }
+  if (isPlainRecord(baseline) && isPlainRecord(working) && isPlainRecord(latest)) {
+    const result: Record<string, unknown> = {};
+    for (const key of new Set([...Object.keys(latest), ...Object.keys(working)])) {
+      if (!Object.hasOwn(working, key) && Object.hasOwn(baseline, key)) continue;
+      result[key] = Object.hasOwn(working, key)
+        ? mergeWorkingValue(baseline[key], working[key], latest[key]) : latest[key];
+    }
+    return result as T;
+  }
+  return working;
+}

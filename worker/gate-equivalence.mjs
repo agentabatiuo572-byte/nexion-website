@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { buildSeed } from './build-seed.mjs';
 import { materializeI18n, materializeSiteJson } from '../schema/src/materialize.ts';
 import { validateConfig } from '../schema/src/validators.ts';
+import { LOCALES } from '../schema/src/locales.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SITE = path.join(here, '..');
@@ -49,7 +50,7 @@ if (v.warnings.length) console.log(`  (软警告 ${v.warnings.length} 条,预期
    手改由判据①(unknown-key)与判据④(落盘种子漂移)兜住,整套仍然有效;
    但别把这三条当成「仓内 i18n == 线上配置」的证据。 */
 // ② i18n 三语逐字节
-for (const loc of ['en', 'vi', 'zh']) {
+for (const loc of LOCALES) {
   const out = materializeI18n(config, manifest, loc);
   const orig = readFileSync(path.join(SITE, `src/i18n/${loc}.json`), 'utf8').replaceAll('\r\n', '\n');
   if (out === orig) say(true, `i18n ${loc}.json 逐字节一致(${out.length}B)`);

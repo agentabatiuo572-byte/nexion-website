@@ -1,15 +1,19 @@
 // @vitest-environment jsdom
 import { act } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as renderPage, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+const render = (node: ReactNode) => renderPage(<MemoryRouter>{node}</MemoryRouter>);
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), save: vi.fn() }));
 
 vi.mock('../src/api', () => ({ api: mocks.api }));
 vi.mock('../src/lib/use-focus-field', () => ({ useFocusField: () => {} }));
 vi.mock('../src/lib/use-draft', () => ({
+  pointer: (...parts: string[]) => '/' + parts.join('/'),
   useDraft: () => ({
     draft: {
       faq: {

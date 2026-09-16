@@ -1,5 +1,6 @@
 import { expandFaqPaths, isCollectionBacked, unflatten, type CopyManifest, type Nested } from './manifest.js';
 import { LOCALES, SCHEMA_VERSION, type Locale, type SiteConfig } from './site-config.js';
+import { SOURCE_LOCALE } from './locales.js';
 
 /* 物化器(CON16-A1/A2):SiteConfig → 站构建消费物。
    字节稳定契约:JSON 2 空格缩进 + LF + 收尾换行,嵌套顺序=各语言清单原文件顺序;
@@ -16,11 +17,7 @@ function visibleFaq(c: SiteConfig) {
 
 function materializeLegalDocument(doc: SiteConfig['legal']['terms']) {
   return {
-    md: {
-      en: doc.md.en,
-      vi: doc.md.vi,
-      zh: doc.md.zh,
-    },
+    md: Object.fromEntries(LOCALES.map((locale) => [locale, doc.md[locale]])),
     updatedAt: doc.updatedAt,
   };
 }
@@ -28,7 +25,7 @@ function materializeLegalDocument(doc: SiteConfig['legal']['terms']) {
 /** 单语言 i18n JSON 物化 */
 export function materializeI18n(c: SiteConfig, manifest: CopyManifest, locale: Locale): string {
   const faq = visibleFaq(c);
-  const paths = expandFaqPaths(manifest[locale].paths, faq.length);
+  const paths = expandFaqPaths((manifest[locale] ?? manifest[SOURCE_LOCALE]).paths, faq.length);
   const skuById = new Map(c.skus.map((s) => [s.id, s]));
   const nested: Nested = unflatten(paths, (p) => {
     if (!isCollectionBacked(p)) return c.copy[locale][p];
@@ -49,6 +46,7 @@ export function materializeI18n(c: SiteConfig, manifest: CopyManifest, locale: L
 export function materializeSiteJson(c: SiteConfig): string {
   const site = {
     schemaVersion: SCHEMA_VERSION,
+    enabledLocales: c.enabledLocales,
     stats: c.stats,
     skus: c.skus
       .filter((s) => s.visible)

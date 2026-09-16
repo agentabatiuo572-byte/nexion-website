@@ -1,0 +1,4835 @@
+{
+  "version": 2,
+  "scope": "full",
+  "status": "failed",
+  "generatedAt": "2026-09-10T05:26:19.709Z",
+  "portableLayoutHash": "2874de740a0cbf8248273c41b82837ffe16c219bb8bb66675a9e33e088b048db",
+  "buildHash": "2f1b578430dbe974aadfc3b8d1573fcb51ba37c290ec6771ab8ab967eb994de3",
+  "matrix": {
+    "widths": [
+      320,
+      390,
+      479,
+      480,
+      520,
+      521,
+      560,
+      561,
+      600,
+      601,
+      640,
+      641,
+      767,
+      768,
+      860,
+      861,
+      900,
+      901,
+      1024,
+      1080,
+      1081,
+      1200,
+      1201,
+      1366,
+      1439,
+      1440,
+      1441,
+      1920,
+      2560
+    ],
+    "heights": [
+      360,
+      380,
+      381,
+      400,
+      401,
+      420,
+      421,
+      520,
+      521,
+      768,
+      844,
+      900
+    ],
+    "views": [
+      {
+        "width": 320,
+        "height": 844
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 479,
+        "height": 844
+      },
+      {
+        "width": 480,
+        "height": 844
+      },
+      {
+        "width": 520,
+        "height": 844
+      },
+      {
+        "width": 521,
+        "height": 844
+      },
+      {
+        "width": 560,
+        "height": 844
+      },
+      {
+        "width": 561,
+        "height": 844
+      },
+      {
+        "width": 600,
+        "height": 844
+      },
+      {
+        "width": 601,
+        "height": 844
+      },
+      {
+        "width": 640,
+        "height": 844
+      },
+      {
+        "width": 641,
+        "height": 844
+      },
+      {
+        "width": 767,
+        "height": 844
+      },
+      {
+        "width": 768,
+        "height": 844
+      },
+      {
+        "width": 860,
+        "height": 844
+      },
+      {
+        "width": 861,
+        "height": 900
+      },
+      {
+        "width": 900,
+        "height": 900
+      },
+      {
+        "width": 901,
+        "height": 900
+      },
+      {
+        "width": 1024,
+        "height": 900
+      },
+      {
+        "width": 1080,
+        "height": 900
+      },
+      {
+        "width": 1081,
+        "height": 900
+      },
+      {
+        "width": 1200,
+        "height": 900
+      },
+      {
+        "width": 1201,
+        "height": 900
+      },
+      {
+        "width": 1366,
+        "height": 900
+      },
+      {
+        "width": 1439,
+        "height": 900
+      },
+      {
+        "width": 1440,
+        "height": 900
+      },
+      {
+        "width": 1441,
+        "height": 900
+      },
+      {
+        "width": 1920,
+        "height": 900
+      },
+      {
+        "width": 2560,
+        "height": 900
+      },
+      {
+        "width": 390,
+        "height": 360
+      },
+      {
+        "width": 1024,
+        "height": 360
+      },
+      {
+        "width": 1440,
+        "height": 360
+      },
+      {
+        "width": 390,
+        "height": 380
+      },
+      {
+        "width": 1024,
+        "height": 380
+      },
+      {
+        "width": 1440,
+        "height": 380
+      },
+      {
+        "width": 390,
+        "height": 381
+      },
+      {
+        "width": 1024,
+        "height": 381
+      },
+      {
+        "width": 1440,
+        "height": 381
+      },
+      {
+        "width": 390,
+        "height": 400
+      },
+      {
+        "width": 1024,
+        "height": 400
+      },
+      {
+        "width": 1440,
+        "height": 400
+      },
+      {
+        "width": 390,
+        "height": 401
+      },
+      {
+        "width": 1024,
+        "height": 401
+      },
+      {
+        "width": 1440,
+        "height": 401
+      },
+      {
+        "width": 390,
+        "height": 420
+      },
+      {
+        "width": 1024,
+        "height": 420
+      },
+      {
+        "width": 1440,
+        "height": 420
+      },
+      {
+        "width": 390,
+        "height": 421
+      },
+      {
+        "width": 1024,
+        "height": 421
+      },
+      {
+        "width": 1440,
+        "height": 421
+      },
+      {
+        "width": 390,
+        "height": 520
+      },
+      {
+        "width": 1024,
+        "height": 520
+      },
+      {
+        "width": 1440,
+        "height": 520
+      },
+      {
+        "width": 390,
+        "height": 521
+      },
+      {
+        "width": 1024,
+        "height": 521
+      },
+      {
+        "width": 1440,
+        "height": 521
+      },
+      {
+        "width": 390,
+        "height": 768
+      },
+      {
+        "width": 1024,
+        "height": 768
+      },
+      {
+        "width": 1440,
+        "height": 768
+      },
+      {
+        "width": 390,
+        "height": 844
+      },
+      {
+        "width": 1024,
+        "height": 844
+      },
+      {
+        "width": 1440,
+        "height": 844
+      }
+    ]
+  },
+  "errors": [
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 479,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 480,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 520,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 521,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 560,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 561,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 600,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 601,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 640,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 641,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 767,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 768,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 860,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "wide-same-count",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 1920,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "wide-same-count",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "buttons",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "hero",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "mission",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 2560,
+        "height": 900
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.title",
+          "selector": ".hero .cluster h1",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle",
+          "selector": ".hero .left .note",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.subtitle2",
+          "selector": ".hero .left .note2",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note",
+          "selector": ".hero .subs .sub",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.note2",
+          "selector": ".hero .subs .sub2",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "hero.scrollHint",
+          "selector": ".hero .scroll-hint .txt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.kicker",
+          "selector": "#mission .ktxt",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.title",
+          "selector": "#mission .state",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.lead",
+          "selector": "#mission .body",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f1",
+          "selector": "#mission .cell:nth-child(1) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f2",
+          "selector": "#mission .cell:nth-child(2) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f3",
+          "selector": "#mission .cell:nth-child(3) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f4",
+          "selector": "#mission .cell:nth-child(4) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f5",
+          "selector": "#mission .cell:nth-child(5) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        },
+        {
+          "key": "mission.f6",
+          "selector": "#mission .cell:nth-child(6) .name",
+          "reason": "observation gap",
+          "detail": "同区域文字无法精确测量：字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 521
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 768
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "nav",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "default",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "at-advice",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    },
+    {
+      "locale": "ja",
+      "view": {
+        "width": 390,
+        "height": 844
+      },
+      "group": "combined",
+      "sample": "changed-breaks",
+      "failures": [
+        {
+          "key": "nav.learn",
+          "selector": ".site-nav .links a[href$=\"/learn/\"]",
+          "reason": "observation gap",
+          "detail": "字体特性或混合字体的实际宽度无法精确还原"
+        }
+      ]
+    }
+  ],
+  "contract": "Record actual default, simultaneous measured extensions and equal-count adversarial strings. Combination failures require preview; no proportional reduction or fabricated per-field cap.",
+  "geometryDetail": "Measured element/ink/neighbor/occlusion bounds retained; duplicated per-line glyph runs omitted. Replay uses exact values and the fingerprinted build.",
+  "summary": {
+    "default": {
+      "cases": 2790,
+      "physicalConcerns": 940
+    },
+    "at-advice": {
+      "cases": 2790,
+      "physicalConcerns": 1258
+    },
+    "wide-same-count": {
+      "cases": 2790,
+      "physicalConcerns": 1642
+    },
+    "changed-breaks": {
+      "cases": 2790,
+      "physicalConcerns": 1245
+    }
+  },
+  "fullReport": {
+    "path": "D:\\WORKS\\PLAN\\nexgrid-website\\.cache\\copy-length-correction\\joint-report.json",
+    "sha256": "8207681f9892935f6814e9f802860476b498e5ec73c010f6e54c02688b8070b6"
+  },
+  "examples": [
+    {
+      "locale": "es",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "buttons",
+      "sample": "default",
+      "values": {
+        "download.ios": "Descargar para iOS",
+        "download.android": "Descargar para Android",
+        "nav.launchH5": "App web"
+      },
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        }
+      ],
+      "geometry": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 537.078125,
+            "bottom": 579.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 80.6875,
+            "right": 213.535400390625,
+            "top": 553.875,
+            "bottom": 563.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 593.078125,
+            "bottom": 635.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 66,
+            "right": 227.223876953125,
+            "top": 609.875,
+            "bottom": 619.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 649.078125,
+            "bottom": 691.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 106.09375,
+            "right": 159.15771484375,
+            "top": 665.875,
+            "bottom": 675.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "skipped": []
+    },
+    {
+      "locale": "es",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "buttons",
+      "sample": "at-advice",
+      "values": {
+        "download.ios": "Descargar para iOS",
+        "download.android": "Descargar para Android",
+        "nav.launchH5": "App web"
+      },
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        }
+      ],
+      "geometry": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 537.078125,
+            "bottom": 579.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 80.6875,
+            "right": 213.535400390625,
+            "top": 553.875,
+            "bottom": 563.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 593.078125,
+            "bottom": 635.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 66,
+            "right": 227.223876953125,
+            "top": 609.875,
+            "bottom": 619.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 649.078125,
+            "bottom": 691.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 106.09375,
+            "right": 159.15771484375,
+            "top": 665.875,
+            "bottom": 675.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "skipped": []
+    },
+    {
+      "locale": "es",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "buttons",
+      "sample": "wide-same-count",
+      "values": {
+        "download.ios": "WWWWWWWWWWWWWWWWWW",
+        "download.android": "WWWWWWWWWWWWWWWWWWWWWW",
+        "nav.launchH5": "WWWWWWW"
+      },
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        }
+      ],
+      "geometry": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 537.078125,
+            "bottom": 579.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 79.6875,
+            "right": 213.535400390625,
+            "top": 553.875,
+            "bottom": 561.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 593.078125,
+            "bottom": 635.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 65,
+            "right": 228.223876953125,
+            "top": 609.875,
+            "bottom": 617.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 649.078125,
+            "bottom": 691.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 106.09375,
+            "right": 159.15771484375,
+            "top": 665.875,
+            "bottom": 673.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "skipped": []
+    },
+    {
+      "locale": "es",
+      "view": {
+        "width": 320,
+        "height": 844
+      },
+      "group": "buttons",
+      "sample": "changed-breaks",
+      "values": {
+        "download.ios": "Descargar\npara\niOS",
+        "download.android": "Descargar\npara\nAndroid",
+        "nav.launchH5": "App\nweb"
+      },
+      "failures": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "reason": "同区域内容：Hero 文字被导航遮挡"
+        }
+      ],
+      "geometry": [
+        {
+          "key": "download.ios",
+          "selector": ".hero .dl > :nth-child(1)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 537.078125,
+            "bottom": 579.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 80.6875,
+            "right": 213.535400390625,
+            "top": 553.875,
+            "bottom": 563.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "download.android",
+          "selector": ".hero .dl > :nth-child(2)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 593.078125,
+            "bottom": 635.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 66,
+            "right": 227.223876953125,
+            "top": 609.875,
+            "bottom": 619.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        },
+        {
+          "key": "nav.launchH5",
+          "selector": ".hero .dl > :nth-child(3)",
+          "box": {
+            "left": 21,
+            "right": 264.609375,
+            "top": 649.078125,
+            "bottom": 691.078125,
+            "width": 243.609375,
+            "height": 42
+          },
+          "units": "screen-px",
+          "visualLineCount": 1,
+          "ink": {
+            "left": 106.09375,
+            "right": 159.15771484375,
+            "top": 665.875,
+            "bottom": 675.875
+          },
+          "boundary": {
+            "left": 20,
+            "right": 285,
+            "top": 268.140625,
+            "bottom": 692.078125,
+            "width": 265,
+            "height": 423.9375
+          },
+          "mediaHeight": null,
+          "constraint": "inline",
+          "related": [
+            {
+              "selector": "p.note.x-mono",
+              "box": {
+                "left": 20,
+                "right": 285,
+                "top": 98.140625,
+                "bottom": 152.140625,
+                "width": 265,
+                "height": 54
+              },
+              "units": "screen-px",
+              "visualLineCount": 3,
+              "ink": {
+                "left": 20,
+                "right": 284.039794921875,
+                "top": 101.140625,
+                "bottom": 147.140625
+              },
+              "navOverlay": {
+                "bounds": {
+                  "left": 0,
+                  "right": 305,
+                  "top": 45,
+                  "bottom": 107,
+                  "width": 305,
+                  "height": 62
+                },
+                "ink": {
+                  "left": 20,
+                  "right": 284.039794921875,
+                  "top": 101.140625,
+                  "bottom": 111.140625
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "skipped": []
+    }
+  ]
+}

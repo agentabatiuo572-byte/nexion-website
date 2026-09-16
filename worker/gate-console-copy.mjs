@@ -14,6 +14,7 @@
 import { readdirSync, statSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { LOCALES as CONTENT_LOCALES } from '../schema/src/locales.ts';
 /* 直接 import .ts(node 24 原生剥类型),不再截源码求值 —— 见 checkPublishHelpers 里的说明。
    humanPath 也已从 publish.tsx 挪进 lib(为了让平台数字页/下载入口页够得着同一张表),
    于是它同样能直接 import,截取那条路彻底不用了。 */
@@ -112,8 +113,16 @@ function scan(files) {
       }
       // 形态①:`const x = … ? '机器词' : '机器词'`,而 x 后来被直接渲染成 `{x}`
       const decl = line.match(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=[^;]*\?\s*'([a-z][a-z0-9-]*)'\s*:\s*'([a-z][a-z0-9-]*)'/);
-      if (decl && !exempt && new RegExp(`\\{\\s*${decl[1]}\\s*\\}`).test(text)) {
-        out.push({ file, line: i + 1, why: `变量 ${decl[1]} 存的是机器词('${decl[2]}'/'${decl[3]}'),却被直接渲染成 {${decl[1]}};存人话或过映射表`, code: t.slice(0, 110) });
+      if (decl && !exempt) {
+        // 🔴 `{x}` 写在 `data-*` 属性里不算渲染(2026-09-15 staging 实锤误报):
+        // data-* 是给 CSS/JS 读的状态钩子(R49-F2 要求它们有消费方),不是印给人看的文本。
+        // publish.tsx 的 `data-state={state}` 因此被误报,连带恒红整条发布链。
+        // 只豁免 data-*:title/aria-label/placeholder 等仍是渲染点,照抓。
+        const uses = [...text.matchAll(new RegExp(`\\{\\s*${decl[1]}\\s*\\}`, 'g'))].filter((m) => {
+          const before = text.slice(Math.max(0, m.index - 32), m.index);
+          return !/data-[\w-]*=\s*$/.test(before);
+        });
+        if (uses.length) out.push({ file, line: i + 1, why: `变量 ${decl[1]} 存的是机器词('${decl[2]}'/'${decl[3]}'),却被直接渲染成 {${decl[1]}};存人话或过映射表`, code: t.slice(0, 110) });
       }
     });
   }
@@ -172,7 +181,8 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: "import { Link } from 'react-router-dom';" }]).length === 0, 'self-test:import 说明符 → 不误报');
   say(scan([{ file: 'f.tsx', text: "<div style={{ justifyContent: 'flex-end' }}>" }]).length === 0, 'self-test:CSS 属性值 → 不误报');
   say(scan([{ file: 'f.tsx', text: "const L = { 'forbidden-word': '合规禁用词', 'dup-id': 'FAQ id 重复' };" }]).length === 0, 'self-test:映射表的键(正确写法本身)→ 不误报');
-  say(scan([{ file: 'f.tsx', text: "const win = a.enabled ? 'live' : 'disabled';\n<span>{win}</span>" }]).length === 1, 'self-test:变量存机器词又被直接渲染 → 被抓');
+  say(scan([{ file: 'f.tsx', text: "const state = ok ? 'done' : 'todo';\n<li data-state={state} aria-label=\"ok\">x</li>" }]).length === 0, 'self-test:data-* 属性里的 {state} 是状态钩子 → 不误报');
+  say(scan([{ file: 'f.tsx', text: "const state = ok ? 'done' : 'todo';\n<li data-state={state} title={state}>x</li>" }]).length === 1, 'self-test:同行 data-* 合法但 title 直出 → 仍被抓');
   say(scan([{ file: 'f.tsx', text: "const win = a.enabled ? 'live' : 'disabled';\napi(win);" }]).length === 0, 'self-test:同样的变量只传给接口、不渲染 → 不误报');
   // 判据③:带了参数没人读 → 被抓;有人读 → 不误报
   const orphan = [{ file: 'a.tsx', text: 'to={`/x?focus=${p}`}' }];
@@ -190,6 +200,12 @@ if (process.argv.includes('--self-test')) {
   say(checkAuditLabels(E('a.x'), L('a.x', 'a.z')).some((h) => h.why.includes('死键')), 'self-test:人话表留着已删的动作码 → 被抓');
   say(checkAuditLabels('（改名了）', L('a.x')).some((h) => h.why.includes('门已失效')), 'self-test:抽不出枚举 → 报门失效,不静默放行');
   say(checkAuditLabels().length === 0, 'self-test:真实的动作码与人话表全对得上');
+  const failureSource = (text) => [{ file: 'failure.tsx', text }];
+  say(checkFailReasonConsumers(failureSource('<div>{v.fail_reason}</div>')).length === 1, 'self-test:失败原因直接渲染 → 被抓');
+  say(checkFailReasonConsumers(failureSource('<div>{failReasonLine(v.fail_reason)}</div>')).length === 0, 'self-test:失败原因经过单行译名 → 不误报');
+  say(checkFailReasonConsumers(failureSource('{v.fail_reason ? (() => {\nconst f = splitFailReason(v.fail_reason);\nreturn <div>{f.human}</div>;\n})() : null}')).length === 0, 'self-test:失败原因经过分层译名 → 不误报');
+  say(checkFailReasonConsumers(failureSource("const advice = publishFailureAdvice([v.fail_reason, step.detail].filter(Boolean).join('\\n'));\n<p>{advice.reason}</p>\n<details><summary>技术详情</summary><pre>{advice.raw}</pre></details>")).length === 0, 'self-test:失败原因经过发布建议译名并折叠原文 → 不误报');
+  say(checkFailReasonConsumers(failureSource("const advice = publishFailureAdvice(v.fail_reason);\n\n\n\n\n\n\n\n<div>{v.fail_reason}</div>")).length === 1, 'self-test:远处的发布建议译名不能豁免原文直出');
   for (const [ok, msg] of checkPublishHelpers()) say(ok, msg);
   // 判据⑤ 红绿两向(注入走真判据,不复制它的逻辑)
   const fake = (text) => [{ file: 'probe.tsx', text }];
@@ -202,7 +218,7 @@ if (process.argv.includes('--self-test')) {
      肉眼看「✗ 0」会以为全过(2026-09-01 实测:一个 ReferenceError 让断言从 33 掉到 28,
      而输出里一个 ✗ 都没有)。少于下限即判门坏 —— 这是「先证起点」在自检自身上的应用。
      加断言时把这个数一起提上去。 */
-  const MIN_ASSERTS = 40;
+  const MIN_ASSERTS = 47;
   if (asserts < MIN_ASSERTS) {
     console.error(`✗ 自检只跑了 ${asserts} 条断言(下限 ${MIN_ASSERTS})—— 多半是中途崩了;失败 0 不等于全过`);
     process.exit(3);
@@ -292,7 +308,7 @@ function checkPublishHelpers() {
   if (!areaKeys.size) return [[false, 'self-test:humanPath 认不出任何域名 —— 判据失效,先修门']];
   // FIELD_NAME 没有导出整表,用 fieldName() 逐个问:译得出就算有映射(COPY_GROUPS 也走它)
   const hasField = (k) => fieldName(k) !== k || k in COPY_GROUPS;
-  const LOCALES = new Set(['en', 'vi', 'zh']);
+  const LOCALES = new Set(CONTENT_LOCALES);
   const segs = new Map(); // 字段名 → 它第一次出现的位置(报错时能直接说清是哪儿的字段)
   const walkCfg = (v, prefix) => {
     if (v === null || typeof v !== 'object') return;
@@ -322,12 +338,19 @@ function checkPublishHelpers() {
   const d2 = splitFailReason('上线核验未通过:内容摘要对不上(期望 4a34ea4d0279,实际 80e1f4a84ab0)');
   out.push([!/[0-9a-f]{8,}/.test(d2.human) && /4a34ea4d0279/.test(d2.tech ?? ''), 'self-test:中文句里嵌十六进制摘要 → 摘要移出主视线']);
   out.push([/内容摘要对不上/.test(d2.human), 'self-test:摘出机器值后,那句话仍读得通(不是留个残句)']);
-  /* 🔴 每个读 fail_reason 的地方都必须过这两个函数之一。
+  const consumers = checkFailReasonConsumers(allSources());
+  out.push([consumers.length === 0, `self-test:每个 fail_reason 渲染点都过了译名函数(直出的:${JSON.stringify(consumers.map(({ file, line }) => `${file}:${line}`))})`]);
+  return out;
+}
+
+/** 主门和注入自检共用；新建议函数同样把人话与技术原文分开。 */
+function checkFailReasonConsumers(sources) {
+  /* 🔴 每个读 fail_reason 的地方都必须过译名函数。
      实录:我先只改了发布页那两处,壳顶红条当场还印着 `(门:forbidden-words)` ——
      修一处不等于修全部,而「还有几处」只有穷举才知道。判据构造性:
      全仓找出 `fail_reason` / `lastPublishFailed.reason` 的**渲染点**,逐个要求同一行(或紧邻)出现译名函数。 */
   const consumers = [];
-  for (const { file, text } of allSources()) {
+  for (const { file, text } of sources) {
     const lines = text.split('\n');
     lines.forEach((line, i) => {
       const t = line.trim();
@@ -337,11 +360,12 @@ function checkPublishHelpers() {
       /* 窗口 ±3 行:`{v.fail_reason ? (() => {` 这种条件判断会把取值与译名调用分到两行,
          判据卡在同一行就会对**正确写法**报红(本文件判据② 栽过两次的同一个坑)。 */
       const near = lines.slice(Math.max(0, i - 3), i + 4).join('\n');
-      if (!/splitFailReason|failReasonLine/.test(near)) consumers.push(`${file}:${i + 1}`);
+      if (!/splitFailReason|failReasonLine|publishFailureAdvice/.test(near)) consumers.push({
+        file, line: i + 1, why: '失败原因未经过译名函数；主视线使用人话，原文放进技术详情', code: t.slice(0, 110),
+      });
     });
   }
-  out.push([consumers.length === 0, `self-test:每个 fail_reason 渲染点都过了译名函数(直出的:${JSON.stringify(consumers)})`]);
-  return out;
+  return consumers;
 }
 
 /* 判据④:审计动作码的**人话表必须盖住封闭枚举**(2026-09-01 第八轮 P2)。
@@ -397,7 +421,7 @@ function checkFocusTargets(sources) {
   return out;
 }
 
-const hits = [...scan(files), ...checkQueryConsumers(files, allSources()), ...checkAuditLabels(), ...checkFocusTargets()];
+const hits = [...scan(files), ...checkQueryConsumers(files, allSources()), ...checkAuditLabels(), ...checkFocusTargets(), ...checkFailReasonConsumers(files)];
 if (hits.length) {
   console.error(`✗ 控制台文案门:${hits.length} 处会把 markdown 记号原样印到界面上`);
   for (const h of hits) console.error(`  ${h.file}:${h.line}  ${h.why}\n     ${h.code}`);

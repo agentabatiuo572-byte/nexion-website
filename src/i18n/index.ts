@@ -1,15 +1,28 @@
 import en from './en.json';
 import vi from './vi.json';
 import zh from './zh.json';
+import es from './es.json';
+import pt from './pt.json';
+import fr from './fr.json';
+import de from './de.json';
+import ja from './ja.json';
+import ko from './ko.json';
 import { loadBuildFixture } from '../lib/build-fixture';
+import { LOCALES, type Locale } from '../../schema/src/locales';
 
-export const locales = ['en', 'vi', 'zh'] as const;
-export type Locale = (typeof locales)[number];
+export const locales = LOCALES;
+export type { Locale };
 
 const dicts: Record<Locale, unknown> = {
   en: loadBuildFixture('en.json', en),
   vi: loadBuildFixture('vi.json', vi),
   zh: loadBuildFixture('zh.json', zh),
+  es: loadBuildFixture('es.json', es),
+  pt: loadBuildFixture('pt.json', pt),
+  fr: loadBuildFixture('fr.json', fr),
+  de: loadBuildFixture('de.json', de),
+  ja: loadBuildFixture('ja.json', ja),
+  ko: loadBuildFixture('ko.json', ko),
 };
 
 /* ponytail: 静态站字典查找,不引 i18n 库;key 缺失回退 en 再回退 key 本身
@@ -25,7 +38,9 @@ function lookup(dict: unknown, key: string): string | undefined {
 
 export function useT(locale: Locale) {
   return (key: string, vars?: Record<string, string | number>): string => {
-    let s = lookup(dicts[locale], key) ?? lookup(dicts.en, key) ?? key;
+    const localized = lookup(dicts[locale], key);
+    const source = lookup(dicts.en, key);
+    let s = localized?.trim() ? localized : source?.trim() ? source : key;
     if (vars) for (const [k, v] of Object.entries(vars)) s = s.split(`{${k}}`).join(String(v));
     return s;
   };

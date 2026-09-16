@@ -15,6 +15,8 @@ const ACTION_LABEL: Record<string, string> = {
   'auth.setup.attempt': '尝试初始化', 'auth.setup.fail': '初始化失败', 'auth.setup': '完成初始化',
   'login.attempt': '尝试登录', 'login.success': '登录成功', 'login.fail': '登录失败', 'auth.logout': '退出登录',
   'admin.rollup': '手动重算统计', 'config.save': '保存草稿', 'geo.update': '修改区域屏蔽规则',
+  'ai.connection.attempt': '尝试 AI 连接测试', 'ai.connection.saved': '保存 AI 连接',
+  'ai.connection.tested': '测试 AI 连接', 'ai.connection.removed': '移除 AI 连接', 'ai.settings': '修改 AI 翻译设置',
   'geo.update.attempt': '尝试修改区域屏蔽规则', 'geo.update.applied': '区域屏蔽规则已应用', 'bypass.issue': '签发区域直通链接',
   'config.publish': '发起发布', 'config.publish.live': '发布成功上线', 'config.publish.failed': '发布失败',
   'config.publish.unknown': '发布切换结果待核实',
@@ -156,13 +158,18 @@ export default function AuditPage() {
   }
 
   return (
-    <section>
-      <h2>审计日志 <span className="pill">append-only · 不可改删</span></h2>
+    <section className="editor-page">
+      <header className="page-heading">
+        <span className="eyebrow">操作记录</span>
+        <h2>审计日志 <span className="pill">只读 · 不可修改或删除</span></h2>
+        <p className="page-description">查看登录、内容修改、发布与区域规则的操作记录。可按类型和日期筛选，导出完整结果。</p>
+      </header>
       <div className="row" style={{ marginBottom: 10 }}>
         {FILTERS.map(([v, label]) => (
           <button
             key={v}
             className={`pill ${filter === v ? 'brand' : ''}`}
+            aria-pressed={filter === v}
             disabled={busyExport}
             onClick={() => { if (v !== filter) beginCriteriaChange(() => setFilter(v)); }}
             style={{ cursor: 'pointer' }}
@@ -172,10 +179,10 @@ export default function AuditPage() {
         {/* 时间过滤(CON14-② A1 与 ⑤ 两处明写)。出事后最常问的是「昨天下午发生了什么」,
             上一版一个日期输入都没有,只能靠底部「加载更早」一次 50 条往回按。 */}
         <label className="kv" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          从 <input type="date" value={from} max={to || undefined} disabled={busyExport} onChange={(e) => beginCriteriaChange(() => setFrom(e.target.value))} style={{ width: 150 }} />
+          从 <input type="date" value={from} max={to || undefined} disabled={busyExport} onChange={(e) => beginCriteriaChange(() => setFrom(e.target.value))} style={{ width: '12rem', maxWidth: '100%' }} />
         </label>
         <label className="kv" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          到 <input type="date" value={to} min={from || undefined} disabled={busyExport} onChange={(e) => beginCriteriaChange(() => setTo(e.target.value))} style={{ width: 150 }} />
+          到 <input type="date" value={to} min={from || undefined} disabled={busyExport} onChange={(e) => beginCriteriaChange(() => setTo(e.target.value))} style={{ width: '12rem', maxWidth: '100%' }} />
         </label>
         {(from || to) && <button className="btn ghost sm" disabled={busyExport} onClick={() => beginCriteriaChange(() => { setFrom(''); setTo(''); })}>清除时间</button>}
         <button className="btn sm" disabled={busyExport} onClick={() => void exportCsv()} title="导出当前筛选下的全部记录,不只是屏幕上已加载的">
@@ -208,8 +215,8 @@ export default function AuditPage() {
             )}
           </div>
         ) : (
-          <table>
-            <thead><tr><th>时间</th><th>动作</th><th>对象</th><th>变更</th><th>理由</th></tr></thead>
+          <div className="table-scroll" tabIndex={0} role="region" aria-label="审计日志，可左右滚动"><table>
+            <thead><tr><th>时间</th><th>动作</th><th>对象</th><th>变更</th><th>理由</th><th>详情</th></tr></thead>
             <tbody>
               {rows.map((r) => {
                 /* 🔴 只有**真有东西可展开**的行才做成可点(第十轮 P2-13):
@@ -217,12 +224,7 @@ export default function AuditPage() {
                    界面上每个看起来能点的位置,要么有效,要么别让它看起来能点。 */
                 const expandable = ((r.before_summary ?? '') + (r.after_summary ?? '')).length > 60;
                 return (
-                <tr
-                  key={r.id}
-                  onClick={expandable ? () => setOpen(open === r.id ? null : r.id) : undefined}
-                  style={expandable ? { cursor: 'pointer' } : undefined}
-                  title={expandable ? '点击展开完整变更内容' : undefined}
-                >
+                <tr key={r.id}>
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
                   {/* enum-ok:主视线是人话,下面小字**刻意**保留机器码——排查时要能和日志对上 */}
                   <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
@@ -230,7 +232,7 @@ export default function AuditPage() {
                       直接印出来运营会以为是个真值(实景走查 P1-3)。 */}
                   <td>{!r.target || r.target === 'unknown' ? <span className="kv">来源不详</span> : r.target}</td>
                   {/* PRD CON14-E3 要「摘要 + 字节数」:折叠时先告诉人这条有多长,他才知道值不值得展开(实景走查 P2-8) */}
-                  <td style={open === r.id ? {} : { maxWidth: 320, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <td style={open === r.id ? {} : { maxWidth: '20rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {(() => {
                       const text = [r.before_summary, r.after_summary].filter(Boolean).join(' → ');
                       if (!text) return '—';
@@ -238,17 +240,18 @@ export default function AuditPage() {
                       return (
                         <>
                           {text}
-                          {bytes > 200 && !(open === r.id) && <span className="kv mono"> · {bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} 字节`},点击展开</span>}
+                          {bytes > 200 && !(open === r.id) && <span className="kv mono"> · {bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} 字节`}</span>}
                         </>
                       );
                     })()}
                   </td>
                   <td>{r.reason ?? '—'}</td>
+                  <td>{expandable && <button className="btn ghost sm" aria-expanded={open === r.id} aria-label={`${open === r.id ? '收起' : '展开'}第 ${r.id} 条变更`} onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? '收起变更' : '展开变更'}</button>}</td>
                 </tr>
                 );
               })}
             </tbody>
-          </table>
+          </table></div>
         )}
         {next && <button className="btn ghost" disabled={listBusy} style={{ marginTop: 10 }} onClick={() => void load(filter, next, true)}>{listBusy ? '加载中…' : '加载更早 …'}</button>}
       </div>

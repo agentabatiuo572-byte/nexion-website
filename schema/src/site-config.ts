@@ -1,17 +1,17 @@
 import { z } from 'zod';
+import { LOCALES, type Locale } from './locales.js';
+export { LOCALES, type Locale } from './locales.js';
 
 /* SiteConfig zod 单源(官网后台 PRD §5.1)。三消费面:worker 校验/物化 · 控制台表单 · 发布流水线。
    业务规则校验(https/时间窗/≥3 可见 FAQ 等)在 validators.ts;此处只管结构与类型。 */
 
-export const LOCALES = ['en', 'vi', 'zh'] as const;
-export type Locale = (typeof LOCALES)[number];
-
-const L = <T extends z.ZodTypeAny>(v: T) => z.object({ en: v, vi: v, zh: v });
+const object = <T extends z.ZodRawShape>(shape: T) => z.object(shape).strict();
+const L = <T extends z.ZodTypeAny>(v: T) => object(Object.fromEntries(LOCALES.map((locale) => [locale, v])) as Record<Locale, T>);
 const copyMap = z.record(z.string(), z.string());
 
-export const DownloadEntry = z.object({ url: z.string().max(500), enabled: z.boolean() });
+export const DownloadEntry = object({ url: z.string().max(500), enabled: z.boolean() });
 
-export const SkuSchema = z.object({
+export const SkuSchema = object({
   id: z.string().min(1).max(32), // 不可改(站侧渲染锚,CON07-③)
   name: z.string().min(1).max(64),
   priceUSD: z.number().min(0),
@@ -23,7 +23,7 @@ export const SkuSchema = z.object({
   visible: z.boolean(),
 });
 
-export const FaqItem = z.object({
+export const FaqItem = object({
   id: z.string().min(1).max(24),
   q: L(z.string().max(300)),
   a: L(z.string().max(2000)),
@@ -35,10 +35,13 @@ export const FaqItem = z.object({
 
 export const SEO_PAGE_IDS = ['home', 'learn', 'nex', 'legal-privacy', 'legal-terms', 'legal-app-privacy'] as const;
 
-export const SiteConfigSchema = z.object({
-  copy: z.object({ en: copyMap, vi: copyMap, zh: copyMap }),
-  downloads: z.object({ ios: DownloadEntry, android: DownloadEntry, h5: DownloadEntry }),
-  stats: z.object({
+export const SiteConfigSchema = object({
+  enabledLocales: z.array(z.enum(LOCALES)).min(1)
+    .refine((locales) => locales.includes('en'), '默认语言英语必须启用')
+    .refine((locales) => new Set(locales).size === locales.length, '语言不能重复'),
+  copy: L(copyMap),
+  downloads: object({ ios: DownloadEntry, android: DownloadEntry, h5: DownloadEntry }),
+  stats: object({
     activeDevices: z.number().int().positive(),
     activeJobs: z.number().int().positive(),
     nodes: z.number().int().positive(),
@@ -54,18 +57,18 @@ export const SiteConfigSchema = z.object({
       .object({
         enabled: z.boolean(),
         since: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), // 起算日(基准值对应的那一天)
-        daily: z.object({
+        daily: object({
           activeDevices: z.number().min(0),
           activeJobs: z.number().min(0),
           nodes: z.number().min(0),
           countries: z.number().min(0),
         }),
-      })
+      }).strict()
       .optional(),
   }),
   skus: z.array(SkuSchema).min(1),
-  faq: z.object({ items: z.array(FaqItem) }),
-  announcement: z.object({
+  faq: object({ items: z.array(FaqItem) }),
+  announcement: object({
     id: z.string().max(24),
     enabled: z.boolean(),
     text: L(z.string().max(120)),
@@ -73,17 +76,17 @@ export const SiteConfigSchema = z.object({
     startsAt: z.string().optional(), // ISO UTC
     endsAt: z.string().optional(),
   }),
-  seo: z.object({
-    pages: z.record(z.enum(SEO_PAGE_IDS), z.object({ title: L(z.string().max(120)), description: L(z.string().max(300)) })),
+  seo: object({
+    pages: z.record(z.enum(SEO_PAGE_IDS), object({ title: L(z.string().max(120)), description: L(z.string().max(300)) })),
   }),
-  footer: z.object({
-    social: z.array(z.object({ id: z.string().max(24), url: z.string().max(300), enabled: z.boolean() })),
+  footer: object({
+    social: z.array(object({ id: z.string().max(24), url: z.string().max(300), enabled: z.boolean() })),
     contactEmail: z.string().max(120),
   }),
-  legal: z.object({
-    terms: z.object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
-    privacy: z.object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
-    appPrivacy: z.object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
+  legal: object({
+    terms: object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
+    privacy: object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
+    appPrivacy: object({ md: L(z.string().max(200_000)), updatedAt: z.string() }),
   }),
 });
 

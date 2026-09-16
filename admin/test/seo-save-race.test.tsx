@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({ save: vi.fn() }));
 
 vi.mock('../src/lib/use-focus-field', () => ({ useFocusField: () => {} }));
 vi.mock('../src/lib/use-draft', () => ({
+  pointer: (...parts: string[]) => '/' + parts.join('/'),
   useDraft: () => ({
     draft: {
       seo: {

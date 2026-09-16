@@ -1,7 +1,9 @@
+import { LOCALES } from '../../../schema/src/locales';
+import type { Tri } from './use-draft';
 export interface GeoRulesValue {
   enabled: boolean;
   countries: string[];
-  blockPage: { title: { zh: string; en: string }; body: { zh: string; en: string } };
+  blockPage: { title: Partial<Tri>; body: Partial<Tri> };
 }
 
 /** updatedAt/updatedBy 是服务端元数据，不参与“回读是否等于本次意图”的判断。 */
@@ -10,8 +12,6 @@ export function sameGeoRules(a: GeoRulesValue | null | undefined, b: GeoRulesVal
   return a.enabled === b.enabled
     && a.countries.length === b.countries.length
     && a.countries.every((country, index) => country === b.countries[index])
-    && a.blockPage.title.zh === b.blockPage.title.zh
-    && a.blockPage.title.en === b.blockPage.title.en
-    && a.blockPage.body.zh === b.blockPage.body.zh
-    && a.blockPage.body.en === b.blockPage.body.en;
+    && LOCALES.every((locale) => a.blockPage.title[locale] === b.blockPage.title[locale]
+      && a.blockPage.body[locale] === b.blockPage.body[locale]);
 }

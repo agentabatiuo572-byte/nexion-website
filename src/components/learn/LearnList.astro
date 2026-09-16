@@ -17,7 +17,7 @@ const items = await learnList(locale);
 <main class="learn">
   <header class="head">
     <h1 class="x-display">{t('learn.title')}</h1>
-    <p class="x-mono">{t('learn.subtitle')}</p>
+    <p class="x-copy">{t('learn.subtitle')}</p>
   </header>
   <div class="grid">
     {
@@ -27,8 +27,8 @@ const items = await learnList(locale);
             <span class="idx x-mono">{String(i + 1).padStart(2, '0')}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
           </span>
-          <h2 class="x-h24">{entry.data.title}</h2>
-          <p class="x-mono">{entry.data.description}</p>
+          <h2 class="x-h24" lang={fallback ? 'en' : undefined}>{entry.data.title}</h2>
+          <p class="x-copy" lang={fallback ? 'en' : undefined}>{entry.data.description}</p>
           {fallback && <span class="fb x-mono">{t('learn.enOnly')}</span>}
         </a>
       ))
@@ -66,7 +66,7 @@ const items = await learnList(locale);
   }
   .grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(calc(280 * var(--uc)), 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, calc(280 * var(--uc))), 1fr));
     gap: clamp(14px, 1.8vw, calc(24 * var(--uc)));
   }
   .card {

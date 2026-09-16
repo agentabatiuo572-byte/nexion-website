@@ -84,6 +84,11 @@
     }
   },
   "trust": {
+    "whitepaper": {
+      "title": "Whitepaper NexGrid",
+      "summary": "Tìm hiểu cấu trúc sản phẩm, bàn giao thiết bị, xác minh và quyết toán tác vụ, thiết kế bảo mật cùng lộ trình phát triển.",
+      "details": "v{version} · Bản tiếng Anh · PDF"
+    },
     "title": "Đăng ký tại Hoa Kỳ. Tự mình kiểm chứng.",
     "pocTitle": "Thu nhập được xác minh thế nào (Proof-of-Compute)",
     "pocBody1": "Mỗi tác vụ hoàn thành tạo một biên nhận suy luận — chạy gì, khi nào, thu được bao nhiêu. Chúng tôi ghi từng biên nhận vào sổ cái nền tảng và chứng thực on-chain.",

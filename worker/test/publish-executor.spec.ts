@@ -3,10 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { app } from '../src/index';
 import type { Env } from '../src/env';
 import { maintainPublishing } from '../src/publish';
-import { LOCALES, SiteConfigSchema, materializeI18n, materializeSiteJson } from '../../schema/src/index.js';
+import { LOCALES, MATERIALIZED_FILES, addLegacyLocaleFields, SiteConfigSchema, materializeI18n, materializeSiteJson, type SiteConfig } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
 import currentSeedJson from '../seed/site-config.seed.json';
 import legacyJson from '../seed/config-upgrade-legacy-v1.json';
+import { CONFIG_UPGRADE_KEY } from '../src/config-upgrade';
 
 const secret = 'test-service-secret-with-at-least-32-characters';
 const local = () => ({ ...env, PUBLISH_RUNNER_TOKEN: secret, PUBLISH_EXECUTION_MODE: 'local' }) as Env;
@@ -14,7 +15,7 @@ const github = () => ({
   ...local(),
   ENVIRONMENT:'production',
   PUBLISH_EXECUTION_MODE:'github',
-  PUBLISH_GITHUB_REPOSITORY:'jasonukkd/nexgrid-website',
+  PUBLISH_GITHUB_REPOSITORY:'agentabatiuo572-byte/nexion-website',
   PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',
   PUBLISH_GITHUB_REF:'main',
   PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough',
@@ -24,8 +25,8 @@ const request = (path: string, body: unknown = {}, e = local(), headers: Record<
 let cookie = '';
 async function change() {
   const response = await app.request('/api/config', {headers:{cookie}}, local());
-  const state = await response.json() as {draft:{payload:{copy:{zh:Record<string,string>}};draftRev:number}};
-  state.draft.payload.copy.zh['hero.scrollHint'] = '自动发布验证';
+  const state = await response.json() as {draft:{payload:{copy:{en:Record<string,string>}};draftRev:number}};
+  state.draft.payload.copy.en['hero.scrollHint'] = '自动发布验证';
   const saved = await app.request('/api/config/draft', {method:'PUT',headers:{cookie,'content-type':'application/json'},body:JSON.stringify({payload:state.draft.payload,baseRevision:state.draft.draftRev})},local());
   expect(saved.status).toBe(200);
 }
@@ -47,10 +48,10 @@ async function swapJob() {
   expect((await request('/step',{...body,step:'swap',status:'running'})).status).toBe(200);
   return body;
 }
-async function snapshotFor(job:{versionId:number;stamp:string}) {
+async function snapshotFor(job:{versionId:number;stamp:string}, deliveredConfig?:SiteConfig) {
   const version = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(job.versionId).first<{payload:string}>();
-  const config = SiteConfigSchema.parse(JSON.parse(version!.payload));
-  const files = ['src/i18n/en.json','src/i18n/vi.json','src/i18n/zh.json','src/config/site.json'];
+  const config = deliveredConfig ?? SiteConfigSchema.parse(JSON.parse(version!.payload));
+  const files = MATERIALIZED_FILES;
   const contents = [...LOCALES.map(loc=>materializeI18n(config,manifestJson as never,loc)),materializeSiteJson(config)];
   const sha = async(text:string)=>Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text))), b=>b.toString(16).padStart(2,'0')).join('');
   const html = 'verified publication page';
@@ -58,11 +59,12 @@ async function snapshotFor(job:{versionId:number;stamp:string}) {
 }
 function legacyConfig(conflict = false) {
   const config = SiteConfigSchema.parse(structuredClone(currentSeedJson));
-  for (const locale of LOCALES) {
+  for (const locale of ['en', 'vi', 'zh'] as const) {
     const defaults = legacyJson.copyDefaults[locale] as Record<string,string>;
     config.copy[locale] = Object.fromEntries(legacyJson.copyKeys.map(key=>[key,Object.hasOwn(defaults,key) ? defaults[key] : config.copy[locale][key]]));
   }
-  config.faq = structuredClone(legacyJson.faq);
+  config.enabledLocales = ['en', 'vi'];
+  config.faq = (addLegacyLocaleFields({ faq: legacyJson.faq }, manifestJson.editable) as SiteConfig).faq;
   config.copy.en['hero.title'] = 'A carefully preserved authored title';
   if (conflict) config.copy.en['trust.card1'] = 'Authored historical trust text';
   return config;
@@ -70,13 +72,20 @@ function legacyConfig(conflict = false) {
 async function storeLegacyDraft(conflict = false) {
   await app.request('/api/config',{headers:{cookie}},local());
   const payload = JSON.stringify(legacyConfig(conflict));
-  await env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(payload).run();
-  await env.DB.prepare('DELETE FROM config_draft_upgrades').run();
+  // Historical drafts predate translation provenance; don't retain the fresh seed's ownership.
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM translation_jobs'),
+    env.DB.prepare('DELETE FROM translation_state'),
+    env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(payload),
+    env.DB.prepare('DELETE FROM config_draft_upgrades'),
+  ]);
   return payload;
 }
 beforeEach(async () => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  await env.DB.prepare('DELETE FROM translation_jobs').run();
+  await env.DB.prepare('DELETE FROM translation_state').run();
   await env.DB.prepare('DELETE FROM publish_runner').run();
   await env.DB.prepare('DELETE FROM publish_dispatch').run();
   for (const table of ['audit','sessions','login_throttle','auth_account','config_versions','config_draft','publish_lock','publish_steps']) await env.DB.prepare(`DELETE FROM ${table}`).run();
@@ -86,6 +95,86 @@ beforeEach(async () => {
 });
 
 describe('automatic publishing service boundary', () => {
+  it('persists current command progress without adding steps, resetting start time or renewing the lease', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const {job} = await (await request('/next',{runnerId:'r1'})).json() as {job:{stamp:string}};
+    const report = {versionId,stamp:job.stamp,runnerId:'r1',step:'materialize',status:'running'};
+    expect((await request('/step',{...report,detail:'准备站点配置'})).status).toBe(200);
+    const step = await env.DB.prepare('SELECT * FROM publish_steps WHERE version_id=?1').bind(versionId).first();
+    const lock = await env.DB.prepare('SELECT * FROM publish_lock WHERE version_id=?1').bind(versionId).first();
+    expect(step).toMatchObject({detail:'准备站点配置',status:'running',ended_at:null});
+    for (const detail of ['正在检查中文页面','正在检查中文页面','x'.repeat(6100)+'检查结束']) {
+      expect((await request('/step',{...report,detail})).status).toBe(200);
+      expect((await env.DB.prepare('SELECT * FROM publish_steps WHERE version_id=?1').bind(versionId).all()).results)
+        .toEqual([{...step,detail:detail.slice(-6000)}]);
+      expect(await env.DB.prepare('SELECT * FROM publish_lock WHERE version_id=?1').bind(versionId).first()).toEqual(lock);
+      const poll = await app.request('/api/publish/status',{headers:{cookie}},local());
+      expect(await poll.json()).toMatchObject({activeVersion:versionId,steps:[{detail:detail.slice(-6000)}]});
+    }
+    expect((await request('/step',report)).status).toBe(200);
+    expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'publishing'});
+  });
+  it('rejects invalid progress details, wrong owners, expired leases and closed steps or versions', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const {job} = await (await request('/next',{runnerId:'r1'})).json() as {job:{stamp:string}};
+    const report = {versionId,stamp:job.stamp,runnerId:'r1',step:'materialize',status:'running'};
+    expect((await request('/step',{...report,detail:'可信进度'})).status).toBe(200);
+    for (const detail of [123,[],{}]) expect((await request('/step',{...report,detail})).status).toBe(400);
+    for (const wrong of [{runnerId:'r2'},{stamp:'wrong'}]) {
+      expect((await request('/step',{...report,...wrong,detail:'不应写入'})).status).toBe(409);
+    }
+    const lock = await env.DB.prepare('SELECT expires_at FROM publish_lock WHERE version_id=?1').bind(versionId).first<{expires_at:number}>();
+    for (const wrong of ["claimed_by='r2'", "claim_nonce='wrong'", 'claimed_at=NULL', 'expires_at=0']) {
+      await env.DB.prepare(`UPDATE publish_lock SET ${wrong} WHERE version_id=?1`).bind(versionId).run();
+      expect((await request('/step',{...report,detail:'不应写入'})).status).toBe(409);
+      await env.DB.prepare('UPDATE publish_lock SET claimed_by=?2,claim_nonce=?3,claimed_at=?4,expires_at=?5 WHERE version_id=?1')
+        .bind(versionId,'r1',job.stamp,Date.now(),lock!.expires_at).run();
+    }
+    for (const status of ['failed','cancelled','unknown','archived']) {
+      await env.DB.prepare('UPDATE config_versions SET status=?2 WHERE id=?1').bind(versionId,status).run();
+      expect((await request('/step',{...report,detail:'不应写入'})).status).toBe(409);
+    }
+    expect(await env.DB.prepare('SELECT detail FROM publish_steps WHERE version_id=?1').bind(versionId).first()).toEqual({detail:'可信进度'});
+    await env.DB.prepare("UPDATE config_versions SET status='publishing' WHERE id=?1").bind(versionId).run();
+    expect((await request('/step',{...report,status:'ok',detail:'准备成功'})).status).toBe(200);
+    expect((await request('/step',{...report,detail:'迟到的进度'})).status).toBe(409);
+    expect(await env.DB.prepare('SELECT status,detail FROM publish_steps WHERE version_id=?1').bind(versionId).first()).toEqual({status:'ok',detail:'准备成功'});
+  });
+  it('normalizes historical object key order at claim without rewriting the snapshot, then verifies all four steps live', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const version = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first<{payload:string}>();
+    const historical = JSON.parse(version!.payload) as SiteConfig;
+    historical.announcement.text = Object.fromEntries([...LOCALES].reverse().map(locale=>[locale,historical.announcement.text[locale]])) as typeof historical.announcement.text;
+    const payload = JSON.stringify(historical);
+    await env.DB.prepare('UPDATE config_versions SET payload=?2 WHERE id=?1').bind(versionId,payload).run();
+    const claimed = await request('/next',{runnerId:'r1'});
+    expect(claimed.status).toBe(200);
+    const {job} = await claimed.json() as {job:{versionId:number;stamp:string;config:SiteConfig}};
+    const identity = {versionId,stamp:job.stamp,runnerId:'r1'};
+    // Runner materializes the exact API config; only the independent server expectation parses storage.
+    const delivered = await snapshotFor(identity,job.config);
+    const raw = await snapshotFor(identity,historical);
+    const expected = await snapshotFor(identity);
+    expect(raw.stamp.configSha).not.toBe(expected.stamp.configSha);
+    expect(delivered.stamp.configSha).toBe(expected.stamp.configSha);
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify(delivered.stamp)) : new Response(delivered.html)}} as unknown as Env;
+    for (const step of ['materialize','gates','build','swap']) {
+      expect((await request('/step',{...identity,step,status:'running'},served)).status).toBe(200);
+      expect((await request('/step',{...identity,step,status:'ok'},served)).status).toBe(200);
+    }
+    expect(await env.DB.prepare('SELECT status,payload,fail_reason FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'live',payload,fail_reason:null});
+    expect((await env.DB.prepare('SELECT step,status FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(versionId).all()).results).toEqual(
+      ['materialize','gates','build','swap'].map(step=>({step,status:'ok'})),
+    );
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toEqual({n:0});
+    const status = await app.request('/api/publish/status',{headers:{cookie}},served);
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({activeVersion:null,drift:null,versions:expect.arrayContaining([expect.objectContaining({id:versionId,status:'live'})])});
+  });
   it('machine bearer can heartbeat without a browser session', async () => {
     const r = await request('/heartbeat', {runnerId:'test-runner'});
     expect(r.status).toBe(200);
@@ -127,6 +216,62 @@ describe('automatic publishing service boundary', () => {
     expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first()).toMatchObject({status:'failed'});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toMatchObject({n:0});
     expect(await env.DB.prepare("SELECT actor FROM audit WHERE target=?1 AND action='config.publish.failed'").bind(`v${versionId}`).first()).toEqual({actor:'system'});
+  });
+  it.each([
+    ['short', '发布构建中断'],
+    ['runner limit', 'build output\n'.repeat(600).slice(0,5900) + 'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory'],
+    ['over limit', 'build output\n'.repeat(1000) + 'FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory'],
+    ['omitted', undefined],
+  ])('runner-fail persists and returns the diagnostic tail (%s)', async (_label, detail) => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const {job} = await (await request('/next',{runnerId:'r1'})).json() as {job:{stamp:string}};
+    const identity = {versionId,stamp:job.stamp,runnerId:'r1'};
+    expect((await request('/step',{...identity,step:'materialize',status:'running'})).status).toBe(200);
+    const failure = await request('/runner-fail',{...identity,detail});
+    expect(failure.status).toBe(200);
+    expect(await failure.json()).toMatchObject({terminal:true,live:false});
+    const expected = (detail ?? '发布服务已重启，本次构建中断，草稿保留，可重新发布。').slice(-6000);
+    expect(await env.DB.prepare('SELECT status,fail_reason FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'failed',fail_reason:expected});
+    expect(await env.DB.prepare('SELECT status,detail FROM publish_steps WHERE version_id=?1').bind(versionId).first()).toEqual({status:'failed',detail:expected});
+    expect(await env.DB.prepare("SELECT after_summary FROM audit WHERE target=?1 AND action='config.publish.failed'").bind(`v${versionId}`).first()).toEqual({after_summary:expected});
+    const status = await app.request('/api/publish/status',{headers:{cookie}},local());
+    expect(status.status).toBe(200);
+    expect(await status.json()).toMatchObject({
+      activeVersion:null,
+      stepsOfVersion:versionId,
+      steps:[{status:'failed',detail:expected}],
+      versions:expect.arrayContaining([expect.objectContaining({id:versionId,status:'failed',fail_reason:expected})]),
+    });
+  });
+  it('runner-fail rejects malformed details and another job identity without closing the active job', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const {job} = await (await request('/next',{runnerId:'r1'})).json() as {job:{stamp:string}};
+    const identity = {versionId,stamp:job.stamp,runnerId:'r1'};
+    for (const detail of [123,[],{}]) expect((await request('/runner-fail',{...identity,detail})).status).toBe(400);
+    for (const wrong of [{runnerId:'r2'},{stamp:'wrong'}]) {
+      expect((await request('/runner-fail',{...identity,...wrong,detail:'untrusted report'})).status).toBe(409);
+    }
+    expect(await env.DB.prepare('SELECT status,fail_reason FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'validating',fail_reason:null});
+    expect(await env.DB.prepare('SELECT version_id FROM publish_lock').first()).toEqual({version_id:versionId});
+  });
+  it('machine runner-fail returns archived status without rewriting a previously published version', async () => {
+    const job = await swapJob();
+    const snapshot = await snapshotFor(job);
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify(snapshot.stamp)) : new Response(snapshot.html)}} as unknown as Env;
+    expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(200);
+    await env.DB.prepare("UPDATE config_versions SET status='archived' WHERE id=?1").bind(job.versionId).run();
+    const original = await env.DB.prepare('SELECT * FROM config_versions WHERE id=?1').bind(job.versionId).first();
+    const audits = (await env.DB.prepare('SELECT * FROM audit').all()).results;
+    const steps = (await env.DB.prepare('SELECT * FROM publish_steps WHERE version_id=?1').bind(job.versionId).all()).results;
+    const response = await request('/runner-fail',{...job,detail:'Late process cleanup failure'});
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ok:true,terminal:true,live:false,status:'archived'});
+    expect(await env.DB.prepare('SELECT * FROM config_versions WHERE id=?1').bind(job.versionId).first()).toEqual(original);
+    expect((await env.DB.prepare('SELECT * FROM audit').all()).results).toEqual(audits);
+    expect((await env.DB.prepare('SELECT * FROM publish_steps WHERE version_id=?1').bind(job.versionId).all()).results).toEqual(steps);
   });
   it('/next renews a near-expiry claim so its first job heartbeat survives the old lease boundary', async () => {
     await change(); await request('/heartbeat',{runnerId:'r1'});
@@ -207,7 +352,7 @@ describe('automatic publishing service boundary', () => {
   });
   it('a real status poll never observes an initial version without its lock and dispatch record', async () => {
     await change();
-    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'jasonukkd/nexgrid-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
+    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'agentabatiuo572-byte/nexion-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
     vi.stubGlobal('fetch',vi.fn().mockResolvedValue(new Response(null,{status:204})));
     let observations = 0;
     let observed: unknown;
@@ -321,14 +466,14 @@ describe('automatic publishing service boundary', () => {
   });
   it('production dispatch is automatic, durable and scoped to the submitted version', async () => {
     await change();
-    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'jasonukkd/nexgrid-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
+    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'agentabatiuo572-byte/nexion-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
     const send = vi.fn().mockResolvedValue(new Response(null,{status:204}));
     vi.stubGlobal('fetch',send);
     const started = await publish(e);
     expect(started.status).toBe(200);
     const {versionId} = await started.json() as {versionId:number};
     expect(send).toHaveBeenCalledTimes(1);
-    expect(send.mock.calls[0]![0]).toBe('https://api.github.com/repos/jasonukkd/nexgrid-website/actions/workflows/publish-website.yml/dispatches');
+    expect(send.mock.calls[0]![0]).toBe('https://api.github.com/repos/agentabatiuo572-byte/nexion-website/actions/workflows/publish-website.yml/dispatches');
     expect(JSON.parse(send.mock.calls[0]![1].body)).toEqual({ref:'main',inputs:{versionId:String(versionId)}});
     expect(await env.DB.prepare('SELECT state,attempts FROM publish_dispatch WHERE version_id=?1').bind(versionId).first()).toMatchObject({state:'waiting',attempts:1});
     expect((await request('/next',{runnerId:'ci'},e)).status).toBe(400);
@@ -368,7 +513,7 @@ describe('automatic publishing service boundary', () => {
   });
   it('an audit failure atomically rejects a production job and its durable dispatch', async () => {
     await change();
-    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'jasonukkd/nexgrid-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
+    const e = {...local(),ENVIRONMENT:'production',PUBLISH_EXECUTION_MODE:'github',PUBLISH_GITHUB_REPOSITORY:'agentabatiuo572-byte/nexion-website',PUBLISH_GITHUB_WORKFLOW:'publish-website.yml',PUBLISH_GITHUB_REF:'main',PUBLISH_GITHUB_TOKEN:'github-test-token-long-enough'};
     await env.DB.prepare("CREATE TRIGGER fail_publish_audit BEFORE INSERT ON audit WHEN NEW.action='config.publish' BEGIN SELECT RAISE(ABORT, 'injected-audit-failure'); END").run();
     try {
       vi.spyOn(console,'error').mockImplementation(()=>{});
@@ -428,7 +573,7 @@ describe('automatic publishing service boundary', () => {
     expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(job.versionId).first()).toMatchObject({status:'archived'});
     expect(await env.DB.prepare("SELECT status,detail FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(job.versionId).first()).toMatchObject({status:'ok',detail:'committed before newer publication'});
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE target=?1 AND action='config.publish.failed'").bind(`v${job.versionId}`).first()).toMatchObject({n:0});
-    expect(result.live).not.toBe(true);
+    expect(result).toMatchObject({status:'archived',terminal:true,live:false});
   });
   it('automatic unknown recovery verifies assets once, commits version and step together, and audits as system once', async () => {
     const job = await swapJob();
@@ -612,7 +757,7 @@ describe('automatic publishing service boundary', () => {
     expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'cancelled'});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toMatchObject({n:0});
   });
-  it('upgrade conflicts give readable publishing errors while machine heartbeat and status remain available', async () => {
+  it('upgrade conflicts stay readable and cannot advertise a ready executor', async () => {
     const payload = await storeLegacyDraft(true);
     const preflight = await app.request('/api/publish/preflight',{headers:{cookie}},local());
     expect(preflight.status).toBe(200);
@@ -620,12 +765,16 @@ describe('automatic publishing service boundary', () => {
     const rejected = await publish();
     expect(rejected.status).toBe(409);
     expect(await rejected.json()).toMatchObject({error:'config-upgrade-conflict',message:expect.stringContaining('冲突字段'),paths:['copy.en.trust.card1']});
-    expect((await request('/heartbeat',{runnerId:'available-during-conflict'})).status).toBe(200);
+    const heartbeat = await request('/heartbeat',{runnerId:'blocked-during-conflict'});
+    expect(heartbeat.status).toBe(409);
+    expect(await heartbeat.json()).toMatchObject({error:'config-upgrade-conflict',configUpgrade:{status:'blocked'}});
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},local())).json()).toMatchObject({ready:false});
+    expect(await env.DB.prepare('SELECT COUNT(*) n FROM publish_runner').first()).toEqual({n:0});
     expect((await app.request('/api/publish/status',{headers:{cookie}},local())).status).toBe(200);
     expect(await env.DB.prepare('SELECT payload FROM config_draft WHERE id=1').first()).toMatchObject({payload});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toMatchObject({n:0});
   });
-  it('a draft upgrade CAS race gives retry guidance rather than generic missing-key errors', async () => {
+  it('reads and publish only inspect legacy drafts; preparation CAS races give retry guidance', async () => {
     await storeLegacyDraft();
     const racingDb = {
       prepare:env.DB.prepare.bind(env.DB),
@@ -635,11 +784,141 @@ describe('automatic publishing service boundary', () => {
       },
     } as unknown as D1Database;
     const racing = {...local(),DB:racingDb};
+    const before = await env.DB.prepare('SELECT payload,draft_rev,updated_at FROM config_draft').first();
+    for (const path of ['/api/config','/api/publish/status','/api/publish/executor','/api/publish/runner-state?runnerId=r1']) {
+      expect((await app.request(path,{headers:{cookie,authorization:`Bearer ${secret}`}},racing)).status).toBe(200);
+    }
     expect(await (await app.request('/api/publish/preflight',{headers:{cookie}},racing)).json()).toMatchObject({ready:false,errors:[{rule:'structure',message:expect.stringContaining('稍后重试')}]});
     const response = await publish(racing);
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({error:'config-upgrade-retry',message:expect.stringContaining('稍后重试')});
+    expect(await env.DB.prepare('SELECT payload,draft_rev,updated_at FROM config_draft').first()).toEqual(before);
+    expect(await env.DB.prepare('SELECT COUNT(*) n FROM config_draft_upgrades').first()).toEqual({n:0});
+    expect((await request('/heartbeat',{runnerId:'r1'},racing)).status).toBe(503);
+    expect(await env.DB.prepare('SELECT COUNT(*) n FROM publish_runner').first()).toEqual({n:0});
+    expect(await env.DB.prepare('SELECT COUNT(*) n FROM config_draft_upgrades').first()).toEqual({n:0});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toMatchObject({n:0});
+  });
+  it('idle heartbeat upgrades a stale v2 marker once before readiness and preserves historical bytes', async () => {
+    await app.request('/api/config',{headers:{cookie}},local());
+    const config = structuredClone(currentSeedJson);
+    for (const locale of ['en','vi','zh'] as const) {
+      Object.assign(config.copy[locale], {'trust.whitepaper.download':'Old download','trust.whitepaper.coverAlt':'Old cover'});
+    }
+    config.copy.en['hero.title'] = 'Authored title survives preparation';
+    const payload = JSON.stringify(config);
+    await env.DB.prepare('UPDATE config_draft SET payload=?1,draft_rev=8 WHERE id=1').bind(payload).run();
+    await env.DB.prepare('INSERT INTO config_draft_upgrades(draft_id,upgrade_key,original_payload,original_rev,upgraded_rev,applied_at,commit_nonce) VALUES(1,?1,?2,7,8,1788926361300,?3)')
+      .bind('website-whitepaper-2026-09-09-v2',payload,'old-v2').run();
+    const history = (await env.DB.prepare('SELECT id,payload FROM config_versions').all()).results;
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},local())).json()).toMatchObject({ready:false});
+    expect((await request('/heartbeat',{runnerId:'prepared-runner'})).status).toBe(200);
+    const upgraded = await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first<{payload:string;draft_rev:number}>();
+    expect(upgraded!.draft_rev).toBe(9);
+    const result = JSON.parse(upgraded!.payload);
+    expect(result.copy.en['hero.title']).toBe(config.copy.en['hero.title']);
+    for (const locale of ['en','vi','zh']) {
+      expect(result.copy[locale]['trust.whitepaper.download']).toBeUndefined();
+      expect(result.copy[locale]['trust.whitepaper.coverAlt']).toBeUndefined();
+    }
+    expect(await env.DB.prepare('SELECT original_payload,original_rev,upgraded_rev FROM config_draft_upgrades WHERE upgrade_key=?1').bind(CONFIG_UPGRADE_KEY).first()).toEqual({original_payload:payload,original_rev:8,upgraded_rev:9});
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},local())).json()).toMatchObject({ready:true});
+    expect((await request('/heartbeat',{runnerId:'prepared-runner'})).status).toBe(200);
+    expect(await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first()).toEqual(upgraded);
+    expect((await env.DB.prepare('SELECT id,payload FROM config_versions').all()).results).toEqual(history);
+    expect(await env.DB.prepare("SELECT COUNT(*) n FROM audit WHERE target=?1").bind(`draft-upgrade:${CONFIG_UPGRADE_KEY}`).first()).toEqual({n:1});
+  });
+  it('job heartbeats only renew the lease while an incompatible draft makes readiness false', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const {job} = await (await request('/next',{runnerId:'r1'})).json() as {job:{stamp:string}};
+    await env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(JSON.stringify(legacyConfig())).run();
+    const before = await env.DB.prepare('SELECT payload,draft_rev,updated_at FROM config_draft').first();
+    const markers = (await env.DB.prepare('SELECT * FROM config_draft_upgrades').all()).results;
+    const audits = (await env.DB.prepare('SELECT * FROM audit').all()).results;
+    expect((await request('/heartbeat',{runnerId:'r1',versionId,stamp:job.stamp})).status).toBe(200);
+    await maintainPublishing(github());
+    expect(await env.DB.prepare('SELECT payload,draft_rev,updated_at FROM config_draft').first()).toEqual(before);
+    expect((await env.DB.prepare('SELECT * FROM config_draft_upgrades').all()).results).toEqual(markers);
+    expect((await env.DB.prepare('SELECT * FROM audit').all()).results).toEqual(audits);
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},local())).json()).toMatchObject({ready:false});
+  });
+  it('production minute maintenance prepares legacy drafts before readiness and subsequent dispatch', async () => {
+    await storeLegacyDraft();
+    const fetcher = vi.fn(async () => new Response(null,{status:204}));
+    vi.stubGlobal('fetch', fetcher);
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},github())).json()).toMatchObject({ready:false});
+    await maintainPublishing(github());
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},github())).json()).toMatchObject({ready:true});
+    const result = await request('',{draftRev:1,reason:'发布已核实的旧版配置兼容升级'},github(),{cookie});
+    // The service upgrade advanced revision 1 to 2; a pre-preparation request cannot publish it.
+    expect(result.status).toBe(409);
+    const draft = await env.DB.prepare('SELECT draft_rev FROM config_draft').first<{draft_rev:number}>();
+    const accepted = await request('',{draftRev:draft!.draft_rev,reason:'发布已核实的旧版配置兼容升级'},github(),{cookie});
+    expect(accepted.status, await accepted.text()).toBe(200);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(await env.DB.prepare('SELECT state FROM publish_dispatch').first()).toEqual({state:'waiting'});
+  });
+  it('an existing queued snapshot still dispatches and can be claimed while the current draft is incompatible', async () => {
+    await change();
+    const fetcher = vi.fn(async () => new Response(null,{status:204}));
+    vi.stubGlobal('fetch', fetcher);
+    const published = await publish(github());
+    expect(published.status).toBe(200);
+    const {versionId} = await published.json() as {versionId:number};
+    const original = await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first<{payload:string}>();
+    const legacy = JSON.stringify(legacyConfig(true));
+    await env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(legacy).run();
+    await env.DB.prepare("UPDATE publish_dispatch SET state='pending',next_attempt_at=0 WHERE version_id=?1").bind(versionId).run();
+    const draft = await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first();
+    const markers = (await env.DB.prepare('SELECT * FROM config_draft_upgrades').all()).results;
+    await maintainPublishing(github());
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(await (await app.request('/api/publish/executor',{headers:{cookie}},github())).json()).toMatchObject({ready:false});
+    expect((await request('/heartbeat',{runnerId:'ci-existing'},github())).status).toBe(200);
+    expect(await (await request('/next',{runnerId:'ci-existing',versionId},github())).json()).toMatchObject({job:{versionId,config:JSON.parse(original!.payload)}});
+    expect(await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first()).toEqual(draft);
+    expect((await env.DB.prepare('SELECT * FROM config_draft_upgrades').all()).results).toEqual(markers);
+    expect(await env.DB.prepare('SELECT payload FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual(original);
+  });
+  it('an incompatible queued snapshot is rejected before claiming and never silently adapted in place', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    const payload = JSON.stringify(legacyConfig());
+    await env.DB.prepare('UPDATE config_versions SET payload=?1 WHERE id=?2').bind(payload,versionId).run();
+    const result = await request('/next',{runnerId:'r1'});
+    expect(result.status).toBe(409);
+    expect(await result.json()).toMatchObject({error:'config-upgrade-conflict',message:expect.stringContaining('排队版本')});
+    expect(await env.DB.prepare('SELECT payload,runner_id FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({payload,runner_id:null});
+    expect(await env.DB.prepare('SELECT claimed_by,claimed_at FROM publish_lock').first()).toEqual({claimed_by:null,claimed_at:null});
+  });
+  it('failed production preparation does not prevent an expired job from reaching a terminal result', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    await request('/next',{runnerId:'r1'});
+    await env.DB.prepare('UPDATE publish_lock SET expires_at=?1').bind(Date.now()-1000).run();
+    await env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(JSON.stringify(legacyConfig())).run();
+    await env.DB.prepare('DELETE FROM config_draft_upgrades').run();
+    const before = await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first();
+    await env.DB.prepare("CREATE TRIGGER fail_preparation_audit BEFORE INSERT ON audit WHEN NEW.target LIKE 'draft-upgrade:%' BEGIN SELECT RAISE(ABORT, 'preparation-audit-failure'); END").run();
+    const logged = vi.spyOn(console,'error').mockImplementation(() => {});
+    try {
+      await expect(maintainPublishing(github())).resolves.toBeUndefined();
+      expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({status:'failed'});
+      expect(await env.DB.prepare('SELECT COUNT(*) n FROM publish_lock').first()).toEqual({n:0});
+      expect(await env.DB.prepare('SELECT payload,draft_rev FROM config_draft').first()).toEqual(before);
+      expect(await env.DB.prepare('SELECT COUNT(*) n FROM config_draft_upgrades').first()).toEqual({n:0});
+      expect(await (await app.request('/api/publish/executor',{headers:{cookie}},github())).json()).toMatchObject({ready:false});
+      expect(logged).toHaveBeenCalledWith('Configuration preparation failed; the original draft was retained.');
+    } finally { await env.DB.prepare('DROP TRIGGER fail_preparation_audit').run(); }
+  });
+  it('publication draft revision is captured atomically and does not drift with later saves', async () => {
+    await change(); await request('/heartbeat',{runnerId:'r1'});
+    const source = await env.DB.prepare('SELECT draft_rev FROM config_draft').first<{draft_rev:number}>();
+    const {versionId} = await (await publish()).json() as {versionId:number};
+    await env.DB.prepare('UPDATE config_draft SET draft_rev=draft_rev+1 WHERE id=1').run();
+    expect(await env.DB.prepare('SELECT source_draft_rev FROM config_versions WHERE id=?1').bind(versionId).first()).toEqual({source_draft_rev:source!.draft_rev});
+    expect(await (await request('/next',{runnerId:'r1'})).json()).toMatchObject({job:{versionId,draftRev:source!.draft_rev,source:'draft'}});
   });
   it('rollback upgrades only the new publication copy and still queues the complete gate chain', async () => {
     await app.request('/api/config',{headers:{cookie}},local());
@@ -658,6 +937,7 @@ describe('automatic publishing service boundary', () => {
     expect(adapted.copy.en['trust.card1']).toBeUndefined();
     expect(await env.DB.prepare('SELECT payload,status FROM config_versions WHERE id=?1').bind(historical!.id).first()).toMatchObject({payload:historicalPayload,status:'archived'});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_steps WHERE version_id=?1').bind(body.versionId).first()).toMatchObject({n:0});
+    expect(await (await request('/next',{runnerId:'r1'})).json()).toMatchObject({job:{versionId:body.versionId,draftRev:null,source:'snapshot'}});
   });
   it('rollback with authored removed fields identifies conflicts without rewriting history or creating a job', async () => {
     await app.request('/api/config',{headers:{cookie}},local());

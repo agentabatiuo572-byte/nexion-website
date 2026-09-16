@@ -121,7 +121,7 @@ const ld = {
     text-wrap: pretty;
     line-height: 1.45;
   }
-  .item p:lang(zh) {
+  .item p:is(:lang(zh), :lang(ja), :lang(ko)) {
     line-height: 1.6; /* 全站 CJK 行高不变量 */
   }
   .q {

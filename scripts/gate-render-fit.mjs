@@ -45,8 +45,10 @@
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
-import { readdirSync, statSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, extname } from 'node:path';
+import { readBuiltPages, homeRoutes, parseRoutesArg, scopeRoutes } from './gate-built-routes.mjs';
+import { checkUiLayout } from './check-ui-layout.mjs';
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
 
@@ -55,17 +57,7 @@ const DIST = join(ROOT, 'dist');
 const EXPLICIT = process.argv[2] && !process.argv[2].startsWith('--') ? process.argv[2].replace(/\/$/, '') : null;
 
 /* ── ① 路由:从产物枚举 ── */
-const allRoutes = () => {
-  const out = [];
-  (function walk(dir, base = '') {
-    for (const e of readdirSync(dir)) {
-      const p = join(dir, e);
-      if (statSync(p).isDirectory()) walk(p, base + '/' + e);
-      else if (e === 'index.html') out.push((base || '') + '/');
-    }
-  })(DIST);
-  return out.sort();
-};
+const allRoutes = () => readBuiltPages(DIST).map((page) => page.route);
 
 /* ── ② 视口:从产物 CSS 自己的断点推导 ── */
 const breakpoints = () => {
@@ -156,11 +148,11 @@ const SCAN_LINES = () => {
     // 先按行盒顶端把每个字符归到它所在的行(字符级 Range,只对真的多行的元素做)
     const lines = new Map(); // top -> {text, top}
     let chars = 0;
+    const r = document.createRange();
     for (const n of nodes) {
       const s = n.textContent;
       for (let i = 0; i < s.length && chars < 600; i++, chars++) {
         if (!s[i].trim()) continue;
-        const r = document.createRange();
         r.setStart(n, i);
         r.setEnd(n, i + 1);
         const rect = r.getBoundingClientRect();
@@ -682,11 +674,23 @@ if (!BASE) {
   BASE = server.url;
 }
 
-const ROUTES = allRoutes();
+const ALL_ROUTES = allRoutes();
+const ALL_HOME = homeRoutes(readBuiltPages(DIST));
+/* 增量裁剪:只实测变化路由。显式单路由模式(EXPLICIT)优先；裁剪到空即如实报跳过，
+   在起浏览器之前退出 —— HTML 与静态资源都未变，量不出第二种答案。 */
+const onlyRoutes = EXPLICIT ? null : parseRoutesArg(process.argv.slice(2));
+const routeScope = scopeRoutes(ALL_ROUTES, onlyRoutes);
+const homeScope = scopeRoutes(ALL_HOME, onlyRoutes);
+const ROUTES = routeScope.pages;
+const HOME = homeScope.pages;
+if (routeScope.scoped && ROUTES.length === 0 && HOME.length === 0) {
+  console.log(`[render-fit] ✓ 路由裁剪:无变化路由,跳过实测(0/${routeScope.total})`);
+  process.exit(0);
+}
 const { widths, heights } = breakpoints();
-// 首屏层间判据只需首页三语,但视口要走全部「宽 × 矮档高」组合
-const HOME = ROUTES.filter((r) => r === '/' || r === '/vi/' || r === '/zh/');
+// 首屏层间判据只需首页多语,但视口要走全部「宽 × 矮档高」组合
 const SHORT_H = heights.filter((h) => h <= 900);
+const progress = (detail) => console.log('[publish-progress] ' + JSON.stringify({ detail }));
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -776,7 +780,8 @@ const scanA = async (r, w, h) => {
   for (const b of blind) if (!blindSpots.has(`${r}|${b}`)) blindSpots.set(`${r}|${b}`, `${r} @${w}×${h}  ${b}`);
 };
 
-for (const r of ROUTES) {
+for (const [index, r] of ROUTES.entries()) {
+  progress(`页面布局：文字与字号 ${index + 1}/${ROUTES.length}，当前 ${r}`);
   const res = await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   if (!res || !res.ok()) { hitsA.set('route:' + r, `${r}  路由取不到`); continue; }
   await page.evaluate(() => document.fonts.ready);
@@ -838,7 +843,8 @@ for (const r of ROUTES) {
 const hitsE = new Map();
 const hitsF = new Map();
 let dialogRoutes = 0;
-for (const r of ROUTES) {
+for (const [index, r] of ROUTES.entries()) {
+  progress(`页面布局：弹层检查 ${index + 1}/${ROUTES.length}，当前 ${r}`);
   await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   const n = await page.evaluate(() => document.querySelectorAll('dialog').length);
   if (!n) continue;
@@ -882,7 +888,8 @@ for (const r of ROUTES) {
 }
 
 const hitsC = [];
-for (const r of HOME) {
+for (const [index, r] of HOME.entries()) {
+  progress(`页面布局：导航检查 ${index + 1}/${HOME.length}，当前 ${r}`);
   await page.goto(BASE + r, { waitUntil: 'networkidle' });
   await page.evaluate(() => document.fonts.ready);
   for (const w of widths) {
@@ -965,7 +972,8 @@ const CH_NAMES = [...new Set(readdirSync(join(DIST, '_astro'))
   .join(' ')
   .match(/--x-ch-[a-z-]+/g) || [])];
 const hitsH = [];
-for (const r of HOME) {
+for (const [index, r] of HOME.entries()) {
+  progress(`页面布局：字体检查 ${index + 1}/${HOME.length}，当前 ${r}`);
   await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   await page.evaluate(() => document.fonts.ready);
   for (const g of await page.evaluate(SCAN_CH, CH_NAMES)) {
@@ -976,12 +984,20 @@ for (const r of HOME) {
         ' 实测每 ch = ' + g.measured + 'em(差 ' + (off * 100).toFixed(1) + '%)');
   }
 }
-await browser.close();
-if (server) await server.close();
+let layout;
+try {
+  await ctx.close();
+  layout = await checkUiLayout(browser, BASE, scopeRoutes(readBuiltPages(DIST), onlyRoutes).pages, progress);
+} finally {
+  await browser.close();
+  if (server) await server.close();
+}
 
 const A = [...hitsA.values()].sort((a, b) => (b.over || 0) - (a.over || 0));
 const B = [...hitsB.values()].sort((a, b) => b.under - a.under);
-console.log(`[render-fit] 路由 ${ROUTES.length} 条(从产物枚举)· 宽 ${widths.length} 档 / 矮档高 ${SHORT_H.length} 档(从产物 CSS 断点推导)`);
+console.log(`[render-fit] 审计布局回归样本 ${JSON.stringify(layout.samples)}`);
+for (const failure of layout.failures) console.log(`[render-fit] ✘ UI ${failure}`);
+console.log(`[render-fit] 路由 ${ROUTES.length} 条(从产物枚举)${routeScope.scoped ? ` · 增量裁剪(${ROUTES.length}/${routeScope.total})` : ''}· 宽 ${widths.length} 档 / 矮档高 ${SHORT_H.length} 档(从产物 CSS 断点推导)`);
 console.log(`             宽: ${widths.join(' ')}`);
 console.log(`             高: ${SHORT_H.join(' ')}`);
 const D = [...hitsD.values()].sort((a, b) => b.pct - a.pct);
@@ -1002,7 +1018,7 @@ if (blindSpots.size) {
   process.exit(3);
 }
 
-if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length && !G.length && !hitsH.length) {
+if (!A.length && !B.length && !hitsC.length && !D.length && !E.length && !F.length && !G.length && !hitsH.length && !layout.failures.length) {
   console.log('[render-fit] ✓ 墨迹无相撞 · 导航高声明=实测 · 字号随视口单调 · 弹层各档装得下且关闭态真隐藏 · 同类兄弟顶齐 · 字符宽比值=真字体度量 · 无观测面缺口');
   process.exit(0);
 }

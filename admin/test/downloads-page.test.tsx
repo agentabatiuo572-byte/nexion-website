@@ -37,6 +37,13 @@ afterEach(() => {
 });
 
 describe('download probe identity', () => {
+  it('labels enabled draft settings separately from the published website', () => {
+    render(<DownloadsPage />);
+    expect(screen.getByText('草稿已开启')).toBeTruthy();
+    expect(screen.queryByText('已上线')).toBeNull();
+    expect((screen.getByLabelText('iOS 链接') as HTMLInputElement).value).toBe('https://saved.example/ios');
+  });
+
   it('labels results as the saved draft and hides them as soon as local input diverges', async () => {
     mocks.api.mockResolvedValue({ ios: { ok: true, status: 200 }, android: { skipped: true }, h5: { skipped: true }, at: 1, draftRev: 7 });
     render(<DownloadsPage />);

@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
-import { LOCALES, SiteConfigSchema, diffPaths, materializeI18n, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
+import { LOCALES, MATERIALIZED_FILES, SiteConfigSchema, addLegacyLocaleFields, classifyChangedPaths, diffPaths, materializeI18n, materializeSiteJson, sensitivePaths, validateConfig, type CopyManifest, type PublishChangeTier, type SiteConfig } from '../../schema/src/index.js';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
 import { prepareAuditAfterPreviousChange, writeAudit, type AuditEntry } from './audit';
 import { ensureInit } from './config';
-import { adaptLegacyConfig } from './config-upgrade';
+import { adaptLegacyConfig, ensureDraftUpgrade, validateUpgradeResolution } from './config-upgrade';
 import { executorState, dispatchPending, RUNNER_ID } from './publish-executor';
+import { translationFreshness } from './translation-state';
 
 /* 发布流水线(PRD CON13)。核心承诺:**不存在绕门发布的路径**——
    上新只经本文件的状态机,而状态机必然经过「前置校验 → 物化 → 站上全部机器门 → 构建 → 原子切换」。
@@ -25,7 +26,7 @@ export type PublishStep = (typeof PUBLISH_STEPS)[number];
 /** 门名 → 大白话(CON13-③;缺映射时显门名原文,绝不隐藏) */
 export const GATE_REASONS: Record<string, string> = {
   'forbidden-words': '文案里有合规禁用词',
-  'i18n-parity': '三语文案对不齐(有缺译或多余的键)',
+  'i18n-parity': '各语言文案对不齐(有缺译或多余的键)',
   'deploy-gate': '还有未填充的信任资料占位标记',
   'launch-assets': '上线必备资产缺失(统计数字仍是演示值 / 缺联系方式 / 禁用的下载键没有说明)',
   'state-hook-consumer': '页面上有没人消费的状态钩子',
@@ -94,8 +95,8 @@ async function createPublication(env: Env, source: PublicationSource, reason: st
   const nonce = randomHex(16);
   const now = Date.now();
   const insertVersion = source.kind === 'draft'
-    ? env.DB.prepare(`INSERT INTO config_versions (status, payload, reason, created_by, created_at, claim_nonce)
-        SELECT 'validating',d.payload,?1,'admin',?2,?3 FROM config_draft d
+    ? env.DB.prepare(`INSERT INTO config_versions (status, payload, reason, created_by, created_at, claim_nonce, source_draft_rev)
+        SELECT 'validating',d.payload,?1,'admin',?2,?3,d.draft_rev FROM config_draft d
         WHERE d.id=1 AND d.draft_rev=?4
           AND NOT EXISTS(SELECT 1 FROM publish_lock)
           AND NOT EXISTS(SELECT 1 FROM config_versions WHERE status='unknown' OR claim_nonce=?3)
@@ -200,8 +201,7 @@ async function verifyAnchors(env: Env, stamp: LiveStamp | null): Promise<string[
    第一版只哈希了 site.json,而文案 / FAQ / Legal 全部物化进 i18n 三份文件、根本不进 site.json——
    于是「只改文案」这个**后台最常见的改动**摘要完全不变,那道核验对它等于不存在(实测可零门上线)。
    一个只覆盖了少数字段的「内容核验」比没有更糟:它让人以为已经验过了。
-   物化面 = i18n 三语 + site.json,与执行器写盘的那四个文件一一对应。 */
-const MATERIALIZED_FILES = ['src/i18n/en.json', 'src/i18n/vi.json', 'src/i18n/zh.json', 'src/config/site.json'] as const;
+   物化面 = 全部 i18n 语言 + site.json,与执行器写盘的共享清单一一对应。 */
 async function expectedConfigSha(payload: string): Promise<string> {
   const cfg = SiteConfigSchema.parse(JSON.parse(payload));
   const parts = [
@@ -406,7 +406,8 @@ publishRoutes.get('/preflight', async (c) => {
   const live = await getLive(c.env);
   const cfg = SiteConfigSchema.parse(JSON.parse(draft.payload));
   const { errors, warnings } = validateConfig(cfg, MANIFEST);
-  const changed = live ? diffPaths(JSON.parse(live.payload) as never, cfg as never) : [];
+  errors.push(...await translationFreshness(c.env.DB, cfg, MANIFEST));
+  const changed = live ? diffPaths(addLegacyLocaleFields(JSON.parse(live.payload), MANIFEST.editable) as SiteConfig, cfg) : [];
   const sensitive = sensitivePaths(changed);
   return c.json({
     ready: errors.length === 0 && changed.length > 0,
@@ -457,9 +458,10 @@ publishRoutes.post('/', async (c) => {
   const cfg = SiteConfigSchema.safeParse(JSON.parse(payload));
   if (!cfg.success) return c.json({ error: 'bad-structure' }, 400);
   const { errors } = validateConfig(cfg.data, MANIFEST);
+  if (source.kind === 'draft') errors.push(...await translationFreshness(c.env.DB, cfg.data, MANIFEST));
   if (errors.length) return c.json({ error: 'preflight-failed', errors: errors.slice(0, 50) }, 409); // E1:不进流水线
 
-  const changed = live ? diffPaths(JSON.parse(live.payload) as never, cfg.data as never) : [];
+  const changed = live ? diffPaths(addLegacyLocaleFields(JSON.parse(live.payload), MANIFEST.editable) as SiteConfig, cfg.data) : [];
   if (!rollbackFrom && changed.length === 0) return c.json({ error: 'no-changes' }, 409);
   const sensitive = sensitivePaths(changed);
   if ((sensitive.length > 0 || rollbackFrom) && (body?.reason ?? '').trim().length < 8) {
@@ -517,6 +519,13 @@ publishRoutes.post('/heartbeat', async (c) => {
     ]);
     if (!committed[0]?.meta.changes) return c.json({error:'not-current-job'},409);
   } else {
+    // A daemon or CI run must reach an existing immutable job even if today's draft needs repair.
+    const active = await c.env.DB.prepare("SELECT id FROM config_versions WHERE status IN ('validating','publishing','unknown') LIMIT 1").first();
+    if (!active) {
+      const configUpgrade = await ensureDraftUpgrade(c.env.DB);
+      const problem = upgradeProblem(configUpgrade);
+      if (problem) return c.json({ ...problem.body, configUpgrade }, problem.status);
+    }
     await c.env.DB.batch([
       c.env.DB.prepare('INSERT INTO publish_runner(runner_id,last_seen_at) VALUES(?1,?2) ON CONFLICT(runner_id) DO UPDATE SET last_seen_at=excluded.last_seen_at').bind(b.runnerId,now),
       c.env.DB.prepare('DELETE FROM publish_runner WHERE last_seen_at<?1').bind(now-86400000),
@@ -529,7 +538,7 @@ publishRoutes.post('/heartbeat', async (c) => {
  * evidence; otherwise retain an explicit unknown state and forbid another publication. */
 async function recoverInterrupted(env: Env, versionId: number, detail: string, recoveryClaim?: RecoveryClaim) {
   const v = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first<{status:string}>();
-  if (!v || ['live','archived','failed','cancelled'].includes(v.status)) return {ok:true,terminal:true,live:v?.status==='live'};
+  if (!v || ['live','archived','failed','cancelled'].includes(v.status)) return {ok:true,terminal:true,live:v?.status==='live',status:v?.status ?? null};
   const swap = await env.DB.prepare("SELECT status FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(versionId).first<{status:string}>();
   if (swap) {
     // 同一份资产只核验一次，步骤与版本由同一个条件事务提交。
@@ -538,7 +547,7 @@ async function recoverInterrupted(env: Env, versionId: number, detail: string, r
     await ensureTerminalEffect(env,versionId,'materialize','failed',undefined,detail,Date.now(),false,recoveryClaim,'system');
   }
   const current = await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(versionId).first<{status:string}>();
-  return {ok:true,terminal:!current || ['live','archived','failed','cancelled'].includes(current.status),live:current?.status==='live',...(current?.status==='unknown' ? {unknown:true} : {})};
+  return {ok:true,terminal:!current || ['live','archived','failed','cancelled'].includes(current.status),live:current?.status==='live',status:current?.status ?? null,...(current?.status==='unknown' ? {unknown:true} : {})};
 }
 
 export async function maintainPublishing(env: Env) {
@@ -549,15 +558,29 @@ export async function maintainPublishing(env: Env) {
   for (const v of expired.results) await recoverInterrupted(env,v.id,'发布服务中断或超时，草稿已保留，可重新发布。',{observedAt});
   const uncertain = await env.DB.prepare("SELECT id FROM config_versions WHERE status='unknown'").all<{id:number}>();
   for (const v of uncertain.results) await recoverInterrupted(env,v.id,'切换结果待核实');
+  // Production has no idle daemon: the existing minute maintenance prepares a deployed schema.
+  // Recovery runs first and must still finish if preparation fails; active snapshots are untouched.
+  if (env.ENVIRONMENT === 'production' && env.PUBLISH_EXECUTION_MODE === 'github') {
+    const active = await env.DB.prepare("SELECT id FROM config_versions WHERE status IN ('validating','publishing','unknown') LIMIT 1").first();
+    if (!active) {
+      try {
+        await ensureInit(env.DB);
+        await ensureDraftUpgrade(env.DB);
+      } catch {
+        console.error('Configuration preparation failed; the original draft was retained.');
+      }
+    }
+  }
   await dispatchPending(env);
 }
 
 publishRoutes.post('/runner-fail', async(c) => {
   const b = await c.req.json<{runnerId?:string;versionId?:number;stamp?:string;detail?:string}>().catch(()=>null);
-  if (!b?.versionId || !b.runnerId) return c.json({error:'bad-request'},400);
+  if (!b?.versionId || !b.runnerId || (b.detail != null && typeof b.detail !== 'string')) return c.json({error:'bad-request'},400);
   const owner = await c.env.DB.prepare('SELECT runner_id,claim_nonce FROM config_versions WHERE id=?1').bind(b.versionId).first<{runner_id:string;claim_nonce:string}>();
   if (!owner || owner.runner_id!==b.runnerId || owner.claim_nonce!==b.stamp) return c.json({error:'not-current-job'},409);
-  return c.json(await recoverInterrupted(c.env,b.versionId,(b.detail ?? '发布服务已重启，本次构建中断，草稿保留，可重新发布。').slice(0,500)));
+  // Match runner.mjs: retain the bounded diagnostic tail, where process failures appear.
+  return c.json(await recoverInterrupted(c.env,b.versionId,(b.detail ?? '发布服务已重启，本次构建中断，草稿保留，可重新发布。').slice(-6000)));
 });
 
 /** 执行器领取任务(§5.4 契约;dev 本机 runner / Phase C CI runner 共用)。
@@ -572,8 +595,13 @@ publishRoutes.post('/next', async (c) => {
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
   if (b.versionId !== undefined && b.versionId!==lock.version_id) return c.json({job:null});
-  const v = await c.env.DB.prepare('SELECT id, status, payload FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string }>();
+  const v = await c.env.DB.prepare('SELECT id, status, payload, source_draft_rev FROM config_versions WHERE id = ?1').bind(lock.version_id).first<{ id: number; status: string; payload: string; source_draft_rev: number | null }>();
   if (!v || !['validating', 'publishing'].includes(v.status)) return c.json({ job: null });
+  let snapshot: unknown;
+  try { snapshot = JSON.parse(v.payload); } catch { snapshot = null; }
+  const config = validateUpgradeResolution(snapshot);
+  if (!config.ok) return c.json({error:'config-upgrade-conflict',message:'排队版本与当前代码不兼容，原版本未修改，请等待本次任务收口后重新发布。',
+    conflicts:config.issues.map((issue)=>({path:issue.path,reason:issue.message})),paths:config.issues.map((issue)=>issue.path)},409);
 
   /* claim、版本 owner、durable dispatch 必须是同一事务。旧实现先占锁再分两次写：
      任一后写失败都会留下「锁已领、owner/dispatch 未落」的半套状态，重试还只补 owner。
@@ -616,8 +644,15 @@ publishRoutes.post('/next', async (c) => {
   const receipt = committed[3]?.results?.[0] as {claim_nonce:string | null} | undefined;
   if (!receipt?.claim_nonce) return c.json({ job: null, note: 'already-claimed' });
 
+  /* 增量分级:领单时按「本版 vs 当前线上」的配置 diff 定档,执行器据此跳过源码静态门。
+     算不出(线上无版本/解析失败)一律按全量,不降档。 */
+  let changeTier: PublishChangeTier = 'config-shape';
+  try {
+    const live = await c.env.DB.prepare("SELECT payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ payload: string }>();
+    if (live) changeTier = classifyChangedPaths(diffPaths(JSON.parse(live.payload), JSON.parse(v.payload)));
+  } catch { changeTier = 'config-shape'; }
   return c.json({
-    job: { versionId: v.id, config: JSON.parse(v.payload) as SiteConfig, steps: PUBLISH_STEPS, stamp: receipt.claim_nonce, runnerId:b.runnerId },
+    job: { versionId: v.id, draftRev: v.source_draft_rev, source: v.source_draft_rev === null ? 'snapshot' : 'draft', config: config.config, steps: PUBLISH_STEPS, stamp: receipt.claim_nonce, runnerId: b.runnerId, changeTier },
   });
 });
 
@@ -630,9 +665,10 @@ publishRoutes.post('/next', async (c) => {
       ③ 报 ok/failed 前该步必须已 running(先声明再收口,防凭空落一步)。 */
 publishRoutes.post('/step', async (c) => {
   const b = await c.req.json<{ versionId?: number; step?: PublishStep; status?: string; detail?: string; gate?: string; stamp?: string; runnerId?:string }>().catch(() => null);
-  if (!b?.versionId || !b.step || !PUBLISH_STEPS.includes(b.step) || !['running', 'ok', 'failed'].includes(b.status ?? '')) {
+  if (!b?.versionId || !b.step || !PUBLISH_STEPS.includes(b.step) || !['running', 'ok', 'failed'].includes(b.status ?? '') || (b.detail != null && typeof b.detail !== 'string')) {
     return c.json({ error: 'bad-request' }, 400);
   }
+  const detail = b.detail?.slice(-6000);
   const now = Date.now();
 
   /* ══════════ 第零层:身份 —— 这条回报是不是这一版的执行器发的 ══════════
@@ -682,8 +718,18 @@ publishRoutes.post('/step', async (c) => {
        根因是我把一个**有副作用的事务的触发器**,当成了「记一笔事实」来做幂等。
        正确的幂等:重放要让系统**收敛到同一个终态**,该发生的副作用如果还没发生,就补上。
        所以这里只跳过「重复写步骤行」,终态该带来的效果仍然照走(下面 ensureTerminalEffect)。 */
-    if (b.status === 'running') return c.json({ ok: true, idempotent: true }); // 非终态无副作用,直接受理
-    const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, b.detail, now);
+    if (b.status === 'running') {
+      if (detail === undefined) return c.json({ ok: true, idempotent: true });
+      // 子命令进度只改说明；计时与租约仍由步骤开始和任务心跳负责。
+      const updated = await c.env.DB.prepare(`UPDATE publish_steps SET detail=?6
+        WHERE version_id=?1 AND step=?2 AND status='running'
+          AND EXISTS(SELECT 1 FROM config_versions v JOIN publish_lock l ON l.version_id=v.id
+            WHERE v.id=?1 AND v.status IN ('validating','publishing') AND v.claim_nonce=?3 AND v.runner_id=?4
+              AND l.id=1 AND l.claim_nonce=?3 AND l.claimed_by=?4 AND l.claimed_at IS NOT NULL AND l.expires_at>?5)`)
+        .bind(b.versionId,b.step,b.stamp!,b.runnerId!,Date.now(),detail).run();
+      return updated.meta.changes ? c.json({ ok: true, idempotent: true }) : c.json({ error: 'not-current-job' }, 409);
+    }
+    const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, detail, now);
     return eff.ok ? c.json({ ok: true, idempotent: true, effectEnsured: eff.applied }) : c.json({ error: eff.error, why: eff.why }, 409);
   }
   if (recorded === 'ok' || recorded === 'failed') {
@@ -733,8 +779,8 @@ publishRoutes.post('/step', async (c) => {
       c.env.DB.prepare(`UPDATE config_versions SET status='publishing' WHERE id=?1 AND ${eligible}`).bind(...args),
       c.env.DB.prepare(`UPDATE publish_lock SET expires_at=?6 WHERE id=1 AND version_id=?1 AND ${eligible}`).bind(...args,committingAt+LOCK_TTL_MS),
       // 最后写步骤，前三句始终共用「本步尚未存在」的资格；迟到回报不能复活终态或续错锁。
-      c.env.DB.prepare(`INSERT INTO publish_steps (version_id,step,status,started_at)
-        SELECT ?1,?2,'running',?5 WHERE ${eligible}`).bind(...args),
+      c.env.DB.prepare(`INSERT INTO publish_steps (version_id,step,status,started_at,detail)
+        SELECT ?1,?2,'running',?5,?6 WHERE ${eligible}`).bind(...args,detail ?? null),
     ]);
     if (!committed[2]?.meta.changes) return c.json({error:'not-current-job'},409);
     return c.json({ ok: true });
@@ -742,18 +788,18 @@ publishRoutes.post('/step', async (c) => {
 
   // 终态的步骤与版本必须共用条件事务，不能先把步骤写好再异步核验资产。
   if (b.status === 'failed' || b.step === 'swap') {
-    const eff = await ensureTerminalEffect(c.env,b.versionId,b.step,b.status as 'ok'|'failed',b.gate,b.detail,now);
+    const eff = await ensureTerminalEffect(c.env,b.versionId,b.step,b.status as 'ok'|'failed',b.gate,detail,now);
     if (!eff.ok) return c.json({error:eff.error,why:eff.why},409);
     return c.json({ok:true,...(b.status==='failed' ? {failed:true,reason:eff.reason} : {})});
   }
   // ③ 非终态成功也不能改写已经被并发请求收口的版本。
   const upd = await c.env.DB
     .prepare("UPDATE publish_steps SET status=?3, detail=?4, ended_at=?5 WHERE version_id=?1 AND step=?2 AND status='running' AND EXISTS(SELECT 1 FROM config_versions WHERE id=?1 AND status IN ('validating','publishing'))")
-    .bind(b.versionId, b.step, b.status, b.detail ?? null, now)
+    .bind(b.versionId, b.step, b.status, detail ?? null, now)
     .run();
   if ((upd.meta.changes ?? 0) === 0) return c.json({ error: 'step-not-running(先报 running 再报结果)' }, 409);
 
-  const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, b.detail, now);
+  const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, detail, now);
   if (!eff.ok) return c.json({ error: eff.error, why: eff.why }, 409);
   return c.json({ ok: true, ...(b.status === 'failed' ? { failed: true, reason: eff.reason } : {}) });
 });
@@ -827,7 +873,7 @@ publishRoutes.get('/status', async (c) => {
         .first<{ prev: string | null; cur: string | null }>();
       if (!pair?.prev || !pair.cur || pair.prev === '{}' || pair.cur === '{}') continue; // 没有前一版 / 空壳 → 留空
       try {
-        v.changed = diffPaths(JSON.parse(pair.prev) as never, JSON.parse(pair.cur) as never).length;
+        v.changed = diffPaths(addLegacyLocaleFields(JSON.parse(pair.prev), MANIFEST.editable) as SiteConfig, addLegacyLocaleFields(JSON.parse(pair.cur), MANIFEST.editable) as SiteConfig).length;
       } catch { /* 结构对不上就留空,不编一个数出来 */ }
     }
   }

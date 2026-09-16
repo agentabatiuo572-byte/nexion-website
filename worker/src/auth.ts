@@ -16,6 +16,23 @@ export const SESSION_COOKIE = 'nx_sid';
 /** 登录态 cookie 属性单源:setCookie 与 deleteCookie 共用,防清除时属性漂移(LOW) */
 const SESSION_COOKIE_OPTS = { httpOnly: true, secure: true, sameSite: 'Lax', path: '/' } as const;
 
+/** Administrator JSON mutations share the same origin policy in both AI route families. */
+export const requireSameOriginJson: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+  c.header('Cache-Control', 'no-store');
+  if (!['GET', 'HEAD'].includes(c.req.method)) {
+    const url = new URL(c.req.url), origin = c.req.header('origin');
+    const local = c.env.ENVIRONMENT === 'dev' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+    const localOrigins = [
+      'http://localhost:5175', 'http://127.0.0.1:5175',
+      'http://localhost:8787', 'http://127.0.0.1:8787',
+      'http://localhost:4399', 'http://127.0.0.1:4399',
+    ];
+    if (!origin || (origin !== url.origin && !(local && localOrigins.includes(origin)))) return c.json({ error: 'origin-rejected' }, 403);
+    if (!/^application\/json(?:\s*;|$)/i.test(c.req.header('content-type') ?? '')) return c.json({ error: 'json-required' }, 415);
+  }
+  await next();
+};
+
 const enc = new TextEncoder();
 
 function toHex(buf: ArrayBuffer): string {

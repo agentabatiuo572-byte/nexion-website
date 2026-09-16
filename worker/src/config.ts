@@ -1,17 +1,19 @@
 import { Hono } from 'hono';
-import { SiteConfigSchema, buildManifest, diffPaths, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
+import { LOCALES, addLegacyLocaleFields, SiteConfigSchema, diffPaths, sensitivePaths, validateConfig, type CopyManifest, type SiteConfig } from '../../schema/src/index.js';
 import seedJson from '../seed/site-config.seed.json';
 import manifestJson from '../seed/copy-manifest.json';
 import type { Env } from './env';
-import { prepareAuditAfterPreviousChange } from './audit';
+import { DraftWriteError, normalizeDraftPayload, saveDraftPatch, saveDraftPut } from './draft-write';
 import { liveSnapshotDrift } from './publish';
+import { deriveTranslationChanges, prepareTranslationChanges, translationFreshness, translationStateKey } from './translation-state';
+import { enumerateTranslationFields } from '../../schema/src/draft-fields.js';
 import { loadRules } from './geo';
-import { commitDraftUpgrade, ensureDraftUpgrade, validateUpgradeResolution, type DraftUpgradeStatus } from './config-upgrade';
+import { checkDraftUpgrade, commitDraftUpgrade, validateUpgradeResolution, type DraftUpgradeStatus } from './config-upgrade';
 
 /* 配置模型(CON04-A1/E3 + CON13-③ 版本表底座)。
    编辑面永不直写线上:一切上新只经发布流水线(T21);此处只有 草稿/校验/版本读。 */
 
-const SEED = SiteConfigSchema.parse(seedJson);
+const SEED = SiteConfigSchema.parse(addLegacyLocaleFields(seedJson, manifestJson.editable));
 const MANIFEST = manifestJson as unknown as CopyManifest;
 
 interface DraftRow {
@@ -20,7 +22,7 @@ interface DraftRow {
   updated_at: number;
 }
 
-/** 首访种子化:live v1 = 种子,草稿 = 种子副本(幂等)。
+/** 首访种子化:live v1 = 种子,草稿 = 种子副本(幂等)。已有草稿只读检查，升级由服务准备阶段执行。
     🔴 发布/驾驶舱等一切读配置的入口都必须先调它——否则全新安装上直接调用会读到 null 而 500
     (T21 测试实证:发布接口漏调,空库发起发布即崩)。 */
 export async function ensureInit(db: D1Database): Promise<DraftUpgradeStatus> {
@@ -31,7 +33,7 @@ export async function ensureInit(db: D1Database): Promise<DraftUpgradeStatus> {
     db.prepare('SELECT id FROM config_versions LIMIT 1').first(),
     db.prepare('SELECT id FROM config_draft WHERE id = 1').first(),
   ]);
-  if (hasVer && hasDraft) return ensureDraftUpgrade(db);
+  if (hasVer && hasDraft) return checkDraftUpgrade(db);
   const now = Date.now();
   if (hasVer) {
     // 版本在、草稿丢了:用当前线上内容补一份草稿,别去动版本历史
@@ -40,15 +42,23 @@ export async function ensureInit(db: D1Database): Promise<DraftUpgradeStatus> {
       .prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev) VALUES (1, ?1, 1, ?2, 1)')
       .bind(live?.payload ?? JSON.stringify(SEED), now)
       .run();
-    return ensureDraftUpgrade(db);
+    return checkDraftUpgrade(db);
   }
+  const nonce = crypto.randomUUID();
+  const knownSeedFields = new Set(enumerateTranslationFields(SEED, MANIFEST)
+    .filter((field) => field.source.trim() && field.target.trim())
+    .map((field) => translationStateKey(field.fieldId, field.targetLocale)));
+  const provenance = await deriveTranslationChanges(SEED, SEED, MANIFEST, new Map(), new Set(), knownSeedFields);
   await db.batch([
     db
-      .prepare("INSERT INTO config_versions (status, payload, reason, created_by, created_at, published_at) VALUES ('live', ?1, '初始种子(=上线前站内容)', 'system', ?2, ?2)")
+      .prepare("INSERT INTO config_versions (status, payload, reason, created_by, created_at, published_at) SELECT 'live', ?1, '初始种子(=上线前站内容)', 'system', ?2, ?2 WHERE NOT EXISTS (SELECT 1 FROM config_versions)")
       .bind(JSON.stringify(SEED), now),
-    db.prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev) VALUES (1, ?1, 1, ?2, 1)').bind(JSON.stringify(SEED), now),
+    db.prepare('INSERT OR IGNORE INTO config_draft (id, payload, base_revision, updated_at, draft_rev, write_nonce) VALUES (1, ?1, 1, ?2, 1, ?3)').bind(JSON.stringify(SEED), now, nonce),
+    // Only the draft created by this transaction has known factory provenance.
+    // Existing historical drafts must never be relabelled by text equality.
+    ...prepareTranslationChanges(db, provenance, nonce, 1),
   ]);
-  return ensureDraftUpgrade(db);
+  return checkDraftUpgrade(db);
 }
 
 async function getDraft(db: D1Database): Promise<DraftRow> {
@@ -67,8 +77,10 @@ export const configRoutes = new Hono<{ Bindings: Env }>();
 configRoutes.get('/', async (c) => {
   const configUpgrade = await ensureInit(c.env.DB);
   const [draft, live] = await Promise.all([getDraft(c.env.DB), getLive(c.env.DB)]);
-  const livePayload = JSON.parse(live!.payload) as SiteConfig;
-  const changed = diffPaths(livePayload, JSON.parse(draft.payload));
+  // Project old snapshots into the current editor shape without rewriting published history.
+  const livePayload = addLegacyLocaleFields(JSON.parse(live!.payload), MANIFEST.editable) as SiteConfig;
+  const draftPayload = addLegacyLocaleFields(JSON.parse(draft.payload), MANIFEST.editable) as SiteConfig;
+  const changed = diffPaths(livePayload, draftPayload);
   // CON02-③ geoEnabled:壳状态条第三 chip 的只读数据源(包④ 挂账「待 CON12 接真」,T17 交付后此处关账)
   const geo = await loadRules(c.env).catch(() => null);
   /* CON02-E2:上次发布失败 → 壳顶红条。只在「失败的那一版比线上还新」时才报——
@@ -87,7 +99,7 @@ configRoutes.get('/', async (c) => {
     lastPublishFailed: lastFail ? { id: lastFail.id, reason: lastFail.fail_reason ?? '原因未记录', at: lastFail.created_at } : null,
     geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
     live: { payload: livePayload }, // 编辑器「查看线上值/行级撤销」的对照源(CON04-⑥)
-    draft: { payload: JSON.parse(draft.payload) as SiteConfig, draftRev: draft.draft_rev, updatedAt: draft.updated_at },
+    draft: { payload: draftPayload, draftRev: draft.draft_rev, updatedAt: draft.updated_at },
     dirty: changed.length,
     changedPaths: changed.slice(0, 200),
     sensitiveChanged: sensitivePaths(changed),
@@ -107,66 +119,33 @@ configRoutes.put('/draft', async (c) => {
     const resolution = validateUpgradeResolution(body.payload);
     if (!resolution.ok) return c.json({ error: 'invalid-upgrade-resolution', message: '解决稿必须完整通过当前配置校验，原冲突内容未改变', issues: resolution.issues }, 400);
   }
-  const parsed = SiteConfigSchema.safeParse(body.payload);
-  if (!parsed.success) return c.json({ error: 'bad-structure', issues: parsed.error.issues.slice(0, 10) }, 400);
+  if (!resolving) {
+    try { return c.json(await saveDraftPut(c.env.DB, body)); }
+    catch (error) { if (error instanceof DraftWriteError) return c.json(error.body, error.status); throw error; }
+  }
   const cur = await getDraft(c.env.DB);
   if (cur.draft_rev !== body.baseRevision) return c.json({ error: 'conflict', draftRev: cur.draft_rev }, 409); // E3:不静默覆盖
-  // CON04-E2(T11 验收 P-2 修):占位符守恒是「保存级」硬拦——缺了站上渲染字面残缺;
-  // 禁用词/缺译仍为草稿可存、发布拦(E1/E4 的分层设计不变)
-  const placeholderErrs = validateConfig(parsed.data, MANIFEST).errors.filter((e) => e.rule === 'placeholder');
-  if (placeholderErrs.length) return c.json({ error: 'placeholder', issues: placeholderErrs.slice(0, 10) }, 400);
-  // An explicit resolution may replace a malformed legacy payload; its exact bytes still go into the backup.
-  const prev = (() => { try { return JSON.parse(cur.payload); } catch { return cur.payload; } })();
-  // CON09-E3:公告内容(文案/链接)变更 → server 换 id(访客关闭记忆按 id 记,新公告重新展示)。
-  // T14 验收 P-3:内容改回与线上完全一致时还原线上 id——手工全量回滚不留幽灵改动。
-  const a = parsed.data.announcement;
-  const previousConfig = SiteConfigSchema.safeParse(prev);
-  const pa = previousConfig.success ? previousConfig.data.announcement : null;
-  const liveRow = await getLive(c.env.DB);
-  const la = liveRow ? (JSON.parse(liveRow.payload) as SiteConfig).announcement : null;
-  if (la && JSON.stringify(a.text) === JSON.stringify(la.text) && a.href === la.href) {
-    a.id = la.id;
-  } else if (!pa || JSON.stringify(a.text) !== JSON.stringify(pa.text) || a.href !== pa.href) {
-    a.id = `ann-${crypto.randomUUID().slice(0, 8)}`;
-  }
-  // CON11-E3:Legal markdown 剥离危险节点(白名单外的可执行面),剥离计数回显给 UI 提示
-  let sanitized = 0;
-  for (const doc of ['terms', 'privacy', 'appPrivacy'] as const) {
-    for (const loc of ['en', 'vi', 'zh'] as const) {
-      const before = parsed.data.legal[doc].md[loc];
-      const after = before
-        .replace(/<script[\s\S]*?<\/script\s*>/gi, '')
-        .replace(/<iframe[\s\S]*?(?:<\/iframe\s*>|\/>)/gi, '')
-        .replace(/\son\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '');
-      if (after !== before) {
-        parsed.data.legal[doc].md[loc] = after;
-        sanitized++;
-      }
-    }
-  }
-  const now = Date.now();
-  const changed = diffPaths(prev, parsed.data);
-  if (resolving) {
+  try {
+    const normalized = await normalizeDraftPayload(c.env.DB, cur, body.payload);
     // Recheck after the same announcement normalization and Legal sanitization used for ordinary saves.
-    const resolution = validateUpgradeResolution(parsed.data);
+    const resolution = validateUpgradeResolution(normalized.config);
     if (!resolution.ok) return c.json({ error: 'invalid-upgrade-resolution', issues: resolution.issues }, 400);
     const result = await commitDraftUpgrade(c.env.DB, cur, { ok: true, config: resolution.config, changed: true }, { explicitResolution: true });
     if (result.status !== 'applied') return c.json({ error: 'conflict', draftRev: (await getDraft(c.env.DB)).draft_rev }, 409);
-    return c.json({ ok: true, resolvedUpgrade: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length, sanitized });
+    return c.json({ ok: true, resolvedUpgrade: true, draftRev: cur.draft_rev + 1, changedFromPrev: normalized.changed.length, sanitized: normalized.sanitized });
+  } catch (error) {
+    if (error instanceof DraftWriteError) return c.json(error.body, error.status);
+    throw error;
   }
-  const committed = await c.env.DB.batch([
-    c.env.DB
-      .prepare('UPDATE config_draft SET payload = ?1, updated_at = ?2, draft_rev = draft_rev + 1 WHERE id = 1 AND draft_rev = ?3')
-      .bind(JSON.stringify(parsed.data), now, body.baseRevision),
-    prepareAuditAfterPreviousChange(c.env.DB, {
-      action: 'config.save',
-      target: 'draft',
-      after: `${changed.length} 处改动:${changed.slice(0, 5).join(', ')}${changed.length > 5 ? ' …' : ''}`,
-    }),
-  ]);
-  const saved = committed[0]!;
-  if ((saved.meta.changes ?? 0) === 0) return c.json({ error: 'conflict', draftRev: (await getDraft(c.env.DB)).draft_rev }, 409);
-  return c.json({ ok: true, draftRev: cur.draft_rev + 1, changedFromPrev: changed.length, sanitized });
+});
+
+configRoutes.patch('/draft', async (c) => {
+  const upgrade = await ensureInit(c.env.DB);
+  if (upgrade.status === 'blocked') return c.json({ error: 'config-upgrade-conflict', conflicts: upgrade.conflicts }, 409);
+  if (upgrade.status === 'retry') return c.json({ error: 'config-upgrade-retry' }, 409);
+  const body = await c.req.json().catch(() => null);
+  try { return c.json(await saveDraftPatch(c.env.DB, body)); }
+  catch (error) { if (error instanceof DraftWriteError) return c.json(error.body, error.status); throw error; }
 });
 
 /** 服务端造 id(CON08-③:禁客户端造)。kind 封闭枚举,新集合类字段接入时扩 */
@@ -192,8 +171,10 @@ configRoutes.post('/validate', async (c) => {
   const parsed = SiteConfigSchema.safeParse(target);
   if (!parsed.success) return c.json({ errors: parsed.error.issues.slice(0, 20).map((i) => ({ path: i.path.join('.'), rule: 'structure', message: i.message })), warnings: [] });
   const live = await getLive(c.env.DB);
-  const changed = live ? diffPaths(JSON.parse(live.payload), parsed.data) : [];
+  const changed = live ? diffPaths(addLegacyLocaleFields(JSON.parse(live.payload), MANIFEST.editable) as SiteConfig, parsed.data) : [];
   const { errors, warnings } = validateConfig(parsed.data, MANIFEST);
+  // Sidecar provenance describes the persisted draft, not an unsaved preview payload.
+  if (!body?.payload) errors.push(...await translationFreshness(c.env.DB, parsed.data, MANIFEST));
   return c.json({ errors, warnings, sensitiveChanged: sensitivePaths(changed) });
 });
 

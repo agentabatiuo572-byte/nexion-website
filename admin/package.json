@@ -3,12 +3,15 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "官网后台控制台 SPA。规格:PLAN/PRD/NexGrid_官网后台PRD_v1.0.md;视觉对齐 PRD/prototypes/nexgrid-site-console.html",
+  "description": "官网运营后台。规格:PLAN/PRD/NexGrid_官网后台PRD_v1.0.md",
   "scripts": {
     "typecheck": "tsc --noEmit",
     "dev": "vite --port 5175",
     "test": "vitest run",
-    "build": "npm run typecheck && npm test && vite build"
+    "test:copy-layout": "node ../scripts/test-copy-layout-catalog.mjs && node ../scripts/calibrate-copy-layout.mjs --self-test && node ../scripts/calibrate-copy-layout.mjs --check",
+    "test:ui": "node ../scripts/console-ui-check.mjs",
+    "test:typography": "node ../scripts/console-typography-check.mjs",
+    "build": "npm run test:copy-layout && npm run typecheck && npm test && vite build"
   },
   "dependencies": {
     "react": "^19.0.0",

@@ -88,7 +88,7 @@ const year = new Date().getFullYear();
     display: flex;
     align-items: center;
     gap: max(16px, calc(24 * var(--u)));
-    flex: 0 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
   }
   .mark {
@@ -109,9 +109,9 @@ const year = new Date().getFullYear();
     user-select: none;
   }
   .info {
-    width: calc(560 * var(--u));
+    width: calc(560 * var(--uc));
     max-width: 100%;
-    flex: 0 0 auto;
+    flex: 0 1 auto;
     display: flex;
     flex-direction: column;
     gap: calc(18 * var(--uc));

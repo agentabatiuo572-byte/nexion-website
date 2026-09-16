@@ -1,7 +1,9 @@
 ---
 import { useT, type Locale } from '../../i18n';
+import { SOURCE_LOCALE } from '../../../schema/src/locales';
 import { renderLegalMarkdown } from '../../lib/legal-markdown';
 import { SITE_CONFIG } from '../../lib/site-config';
+import LegalToc from './LegalToc.astro';
 
 interface Props {
   locale: Locale;
@@ -13,18 +15,30 @@ const { locale, document, fallbackTitle } = Astro.props;
 const t = useT(locale);
 const configured = SITE_CONFIG.legal?.[document];
 const localMarkdown = configured?.md[locale]?.trim() ?? '';
+const sourceMarkdown = configured?.md[SOURCE_LOCALE]?.trim() ?? '';
 const englishMarkdown = configured?.md.en?.trim() ?? '';
-const markdown = localMarkdown || englishMarkdown;
-const fellBackToEnglish = locale !== 'en' && !localMarkdown && Boolean(englishMarkdown);
+const markdown = localMarkdown || sourceMarkdown || englishMarkdown;
+const fellBackToEnglish = locale !== 'en' && !localMarkdown && !sourceMarkdown && Boolean(englishMarkdown);
+const renderedLocale = localMarkdown ? locale : sourceMarkdown ? SOURCE_LOCALE : englishMarkdown ? 'en' : locale;
 const rendered = renderLegalMarkdown(markdown);
 const title = rendered.title || fallbackTitle;
+const headings: { id: string; text: string }[] = [];
+const entities: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'" };
+// Match only this renderer's generated section headings; body HTML stays unchanged apart from IDs.
+const html = rendered.html.replace(/<h3>(.*?)<\/h3>/g, (_heading, headingHtml: string) => {
+  const id = `legal-section-${headings.length + 1}`;
+  const text = headingHtml.replace(/<[^>]*>/g, '').replace(/&(amp|lt|gt|quot|#39);/g, (_entity, name: string) => entities[name]);
+  headings.push({ id, text });
+  return `<h3 id="${id}">${headingHtml}</h3>`;
+});
 ---
 
-<main class="legal" lang={fellBackToEnglish ? 'en' : locale}>
+<main class="legal" lang={renderedLocale}>
   {fellBackToEnglish && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">{title}</h1>
   {configured?.updatedAt && <p class="updated x-mono"><time datetime={configured.updatedAt}>{configured.updatedAt}</time></p>}
-  <div class="sheet x-tile x-tile-calm legal-markdown" set:html={rendered.html} />
+  <LegalToc locale={locale} headings={headings} />
+  <div class="sheet x-copy x-tile x-tile-calm legal-markdown" set:html={html} />
 </main>
 
 <style>
@@ -43,7 +57,7 @@ const title = rendered.title || fallbackTitle;
     margin: 0 0 calc(20 * var(--uc));
   }
   h1 {
-    font-size: clamp(40px, 6.4vw, calc(88 * var(--uc)));
+    font-size: clamp(32px, calc(54 * var(--u)), calc(54 * var(--uc)));
     color: var(--x-ink);
     margin: 0 0 calc(14 * var(--uc));
   }
@@ -64,7 +78,8 @@ const title = rendered.title || fallbackTitle;
     font-family: var(--x-font-display);
     font-size: clamp(18px, 1.9vw, calc(24 * var(--uc)));
     font-weight: 500;
-    line-height: 1.1;
+    /* Wrapped Vietnamese headings need room for accents (ink height exceeds 1.3em). */
+    line-height: 1.5;
     color: var(--x-ink);
     margin: calc(30 * var(--uc)) 0 calc(10 * var(--uc));
     letter-spacing: -0.02em;
@@ -77,10 +92,7 @@ const title = rendered.title || fallbackTitle;
   .legal-markdown :global(li),
   .legal-markdown :global(th),
   .legal-markdown :global(td) {
-    font-family: var(--x-font-mono);
     color: var(--x-ink-dim);
-    font-size: calc(12 * var(--uc));
-    line-height: 1.85;
     text-wrap: pretty;
   }
   .legal-markdown :global(p) {

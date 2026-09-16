@@ -1,9 +1,12 @@
 // @vitest-environment jsdom
 import { act, StrictMode } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, fireEvent, render as renderPage, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+const render = (node: ReactNode) => renderPage(<MemoryRouter>{node}</MemoryRouter>);
 
 const mocks = vi.hoisted(() => ({ api: vi.fn(), toast: vi.fn(), reloadShell: vi.fn() }));
 vi.mock('../src/api', () => {
@@ -46,6 +49,70 @@ async function submitToggle() {
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
+});
+
+describe('Geo plain-language status', () => {
+  it('opens the bypass exchange on the published site and preserves its token', async () => {
+    mocks.api.mockImplementation(async (path: string) => path === '/api/geo/bypass-token'
+      ? { url: '/api/bypass?t=synthetic%2Btoken%2Fvalue' }
+      : { ...state(false), bypassAvailable: true });
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      render(<GeoPage />);
+      fireEvent.click(await screen.findByRole('button', { name: '获取直通(从任何地区预览官网)' }));
+      await waitFor(() => expect(open).toHaveBeenCalledWith(window.location.origin + '/api/bypass?t=synthetic%2Btoken%2Fvalue', '_blank', 'noopener'));
+    } finally { open.mockRestore(); }
+  });
+
+  it('keeps every target language in the work copy and only requires Chinese fallback text', async () => {
+    mocks.api.mockResolvedValue(state(false));
+    const view = render(<GeoPage />);
+    const target = await screen.findByLabelText('编辑语言');
+    expect((target as HTMLSelectElement).options).toHaveLength(9);
+    fireEvent.change(target, { target: { value: 'ja' } });
+    fireEvent.change(screen.getByLabelText('日语标题'), { target: { value: '地域の制限' } });
+    fireEvent.change(screen.getByLabelText(/日语正文/), { target: { value: 'この地域からは利用できません' } });
+    expect(view.container.querySelector('.locale-reference input,.locale-reference textarea')).toBeNull();
+    fireEvent.change(target, { target: { value: 'en' } });
+    fireEvent.change(screen.getByLabelText('英语标题'), { target: { value: '' } });
+    fireEvent.change(screen.getByLabelText(/英语正文/), { target: { value: '' } });
+    expect((screen.getByRole('button', { name: '应用变更(确认+理由)' }) as HTMLButtonElement).disabled).toBe(false);
+    fireEvent.change(target, { target: { value: 'zh' } });
+    fireEvent.change(screen.getByLabelText('中文标题'), { target: { value: '' } });
+    expect((screen.getByRole('button', { name: '应用变更(确认+理由)' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('中文标题'), { target: { value: '服务不可用' } });
+    fireEvent.change(target, { target: { value: 'ja' } });
+    expect((screen.getByLabelText('日语标题') as HTMLInputElement).value).toBe('地域の制限');
+    expect((screen.getByLabelText(/日语正文/) as HTMLTextAreaElement).value).toBe('この地域からは利用できません');
+    expect(mocks.api.mock.calls.every(([, init]) => !init?.method)).toBe(true);
+  });
+  it.each([
+    {
+      authority: { status: 'bootstrap-required', source: 'legacy-kv-candidate', candidateFingerprint: 'candidate-fp' },
+      degraded: false, message: '首次使用，请先确认现有规则。', summary: '查看首次确认技术详情', technical: '旧 KV 的迁移候选', action: '确认并保存现有规则',
+    },
+    {
+      authority: { status: 'pending', source: 'd1', kind: 'update', operationId: 'op-pending', version: 2, currentFingerprint: 'current-fp', targetFingerprint: 'target-fp', previousFingerprint: 'previous-fp', startedAt: 1 },
+      degraded: false, message: '规则已保存，待确认同步完成。', summary: '查看待同步技术详情', technical: 'op-pending', action: '重新同步已保存规则',
+    },
+    {
+      authority: { status: 'ready', source: 'd1', version: 2, currentFingerprint: 'current-fp' },
+      degraded: true, message: '规则已保存，但暂时无法核对同步结果。', summary: '查看同步异常技术详情', technical: '边缘 KV 通道当前不可达', action: '重新同步当前规则',
+    },
+  ])('gives an actionable primary message and keeps $summary closed', async ({ authority, degraded, message, summary, technical, action }) => {
+    mocks.api.mockResolvedValue({ ...state(false, authority), degraded });
+    render(<GeoPage />);
+    expect(await screen.findByText(message)).toBeTruthy();
+    expect(screen.getByRole('button', { name: action })).toBeTruthy();
+    const details = screen.getByText(summary).closest('details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain(technical);
+    const mainNote = details.parentElement!.cloneNode(true) as HTMLElement;
+    mainNote.querySelectorAll('details').forEach((item) => item.remove());
+    expect(mainNote.textContent).not.toMatch(/D1|KV|op-pending|物化|权威/);
+    expect((screen.getByRole('button', { name: '应用变更(确认+理由)' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.api.mock.calls.every(([, init]) => !init?.method)).toBe(true);
+  });
 });
 
 describe('Geo response-loss handling', () => {
@@ -186,7 +253,7 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化当前 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步当前规则' }));
     await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('/api/geo/recovery', expect.objectContaining({ method: 'POST' })));
     const call = mocks.api.mock.calls.find(([path]) => path === '/api/geo/recovery')!;
     expect(JSON.parse(String(call[1]?.body))).toMatchObject({
@@ -222,11 +289,11 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化当前 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步当前规则' }));
 
     expect(await screen.findByText(/D1 权威操作处于待恢复状态，不能断言边缘物化与审计已经收口/)).toBeTruthy();
-    expect(screen.queryByText('当前 D1 权威版本尚未确认重新物化。')).toBeNull();
-    expect(mocks.toast).not.toHaveBeenCalledWith(expect.stringMatching(/已重新物化|已一致/));
+    expect(screen.queryByText('已保存的规则尚未确认同步完成。')).toBeNull();
+    expect(mocks.toast).not.toHaveBeenCalledWith(expect.stringMatching(/已重新同步|规则一致/));
     expect(mocks.reloadShell).toHaveBeenCalledWith({ geo: { enabled: false, countries: 1, degraded: true } });
   });
 
@@ -250,10 +317,10 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化当前 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步当前规则' }));
     fireEvent.click(await screen.findByRole('button', { name: '重新读取实际状态' }));
 
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('已重新读取：当前 D1 权威版本的边缘物化已一致'));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('已重新读取：访问节点与已保存的规则一致'));
     expect(screen.queryByText(/D1 权威版本已经变化/)).toBeNull();
     expect(mocks.reloadShell).toHaveBeenCalledWith({ geo: { enabled: false, countries: 1, degraded: false } });
   });
@@ -302,7 +369,7 @@ describe('Geo response-loss handling', () => {
     render(<GeoPage />);
     await submitToggle();
 
-    expect(await screen.findByRole('button', { name: '重新物化 D1 权威规则' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '重新同步已保存规则' })).toBeTruthy();
     expect(screen.getByText(/D1 权威操作处于待恢复状态/)).toBeTruthy();
     expect(screen.queryByText(/误伤护栏/)).toBeNull();
   });
@@ -325,7 +392,7 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '确认现有规则并完成迁移' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认并保存现有规则' }));
 
     await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('/api/geo/recovery', expect.objectContaining({ method: 'POST' })));
     const recoveryCall = mocks.api.mock.calls.find(([path]) => path === '/api/geo/recovery')!;
@@ -334,7 +401,7 @@ describe('Geo response-loss handling', () => {
       candidateFingerprint: 'candidate-fp',
       rules: rules(false),
     });
-    await waitFor(() => expect(screen.queryByRole('button', { name: '确认现有规则并完成迁移' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: '确认并保存现有规则' })).toBeNull());
     expect(mocks.reloadShell).toHaveBeenCalledWith({
       geo: { enabled: false, countries: 1, degraded: false },
     });
@@ -352,9 +419,9 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '确认现有规则并完成迁移' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认并保存现有规则' }));
 
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('迁移响应未确认，但重新读取确认 D1 权威规则已建立'));
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('未收到确认响应，但重新读取已确认：现有规则已保存'));
     expect(screen.getAllByText(/屏蔽未启用/).length).toBeGreaterThan(0);
     expect(screen.queryByText(/迁移没有完成/)).toBeNull();
     expect(mocks.reloadShell).toHaveBeenCalledWith({
@@ -379,9 +446,9 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '确认现有规则并完成迁移' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认并保存现有规则' }));
 
-    expect(await screen.findByRole('button', { name: '重新物化 D1 权威规则' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '重新同步已保存规则' })).toBeTruthy();
     expect(screen.queryByText(/迁移没有完成/)).toBeNull();
     expect(mocks.reloadShell).toHaveBeenCalledWith({
       geo: { enabled: false, countries: 1, degraded: true },
@@ -398,10 +465,13 @@ describe('Geo response-loss handling', () => {
       return Promise.reject(new TypeError('offline'));
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '确认现有规则并完成迁移' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认并保存现有规则' }));
 
-    expect(await screen.findByText('迁移结果暂时未知，当前无法读取 D1 权威状态。')).toBeTruthy();
-    expect(screen.queryByText(/迁移没有完成/)).toBeNull();
+    expect(await screen.findByText('首次确认结果暂时未知，请重新读取实际状态。')).toBeTruthy();
+    expect(screen.queryByText('现有规则尚未完成首次确认。')).toBeNull();
+    const details = screen.getByText('查看本次操作技术详情').closest('details')!;
+    expect(details.open).toBe(false);
+    expect(details.textContent).toContain('geo-bootstrap-result-unknown');
     expect(screen.getByRole('button', { name: '重新读取实际状态' })).toBeTruthy();
   });
 
@@ -419,11 +489,11 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '确认现有规则并完成迁移' }));
+    fireEvent.click(await screen.findByRole('button', { name: '确认并保存现有规则' }));
 
     expect(await screen.findByText(/旧 KV 候选已变化/)).toBeTruthy();
     expect((screen.getByTitle('总开关').querySelector('input') as HTMLInputElement).checked).toBe(true);
-    expect(screen.getByRole('button', { name: '确认现有规则并完成迁移' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: '确认并保存现有规则' })).toBeTruthy();
   });
 
   it('shows one idempotent D1 materialization recovery action and sends the pending operation id', async () => {
@@ -448,13 +518,13 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    expect(await screen.findByRole('button', { name: '重新物化 D1 权威规则' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '重新物化 D1 权威规则' }));
+    expect(await screen.findByRole('button', { name: '重新同步已保存规则' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '重新同步已保存规则' }));
 
     await waitFor(() => expect(mocks.api).toHaveBeenCalledWith('/api/geo/recovery', expect.objectContaining({ method: 'POST' })));
     const recoveryCall = mocks.api.mock.calls.find(([path]) => path === '/api/geo/recovery')!;
     expect(JSON.parse(String(recoveryCall[1]?.body))).toMatchObject({ action: 'reconcile', operationId: 'op-pending' });
-    await waitFor(() => expect(screen.queryByRole('button', { name: '重新物化 D1 权威规则' })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: '重新同步已保存规则' })).toBeNull());
     expect(mocks.reloadShell).toHaveBeenCalledWith({
       geo: { enabled: true, countries: 1, degraded: false },
     });
@@ -476,10 +546,10 @@ describe('Geo response-loss handling', () => {
       return {};
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步已保存规则' }));
 
-    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('恢复响应未确认，但重新读取确认 D1 权威规则已就绪'));
-    expect(screen.queryByRole('button', { name: '重新物化 D1 权威规则' })).toBeNull();
+    await waitFor(() => expect(mocks.toast).toHaveBeenCalledWith('未收到同步响应，但重新读取已确认：规则已恢复就绪'));
+    expect(screen.queryByRole('button', { name: '重新同步已保存规则' })).toBeNull();
     expect(screen.queryByText(/恢复操作没有完成/)).toBeNull();
     expect(mocks.reloadShell).toHaveBeenCalledWith({
       geo: { enabled: true, countries: 1, degraded: false },
@@ -501,9 +571,9 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步已保存规则' }));
 
-    expect(await screen.findByRole('button', { name: '重新物化 D1 权威规则' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: '重新同步已保存规则' })).toBeTruthy();
     expect(screen.queryByText(/恢复操作没有完成/)).toBeNull();
     expect(mocks.reloadShell).toHaveBeenCalledWith({
       geo: { enabled: true, countries: 1, degraded: true },
@@ -523,7 +593,7 @@ describe('Geo response-loss handling', () => {
       return Promise.reject(new TypeError('offline'));
     });
     render(<GeoPage />);
-    fireEvent.click(await screen.findByRole('button', { name: '重新物化 D1 权威规则' }));
+    fireEvent.click(await screen.findByRole('button', { name: '重新同步已保存规则' }));
 
     expect(await screen.findByText('恢复结果暂时未知，不能断言待处理操作仍未完成。')).toBeTruthy();
     expect(screen.queryByText(/恢复尚未完成/)).toBeNull();
@@ -557,7 +627,7 @@ describe('Geo response-loss handling', () => {
     await act(async () => finishShell(null));
     expect(await screen.findByText(/顶部全局状态暂时无法同步/)).toBeTruthy();
     expect(screen.getByText(/屏蔽生效中/)).toBeTruthy();
-    expect(mocks.toast).toHaveBeenCalledWith('D1 权威已提交，边缘物化已确认 · 约 1 分钟内全球生效；顶部全局状态暂时无法刷新');
+    expect(mocks.toast).toHaveBeenCalledWith('规则已保存并确认同步 · 约 1 分钟内全球生效；顶部全局状态暂时无法刷新');
   });
 
   it('reads back the actual state, recognizes an applied write, and refreshes the shell status', async () => {
@@ -646,7 +716,7 @@ describe('Geo response-loss handling', () => {
       return Promise.resolve({});
     });
 
-    render(<StrictMode><GeoPage /></StrictMode>);
+    renderPage(<StrictMode><MemoryRouter><GeoPage /></MemoryRouter></StrictMode>);
     await submitToggle();
     await waitFor(() => expect(screen.getByText(/屏蔽生效中/)).toBeTruthy());
 

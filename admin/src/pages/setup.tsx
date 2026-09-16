@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
 import { lockoutText, useLockout } from '../lib/use-lockout';
+import { Icon } from '../lib/icon';
+import './editors.css';
 
 export default function Setup() {
   const nav = useNavigate();
@@ -44,25 +46,31 @@ export default function Setup() {
 
   if (gone)
     return (
-      <div className="center-card">
-        <div className="logincard">
+      <div className="auth-setup">
+        <div className="auth-form">
+          <div className="auth-lock"><Icon name="check" size={24} /></div>
           <h1>已初始化</h1>
-          <p className="kv" style={{ margin: '10px 0' }}>本后台已完成初始化,此入口永久失效。忘记口令须重新部署轮换 SETUP_TOKEN(见 worker/README 运维手册)。</p>
+          <p className="auth-description">本后台已完成初始化，此入口已关闭。请使用管理员口令登录。</p>
+          <details className="inline-help" style={{ marginBottom: 20 }}><summary>忘记管理员口令</summary><p className="kv">需要重新部署并轮换初始化令牌 SETUP_TOKEN，详见 worker/README 运维手册。</p></details>
           <a className="btn" style={{ width: '100%' }} href="/admin/login">去登录</a>
         </div>
       </div>
     );
 
   return (
-    <div className="center-card">
-      <form className="logincard" onSubmit={submit}>
-        <h1>初始化管理员口令</h1>
-        <div className="field"><label>初始化令牌(SETUP_TOKEN)</label><input value={token} onChange={(e) => setToken(e.target.value)} autoFocus /></div>
-        <div className="field"><label>设置口令(≥12 位)</label><input type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></div>
-        <div className="field"><label>重复口令</label><input type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
-        {err && <div className="note bad">{err}</div>}
-        {lock.sec > 0 && <div className="note bad">{lockoutText(lock.sec)}</div>}
-        <button className="btn primary" style={{ width: '100%', marginTop: 6 }} disabled={busy || lock.sec > 0}>{busy ? '提交中…' : '设置口令'}</button>
+    <div className="auth-setup">
+      <form className="auth-form" onSubmit={submit} aria-busy={busy}>
+        <div className="auth-lock"><Icon name="shield" size={24} /></div>
+        <span className="eyebrow">首次使用</span>
+        <h1>设置管理员口令</h1>
+        <p className="auth-description">使用部署时配置的初始化令牌，创建管理员登录口令。</p>
+        <div className="field"><label htmlFor="setup-token">初始化令牌（SETUP_TOKEN）</label><input id="setup-token" type="password" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} autoFocus /></div>
+        <div className="field"><label htmlFor="setup-password">设置口令（至少 12 位）</label><input id="setup-password" type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} /></div>
+        <div className="field"><label htmlFor="setup-confirm">再次输入口令</label><input id="setup-confirm" type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
+        {err && <div className="note bad" role="alert">{err}</div>}
+        {lock.sec > 0 && <div className="note bad" role="alert">{lockoutText(lock.sec)}</div>}
+        <button className="btn primary auth-submit" disabled={busy || lock.sec > 0}>{busy ? '提交中…' : '设置口令'}<Icon name="arrow-right" size={18} /></button>
+        <div className="auth-setup-link"><span>已经设置过？</span><a href="/admin/login">返回登录</a></div>
       </form>
     </div>
   );

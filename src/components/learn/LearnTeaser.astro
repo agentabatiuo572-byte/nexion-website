@@ -25,11 +25,11 @@ const TOPIC_ICON = { start: 'edu', earn: 'coin-bolt', devices: 'mech', wallet: '
   </div>
   <div class="rows x-tile">
     {
-      picks.map(({ entry, slug }, i) => (
+      picks.map(({ entry, slug, fallback }, i) => (
         <a class="row x-dimlink" href={`${prefix}/learn/${slug}/`} data-rv style={`--d:${i * 0.08}s`}>
           <Icon name={TOPIC_ICON[entry.data.topic as keyof typeof TOPIC_ICON] ?? 'edu'} class="tic" />
           <span class="txt">
-            <span class="name x-display">{entry.data.title}</span>
+            <span class="name x-display" lang={fallback ? 'en' : undefined}>{entry.data.title}</span>
             <span class="topic x-mono">{t(`learn.topics.${entry.data.topic}`)}</span>
           </span>
           <span class="idx x-mono">0{i + 1}</span>

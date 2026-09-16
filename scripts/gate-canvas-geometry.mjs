@@ -21,11 +21,12 @@
 
    用法:node scripts/gate-canvas-geometry.mjs [--reuse <port>] [--no-build]
    退出码:0 通过 · 2 不合格 · 3 跑不起来 */
-import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { createRequire } from 'node:module';
-import { join } from 'node:path';
-import { createServer } from 'node:net';
+import { join, resolve, extname, sep } from 'node:path';
+import { createServer } from 'node:http';
+import { readBuiltPages, seamRoutes, parseRoutesArg, scopeRoutes } from './gate-built-routes.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const argv = process.argv.slice(2);
@@ -58,53 +59,57 @@ if (!chromium) {
   process.exit(3);
 }
 
-const freePort = () =>
-  new Promise((res, rej) => {
-    const s = createServer();
-    s.on('error', rej);
-    s.listen(0, '127.0.0.1', () => {
-      const p = s.address().port;
-      s.close(() => res(p));
-    });
-  });
-
 const reuse = arg('--reuse');
 let base = reuse ? `http://localhost:${reuse}` : null;
-let child = null;
+let server = null;
+let browser = null;
 
+try {
 if (!base) {
   if (!argv.includes('--no-build')) {
     console.log('[geo] 构建产物…');
     execFileSync('npm', ['run', 'build'], { cwd: ROOT, stdio: 'ignore', shell: process.platform === 'win32' });
   }
-  const port = await freePort();
-  base = `http://localhost:${port}`;
-  // astro preview 是单例守护进程:已有实例时它拒绝起第二个,只在 stdout 报出既有地址
-  child = spawn('npx', ['astro', 'preview', '--port', String(port)], { cwd: ROOT, shell: process.platform === 'win32' });
-  let reusedFrom = null;
-  const sniff = (d) => {
-    const m = String(d).match(/already running at (http:\/\/[^\s"\\]+)/);
-    if (m) reusedFrom = m[1].replace(/\/$/, '');
-  };
-  child.stdout?.on('data', sniff);
-  child.stderr?.on('data', sniff);
-  let up = false;
-  for (let i = 0; i < 60 && !up; i++) {
-    const target = reusedFrom || base;
+  const dist = resolve(ROOT, 'dist');
+  const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.webp': 'image/webp', '.woff2': 'font/woff2', '.json': 'application/json', '.xml': 'application/xml', '.ico': 'image/x-icon' };
+  // Static artifacts need no Astro daemon; this process owns and closes its listener.
+  server = createServer((req, res) => {
     try {
-      const r = await fetch(target + '/', { signal: AbortSignal.timeout(1000) });
-      if (r.ok) { up = true; base = target; if (reusedFrom) child = null; }
-    } catch { await new Promise((r) => setTimeout(r, 500)); }
-  }
-  if (!up) { child?.kill(); console.log('[geo] NOT-RUN:预览服务未能起来'); process.exit(3); }
+      const path = decodeURIComponent(new URL(req.url || '/', 'http://127.0.0.1').pathname);
+      let file = resolve(dist, `.${path}`);
+      if (file !== dist && !file.startsWith(dist + sep)) { res.writeHead(404).end(); return; }
+      if (!extname(file) || (existsSync(file) && statSync(file).isDirectory())) file = join(file, 'index.html');
+      const body = readFileSync(file);
+      res.writeHead(200, { 'content-type': mime[extname(file)] || 'application/octet-stream' });
+      res.end(body);
+    } catch { res.writeHead(404).end(); }
+  });
+  await new Promise((res, rej) => { server.once('error', rej); server.listen(0, '127.0.0.1', res); });
+  base = `http://127.0.0.1:${server.address().port}`;
 }
 
 const smPath = join(ROOT, 'dist', 'sitemap-0.xml');
-if (!existsSync(smPath)) { child?.kill(); console.log('[geo] NOT-RUN:找不到 dist/sitemap-0.xml'); process.exit(3); }
+if (!existsSync(smPath)) throw new Error('找不到 dist/sitemap-0.xml');
 const routes = [...readFileSync(smPath, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)]
   .map((m) => m[1].replace(/^https?:\/\/[^/]+/, ''))
   .map((p) => (p.endsWith('/') || p.includes('.') ? p : p + '/'));
-if (!routes.length) { child?.kill(); console.log('[geo] NOT-RUN:sitemap 为空,判据无对象'); process.exit(3); }
+if (!routes.length) throw new Error('sitemap 为空,判据无对象');
+const generatedPages = readBuiltPages(join(ROOT, 'dist'));
+const seamBaselines = seamRoutes(generatedPages);
+if (generatedPages.some(({ route }) => !routes.includes(route)) || routes.some((route) => !generatedPages.some((page) => page.route === route))) {
+  throw new Error('sitemap 与生成路由不一致，覆盖面不完整');
+}
+/* 增量裁剪只收窄实测对象,不碰上面的 sitemap↔产物一致性(那是覆盖面断言,必须全量)。
+   无变化路由时直接报跳过:HTML 与静态资源都与线上一致,几何量不出第二种答案。 */
+const onlyRoutes = parseRoutesArg(argv);
+const scope = scopeRoutes(routes, onlyRoutes);
+const scopedRoutes = scope.pages;
+const scopedSeam = scopeRoutes(seamBaselines, onlyRoutes).pages;
+if (scope.scoped && scopedRoutes.length === 0 && scopedSeam.length === 0) {
+  console.log(`[geo] ✓ 路由裁剪:无变化路由,跳过实测(0/${scope.total})`);
+  if (server) await new Promise((done) => server.close(done));
+  process.exit(0);
+}
 
 /* 页内采集:渲染量 = 布局量 × zoom(画布内的 computed 值是画布量) */
 const readAll = () => {
@@ -165,7 +170,7 @@ const readAll = () => {
   const nz = nav ? parseFloat(getComputedStyle(nav).zoom) || 1 : 1;
   let minTap = Infinity;
   if (nav) {
-    for (const el of nav.querySelectorAll('a,button')) {
+    for (const el of nav.querySelectorAll('a,button,summary,select,input')) {
       const h = el.getBoundingClientRect().height;
       if (h > 5) minTap = Math.min(minTap, h / nz);
     }
@@ -203,7 +208,7 @@ const conform = (a, b, want) => {
 
 /* R45:带**经典滚动条**跑(不传 Playwright 默认的 --hide-scrollbars)——主人的 Windows Chrome 就是这个环境。
    此前六轮「零溢出 / 居中」全在隐藏滚动条下量的,100vw 与可用宽差的那 15px 从未进过门。 */
-const browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
+browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
 const fails = [];
 const pages = {};
 for (const w of [...WIDTHS, ...SEAM]) pages[w] = pages[w] || (await browser.newPage({ viewport: { width: w, height: 1000 } }));
@@ -214,7 +219,7 @@ const load = async (w, route) => {
 
 let minSample = Infinity;
 let classicSb = null; // 本次实测环境是否真有经典滚动条(client < inner);覆盖边界写进成功行
-for (const route of routes) {
+for (const route of scopedRoutes) {
   const snap = {};
   for (const w of WIDTHS) snap[w] = await load(w, route);
   if (classicSb === null) classicSb = snap[1440].client < snap[1440].inner;
@@ -270,7 +275,7 @@ for (const f of cssFiles) {
 }
 const seamW = [...bps].sort((a, b) => a - b);
 if (!seamW.length) fails.push('G 连续:产物 CSS 里一个桌面断点都没读到 —— 判据无对象,不许算过');
-for (const route of [routes[0], ...routes.filter((r) => /legal|learn\//.test(r)).slice(0, 1)]) {
+for (const route of scopedSeam) {
   for (const bp of seamW) {
     for (const w of [bp - 1, bp, bp + 1]) {
       if (!pages[w]) pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
@@ -298,17 +303,20 @@ for (const route of [routes[0], ...routes.filter((r) => /legal|learn\//.test(r))
   }
 }
 
-await browser.close();
-child?.kill();
-
 if (fails.length) {
-  console.log(`[geo] ✗ 画布几何:${routes.length} 条路由,${fails.length} 条判据不合格`);
+  console.log(`[geo] ✗ 画布几何:${scopedRoutes.length} 条路由,${fails.length} 条判据不合格${scope.scoped ? ` · 路由裁剪(${scopedRoutes.length}/${scope.total})` : ''}`);
   for (const f of fails.slice(0, 24)) console.log('      ' + f);
   if (fails.length > 24) console.log(`      …另有 ${fails.length - 24} 条`);
-  process.exit(2);
-}
-console.log(
-  `[geo] ✓ 画布几何:${routes.length} 路由 × {${WIDTHS.join(',')}} + 断点两侧 {${seamW.join(',')}} 七判据全过` +
-    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample};滚动条:${classicSb ? '经典(占位)' : '覆盖式/无(本次未覆盖经典滚动条形态)'};实测服务 ${base})`,
+  process.exitCode = 2;
+} else console.log(
+  `[geo] ✓ 画布几何:${scopedRoutes.length} 路由 × {${WIDTHS.join(',')}} + ${scopedSeam.length} 个各语首页/内页基准 × 断点两侧 {${seamW.join(',')}} 七判据全过` +
+    `(A画布/B溢出/C等比/D冻结/E可读/F触达/G连续;最小字号样本 ${minSample};滚动条:${classicSb ? '经典(占位)' : '覆盖式/无(本次未覆盖经典滚动条形态)'};实测服务 ${base})` +
+    (scope.scoped ? ` · 路由裁剪(${scopedRoutes.length}/${scope.total})` : ''),
 );
-process.exit(0);
+} catch (error) {
+  console.log(`[geo] NOT-RUN:${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 3;
+} finally {
+  try { if (browser) await browser.close(); }
+  finally { if (server) await new Promise((done) => server.close(done)); }
+}

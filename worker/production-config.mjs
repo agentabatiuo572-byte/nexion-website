@@ -85,7 +85,7 @@ export function createProductionConfig({ baseConfig, env = process.env, projectR
   config.vars = {
     ENVIRONMENT: 'production',
     PUBLISH_EXECUTION_MODE: 'github',
-    PUBLISH_GITHUB_REPOSITORY: 'jasonukkd/nexgrid-website',
+    PUBLISH_GITHUB_REPOSITORY: 'agentabatiuo572-byte/nexion-website',
     PUBLISH_GITHUB_WORKFLOW: 'publish-website.yml',
     PUBLISH_GITHUB_REF: 'main',
   };

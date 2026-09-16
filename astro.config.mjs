@@ -2,17 +2,29 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { resolveEnabledLocales } from './src/lib/locale-policy.ts';
+
+// The behavior gate and normal build must read the same materialized selection.
+const siteFile = process.env.NEXGRID_SITE_FIXTURE_DIR
+  ? join(process.env.NEXGRID_SITE_FIXTURE_DIR, 'site.json')
+  : new URL('./src/config/site.json', import.meta.url);
+const activeLocales = resolveEnabledLocales(JSON.parse(readFileSync(siteFile, 'utf8')).enabledLocales);
 
 // PRD §2.4 O1: 域名待主人确认,占位 nexgrid.ai;上线前(T13)核定
 // 2026-08-20 axiom 重做:React 岛全部移除(cobe 地球 → vanilla 洛伦兹 canvas),站内零框架 JS
 export default defineConfig({
   site: 'https://nexgrid.ai',
   output: 'static',
-  integrations: [sitemap()],
+  integrations: [sitemap({
+    i18n: { defaultLocale: 'en', locales: Object.fromEntries(activeLocales.map((locale) => [locale, locale])) },
+    filter: (page) => !/\/404\/?$/.test(new URL(page).pathname),
+  })],
   vite: { plugins: [tailwindcss()] },
   i18n: {
     defaultLocale: 'en',
-    locales: ['en', 'vi', 'zh'],
+    locales: activeLocales,
     routing: { prefixDefaultLocale: false },
   },
 });

@@ -91,13 +91,14 @@ describe('CON12 区域屏蔽', () => {
     expect(res.status).not.toBe(451);
   });
 
-  it('A1 启用后命中名单:text/html → 451 拦截页(zh+en)+ 拦截事件入库;资产请求 451 无体不计数', async () => {
+  it('A1 启用后命中名单:text/html → 451 当前路径语言拦截页+ 拦截事件入库;资产请求 451 无体不计数', async () => {
     const cookie = await login();
     await enableCN(cookie);
     const res = await app.request('/', { headers: { ...HTML, 'x-geo-sim': 'CN' } }, env);
     expect(res.status).toBe(451);
     const html = await res.text();
-    expect(html).toContain('不可用');
+    expect(html).toContain('lang="en"');
+    expect(html).not.toContain('不可用');
     expect(html).toContain('unavailable');
     expect(html).toContain('noindex');
     const asset = await app.request('/x.css', { headers: { accept: 'text/css', 'x-geo-sim': 'CN' } }, env);
@@ -275,7 +276,35 @@ describe('CON12 区域屏蔽', () => {
     const row = await env.DB.prepare("SELECT after_summary FROM audit WHERE action='geo.update.applied' ORDER BY id DESC LIMIT 1").first<{ after_summary: string }>();
     expect(row!.after_summary).toContain('拦截页文案已改');
     resetGeoCache();
-    expect(await (await app.request('/', { headers: { ...HTML, 'x-geo-sim': 'CN' } }, env)).text()).toContain('暂不提供服务'); // 文案真生效
+    expect(await (await app.request('/', { headers: { ...HTML, 'x-geo-sim': 'CN' } }, env)).text()).toContain('Not available'); // 当前路径语言的文案真生效
+  });
+
+  it('英文拦截文案可以清空保存，已启用的英文页面回退中文，中文仍须填写', async () => {
+    const cookie = await login();
+    await enableCN(cookie);
+    await app.request('/api/config', { headers: J(cookie) }, env);
+    const live = await env.DB.prepare("SELECT id, payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1").first<{ id: number; payload: string }>();
+    const published = JSON.parse(live!.payload);
+    published.enabledLocales = ['en', 'zh'];
+    await env.DB.prepare('UPDATE config_versions SET payload=?1 WHERE id=?2').bind(JSON.stringify(published), live!.id).run();
+    const page = { title: { zh: '地区不可用', en: '' }, body: { zh: '请稍后再试。', en: '' } };
+    const saved = await app.request('/api/geo', {
+      method: 'PUT', headers: J(cookie),
+      body: JSON.stringify(await withGeoWriteMeta({ enabled: true, countries: ['CN'], blockPage: page, reason: '清空英文并回退中文' })),
+    }, env);
+    expect(saved.status).toBe(200);
+    resetGeoCache();
+    expect((await loadRules(env)).rules.blockPage).toEqual(page);
+    const response = await app.request('/en/', { headers: { ...HTML, 'x-geo-sim': 'CN' } }, env);
+    expect(response.status).toBe(451);
+    const html = await response.text();
+    expect(html).toContain('<html lang="zh">');
+    expect(html).toContain('地区不可用');
+    const invalid = await app.request('/api/geo', {
+      method: 'PUT', headers: J(cookie),
+      body: JSON.stringify(await withGeoWriteMeta({ enabled: true, countries: ['CN'], blockPage: { ...page, title: { zh: '', en: '' } }, reason: '中文为空应拒绝保存' })),
+    }, env);
+    expect(invalid.status).toBe(400);
   });
 
   it('L2 PUT 校验:非法结构/超长文案/非法国家码一律 400,不落盘', async () => {

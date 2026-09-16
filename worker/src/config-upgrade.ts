@@ -1,15 +1,29 @@
-import { LOCALES, SiteConfigSchema, validateConfig, type CopyManifest, type Finding, type SiteConfig } from '../../schema/src/index.js';
+import { LOCALES, addLegacyLocaleFields, SiteConfigSchema, validateConfig, type CopyManifest, type Finding, type SiteConfig } from '../../schema/src/index.js';
 import currentSeedJson from '../seed/site-config.seed.json';
 import legacyJson from '../seed/config-upgrade-legacy-v1.json';
 import manifestJson from '../seed/copy-manifest.json';
 import { prepareAudit } from './audit';
 
-export const CONFIG_UPGRADE_KEY = 'website-copy-2026-09-04-v1';
-const CURRENT = SiteConfigSchema.parse(currentSeedJson);
+// Applied upgrade keys are immutable: a changed transformation always gets a new key.
+export const CONFIG_UPGRADE_KEY = 'website-whitepaper-2026-09-09-v3';
+const ORIGINAL_LOCALES = ['en', 'vi', 'zh'] as const;
+const WHITEPAPER_KEYS = ['title', 'summary', 'details'].map((key) => `trust.whitepaper.${key}`);
+const WHITEPAPER_DETAILS_V1 = {
+  en: 'v{version} · Chinese edition · {pages} pages',
+  vi: 'v{version} · Bản tiếng Trung · {pages} trang',
+  zh: 'v{version} · 中文版 · {pages} 页',
+  es: 'v{version} · Edición en chino · {pages} páginas',
+  pt: 'v{version} · Edição em chinês · {pages} páginas',
+  fr: 'v{version} · Édition chinoise · {pages} pages',
+  de: 'v{version} · Chinesische Ausgabe · {pages} Seiten',
+  ja: 'v{version} · 中国語版 · {pages} ページ',
+  ko: 'v{version} · 중국어판 · {pages}페이지',
+};
+const CURRENT = SiteConfigSchema.parse(addLegacyLocaleFields(currentSeedJson, manifestJson.editable));
 const LEGACY = legacyJson as {
   copyKeys: string[];
-  copyDefaults: Record<(typeof LOCALES)[number], Record<string, string>>;
-  faq: SiteConfig['faq'];
+  copyDefaults: Record<(typeof ORIGINAL_LOCALES)[number], Record<string, string>>;
+  faq: typeof legacyJson.faq;
 };
 const MISSING = Symbol('missing');
 type Value = unknown | typeof MISSING;
@@ -35,6 +49,23 @@ function equal(a: Value, b: Value): boolean {
 }
 
 const clone = (value: Value): Value => value === MISSING ? MISSING : structuredClone(value);
+
+/** Compatibility is structural; untranslated or invalid business content remains editable. */
+function structureConflicts(input: unknown): UpgradeConflict[] {
+  const parsed = SiteConfigSchema.safeParse(input);
+  if (!parsed.success) return parsed.error.issues.slice(0, 20).map((issue) => ({
+    path: issue.path.join('.'), reason: '配置结构与当前版本不兼容，原内容已保留',
+  }));
+  if (!equal(input, parsed.data)) return [{ path: 'draft', reason: '升级会丢失原内容，已阻止并保留原稿' }];
+  return validateConfig(parsed.data, manifestJson as unknown as CopyManifest).errors
+    .filter((issue) => ['structure', 'unknown-key', 'missing-key', 'dup-id'].includes(issue.rule))
+    .map((issue) => ({ path: issue.path, reason: issue.message }));
+}
+
+function finishUpgrade(input: unknown, config: SiteConfig): ConfigUpgradeResult {
+  const conflicts = structureConflicts(config);
+  return conflicts.length ? { ok: false, conflicts } : { ok: true, config, changed: !equal(input, config) };
+}
 
 /** Explicit resolutions must be complete current configs; parsing must not silently strip authored fields. */
 export function validateUpgradeResolution(input: unknown):
@@ -75,6 +106,16 @@ function merge(base: Value, target: Value, draft: Value, path: string, conflicts
   return clone(draft);
 }
 
+/** An existing FAQ's identity predates the added translation slots. Their values remain authored data. */
+function originalFaqIdentity(item: SiteConfig['faq']['items'][number]): unknown {
+  const { q, a, ...metadata } = item;
+  return {
+    ...metadata,
+    q: Object.fromEntries(ORIGINAL_LOCALES.map((locale) => [locale, q[locale]])),
+    a: Object.fromEntries(ORIGINAL_LOCALES.map((locale) => [locale, a[locale]])),
+  };
+}
+
 function mergeFaq(draft: SiteConfig['faq']['items'], conflicts: UpgradeConflict[]): SiteConfig['faq']['items'] {
   const old = new Map(LEGACY.faq.items.map((item) => [item.id, item]));
   const target = new Map(CURRENT.faq.items.map((item) => [item.id, item]));
@@ -89,7 +130,7 @@ function mergeFaq(draft: SiteConfig['faq']['items'], conflicts: UpgradeConflict[
     const before = old.get(id) ?? MISSING;
     const next = target.get(id) ?? MISSING;
     const item = local.get(id) ?? MISSING;
-    if (before === MISSING && next !== MISSING && item !== MISSING && !equal(next, item)) {
+    if (before === MISSING && next !== MISSING && item !== MISSING && !equal(originalFaqIdentity(next), originalFaqIdentity(item))) {
       conflicts.push({ path: `faq.${id}`, reason: '新增 FAQ 标识与草稿中的自定义条目冲突；原条目已保留' });
       continue;
     }
@@ -101,21 +142,36 @@ function mergeFaq(draft: SiteConfig['faq']['items'], conflicts: UpgradeConflict[
 
 /** Pure adapter for drafts and historical rollback copies. Never rewrites a stored version. */
 export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
-  const parsed = SiteConfigSchema.safeParse(input);
+  // New language slots must not synthesize blank whitepaper values before the seed fill below.
+  const candidate = addLegacyLocaleFields(input, manifestJson.editable.filter((key) => !WHITEPAPER_KEYS.includes(key)));
+  const parsed = SiteConfigSchema.safeParse(candidate);
   if (!parsed.success) return {
     ok: false,
     conflicts: parsed.error.issues.slice(0, 20).map((issue) => ({ path: issue.path.join('.'), reason: '旧配置结构无法安全识别，原内容已保留' })),
   };
   // Clone the original object, not Zod's stripped result: an upgrade must not silently drop extra data.
-  const draft = structuredClone(input) as SiteConfig;
-  const hasLegacyShape = LOCALES.some((locale) => {
+  const draft = candidate as SiteConfig;
+  // Retire the removed UI fields before shape detection, avoiding an unrelated legacy FAQ merge.
+  for (const locale of LOCALES) {
+    const copy = draft.copy[locale];
+    delete copy['trust.whitepaper.download'];
+    delete copy['trust.whitepaper.coverAlt'];
+    if (copy['trust.whitepaper.details'] === WHITEPAPER_DETAILS_V1[locale]) {
+      copy['trust.whitepaper.details'] = CURRENT.copy[locale]['trust.whitepaper.details']!;
+    }
+    // Preserve all other authored values, including ''. Only absent keys take current defaults.
+    for (const key of WHITEPAPER_KEYS) {
+      if (!Object.hasOwn(copy, key)) copy[key] = CURRENT.copy[locale][key]!;
+    }
+  }
+  const hasLegacyShape = ORIGINAL_LOCALES.some((locale) => {
     const actual = Object.keys(draft.copy[locale]);
     return actual.length !== Object.keys(CURRENT.copy[locale]).length || actual.some((key) => !Object.hasOwn(CURRENT.copy[locale], key));
   });
-  if (!hasLegacyShape) return { ok: true, config: draft, changed: false };
+  if (!hasLegacyShape) return finishUpgrade(input, draft);
 
   const conflicts: UpgradeConflict[] = [];
-  for (const locale of LOCALES) {
+  for (const locale of ORIGINAL_LOCALES) {
     const old = Object.fromEntries(LEGACY.copyKeys.map((key) => [key,
       Object.hasOwn(LEGACY.copyDefaults[locale], key) ? LEGACY.copyDefaults[locale][key] : CURRENT.copy[locale][key],
     ]));
@@ -128,7 +184,7 @@ export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
   }
   draft.faq.items = mergeFaq(draft.faq.items, conflicts);
   if (conflicts.length) return { ok: false, conflicts };
-  return { ok: true, config: draft, changed: !equal(input, draft) };
+  return finishUpgrade(input, draft);
 }
 
 /** Backup, CAS, marker and audit are one D1 transaction; a stale snapshot cannot write any of them. */
@@ -138,6 +194,13 @@ export async function commitDraftUpgrade(
   upgrade: Extract<ConfigUpgradeResult, { ok: true }>,
   options: { explicitResolution?: boolean } = {},
 ): Promise<DraftUpgradeStatus> {
+  const conflicts = structureConflicts(upgrade.config);
+  if (conflicts.length) return { status: 'blocked', conflicts };
+  const alreadyApplied = options.explicitResolution && await db.prepare(
+    'SELECT upgrade_key FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1',
+  ).bind(CONFIG_UPGRADE_KEY).first();
+  // A later repair gets its own immutable backup; never overwrite the original upgrade receipt.
+  const upgradeKey = alreadyApplied ? `${CONFIG_UPGRADE_KEY}:resolution:${snapshot.draft_rev}` : CONFIG_UPGRADE_KEY;
   const now = Date.now();
   const nonce = crypto.randomUUID();
   const nextRev = snapshot.draft_rev + (upgrade.changed ? 1 : 0);
@@ -146,15 +209,15 @@ export async function commitDraftUpgrade(
      SELECT id, ?1, payload, draft_rev, ?2, ?3, ?4 FROM config_draft
       WHERE id=1 AND draft_rev=?5 AND payload=?6
         AND NOT EXISTS (SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1)`,
-  ).bind(CONFIG_UPGRADE_KEY, nextRev, now, nonce, snapshot.draft_rev, snapshot.payload)];
+  ).bind(upgradeKey, nextRev, now, nonce, snapshot.draft_rev, snapshot.payload)];
   if (upgrade.changed) {
     statements.push(db.prepare(
       `UPDATE config_draft SET payload=?1, draft_rev=?2, updated_at=?3
         WHERE id=1 AND draft_rev=?4 AND payload=?5
           AND EXISTS (SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?6 AND commit_nonce=?7)`,
-    ).bind(JSON.stringify(upgrade.config), nextRev, now, snapshot.draft_rev, snapshot.payload, CONFIG_UPGRADE_KEY, nonce));
+    ).bind(JSON.stringify(upgrade.config), nextRev, now, snapshot.draft_rev, snapshot.payload, upgradeKey, nonce));
     statements.push(prepareAudit(db, {
-      action: 'config.save', actor: options.explicitResolution ? 'admin' : 'system', target: `draft-upgrade:${CONFIG_UPGRADE_KEY}`,
+      action: 'config.save', actor: options.explicitResolution ? 'admin' : 'system', target: `draft-upgrade:${upgradeKey}`,
       before: `draft revision ${snapshot.draft_rev}; original payload backed up`,
       after: options.explicitResolution
         ? `draft revision ${nextRev}; explicit conflict resolution; original conflicting payload backed up`
@@ -162,24 +225,45 @@ export async function commitDraftUpgrade(
       reason: options.explicitResolution
         ? '显式解决旧草稿升级冲突；原冲突内容已备份，历史版本内容保持原样'
         : '站点配置格式升级；历史版本内容保持原样',
-    }, { configUpgradeKey: CONFIG_UPGRADE_KEY, configUpgradeNonce: nonce }));
+    }, { configUpgradeKey: upgradeKey, configUpgradeNonce: nonce }));
   }
   const results = await db.batch(statements);
   if ((results[0]?.meta.changes ?? 0) > 0) return { status: upgrade.changed ? 'applied' : 'current' };
-  const winner = await db.prepare('SELECT upgrade_key FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1').bind(CONFIG_UPGRADE_KEY).first();
-  return { status: winner ? 'current' : 'retry' };
+  // A marker alone is not evidence that the winning/current payload is compatible.
+  return checkDraftUpgrade(db);
 }
 
-export async function ensureDraftUpgrade(db: D1Database): Promise<DraftUpgradeStatus> {
-  const marked = await db.prepare('SELECT upgrade_key FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1').bind(CONFIG_UPGRADE_KEY).first();
-  if (marked) return { status: 'current' };
-  const draft = await db.prepare('SELECT payload, draft_rev, updated_at FROM config_draft WHERE id=1').first<UpgradeDraftSnapshot>();
-  if (!draft) return { status: 'retry' };
+type InspectedDraft = UpgradeDraftSnapshot & { marked: number };
+const readUpgradeDraft = (db: D1Database) => db.prepare(
+  `SELECT payload,draft_rev,updated_at,
+    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1) AS marked
+   FROM config_draft WHERE id=1`,
+).bind(CONFIG_UPGRADE_KEY).first<InspectedDraft>();
+
+function inspectUpgrade(draft: InspectedDraft): ConfigUpgradeResult {
   let input: unknown;
   try { input = JSON.parse(draft.payload); } catch {
-    return { status: 'blocked', conflicts: [{ path: 'draft', reason: '旧草稿无法解析，原内容已保留' }] };
+    return { ok: false, conflicts: [{ path: 'draft', reason: '旧草稿无法解析，原内容已保留' }] };
   }
-  const upgrade = adaptLegacyConfig(input);
+  // Once applied, authored values (including an intentionally restored old default) stay authored.
+  return draft.marked ? finishUpgrade(input, input as SiteConfig) : adaptLegacyConfig(input);
+}
+
+/** Read paths never migrate an existing draft, create a marker, or announce unverified compatibility. */
+export async function checkDraftUpgrade(db: D1Database): Promise<DraftUpgradeStatus> {
+  const draft = await readUpgradeDraft(db);
+  if (!draft) return { status: 'retry' };
+  const upgrade = inspectUpgrade(draft);
   if (!upgrade.ok) return { status: 'blocked', conflicts: upgrade.conflicts };
+  return { status: upgrade.changed ? 'retry' : 'current' };
+}
+
+/** Called only during service preparation, before its idle heartbeat advertises readiness. */
+export async function ensureDraftUpgrade(db: D1Database): Promise<DraftUpgradeStatus> {
+  const draft = await readUpgradeDraft(db);
+  if (!draft) return { status: 'retry' };
+  const upgrade = inspectUpgrade(draft);
+  if (!upgrade.ok) return { status: 'blocked', conflicts: upgrade.conflicts };
+  if (draft.marked) return { status: 'current' };
   return commitDraftUpgrade(db, draft, upgrade);
 }

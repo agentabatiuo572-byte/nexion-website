@@ -18,6 +18,8 @@ import SeoPage from './pages/seo';
 import SkusPage from './pages/skus';
 import StatsPage from './pages/stats';
 import GeoPage from './pages/geo';
+import LanguagesPage from './pages/languages';
+import AiPage from './pages/ai';
 
 const router = createBrowserRouter(
   [
@@ -29,6 +31,8 @@ const router = createBrowserRouter(
       children: [
         { index: true, element: <Dashboard /> },
         { path: 'content', element: <ContentPage /> },
+        { path: 'content/languages', element: <LanguagesPage /> },
+        { path: 'ai', element: <AiPage /> },
         { path: 'content/downloads', element: <DownloadsPage /> },
         { path: 'content/stats', element: <StatsPage /> },
         { path: 'content/skus', element: <SkusPage /> },

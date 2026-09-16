@@ -1,0 +1,46 @@
+import assert from 'node:assert/strict';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, realpathSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join, dirname } from 'node:path';
+import { classifyBuiltPage, readBuiltPages, homeRoutes, seamRoutes, parseRoutesArg, scopeRoutes } from './gate-built-routes.mjs';
+let checks = 0;
+const eq = (a, b) => { assert.deepEqual(a, b); checks++; };
+const bad = (fn) => { assert.throws(fn); checks++; };
+const page = (route, locale, home) => classifyBuiltPage(route, `<html lang="${locale}" ${home ? 'data-home' : ''}><body></body></html>`);
+const pages = [page('/', 'en', true), page('/learn/', 'en', false), page('/xy-new/', 'xy-new', true), page('/xy-new/learn/', 'xy-new', false)];
+eq(homeRoutes(pages), ['/', '/xy-new/']);
+eq(seamRoutes(pages), ['/', '/learn/', '/xy-new/', '/xy-new/learn/']);
+eq(homeRoutes(pages.filter((p) => p.locale === 'en')), ['/']);
+eq(classifyBuiltPage('/zz/', "<html data-home='' lang='zz'>").home, true);
+eq(classifyBuiltPage('/zz/', '<html lang=zz data-home="">').locale, 'zz');
+eq(classifyBuiltPage('/article/', '<html lang="zz" data-home-extra=""><body data-home>').home, false);
+eq(classifyBuiltPage('/article/', '<!-- <html lang="wrong" data-home> --><html lang="zz">').locale, 'zz');
+bad(() => classifyBuiltPage('/', '<html data-home>'));
+bad(() => homeRoutes([]));
+bad(() => homeRoutes(pages.filter((p) => p.route !== '/xy-new/')));
+bad(() => homeRoutes([...pages, page('/duplicate/', 'xy-new', true)]));
+bad(() => seamRoutes(pages.filter((p) => p.route !== '/xy-new/learn/')));
+const dir = mkdtempSync(join(tmpdir(), 'nexgrid-built-routes-'));
+try {
+  mkdirSync(join(dir, 'xy-new', 'learn'), { recursive: true });
+  writeFileSync(join(dir, 'index.html'), '<html lang="en" data-home>');
+  writeFileSync(join(dir, 'xy-new', 'index.html'), '<html lang="xy-new" data-home>');
+  writeFileSync(join(dir, 'xy-new', 'learn', 'index.html'), '<html lang="xy-new">');
+  writeFileSync(join(dir, '404.html'), '<html lang="en">');
+  eq(homeRoutes(readBuiltPages(dir)), ['/', '/xy-new/']);
+  eq(readBuiltPages(dir).length, 3);
+} finally {
+  const target = realpathSync(dir);
+  assert.equal(dirname(target).toLowerCase(), realpathSync(tmpdir()).toLowerCase());
+  rmSync(target, { recursive: true, force: true });
+}
+eq(parseRoutesArg([]), null);
+eq(parseRoutesArg(['--routes', '/,/zh/learn']), ['/', '/zh/learn/']);
+eq(parseRoutesArg(['--routes', 'zh/learn,/,/']), ['/zh/learn/', '/']);
+eq(parseRoutesArg(['--routes']), null);
+eq(scopeRoutes(pages, null), { pages, scoped: false, total: 4 });
+eq(scopeRoutes(pages, ['/', '/learn/']).pages.map((p) => p.route), ['/', '/learn/']);
+eq(scopeRoutes(pages, ['/', '/learn/']).scoped, true);
+eq(scopeRoutes(pages, ['/nope/']).pages, []);
+eq(scopeRoutes(['/', '/a/'], ['/a/']), { pages: ['/a/'], scoped: true, total: 2 });
+console.log(`[built-routes] ${checks} pass`);

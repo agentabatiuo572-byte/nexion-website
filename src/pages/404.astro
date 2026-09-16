@@ -2,7 +2,8 @@
 /* 404 — 静态托管对任意缺失路径返回 dist/404.html,无法知道来访语言,故三语并列(en 在前)。
    noindex,不发 canonical/hreflang。文案 key:notfound.* (R45 新增,三语 parity 门守)。 */
 import Base from '../layouts/Base.astro';
-import { useT, locales } from '../i18n';
+import { useT } from '../i18n';
+import { activeLocales } from '../lib/locales';
 const t = useT('en');
 const home = (l: string) => (l === 'en' ? '/' : `/${l}/`);
 ---
@@ -11,7 +12,7 @@ const home = (l: string) => (l === 'en' ? '/' : `/${l}/`);
 <Base locale="en" title="404 — NexGrid" description={t('notfound.body')} path="/404" noindex>
   <main class="nf">
     {
-      locales.map((l, i) => {
+      activeLocales.map((l, i) => {
         const tt = useT(l);
         const Heading = i === 0 ? 'h1' : 'p';
         return (
@@ -31,17 +32,17 @@ const home = (l: string) => (l === 'en' ? '/' : `/${l}/`);
   </main>
   {/* 静态托管对 /vi/... 与 /zh/... 的缺失路径也返回这一份 404:导航是按英文站渲染的,
       按真实路径把整页链与锚点链补上语言前缀(语言切换链本身已是 / /vi/ /zh/,跳过)。 */}
-  <script is:inline>
+  <script is:inline define:vars={{ activeLocales }}>
     (function () {
-      var m = location.pathname.match(/^\/(vi|zh)\//);
-      if (!m) return;
-      var p = '/' + m[1];
+      var locale = location.pathname.split('/')[1];
+      if (locale === 'en' || !activeLocales.includes(locale)) return;
+      var p = '/' + locale;
       var nav = document.getElementById('site-nav');
       if (!nav) return;
       var links = nav.querySelectorAll('a[href^="/"]');
       for (var i = 0; i < links.length; i++) {
         var h = links[i].getAttribute('href');
-        if (h === '/' || h.indexOf('/vi/') === 0 || h.indexOf('/zh/') === 0) continue;
+        if (links[i].hasAttribute('hreflang')) continue;
         links[i].setAttribute('href', p + h);
       }
     })();

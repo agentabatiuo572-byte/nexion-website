@@ -1,4 +1,5 @@
 import type { Env } from './env';
+import { LOCALES } from '../../schema/src/locales';
 import { prepareAudit, type AuditEntry } from './audit';
 import {
   METRIC_CTA_IDS,
@@ -117,7 +118,7 @@ const EVENT_SHAPE_SQL = `CASE type
   WHEN 'pv' THEN CASE WHEN (
     ${eventTag('pv')}
     AND ${textField('path', 1, METRIC_TEXT_BYTES.path)}
-    AND ${enumField('loc', ['en', 'vi', 'zh'])}
+    AND ${enumField('loc', LOCALES)}
     AND ${enumField('dev', ['m', 'd'])}
     AND ${enumField('ref', ['direct', 'internal', 'search', 'social', 'referral'])}
     AND ${textField('us', 0, METRIC_TEXT_BYTES.short)}
@@ -135,14 +136,14 @@ const EVENT_SHAPE_SQL = `CASE type
     ${eventTag('cta')}
     AND ${enumField('cta', METRIC_CTA_IDS)}
     AND ${enumField('sec', METRIC_CTA_SECTION_IDS)}
-    AND ${enumField('loc', ['en', 'vi', 'zh'])}
+    AND ${enumField('loc', LOCALES)}
     AND ${textField('path', 1, METRIC_TEXT_BYTES.path)}
     AND ${BEACON_META_PREDICATE}
   ) THEN 1 ELSE 0 END
   WHEN 'faq' THEN CASE WHEN (
     ${eventTag('faq')}
     AND (${FAQ_FIELD_PREDICATE})
-    AND ${enumField('loc', ['en', 'vi', 'zh'])}
+    AND ${enumField('loc', LOCALES)}
     AND ${BEACON_META_PREDICATE}
   ) THEN 1 ELSE 0 END
   WHEN 'vit' THEN CASE WHEN (
@@ -447,7 +448,7 @@ const LEARN_SQL = DAY_EVENTS_CTE + `
 ),
 locale_paths AS (
   SELECT CASE
-    WHEN substr(path, 1, 4) IN ('/vi/', '/zh/') THEN substr(path, 4)
+    WHEN substr(path, 1, 4) IN (${LOCALES.filter((locale) => locale !== 'en').map((locale) => "'/" + locale + "/'").join(', ')}) THEN substr(path, 4)
     ELSE path
   END AS path
   FROM raw_paths

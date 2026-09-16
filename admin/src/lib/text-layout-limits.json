@@ -1,0 +1,2624 @@
+{
+  "version": 2,
+  "sourceHash": "f293156e051508bcb73741868e35dc0498f3382903c32ee1c0a70139f7eefc73",
+  "portableLayoutHash": "b711beb4f2dc2439538cd8939ee77903c4d08bb90d5333786a1c371e7b7c2d32",
+  "locales": [
+    "en",
+    "vi",
+    "es",
+    "pt",
+    "fr",
+    "de",
+    "ja",
+    "ko",
+    "zh"
+  ],
+  "fields": {
+    "site.name": {
+      "kind": "seo",
+      "description": "首页默认 SEO 标题的站点名片段，不在正文渲染；页面 SEO 配置可覆盖。"
+    },
+    "site.tagline": {
+      "kind": "seo",
+      "description": "首页默认 SEO 标题的标语片段，不在正文渲染；页面 SEO 配置可覆盖。"
+    },
+    "site.description": {
+      "kind": "seo",
+      "description": "首页默认描述及社交分享描述，不占正文版面；页面 SEO 配置可覆盖。"
+    },
+    "nav.how": {
+      "kind": "bounded",
+      "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。",
+      "references": {
+        "en": "How it works",
+        "vi": "Cách hoạt động",
+        "es": "Cómo funciona",
+        "pt": "Como funciona",
+        "fr": "Fonctionnement",
+        "de": "So funktioniert’s",
+        "ja": "仕組み",
+        "ko": "작동 방식",
+        "zh": "工作原理"
+      },
+      "limits": {
+        "en": 24,
+        "vi": 19,
+        "es": 14,
+        "pt": 15,
+        "ko": 24,
+        "zh": 22
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nav.devices": {
+      "kind": "bounded",
+      "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。",
+      "references": {
+        "en": "Devices",
+        "vi": "Thiết bị",
+        "es": "Dispositivos",
+        "pt": "Dispositivos",
+        "fr": "Appareils",
+        "de": "Geräte",
+        "ja": "デバイス",
+        "ko": "기기",
+        "zh": "设备"
+      },
+      "limits": {
+        "en": 19,
+        "vi": 13,
+        "es": 13,
+        "pt": 14,
+        "ko": 21,
+        "zh": 20
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nav.trust": {
+      "kind": "bounded",
+      "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。 同文案也用于可自然增高的信任板块眉标。",
+      "references": {
+        "en": "Trust",
+        "vi": "Tin cậy",
+        "es": "Confianza",
+        "pt": "Confiança",
+        "fr": "Confiance",
+        "de": "Vertrauen",
+        "ja": "信頼性",
+        "ko": "신뢰",
+        "zh": "信任"
+      },
+      "limits": {
+        "en": 17,
+        "vi": 12,
+        "es": 10,
+        "pt": 11,
+        "ko": 21,
+        "zh": 20
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nav.learn": {
+      "kind": "bounded",
+      "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。 同文案也用于可自然增高的学习板块眉标。",
+      "references": {
+        "en": "Learn",
+        "vi": "Học",
+        "es": "Guías",
+        "pt": "Guias",
+        "fr": "Guides",
+        "de": "Anleitungen",
+        "ja": "ガイド",
+        "ko": "가이드",
+        "zh": "学习中心"
+      },
+      "limits": {
+        "en": 17,
+        "vi": 8,
+        "es": 6,
+        "pt": 7,
+        "ko": 22,
+        "zh": 22
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nav.nex": {
+      "kind": "bounded",
+      "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。",
+      "references": {
+        "en": "NEX",
+        "vi": "NEX",
+        "es": "NEX",
+        "pt": "NEX",
+        "fr": "NEX",
+        "de": "NEX",
+        "ja": "NEX",
+        "ko": "NEX",
+        "zh": "NEX"
+      },
+      "limits": {
+        "en": 15,
+        "vi": 8,
+        "es": 4,
+        "pt": 5,
+        "ko": 22,
+        "zh": 21
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nav.launchH5": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Web App",
+        "vi": "Bản web",
+        "es": "App web",
+        "pt": "App web",
+        "fr": "App web",
+        "de": "Web-App",
+        "ja": "Webアプリ",
+        "ko": "웹 앱",
+        "zh": "H5 版入口"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "nav.download": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Download",
+        "vi": "Tải xuống",
+        "es": "Descargar",
+        "pt": "Baixar",
+        "fr": "Télécharger",
+        "de": "Download",
+        "ja": "ダウンロード",
+        "ko": "다운로드",
+        "zh": "下载"
+      },
+      "limits": {
+        "en": 20,
+        "vi": 14,
+        "es": 10,
+        "pt": 8,
+        "ja": 18,
+        "ko": 20,
+        "zh": 19
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "nav.ariaMain": {
+      "kind": "metadata",
+      "description": "主导航辅助技术名称，仅 aria-label，不渲染为文字。"
+    },
+    "nav.ariaMenu": {
+      "kind": "metadata",
+      "description": "移动菜单按钮辅助技术名称，仅 aria-label。"
+    },
+    "nav.skip": {
+      "kind": "flowing",
+      "description": "键盘聚焦后显示的跳至正文链接允许换行，触达高度为下限；检查视口内可访问性，不设单行字数上限。"
+    },
+    "nav.ariaLanguage": {
+      "kind": "metadata",
+      "description": "语言选择器与语言组的辅助技术名称，仅 aria-label。"
+    },
+    "hero.title": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
+      "basis": "reference",
+      "references": {
+        "en": "NexGrid\nLet compute flow",
+        "vi": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
+        "es": "NexGrid\nQue fluya el cómputo",
+        "pt": "NexGrid\nDeixe a computação fluir",
+        "fr": "NexGrid\nLe calcul en mouvement",
+        "de": "NexGrid\nRechenleistung im Fluss",
+        "ja": "NexGrid\n計算力をつなぐ",
+        "ko": "NexGrid\n연산 능력을 연결하다",
+        "zh": "NexGrid\n让算力流动"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "hero.subtitle": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
+      "basis": "reference",
+      "references": {
+        "en": "The world's leading provider of distributed computing power sharing services.",
+        "vi": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán toàn cầu.",
+        "es": "Proveedor líder mundial de servicios para compartir capacidad de computación distribuida.",
+        "pt": "Líder mundial em serviços de compartilhamento de capacidade de computação distribuída.",
+        "fr": "Le leader mondial des services de partage de puissance de calcul distribuée.",
+        "de": "Der weltweit führende Anbieter für die gemeinsame Nutzung verteilter Rechenleistung.",
+        "ja": "分散コンピューティング能力の共有サービスを提供する世界有数のプロバイダー。",
+        "ko": "분산 컴퓨팅 자원 공유 서비스를 제공하는 세계적인 선도 기업.",
+        "zh": "全球领先的分布式计算能力共享服务提供商。"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "hero.scrollHint": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。 桌面提示在左列窄槽内换行，移动端隐藏。",
+      "basis": "reference",
+      "references": {
+        "en": "See the network",
+        "vi": "Xem mạng lưới",
+        "es": "Conoce la red",
+        "pt": "Conheça a rede",
+        "fr": "Découvrir le réseau",
+        "de": "Netzwerk entdecken",
+        "ja": "ネットワークを見る",
+        "ko": "네트워크 살펴보기",
+        "zh": "查看网络"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "hero.note": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
+      "basis": "reference",
+      "references": {
+        "en": "Connecting the world's compute to power AI.",
+        "vi": "Kết nối năng lực tính toán toàn cầu,\nthúc đẩy kỷ nguyên AI.",
+        "es": "Conectamos la capacidad de cómputo del mundo para impulsar la IA.",
+        "pt": "Conectando a capacidade computacional do mundo para impulsionar a IA.",
+        "fr": "Connecter la puissance de calcul du monde pour faire avancer l’IA.",
+        "de": "Wir verbinden die Rechenleistung der Welt, um KI anzutreiben.",
+        "ja": "世界の計算能力をつなぎ、AIを動かす。",
+        "ko": "세계의 연산 능력을 연결해 AI를 구동합니다.",
+        "zh": "连接世界算力,驱动 AI 时代。"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "hero.subtitle2": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
+      "basis": "reference",
+      "references": {
+        "en": "Offering you high-performance computing services\nand GPU cloud hosting solutions.",
+        "vi": "Cung cấp cho bạn dịch vụ tính toán hiệu năng cao\nvà giải pháp lưu trữ đám mây GPU.",
+        "es": "Servicios de computación de alto rendimiento\ny soluciones de alojamiento GPU en la nube.",
+        "pt": "Serviços de computação de alto desempenho\ne soluções de hospedagem de GPU na nuvem.",
+        "fr": "Des services de calcul haute performance\net des solutions d’hébergement GPU dans le cloud.",
+        "de": "Leistungsstarke Rechendienste\nund GPU-Cloud-Hosting-Lösungen.",
+        "ja": "高性能コンピューティングサービスと\nGPUクラウドホスティングソリューションを提供。",
+        "ko": "고성능 컴퓨팅 서비스와\nGPU 클라우드 호스팅 솔루션을 제공합니다.",
+        "zh": "为您提供高性能计算服务和 GPU 云托管解决方案。"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "hero.note2": {
+      "kind": "bounded",
+      "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
+      "basis": "reference",
+      "references": {
+        "en": "Free to start with the phone you already own.",
+        "vi": "Bắt đầu miễn phí với chiếc điện thoại bạn đang có.",
+        "es": "Empieza gratis con el teléfono que ya tienes.",
+        "pt": "Comece grátis com o celular que você já tem.",
+        "fr": "Commencez gratuitement avec votre téléphone actuel.",
+        "de": "Kostenlos starten – mit dem Smartphone, das bereits vorhanden ist.",
+        "ja": "今あるスマートフォンで、無料でスタート。",
+        "ko": "지금 가진 스마트폰으로 무료로 시작하세요.",
+        "zh": "用你现有的手机,免费开始。"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "download.ios": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Download for iOS",
+        "vi": "Tải bản iOS",
+        "es": "Descargar para iOS",
+        "pt": "Baixar para iOS",
+        "fr": "Télécharger pour iOS",
+        "de": "Für iOS herunterladen",
+        "ja": "iOS版をダウンロード",
+        "ko": "iOS용 다운로드",
+        "zh": "iOS 下载"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "download.android": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Download for Android",
+        "vi": "Tải bản Android",
+        "es": "Descargar para Android",
+        "pt": "Baixar para Android",
+        "fr": "Télécharger pour Android",
+        "de": "Für Android herunterladen",
+        "ja": "Android版をダウンロード",
+        "ko": "Android용 다운로드",
+        "zh": "Android 下载"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "stats.activeDevices": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "stats.activeJobs": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "stats.nodes": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "stats.countries": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "stats.uptime": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "stats.asOf": {
+      "kind": "flowing",
+      "description": "仅快照统计模式显示，与快照日期同段，可自然换行。"
+    },
+    "path.title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.headline": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.cat1": {
+      "kind": "bounded",
+      "description": "卡片元信息行不换行，须为左侧编号保留宽度。",
+      "references": {
+        "en": "Free",
+        "vi": "Miễn phí",
+        "es": "Gratis",
+        "pt": "Grátis",
+        "fr": "Gratuit",
+        "de": "Kostenlos",
+        "ja": "無料",
+        "ko": "무료",
+        "zh": "免费"
+      },
+      "limits": {
+        "en": 24,
+        "vi": 24,
+        "es": 24,
+        "pt": 24,
+        "fr": 24,
+        "de": 24,
+        "ja": 14,
+        "ko": 15,
+        "zh": 14
+      },
+      "previewReasons": {}
+    },
+    "path.cat2": {
+      "kind": "bounded",
+      "description": "卡片元信息行不换行，须为左侧编号保留宽度。",
+      "references": {
+        "en": "Scale",
+        "vi": "Mở rộng",
+        "es": "Ampliar",
+        "pt": "Expandir",
+        "fr": "Évoluer",
+        "de": "Erweitern",
+        "ja": "拡張",
+        "ko": "확장",
+        "zh": "扩展"
+      },
+      "limits": {
+        "en": 26,
+        "vi": 26,
+        "es": 26,
+        "pt": 26,
+        "fr": 26,
+        "de": 26,
+        "ja": 16,
+        "ko": 17,
+        "zh": 16
+      },
+      "previewReasons": {}
+    },
+    "path.freeTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.freeDesc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.freeCta": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Get started free",
+        "vi": "Bắt đầu miễn phí",
+        "es": "Empezar gratis",
+        "pt": "Começar grátis",
+        "fr": "Commencer gratuitement",
+        "de": "Kostenlos loslegen",
+        "ja": "無料で始める",
+        "ko": "무료로 시작하기",
+        "zh": "免费开始"
+      },
+      "limits": {
+        "en": 21,
+        "vi": 21,
+        "es": 21,
+        "pt": 21,
+        "de": 21,
+        "ja": 13,
+        "ko": 13,
+        "zh": 13
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "path.scaleTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.scaleDesc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "path.scaleLink": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "See devices",
+        "vi": "Xem thiết bị",
+        "es": "Ver dispositivos",
+        "pt": "Ver dispositivos",
+        "fr": "Voir les appareils",
+        "de": "Geräte ansehen",
+        "ja": "デバイスを見る",
+        "ko": "기기 보기",
+        "zh": "查看设备"
+      },
+      "limits": {
+        "en": 24,
+        "vi": 24,
+        "es": 24,
+        "pt": 24,
+        "fr": 24,
+        "de": 24,
+        "ja": 14,
+        "ko": 15,
+        "zh": 15
+      },
+      "previewReasons": {}
+    },
+    "path.note": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.title": {
+      "kind": "bounded",
+      "description": "区块编号标题设为不换行，受区块可用宽度限制。",
+      "references": {
+        "en": "How it works",
+        "vi": "Cách hoạt động",
+        "es": "Cómo funciona",
+        "pt": "Como funciona",
+        "fr": "Fonctionnement",
+        "de": "So funktioniert’s",
+        "ja": "仕組み",
+        "ko": "작동 방식",
+        "zh": "工作原理"
+      },
+      "limits": {
+        "en": 29,
+        "vi": 29,
+        "es": 29,
+        "pt": 29,
+        "fr": 29,
+        "de": 29,
+        "ja": 17,
+        "ko": 19,
+        "zh": 17
+      },
+      "previewReasons": {}
+    },
+    "how.head1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.head2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.cat1": {
+      "kind": "bounded",
+      "description": "步骤元信息行不换行，须为编号保留宽度。",
+      "references": {
+        "en": "Connect",
+        "vi": "Kết nối",
+        "es": "Conectar",
+        "pt": "Conectar",
+        "fr": "Connecter",
+        "de": "Verbinden",
+        "ja": "接続",
+        "ko": "연결",
+        "zh": "接入"
+      },
+      "limits": {
+        "en": 32,
+        "vi": 32,
+        "es": 32,
+        "pt": 32,
+        "fr": 32,
+        "de": 32,
+        "ja": 19,
+        "ko": 21,
+        "zh": 15
+      },
+      "previewReasons": {}
+    },
+    "how.cat2": {
+      "kind": "bounded",
+      "description": "步骤元信息行不换行，须为编号保留宽度。",
+      "references": {
+        "en": "Compute",
+        "vi": "Tính toán",
+        "es": "Procesar",
+        "pt": "Processar",
+        "fr": "Calculer",
+        "de": "Berechnen",
+        "ja": "計算",
+        "ko": "연산",
+        "zh": "计算"
+      },
+      "limits": {
+        "en": 32,
+        "vi": 32,
+        "es": 32,
+        "pt": 32,
+        "fr": 32,
+        "de": 32,
+        "ja": 19,
+        "ko": 20,
+        "zh": 15
+      },
+      "previewReasons": {}
+    },
+    "how.cat3": {
+      "kind": "bounded",
+      "description": "步骤元信息行不换行，须为编号保留宽度。",
+      "references": {
+        "en": "Settle",
+        "vi": "Thanh toán",
+        "es": "Liquidar",
+        "pt": "Liquidar",
+        "fr": "Régler",
+        "de": "Abrechnen",
+        "ja": "精算",
+        "ko": "정산",
+        "zh": "结算"
+      },
+      "limits": {
+        "en": 32,
+        "vi": 32,
+        "es": 32,
+        "pt": 32,
+        "fr": 32,
+        "de": 32,
+        "ja": 19,
+        "ko": 21,
+        "zh": 15
+      },
+      "previewReasons": {}
+    },
+    "how.step1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.step1Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.step2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.step2Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.step3Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "how.step3Desc": {
+      "kind": "flowing",
+      "description": "说明与核验链接共用段落，区块自然增高。"
+    },
+    "how.verifyLink": {
+      "kind": "flowing",
+      "description": "核验链接可换行，步骤卡自然增高。"
+    },
+    "devices.title": {
+      "kind": "bounded",
+      "description": "仅桌面叠卡编舞时区头受固定 pin 高度约束；静态、移动、触摸及减少动态模式可自然增高。",
+      "references": {
+        "en": "One network, every scale",
+        "vi": "Một mạng lưới, mọi quy mô",
+        "es": "Una red para cualquier escala",
+        "pt": "Uma rede para qualquer escala",
+        "fr": "Un réseau à toutes les échelles",
+        "de": "Ein Netzwerk für jede Größenordnung",
+        "ja": "ひとつのネットワーク、あらゆる規模",
+        "ko": "하나의 네트워크, 모든 규모",
+        "zh": "一张网络，任意规模"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "vi": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "es": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "pt": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "zh": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "devices.subtitle": {
+      "kind": "bounded",
+      "description": "仅桌面叠卡编舞时与标题、CTA 共用固定 pin 空间；静态、移动、触摸及减少动态模式可自然增高。",
+      "references": {
+        "en": "Start with the phone in your pocket. Scale with dedicated, datacenter-hosted hardware.",
+        "vi": "Bắt đầu từ chiếc điện thoại trong túi. Mở rộng với phần cứng chuyên dụng đặt tại trung tâm dữ liệu.",
+        "es": "Empieza con el teléfono que llevas en el bolsillo. Amplía con equipos dedicados alojados en centros de datos.",
+        "pt": "Comece com o celular no seu bolso. Expanda com equipamentos dedicados hospedados em centros de dados.",
+        "fr": "Commencez avec le téléphone dans votre poche. Évoluez avec du matériel dédié hébergé en centre de données.",
+        "de": "Mit dem Smartphone in der Tasche starten. Mit dedizierter Hardware im Rechenzentrum erweitern.",
+        "ja": "ポケットのスマートフォンから始め、データセンターで運用する専用機器で拡張。",
+        "ko": "주머니 속 스마트폰으로 시작하고, 데이터센터에 호스팅된 전용 하드웨어로 확장하세요.",
+        "zh": "从口袋里的手机开始，用机房托管的专用硬件扩大规模。"
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "vi": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "es": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "pt": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "zh": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "devices.free": {
+      "kind": "bounded",
+      "description": "按默认图片与文字比例估算；设备卡可自然增高并重分配图片区，超参考长度不代表截断。",
+      "basis": "reference",
+      "references": {
+        "en": "Free",
+        "vi": "Miễn phí",
+        "es": "Gratis",
+        "pt": "Grátis",
+        "fr": "Gratuit",
+        "de": "Kostenlos",
+        "ja": "無料",
+        "ko": "무료",
+        "zh": "免费"
+      },
+      "limits": {
+        "en": 10,
+        "vi": 11,
+        "es": 11,
+        "pt": 11,
+        "fr": 11,
+        "de": 11,
+        "ja": 6,
+        "ko": 7,
+        "zh": 6
+      },
+      "previewReasons": {}
+    },
+    "devices.multiplierLabel": {
+      "kind": "bounded",
+      "description": "按默认图片与文字比例估算；设备卡可自然增高并重分配图片区，超参考长度不代表截断。 只有倍率数字禁止换行，说明文字可换行。",
+      "basis": "reference",
+      "references": {
+        "en": "compute vs phone",
+        "vi": "năng lực so với điện thoại",
+        "es": "cómputo frente al teléfono",
+        "pt": "computação em relação ao celular",
+        "fr": "calcul par rapport au téléphone",
+        "de": "Rechenleistung gegenüber Smartphone",
+        "ja": "スマートフォン比の計算能力",
+        "ko": "스마트폰 대비 연산 능력",
+        "zh": "算力（对比手机）"
+      },
+      "limits": {
+        "en": 17,
+        "vi": 27,
+        "es": 27,
+        "pt": 33,
+        "fr": 32,
+        "de": 36,
+        "ja": 14,
+        "ko": 14,
+        "zh": 9
+      },
+      "previewReasons": {}
+    },
+    "devices.classicBadge": {
+      "kind": "bounded",
+      "description": "设备图右上角状态章不得压住左上编号或越过图片。",
+      "references": {
+        "en": "Classic",
+        "vi": "Bản kinh điển",
+        "es": "Clásico",
+        "pt": "Clássico",
+        "fr": "Classique",
+        "de": "Klassiker",
+        "ja": "クラシック",
+        "ko": "클래식",
+        "zh": "经典款"
+      },
+      "limits": {
+        "en": 19,
+        "vi": 19,
+        "es": 19,
+        "pt": 19,
+        "fr": 20,
+        "de": 19,
+        "ja": 11,
+        "ko": 13,
+        "zh": 11
+      },
+      "previewReasons": {}
+    },
+    "devices.comingBadge": {
+      "kind": "bounded",
+      "description": "预告设备图右上角状态章不得压住左上编号或越过图片；仅预告状态显示。",
+      "references": {
+        "en": "Coming soon",
+        "vi": "Sắp ra mắt",
+        "es": "Próximamente",
+        "pt": "Em breve",
+        "fr": "Bientôt",
+        "de": "Demnächst",
+        "ja": "近日登場",
+        "ko": "출시 예정",
+        "zh": "即将上线"
+      },
+      "limits": {
+        "en": 20,
+        "vi": 19,
+        "es": 19,
+        "pt": 19,
+        "fr": 19,
+        "de": 19,
+        "ja": 11,
+        "ko": 12,
+        "zh": 11
+      },
+      "previewReasons": {}
+    },
+    "devices.cta": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Get the app to start",
+        "vi": "Tải ứng dụng để bắt đầu",
+        "es": "Descarga la app para empezar",
+        "pt": "Baixe o aplicativo para começar",
+        "fr": "Téléchargez l’application pour commencer",
+        "de": "Mit der App starten",
+        "ja": "アプリで始める",
+        "ko": "앱으로 시작하기",
+        "zh": "下载 App 开始"
+      },
+      "limits": {
+        "ja": 10,
+        "ko": 11,
+        "zh": 12
+      },
+      "previewReasons": {
+        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+      }
+    },
+    "trust.whitepaper.title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.whitepaper.summary": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.whitepaper.details": {
+      "kind": "flowing",
+      "description": "版本与页数占位符先替换，说明可自然换行。",
+      "syntax": "template"
+    },
+    "trust.title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.pocTitle": {
+      "kind": "flowing",
+      "description": "折叠标题可换行，行高自然增长。"
+    },
+    "trust.pocBody1": {
+      "kind": "flowing",
+      "description": "折叠展开后的说明自然增高。"
+    },
+    "trust.pocBody2": {
+      "kind": "flowing",
+      "description": "折叠展开后的说明自然增高。"
+    },
+    "trust.certMsbAlt": {
+      "kind": "metadata",
+      "description": "MSB 证书图片替代文本及灯箱图片替代文本，不占普通版面。"
+    },
+    "trust.certCoAlt": {
+      "kind": "metadata",
+      "description": "公司证书图片替代文本及灯箱图片替代文本，不占普通版面。"
+    },
+    "trust.t1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t1Body": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t1Chip": {
+      "kind": "flowing",
+      "description": "核验状态章允许 anywhere 换行，卡片自然增高。"
+    },
+    "trust.t1Cta": {
+      "kind": "flowing",
+      "description": "核验按钮允许换行，卡片自然增高。"
+    },
+    "trust.t2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t2Body": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t2Chip": {
+      "kind": "flowing",
+      "description": "核验状态章允许 anywhere 换行，卡片自然增高。"
+    },
+    "trust.t2Cta": {
+      "kind": "flowing",
+      "description": "核验按钮允许换行，卡片自然增高。"
+    },
+    "trust.t3Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t3Lead": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t3MeansTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t3Means1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t3Means2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.t3Means3": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "trust.certZoom": {
+      "kind": "bounded",
+      "description": "提示绝对定位于证书图下缘，可自然换行；按实际图片边界检查，不预设单行或覆盖比例。同文案还用于辅助名称。",
+      "references": {
+        "en": "View full size",
+        "vi": "Xem kích thước đầy đủ",
+        "es": "Ver a tamaño completo",
+        "pt": "Ver em tamanho completo",
+        "fr": "Voir en taille réelle",
+        "de": "In voller Größe ansehen",
+        "ja": "原寸で表示",
+        "ko": "원본 크기로 보기",
+        "zh": "查看大图"
+      },
+      "limits": {
+        "en": 193,
+        "vi": 157,
+        "es": 170,
+        "pt": 174,
+        "fr": 186,
+        "de": 160,
+        "ja": 99,
+        "ko": 98,
+        "zh": 98
+      },
+      "previewReasons": {}
+    },
+    "trust.certClose": {
+      "kind": "bounded",
+      "description": "灯箱关闭按钮为单行；公告关闭按钮仅将此文案用于 aria-label。",
+      "references": {
+        "en": "Close",
+        "vi": "Đóng",
+        "es": "Cerrar",
+        "pt": "Fechar",
+        "fr": "Fermer",
+        "de": "Schließen",
+        "ja": "閉じる",
+        "ko": "닫기",
+        "zh": "关闭"
+      },
+      "limits": {
+        "en": 25,
+        "vi": 25,
+        "es": 25,
+        "pt": 25,
+        "fr": 25,
+        "de": 24,
+        "ja": 15,
+        "ko": 17,
+        "zh": 15
+      },
+      "previewReasons": {}
+    },
+    "trust.openOriginal": {
+      "kind": "flowing",
+      "description": "证书原图链接可自然换行并增高，弹层图片可弹性收缩；检查弹层可访问性，不设普通单行字数上限。"
+    },
+    "why.kicker": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act1Body": {
+      "kind": "flowing",
+      "description": "论据卡自然增高；强调与引用标记需按实际渲染语法保留。",
+      "syntax": "why"
+    },
+    "why.act1Num": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act1Cap": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act2Body": {
+      "kind": "flowing",
+      "description": "论据卡自然增高；强调与引用标记需按实际渲染语法保留。",
+      "syntax": "why"
+    },
+    "why.act2Num": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act2Cap": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act3Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act3Body": {
+      "kind": "flowing",
+      "description": "论据卡自然增高；强调与引用标记需按实际渲染语法保留。",
+      "syntax": "why"
+    },
+    "why.act3Num": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.act3Cap": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.quote1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.name1": {
+      "kind": "flowing",
+      "description": "姓名可自然换行，同时用于人物图片替代文本。"
+    },
+    "why.role1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.meta1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.date1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.quote2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.name2": {
+      "kind": "flowing",
+      "description": "姓名可自然换行，同时用于人物图片替代文本。"
+    },
+    "why.role2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.meta2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.date2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.portraitAlt": {
+      "kind": "metadata",
+      "description": "人物图片替代文本，{name} 由对应姓名替换；不占普通版面。",
+      "syntax": "template"
+    },
+    "why.sourcesTitle": {
+      "kind": "flowing",
+      "description": "来源折叠标题可换行，区域自然增高。"
+    },
+    "why.src1": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.src2": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.src3": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.src4": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.src5": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.src6": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.photoCredit": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "why.disclaim": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "social.kicker": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Network scale",
+        "vi": "Quy mô mạng lưới",
+        "es": "Escala de la red",
+        "pt": "Escala da rede",
+        "fr": "Dimension du réseau",
+        "de": "Netzwerkgröße",
+        "ja": "ネットワークの規模",
+        "ko": "네트워크 규모",
+        "zh": "网络规模"
+      },
+      "limits": {
+        "ko": 362,
+        "zh": 373
+      },
+      "previewReasons": {
+        "en": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "vi": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "es": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "pt": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "fr": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "social.scaleLine": {
+      "kind": "bounded",
+      "description": "设备数和国家数先替换；标题与上下说明共用固定桌面区高。",
+      "syntax": "template",
+      "references": {
+        "en": "{devices}+ devices earning across {countries} countries",
+        "vi": "{devices}+ thiết bị đang tạo thu nhập tại {countries} quốc gia",
+        "es": "Más de {devices} dispositivos generando ingresos en {countries} países",
+        "pt": "Mais de {devices} dispositivos gerando ganhos em {countries} países",
+        "fr": "Plus de {devices} appareils génèrent des revenus dans {countries} pays",
+        "de": "{devices}+ Geräte verdienen in {countries} Ländern",
+        "ja": "{countries}か国で{devices}台以上のデバイスが報酬を獲得",
+        "ko": "{countries}개국에서 {devices}+개 기기가 보상을 획득",
+        "zh": "{devices}+ 台设备\n正在 {countries} 个国家产生收益"
+      },
+      "limits": {
+        "en": 308,
+        "vi": 230,
+        "es": 247,
+        "pt": 217,
+        "de": 265,
+        "ko": 148,
+        "zh": 147
+      },
+      "previewReasons": {
+        "fr": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "social.rolesLine": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Engineers, teachers, drivers, students, designers — people all over the world put their idle devices to work.",
+        "vi": "Kỹ sư, giáo viên, tài xế, sinh viên, nhà thiết kế — mọi người khắp thế giới để thiết bị nhàn rỗi làm việc.",
+        "es": "Ingenieros, docentes, conductores, estudiantes, diseñadores: personas de todo el mundo ponen a trabajar sus dispositivos inactivos.",
+        "pt": "Engenheiros, professores, motoristas, estudantes, designers: pessoas de todo o mundo colocam seus dispositivos ociosos para trabalhar.",
+        "fr": "Ingénieurs, enseignants, chauffeurs, étudiants, designers : partout dans le monde, des personnes font travailler leurs appareils inactifs.",
+        "de": "Ingenieure, Lehrkräfte, Fahrer, Studierende und Designer – Menschen weltweit lassen ihre ungenutzten Geräte arbeiten.",
+        "ja": "エンジニア、教師、ドライバー、学生、デザイナー。世界中の人々が、使っていないデバイスを働かせています。",
+        "ko": "엔지니어, 교사, 운전기사, 학생, 디자이너까지. 세계 곳곳의 사람들이 쉬고 있는 기기로 작업을 수행합니다.",
+        "zh": "工程师、教师、司机、学生、设计师——世界各地的人都在让闲置设备工作起来。"
+      },
+      "limits": {
+        "es": 610,
+        "pt": 594,
+        "ko": 439,
+        "zh": 415
+      },
+      "previewReasons": {
+        "en": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "vi": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "fr": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.kicker": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Where compute goes",
+        "vi": "Hướng đi của sức mạnh tính toán",
+        "es": "Destino del cómputo",
+        "pt": "Destino da computação",
+        "fr": "À quoi sert le calcul",
+        "de": "Wohin die Rechenleistung fließt",
+        "ja": "計算能力の行き先",
+        "ko": "연산 능력이 향하는 곳",
+        "zh": "算力去向"
+      },
+      "limits": {
+        "en": 170,
+        "es": 172,
+        "pt": 164,
+        "fr": 170,
+        "ko": 56,
+        "zh": 54
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.title": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "What the network computes",
+        "vi": "Mạng lưới tính toán những gì",
+        "es": "Qué procesa la red",
+        "pt": "O que a rede processa",
+        "fr": "Ce que le réseau calcule",
+        "de": "Was das Netzwerk berechnet",
+        "ja": "ネットワークが処理するもの",
+        "ko": "네트워크가 처리하는 작업",
+        "zh": "这张网络在计算什么"
+      },
+      "limits": {
+        "en": 117,
+        "es": 93,
+        "pt": 88,
+        "fr": 87,
+        "ko": 37,
+        "zh": 31
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.lead": {
+      "kind": "bounded",
+      "description": "必须按原文换行拆为多段，不能把整段压入第一段；桌面部分语言段落不自动换行，与六宫格共用固定区高，移动端允许换行并自然增高。",
+      "references": {
+        "en": "That scarcity is the demand this network serves.\nClients pay to run AI workloads on this capacity.\nThe fields below show where that work goes.",
+        "vi": "Chính sự khan hiếm đó là nhu cầu mà mạng lưới này phục vụ.\nKhách hàng trả tiền để chạy khối lượng công việc AI trên năng lực này.\nCác lĩnh vực dưới đây cho thấy công việc đó đi về đâu.",
+        "es": "Esta red atiende la demanda creada por esa escasez.\nLos clientes pagan por ejecutar cargas de IA con esta capacidad.\nEstos campos muestran a qué se dedica ese trabajo.",
+        "pt": "Esta rede atende à demanda criada por essa escassez.\nClientes pagam para executar cargas de IA com essa capacidade.\nOs campos abaixo mostram aonde esse trabalho vai.",
+        "fr": "Cette rareté crée la demande à laquelle répond le réseau.\nLes clients paient pour exécuter leurs charges d’IA sur cette capacité.\nVoici les domaines auxquels ce travail est destiné.",
+        "de": "Diese Knappheit schafft den Bedarf, den das Netzwerk bedient.\nKunden bezahlen dafür, KI-Aufgaben auf dieser Kapazität auszuführen.\nDie folgenden Bereiche zeigen, wohin diese Arbeit fließt.",
+        "ja": "この不足こそ、ネットワークが応える需要です。\n顧客は、この計算能力でAI処理を実行するために料金を支払います。\n以下は、その処理が活用される分野です。",
+        "ko": "이 부족함이 네트워크가 충족하는 수요입니다.\n고객은 이 용량으로 AI 작업을 실행하기 위해 비용을 지불합니다.\n아래 분야는 그 작업이 어디에 쓰이는지 보여 줍니다.",
+        "zh": "那道缺口，就是这张网承接的需求。\n客户付费在这份算力上运行 AI 工作负载。\n下面的领域就是这些工作的去向。"
+      },
+      "limits": {
+        "en": 183,
+        "es": 201,
+        "pt": 201,
+        "fr": 214,
+        "ko": 123,
+        "zh": 89
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f1": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "AI inference",
+        "vi": "Suy luận AI",
+        "es": "Inferencia de IA",
+        "pt": "Inferência de IA",
+        "fr": "Inférence d’IA",
+        "de": "KI-Inferenz",
+        "ja": "AI推論",
+        "ko": "AI 추론",
+        "zh": "AI 推理"
+      },
+      "limits": {
+        "en": 60,
+        "es": 58,
+        "pt": 60,
+        "fr": 55,
+        "ko": 12,
+        "zh": 11
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f2": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Scientific computing",
+        "vi": "Tính toán khoa học",
+        "es": "Computación científica",
+        "pt": "Computação científica",
+        "fr": "Calcul scientifique",
+        "de": "Wissenschaftliches Rechnen",
+        "ja": "科学技術計算",
+        "ko": "과학 컴퓨팅",
+        "zh": "科学计算"
+      },
+      "limits": {
+        "en": 68,
+        "es": 68,
+        "pt": 69,
+        "fr": 60,
+        "ko": 11,
+        "zh": 10
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f3": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Climate modeling",
+        "vi": "Mô hình khí hậu",
+        "es": "Modelización climática",
+        "pt": "Modelagem climática",
+        "fr": "Modélisation climatique",
+        "de": "Klimamodellierung",
+        "ja": "気候モデリング",
+        "ko": "기후 모델링",
+        "zh": "气候建模"
+      },
+      "limits": {
+        "en": 64,
+        "es": 68,
+        "pt": 67,
+        "fr": 64,
+        "ko": 11,
+        "zh": 12
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f4": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Biomedical research",
+        "vi": "Nghiên cứu y sinh",
+        "es": "Investigación biomédica",
+        "pt": "Pesquisa biomédica",
+        "fr": "Recherche biomédicale",
+        "de": "Biomedizinische Forschung",
+        "ja": "生物医学研究",
+        "ko": "생의학 연구",
+        "zh": "生物医药研究"
+      },
+      "limits": {
+        "en": 67,
+        "es": 69,
+        "pt": 66,
+        "fr": 62,
+        "ko": 11,
+        "zh": 12
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f5": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Language technology",
+        "vi": "Công nghệ ngôn ngữ",
+        "es": "Tecnología del lenguaje",
+        "pt": "Tecnologia da linguagem",
+        "fr": "Technologies du langage",
+        "de": "Sprachtechnologie",
+        "ja": "言語技術",
+        "ko": "언어 기술",
+        "zh": "语言技术"
+      },
+      "limits": {
+        "en": 67,
+        "es": 65,
+        "pt": 67,
+        "fr": 60,
+        "ko": 12,
+        "zh": 10
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "mission.f6": {
+      "kind": "bounded",
+      "description": "桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。",
+      "references": {
+        "en": "Education tools",
+        "vi": "Công cụ giáo dục",
+        "es": "Herramientas educativas",
+        "pt": "Ferramentas educacionais",
+        "fr": "Outils pédagogiques",
+        "de": "Bildungswerkzeuge",
+        "ja": "教育ツール",
+        "ko": "교육 도구",
+        "zh": "教育工具"
+      },
+      "limits": {
+        "en": 63,
+        "es": 69,
+        "pt": 72,
+        "fr": 60,
+        "ko": 12,
+        "zh": 10
+      },
+      "previewReasons": {
+        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "nex.teaserTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.whatTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.whatDesc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.earnTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.earnDesc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.useTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaser.useDesc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.teaserCta": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Learn more about NEX",
+        "vi": "Tìm hiểu thêm về NEX",
+        "es": "Más información sobre NEX",
+        "pt": "Saiba mais sobre NEX",
+        "fr": "En savoir plus sur NEX",
+        "de": "Mehr über NEX erfahren",
+        "ja": "NEXを詳しく知る",
+        "ko": "NEX 자세히 알아보기",
+        "zh": "深入了解 NEX"
+      },
+      "limits": {
+        "en": 27,
+        "vi": 27,
+        "es": 27,
+        "pt": 27,
+        "fr": 27,
+        "de": 27,
+        "ja": 18,
+        "ko": 19,
+        "zh": 19
+      },
+      "previewReasons": {}
+    },
+    "nex.pageTag": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.pageTitle": {
+      "kind": "flowing",
+      "description": "页面标题自然增高，同时作为默认 SEO 标题。"
+    },
+    "nex.pageLead": {
+      "kind": "flowing",
+      "description": "页面引言自然增高，同时作为默认 SEO 描述。"
+    },
+    "nex.compareTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpProp": {
+      "kind": "flowing",
+      "description": "表头可换行，表格行高随内容增长。"
+    },
+    "nex.cmpType": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpTypeUsdt": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpTypeNex": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpVol": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpVolUsdt": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpVolNex": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpUse": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpUseUsdt": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.cmpUseNex": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.sourcesTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src1Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src2Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src3Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src3Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src4Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.src4Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.usesTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use1Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use2Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use3Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use3Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use4Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use4Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use5Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.use5Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.mechTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.mech1Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.mech1Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.mech2Title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.mech2Desc": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faqTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq1Q": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq1A": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq2Q": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq2A": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq3Q": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq3A": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq4Q": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.faq4A": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "nex.getApp": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Get the app",
+        "vi": "Tải ứng dụng",
+        "es": "Descargar la app",
+        "pt": "Baixar o aplicativo",
+        "fr": "Télécharger l’application",
+        "de": "App herunterladen",
+        "ja": "アプリを入手",
+        "ko": "앱 받기",
+        "zh": "下载 App"
+      },
+      "limits": {
+        "en": 27,
+        "vi": 27,
+        "es": 27,
+        "pt": 27,
+        "fr": 27,
+        "de": 27,
+        "ja": 17,
+        "ko": 18,
+        "zh": 19
+      },
+      "previewReasons": {}
+    },
+    "nex.whitepaper": {
+      "kind": "bounded",
+      "description": "NEX 页按钮不换行；首页白皮书按钮允许换行且区域自然增高，不设首页按钮高度上限。两处需分别检查。",
+      "references": {
+        "en": "Read the whitepaper",
+        "vi": "Đọc whitepaper",
+        "es": "Leer el documento técnico",
+        "pt": "Ler o whitepaper",
+        "fr": "Lire le livre blanc",
+        "de": "Whitepaper lesen",
+        "ja": "ホワイトペーパーを読む",
+        "ko": "백서 읽기",
+        "zh": "阅读白皮书"
+      },
+      "limits": {
+        "en": 33,
+        "vi": 33,
+        "es": 33,
+        "pt": 33,
+        "fr": 34,
+        "de": 33,
+        "ko": 22,
+        "zh": 20
+      },
+      "previewReasons": {
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "learn.title": {
+      "kind": "flowing",
+      "description": "列表页标题自然增高，同时作为默认 SEO 标题。"
+    },
+    "learn.subtitle": {
+      "kind": "flowing",
+      "description": "列表页引言自然增高，同时作为默认 SEO 描述。"
+    },
+    "learn.homeTitle": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.browseAll": {
+      "kind": "bounded",
+      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
+      "references": {
+        "en": "Browse all guides",
+        "vi": "Xem tất cả hướng dẫn",
+        "es": "Ver todas las guías",
+        "pt": "Ver todos os guias",
+        "fr": "Voir tous les guides",
+        "de": "Alle Anleitungen ansehen",
+        "ja": "すべてのガイドを見る",
+        "ko": "모든 가이드 보기",
+        "zh": "查看全部教程"
+      },
+      "limits": {
+        "en": 27,
+        "vi": 27,
+        "es": 27,
+        "pt": 27,
+        "fr": 27,
+        "de": 27,
+        "ko": 19,
+        "zh": 17
+      },
+      "previewReasons": {
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "learn.backToList": {
+      "kind": "flowing",
+      "description": "文章返回链接可换行，正文随高度下移。"
+    },
+    "learn.untranslated": {
+      "kind": "flowing",
+      "description": "仅文章回退英文时显示，提示框自然增高。"
+    },
+    "learn.enOnly": {
+      "kind": "flowing",
+      "description": "仅列表卡回退英文时显示，卡片自然增高。"
+    },
+    "learn.appVersionLabel": {
+      "kind": "bounded",
+      "description": "版本名称与版本号在同一不换行片段，须保留版本号宽度。",
+      "references": {
+        "en": "App version",
+        "vi": "Phiên bản ứng dụng",
+        "es": "Versión de la app",
+        "pt": "Versão do aplicativo",
+        "fr": "Version de l’application",
+        "de": "App-Version",
+        "ja": "アプリバージョン",
+        "ko": "앱 버전",
+        "zh": "App 版本"
+      },
+      "limits": {
+        "en": 32,
+        "vi": 33,
+        "es": 32,
+        "pt": 32,
+        "fr": 32,
+        "de": 32,
+        "ja": 19,
+        "ko": 21,
+        "zh": 20
+      },
+      "previewReasons": {}
+    },
+    "learn.topics.start": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.topics.earn": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.topics.devices": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.topics.wallet": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.topics.team": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.topics.nex": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.related": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "learn.toc": {
+      "kind": "flowing",
+      "description": "文章目录标题与法律目录折叠标题均可自然换行；同时作为目录辅助名称。"
+    },
+    "faq.title": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "final.title": {
+      "kind": "flowing",
+      "description": "收尾标题使用流式负外边距压叠面板，行数增长后面板随之下移。"
+    },
+    "footer.privacy": {
+      "kind": "bounded",
+      "description": "单条页脚法律链接不换行，整组允许换行并增高；也作为隐私页默认 SEO 标题。",
+      "references": {
+        "en": "Privacy Policy",
+        "vi": "Chính sách bảo mật",
+        "es": "Política de privacidad",
+        "pt": "Política de privacidade",
+        "fr": "Politique de confidentialité",
+        "de": "Datenschutzerklärung",
+        "ja": "プライバシーポリシー",
+        "ko": "개인정보 처리방침",
+        "zh": "隐私政策"
+      },
+      "limits": {
+        "en": 29,
+        "vi": 29,
+        "es": 29,
+        "pt": 29,
+        "fr": 29,
+        "de": 30,
+        "ja": 17,
+        "ko": 19,
+        "zh": 17
+      },
+      "previewReasons": {}
+    },
+    "footer.terms": {
+      "kind": "bounded",
+      "description": "单条页脚法律链接不换行，整组允许换行并增高；也作为条款页默认 SEO 标题。",
+      "references": {
+        "en": "Terms of Service",
+        "vi": "Điều khoản dịch vụ",
+        "es": "Términos de servicio",
+        "pt": "Termos de serviço",
+        "fr": "Conditions d’utilisation",
+        "de": "Nutzungsbedingungen",
+        "ja": "利用規約",
+        "ko": "이용약관",
+        "zh": "使用条款"
+      },
+      "limits": {
+        "en": 29,
+        "vi": 29,
+        "es": 29,
+        "pt": 29,
+        "fr": 29,
+        "de": 29,
+        "ja": 17,
+        "ko": 19,
+        "zh": 17
+      },
+      "previewReasons": {}
+    },
+    "footer.contact": {
+      "kind": "bounded",
+      "description": "邮箱配置存在时显示，单条联系链接不换行，整组允许换行并增高。",
+      "references": {
+        "en": "Contact",
+        "vi": "Liên hệ",
+        "es": "Contacto",
+        "pt": "Contato",
+        "fr": "Contact",
+        "de": "Kontakt",
+        "ja": "お問い合わせ",
+        "ko": "문의",
+        "zh": "联系我们"
+      },
+      "limits": {
+        "en": 29,
+        "vi": 29,
+        "es": 29,
+        "pt": 29,
+        "fr": 29,
+        "de": 29,
+        "ja": 17,
+        "ko": 19,
+        "zh": 17
+      },
+      "previewReasons": {}
+    },
+    "footer.rights": {
+      "kind": "flowing",
+      "description": "版权、固定公司名称与背景动画开关共用段落，可自然换行。"
+    },
+    "footer.ariaLegal": {
+      "kind": "metadata",
+      "description": "页脚链接组辅助技术名称，仅 aria-label。"
+    },
+    "footer.pauseBg": {
+      "kind": "flowing",
+      "description": "背景动画开关暂停状态文字，按钮可自然换行；运行时按状态赋值。"
+    },
+    "footer.playBg": {
+      "kind": "flowing",
+      "description": "背景动画开关播放状态文字，按钮可自然换行；运行时按状态赋值。"
+    },
+    "footer.reducedBg": {
+      "kind": "flowing",
+      "description": "减少动态时的开关状态文字，按钮可自然换行；运行时按状态赋值。"
+    },
+    "footer.appPrivacy": {
+      "kind": "bounded",
+      "description": "单条页脚 App 隐私链接不换行，整组允许换行并增高；部分语言也作为默认 SEO 标题。",
+      "references": {
+        "en": "App Privacy",
+        "vi": "Quyền riêng tư ứng dụng",
+        "es": "Privacidad de la app",
+        "pt": "Privacidade do aplicativo",
+        "fr": "Confidentialité de l’application",
+        "de": "App-Datenschutz",
+        "ja": "アプリのプライバシー",
+        "ko": "앱 개인정보",
+        "zh": "App 隐私政策"
+      },
+      "limits": {
+        "en": 29,
+        "vi": 29,
+        "es": 29,
+        "pt": 29,
+        "de": 29,
+        "ko": 19,
+        "zh": 19
+      },
+      "previewReasons": {
+        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "footer.legalLine": {
+      "kind": "flowing",
+      "description": "内容换行后自然增高，不设固定总字数上限。"
+    },
+    "footer.forTeams": {
+      "kind": "flowing",
+      "description": "团队合作说明、联系引导与邮箱共用段落，可自然换行。"
+    },
+    "footer.forTeamsCta": {
+      "kind": "flowing",
+      "description": "仅配置联系邮箱时显示，与说明及邮箱共用可换行段落。"
+    },
+    "legal.enPrevails": {
+      "kind": "flowing",
+      "description": "法律正文回退英文时显示，提示框可自然增高。"
+    },
+    "notfound.title": {
+      "kind": "flowing",
+      "description": "共享 404 页为各启用语言逐块渲染，标题自然增高。"
+    },
+    "notfound.body": {
+      "kind": "flowing",
+      "description": "共享 404 页为各启用语言逐块渲染，说明自然增高；英文也供 SEO 描述。"
+    },
+    "notfound.home": {
+      "kind": "bounded",
+      "description": "共享 404 各语言返回按钮均为单行。",
+      "references": {
+        "en": "Back to home",
+        "vi": "Về trang chủ",
+        "es": "Volver al inicio",
+        "pt": "Voltar ao início",
+        "fr": "Retour à l’accueil",
+        "de": "Zur Startseite",
+        "ja": "ホームへ戻る",
+        "ko": "홈으로 돌아가기",
+        "zh": "返回首页"
+      },
+      "limits": {
+        "en": 27,
+        "vi": 27,
+        "es": 27,
+        "pt": 27,
+        "fr": 27,
+        "de": 27,
+        "ja": 17,
+        "ko": 18,
+        "zh": 17
+      },
+      "previewReasons": {}
+    },
+    "sku.name": {
+      "kind": "bounded",
+      "description": "按默认图片与文字比例估算；设备卡可自然增高并重分配图片区，超参考长度不代表截断。 商品名称为跨语言共用值，按实际名称字形检查，也用于商品图 alt。",
+      "basis": "reference",
+      "instances": {
+        "phone": {
+          "references": {
+            "en": "Phone",
+            "vi": "Phone",
+            "es": "Phone",
+            "pt": "Phone",
+            "fr": "Phone",
+            "de": "Phone",
+            "ja": "Phone",
+            "ko": "Phone",
+            "zh": "Phone"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 17,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 18,
+            "ko": 12,
+            "zh": 12
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "cloud-share": {
+          "references": {
+            "en": "Cloud Share",
+            "vi": "Cloud Share",
+            "es": "Cloud Share",
+            "pt": "Cloud Share",
+            "fr": "Cloud Share",
+            "de": "Cloud Share",
+            "ja": "Cloud Share",
+            "ko": "Cloud Share",
+            "zh": "Cloud Share"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 17,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 18,
+            "ko": 16,
+            "zh": 15
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "s1": {
+          "references": {
+            "en": "NexGridBox S1",
+            "vi": "NexGridBox S1",
+            "es": "NexGridBox S1",
+            "pt": "NexGridBox S1",
+            "fr": "NexGridBox S1",
+            "de": "NexGridBox S1",
+            "ja": "NexGridBox S1",
+            "ko": "NexGridBox S1",
+            "zh": "NexGridBox S1"
+          },
+          "limits": {
+            "en": 17,
+            "vi": 17,
+            "es": 18,
+            "pt": 18,
+            "fr": 17,
+            "de": 18,
+            "ko": 16,
+            "zh": 16
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "pro": {
+          "references": {
+            "en": "NexGridBox Pro",
+            "vi": "NexGridBox Pro",
+            "es": "NexGridBox Pro",
+            "pt": "NexGridBox Pro",
+            "fr": "NexGridBox Pro",
+            "de": "NexGridBox Pro",
+            "ja": "NexGridBox Pro",
+            "ko": "NexGridBox Pro",
+            "zh": "NexGridBox Pro"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 18,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 18,
+            "ko": 16,
+            "zh": 16
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "pro-v2": {
+          "references": {
+            "en": "NexGridBox Pro v2",
+            "vi": "NexGridBox Pro v2",
+            "es": "NexGridBox Pro v2",
+            "pt": "NexGridBox Pro v2",
+            "fr": "NexGridBox Pro v2",
+            "de": "NexGridBox Pro v2",
+            "ja": "NexGridBox Pro v2",
+            "ko": "NexGridBox Pro v2",
+            "zh": "NexGridBox Pro v2"
+          },
+          "limits": {
+            "en": 19,
+            "vi": 18,
+            "es": 19,
+            "pt": 19,
+            "fr": 19,
+            "de": 19,
+            "ja": 18,
+            "ko": 18,
+            "zh": 18
+          },
+          "previewReasons": {}
+        },
+        "rack-p1": {
+          "references": {
+            "en": "NexGridRack P1",
+            "vi": "NexGridRack P1",
+            "es": "NexGridRack P1",
+            "pt": "NexGridRack P1",
+            "fr": "NexGridRack P1",
+            "de": "NexGridRack P1",
+            "ja": "NexGridRack P1",
+            "ko": "NexGridRack P1",
+            "zh": "NexGridRack P1"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 18,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 18,
+            "ko": 16,
+            "zh": 16
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "rack-p2": {
+          "references": {
+            "en": "NexGridRack P2",
+            "vi": "NexGridRack P2",
+            "es": "NexGridRack P2",
+            "pt": "NexGridRack P2",
+            "fr": "NexGridRack P2",
+            "de": "NexGridRack P2",
+            "ja": "NexGridRack P2",
+            "ko": "NexGridRack P2",
+            "zh": "NexGridRack P2"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 17,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 18,
+            "ko": 16,
+            "zh": 16
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        }
+      }
+    },
+    "sku.tagline": {
+      "kind": "bounded",
+      "description": "按默认图片与文字比例估算；设备卡可自然增高并重分配图片区，超参考长度不代表截断。 简介可换行，右侧说明与左侧价格共用文字区。",
+      "basis": "reference",
+      "instances": {
+        "phone": {
+          "references": {
+            "en": "The zero-cost entry: the device you already own.",
+            "vi": "Lối vào không chi phí: thiết bị bạn đã có sẵn.",
+            "es": "La entrada sin coste: el dispositivo que ya tienes.",
+            "pt": "A entrada sem custo: o dispositivo que você já tem.",
+            "fr": "L’accès sans frais : l’appareil que vous possédez déjà.",
+            "de": "Der Einstieg ohne Kosten: das bereits vorhandene Gerät.",
+            "ja": "費用ゼロの入口。今あるデバイスを活用。",
+            "ko": "비용 없는 시작: 이미 가지고 있는 기기.",
+            "zh": "零成本入口：就是你现有的设备。"
+          },
+          "limits": {
+            "en": 49,
+            "vi": 47,
+            "es": 52,
+            "pt": 52,
+            "fr": 62,
+            "de": 59,
+            "ja": 20,
+            "ko": 25,
+            "zh": 16
+          },
+          "previewReasons": {}
+        },
+        "cloud-share": {
+          "references": {
+            "en": "A slice of shared compute, no hardware at all.",
+            "vi": "Một phần năng lực chia sẻ, hoàn toàn không cần phần cứng.",
+            "es": "Una parte de cómputo compartido, sin equipos propios.",
+            "pt": "Uma parte de computação compartilhada, sem equipamento próprio.",
+            "fr": "Une part de calcul mutualisé, sans aucun matériel.",
+            "de": "Ein Anteil gemeinsamer Rechenleistung, ganz ohne Hardware.",
+            "ja": "機器なしで、共有計算能力の一部を利用。",
+            "ko": "하드웨어 없이 공유 연산 자원의 일부를 이용합니다.",
+            "zh": "共享算力份额，无需任何硬件。"
+          },
+          "limits": {
+            "en": 48,
+            "vi": 58,
+            "es": 55,
+            "pt": 64,
+            "fr": 53,
+            "de": 60,
+            "ko": 29,
+            "zh": 15
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "s1": {
+          "references": {
+            "en": "The original dedicated box.",
+            "vi": "Hộp chuyên dụng thế hệ đầu.",
+            "es": "El dispositivo dedicado original.",
+            "pt": "O dispositivo dedicado original.",
+            "fr": "Le boîtier dédié d’origine.",
+            "de": "Die ursprüngliche dedizierte Box.",
+            "ja": "初代の専用ボックス。",
+            "ko": "최초의 전용 박스.",
+            "zh": "最初代的专用算力盒。"
+          },
+          "limits": {
+            "en": 28,
+            "vi": 28,
+            "es": 34,
+            "pt": 33,
+            "fr": 28,
+            "de": 36,
+            "ja": 11,
+            "ko": 12,
+            "zh": 11
+          },
+          "previewReasons": {}
+        },
+        "pro": {
+          "references": {
+            "en": "More cores, more throughput.",
+            "vi": "Nhiều lõi hơn, thông lượng cao hơn.",
+            "es": "Más núcleos, mayor rendimiento.",
+            "pt": "Mais núcleos, mais capacidade de processamento.",
+            "fr": "Plus de cœurs, plus de débit.",
+            "de": "Mehr Kerne, mehr Durchsatz.",
+            "ja": "より多くのコア、より高い処理能力。",
+            "ko": "더 많은 코어, 더 높은 처리량.",
+            "zh": "更多核心，更高吞吐。"
+          },
+          "limits": {
+            "en": 29,
+            "vi": 37,
+            "es": 32,
+            "pt": 48,
+            "fr": 30,
+            "de": 28,
+            "ja": 18,
+            "ko": 19,
+            "zh": 11
+          },
+          "previewReasons": {}
+        },
+        "pro-v2": {
+          "references": {
+            "en": "The current-generation workhorse.",
+            "vi": "Chủ lực thế hệ hiện tại.",
+            "es": "La potencia de la generación actual.",
+            "pt": "A potência da geração atual.",
+            "fr": "La puissance de la génération actuelle.",
+            "de": "Das Arbeitstier der aktuellen Generation.",
+            "ja": "現行世代の主力モデル。",
+            "ko": "현세대의 주력 모델.",
+            "zh": "当前主力机型。"
+          },
+          "limits": {
+            "en": 34,
+            "vi": 25,
+            "es": 37,
+            "pt": 29,
+            "fr": 40,
+            "de": 42,
+            "ja": 13,
+            "ko": 12,
+            "zh": 8
+          },
+          "previewReasons": {}
+        },
+        "rack-p1": {
+          "references": {
+            "en": "Rack-scale for serious operators.",
+            "vi": "Cấp rack cho nhà vận hành nghiêm túc.",
+            "es": "Escala de rack para operadores exigentes.",
+            "pt": "Escala de rack para operadores exigentes.",
+            "fr": "Le format rack pour les opérateurs exigeants.",
+            "de": "Rack-Kapazität für anspruchsvolle Betreiber.",
+            "ja": "本格運用向けのラック規模。",
+            "ko": "본격적인 운영을 위한 랙 규모.",
+            "zh": "面向重度运营者的机架级。"
+          },
+          "limits": {
+            "en": 34,
+            "vi": 38,
+            "es": 42,
+            "pt": 42,
+            "fr": 47,
+            "de": 45,
+            "ja": 14,
+            "ko": 18,
+            "zh": 13
+          },
+          "previewReasons": {}
+        },
+        "rack-p2": {
+          "references": {
+            "en": "Top-tier rack, maximum capacity.",
+            "vi": "Rack cao cấp nhất, năng lực tối đa.",
+            "es": "Rack de gama alta, capacidad máxima.",
+            "pt": "Rack de ponta, capacidade máxima.",
+            "fr": "Rack haut de gamme, capacité maximale.",
+            "de": "Rack der Spitzenklasse, maximale Kapazität.",
+            "ja": "最上位ラック、最大の処理容量。",
+            "ko": "최상위 랙, 최대 용량.",
+            "zh": "顶配机架，算力上限。"
+          },
+          "limits": {
+            "en": 33,
+            "vi": 37,
+            "es": 37,
+            "pt": 34,
+            "fr": 39,
+            "de": 45,
+            "ja": 16,
+            "ko": 15,
+            "zh": 11
+          },
+          "previewReasons": {}
+        }
+      }
+    },
+    "faq.q": {
+      "kind": "flowing",
+      "description": "所有现有及新增 FAQ 问题可换行，折叠行自然增高；同时输出 FAQ 结构化数据。"
+    },
+    "faq.a": {
+      "kind": "flowing",
+      "description": "所有现有及新增 FAQ 答案在展开后自然增高；同时输出 FAQ 结构化数据。"
+    },
+    "announcement.text": {
+      "kind": "bounded",
+      "description": "公告为固定单行省略号，须保留关闭按钮、间距与可选跳转箭头。",
+      "references": {
+        "en": "",
+        "vi": "",
+        "es": "",
+        "pt": "",
+        "fr": "",
+        "de": "",
+        "ja": "",
+        "ko": "",
+        "zh": ""
+      },
+      "limits": {},
+      "previewReasons": {
+        "en": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "vi": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "es": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "pt": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "fr": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "ko": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
+        "zh": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+      }
+    },
+    "seo.title": {
+      "kind": "seo",
+      "description": "页面标题、社交分享标题及浏览器标签页标题；搜索展示建议单独给出，不作为正文布局字数。"
+    },
+    "seo.description": {
+      "kind": "seo",
+      "description": "页面及社交分享描述；搜索展示建议单独给出，不作为正文布局字数。"
+    },
+    "legal.md": {
+      "kind": "flowing",
+      "description": "Markdown 标题、目录及正文自然增高，段落、列表与表格不设总字数上限。"
+    },
+    "footer.contactEmail": {
+      "kind": "system",
+      "description": "邮件地址可能无法换行，请检查手机端预览；不按普通文案设置字数建议，原有邮箱校验仍适用。"
+    },
+    "geo.title": {
+      "kind": "flowing",
+      "description": "Worker 区域限制页标题自然增高，也用于浏览器标题；页面独立于 Astro 产物。"
+    },
+    "geo.body": {
+      "kind": "flowing",
+      "description": "Worker 区域限制页说明自然增高，页面独立于 Astro 产物。"
+    },
+    "link": {
+      "kind": "system",
+      "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
+    }
+  },
+  "evidenceSha256": "aea3aa983fdb164ffff455731bce73464af4aef2fdb567464039d68a3003beda"
+}

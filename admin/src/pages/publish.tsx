@@ -5,13 +5,17 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ApiError, api, apiErrorHint, toast } from '../api';
 import { splitFailReason } from '../lib/fail-reason';
-import { humanPath } from '../lib/human-path';
+import { changeGroup, humanPath } from '../lib/human-path';
+import { fieldEditorLink } from '../lib/field-target';
 import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
+import { decodePublishProgress, publishFailureAdvice } from '../../../schema/src/publish-feedback';
+import { DefaultTranslationActions, useTranslations } from '../lib/translations';
 import { useShell } from '../shell';
 
 interface Finding { path: string; rule: string; message: string }
 interface Preflight {
   ready: boolean; errors: Finding[]; warnings: Finding[];
+  message?: string;
   changedPaths: string[]; changed: number; sensitiveChanged: string[]; reasonRequired: boolean;
   /** 确认页看到的草稿身份；普通发布必须把同一个 revision 带回服务端。 */
   draftRev: number;
@@ -30,7 +34,7 @@ interface Status {
   executor: {mode:string;ready:boolean;reason:string;lastSeenAt:number|null};
 }
 
-const STEP_LABEL: Record<string, string> = { materialize: '生成三语文案与站点配置', gates: '全部发布检查', build: '构建网站与后台', swap: '切换新版并核验' };
+const STEP_LABEL: Record<string, string> = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' };
 const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '等待自动执行', publishing: '发布中', unknown:'切换结果待核实' };
 /** 把校验规则译成人话;缺映射显规则名原文,不隐藏 */
 const RULE_LABEL: Record<string, string> = {
@@ -44,20 +48,10 @@ const RULE_LABEL: Record<string, string> = {
 // 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)
 /** 红项 → 该去哪个页面修 */
-function fixLink(path: string): string {
-  if (path.startsWith('copy.')) return '/content';
-  if (path.startsWith('downloads')) return '/content/downloads';
-  if (path.startsWith('stats')) return '/content/stats';
-  if (path.startsWith('skus')) return '/content/skus';
-  if (path.startsWith('faq')) return '/content/faq';
-  if (path.startsWith('announcement')) return '/content/announcement';
-  if (path.startsWith('seo') || path.startsWith('footer')) return '/content/seo';
-  if (path.startsWith('legal')) return '/content/legal';
-  return '/content';
-}
 
 export default function PublishPage() {
   const { reload: reloadShell } = useShell();
+  const { data: translations } = useTranslations();
   const [pre, setPre] = useState<Preflight | null>(null);
   const [st, setSt] = useState<Status | null>(null);
   const [failed, setFailed] = useState(false);
@@ -67,18 +61,19 @@ export default function PublishPage() {
   const [forcing, setForcing] = useState(false);
   const [forceReason, setForceReason] = useState('');
   const [openLog, setOpenLog] = useState<string | null>(null);
-  const [showAllPaths, setShowAllPaths] = useState(false);
   const [showAllErrors, setShowAllErrors] = useState(false);
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const timer = useRef<number | null>(null);
 
   const load = useCallback(() => {
-    setFailed(false);
     Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')])
-      .then(([p, s]) => { setPre(p); setSt(s); })
+      .then(([p, s]) => { setPre(p); setSt(s); setFailed(false); setPollFailed(false); })
       .catch(() => setFailed(true));
   }, []);
   useEffect(load, [load]);
+  useEffect(() => {
+    if (translations && pre && translations.draftRev > pre.draftRev) load();
+  }, [translations?.draftRev, pre?.draftRev, load]);
 
   // 发布时每2秒更新，空闲时每5秒更新服务就绪状态；结束刷新壳和前置检查。
   useEffect(() => {
@@ -89,7 +84,7 @@ export default function PublishPage() {
           if (stopped) return;
           setPollFailed(false);
           setSt(s);
-          if (st.activeVersion && !s.activeVersion) { load(); reloadShell(); }
+          if ((st.activeVersion && !s.activeVersion) || (!st.executor.ready && s.executor.ready)) { load(); reloadShell(); }
         }).catch(() => {
           if (stopped) return;
           setPollFailed(true);
@@ -123,6 +118,19 @@ export default function PublishPage() {
     } finally { setBusy(false); }
   }
 
+  async function recheckAndConfirm() {
+    setBusy(true);
+    setConfirm(null);
+    try {
+      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
+      setPre(p); setSt(s);
+      if (p.ready && !s.activeVersion && s.executor.ready && !s.versions.some(v => v.status === 'unknown')) {
+        setConfirm({ reason: '', draftRev: p.draftRev });
+      } else toast('检查结果已刷新，请先处理当前问题或等待发布服务恢复');
+    } catch { toast('检查结果暂时无法刷新，请稍后重试'); }
+    finally { setBusy(false); }
+  }
+
   /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
      🔴 上一轮只做了服务端、界面上没有入口,运营遇到执行器崩掉时依旧只能干等锁超时(复验 P1-2)。 */
   /* 能不能取消由服务端在 /status 里直说,界面不再靠**发一个注定失败的请求**去试探——
@@ -130,7 +138,7 @@ export default function PublishPage() {
   async function cancel() {
     if (st?.cancelable === 'force') { setForcing(true); return; }
     if (st?.cancelable === 'no') {
-      toast('执行器仍在工作(最近还有步骤动静),现在中止会留下没人收口的中间态');
+      toast('本次发布尚未满足安全中止条件，请等待状态核实后再试');
       return;
     }
     try {
@@ -150,35 +158,100 @@ export default function PublishPage() {
     }
   }
 
-  if (failed) return <section><h2>发布与版本</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={load}>重试</button></div></section>;
+  if (failed && (!pre || !st)) return <section><h2>发布与版本</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={load}>重试</button></div></section>;
   if (!pre || !st) return <section><h2>发布与版本</h2><div className="skl" style={{ height: 80 }} /></section>;
 
   const active = st.activeVersion;
+  // 当前任务心跳与输出更新时间不同；安静的长检查仍会续租。
+  const taskDisconnected = !!active && !pollFailed && st.stepsOfVersion === active && st.steps.length > 0
+    && typeof st.silentMs === 'number' && Number.isFinite(st.silentMs) && st.silentMs >= 60_000;
   const lastFailed = st.versions.find((v) => v.status === 'failed');
+  const unknown = st.versions.some((v) => v.status === 'unknown');
+  const showFailure = !active && lastFailed && lastFailed.id > (st.versions.find(v => v.status === 'live')?.id ?? 0);
+  const failedStep = st.stepsOfVersion === lastFailed?.id ? st.steps.find(s => s.status === 'failed') : undefined;
+  const failureAdvice = publishFailureAdvice([lastFailed?.fail_reason, failedStep?.detail].filter(Boolean).join('\n'));
+  const changedGroups = new Map<string, string[]>();
+  for (const path of pre.changedPaths) {
+    const group = changeGroup(path);
+    if (!changedGroups.has(group)) changedGroups.set(group, []);
+    changedGroups.get(group)!.push(path);
+  }
   // 步骤只认「本次进行中版本」的日志,防把上一次的步骤画进这一次(stepsOfVersion 由服务端标明)
   const stepDone = (name: string) => (st.stepsOfVersion === active ? st.steps.find((s) => s.step === name) : undefined);
+  const activeStarts = active ? st.steps.filter((s) => s.started_at > 0).map((s) => s.started_at) : [];
+  const activeElapsed = activeStarts.length ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
 
   return (
-    <section>
-      <h2>发布与版本</h2>
-      {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。发布任务继续在后台执行。</div>}
-      {!st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
-      {st.versions.some(v=>v.status==='unknown') && <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>}
+    <section className="editor-page">
+      <header className="page-heading">
+        <span className="eyebrow">网站发布</span>
+        <h2>发布与版本</h2>
+        <p className="page-description">核对已保存的草稿，让修改在官网生效。发布前自动检查，历史版本可随时查看。</p>
+      </header>
+      <ol className="publish-steps" aria-label="发布流水线进度">
+        {(st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap']).map((name, i) => {
+          const s = active ? stepDone(name) : undefined;
+          const state = !active ? 'idle' : s?.status === 'ok' ? 'done' : s?.status === 'failed' ? 'failed' : s?.status === 'running' ? 'doing' : 'todo';
+          const stateWord = !active ? '空闲' : s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? '进行中' : '未开始';
+          return (
+            <li key={name} data-state={state} aria-label={`${STEP_LABEL[name] ?? name}：${stateWord}`}>
+              <span>{String(i + 1).padStart(2, '0')}</span>
+              <div><b>{STEP_LABEL[name] ?? name}</b></div>
+            </li>
+          );
+        })}
+      </ol>
+      {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。恢复连接后将核实执行结果。</div>}
+      {failed && <div className="note warn" role="status">发布检查信息暂时无法刷新，已保留上次结果。<button className="btn ghost sm" onClick={load}>重试</button></div>}
+      {unknown ? <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>
+        : !active && !st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
+
+      {showFailure && <div className="note bad" role="alert" style={{ marginBottom: 12 }}>
+        <h3>v{lastFailed.id} 发布已停止</h3>
+        <p>{failedStep && `${STEP_LABEL[failedStep.step] ?? failedStep.step}：`}{failureAdvice.reason}</p>
+        <p>本次任务已停止，不会继续执行后续步骤。</p>
+        <p>{failureAdvice.suggestion}</p>
+        <p className="kv">草稿改动已保留。{failedStep && failedStep.step !== 'swap' && !st.drift && !unknown
+          ? '未切换新版，官网保留原先版本。' : '线上状态以当前核验结果为准。'}当前能否发布以下方检查为准。</p>
+        <button className="btn" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新检查并发布</button>
+        <details className="inline-help"><summary>查看失败技术详情</summary>
+          <pre className="kv mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failureAdvice.raw || '原因未记录'}</pre>
+        </details>
+        {failedStep?.detail && <>
+          <button className="btn ghost sm" onClick={() => setOpenLog(openLog ? null : 'failure')}>{openLog ? '收起' : '查看原始日志'}</button>
+          {openLog && <pre className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failedStep.detail}</pre>}
+        </>}
+      </div>}
 
       {/* 进行中:四步进度 */}
       {active && (
         <div className="card" style={{ marginBottom: 12 }}>
-          <h3>正在发布 v{active}</h3>
+          <h3>{taskDisconnected || pollFailed ? '发布状态待核实' : '正在发布'} v{active}</h3>
+          {taskDisconnected && <div className="note warn" role="status">
+            <p>本次执行器已超过 1 分钟未报告心跳，发布结果待核实。</p>
+            <p>系统会继续刷新状态。请等待确认停止后再重新检查并发布，最后收到的检查内容保留在下方。</p>
+            <button className="btn ghost sm" onClick={load}>刷新状态</button>
+          </div>}
+          <p className="kv">已完成 {st.stepNames.filter(name => stepDone(name)?.status === 'ok').length} / {st.stepNames.length} 个步骤</p>
+          {activeElapsed > 2 && <p className="kv">本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</p>}
           {st.stepNames.map((name) => {
             const s = stepDone(name);
+            const progress = decodePublishProgress(s?.detail);
             const cls = s?.status === 'ok' ? 'ok' : s?.status === 'failed' ? 'bad' : s?.status === 'running' ? 'warn' : '';
             const secs = s?.started_at ? Math.round(((s.ended_at ?? Date.now()) - s.started_at) / 1000) : 0;
             return (
               <div className="row" key={name} style={{ padding: '6px 0' }}>
-                <span className={`pill ${cls}`} style={{ minWidth: 58, textAlign: 'center' }}>
-                  {s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? '进行中' : '等待'}
+                <span className={`pill ${cls}`} style={{ minWidth: '3.625rem', textAlign: 'center' }}>
+                  {s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? taskDisconnected || pollFailed ? '待核实' : '进行中' : '等待'}
                 </span>
-                <span style={{ color: s ? 'var(--ink)' : 'var(--ink4)' }}>{STEP_LABEL[name] ?? name}</span>
+                <div style={{ color: s ? 'var(--ink)' : 'var(--ink4)', minWidth: 0, flex: 1 }}>
+                  {STEP_LABEL[name] ?? name}
+                  {s?.status === 'running' && s.detail && <span className="kv" style={{ display: 'block', overflowWrap: 'anywhere' }}>{progress?.title ?? s.detail}</span>}
+                  {s?.status === 'running' && progress && <>
+                    <span className="kv" style={{ display: 'block' }}>最后更新：<time dateTime={progress.updatedAt}>{new Date(progress.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}</time></span>
+                    {progress.output && <pre className="mono" tabIndex={0} role="region" aria-label="当前检查最近输出" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto', margin: '6px 0', fontSize: 'var(--text-sm)' }}>{progress.output}</pre>}
+                  </>}
+                </div>
                 {/* 「已耗时 881s」对运营是机器单位;门链本来就要跑十几分钟(实景走查 P2-7) */}
                 {s && secs > 2 && <span className="kv">已耗时 {secs < 60 ? `${secs} 秒` : `${Math.floor(secs / 60)} 分 ${secs % 60} 秒`}</span>}
               </div>
@@ -194,7 +267,7 @@ export default function PublishPage() {
           {st.steps.length > 0 && !forcing && (
             <div className="note" style={{ marginTop: 8 }}>
               执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
-              <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>
+              {!pollFailed && !taskDisconnected && <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>}
             </div>
           )}
           {forcing && (
@@ -205,7 +278,7 @@ export default function PublishPage() {
               <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
               <div className="kv">中止后系统会撤销本次执行权限；发布服务确认权限失效后停止操作。</div>
               <div className="row" style={{ marginTop: 6, gap: 8 }}>
-                <input className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
+                <input aria-label="中止理由（至少 4 个字）" className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
                 <button className="btn" onClick={forceCancel}>确认中止</button>
                 <button className="btn ghost" onClick={() => { setForcing(false); setForceReason(''); }}>返回</button>
               </div>
@@ -236,7 +309,7 @@ export default function PublishPage() {
           {/* 🔴 出路必须是**当下真能点的**:草稿零改动时「发布」按钮是灰的,劝人「重新发起」等于没说(第四轮 P1-6)。
               回滚到当前记录的线上版本会走完整门链并重新搬运快照,正好把两边对齐。 */}
           <div className="row" style={{ marginTop: 6, gap: 8 }}>
-            <button className="btn" disabled={!!active} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
+            <button className="btn" disabled={!!active || unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
               重新发布 v{st.drift.dbLive} 以对齐
             </button>
             <span className="kv">会走完整门链,门红则线上保持现状。</span>
@@ -246,98 +319,57 @@ export default function PublishPage() {
 
       {/* 🔴 核查范围**常驻**,不是只在报警时才说(第六轮 P1-3:告知写在检出分支里,
           等于「只有已经出事时才告诉你我能查到什么」)。诚实的边界要在平时就看得见。 */}
-      <div className="note" style={{ marginBottom: 12 }}>
-        <b>线上内容核查的范围</b>
-        <div className="kv">
-          每次发布会记下<b>全部网页文件</b>的指纹,系统在上线前和每次打开本页时回头核对一遍——
-          有人绕过发布流程改了网页,这里会报出来并点名文件。
-          <br />
-          范围之外:样式表、脚本、图片等资源不逐个核对(它们换内容通常会换文件名、从而带动网页本身变化,
-          但<b>直接覆盖同名资源文件</b>这一种查不到)。
-        </div>
-      </div>
-
-      {/* 上次失败:大白话 + 门名 + 原始日志折叠 */}
-      {/* 🔴 判据是「线上之后没有再成功发布过」,不是「失败的那版恰好号最大」(第五轮 P1-5):
-          取消一次就会占掉最大号,失败面**整块消失**,而壳顶红条还在指人来这一页看详情。
-          与服务端 lastPublishFailed 同口径:失败版本比线上新即显示。 */}
-      {!active && lastFailed && lastFailed.id > (st.versions.find((v) => v.status === 'live')?.id ?? 0) && (
-        <div className="note bad">
-          {(() => {
-            const f = splitFailReason(lastFailed.fail_reason ?? '原因未记录');
-            return (
-              <>
-                <b>上次发布失败(v{lastFailed.id}):{f.human}</b>
-                {f.tech && <div className="kv mono" style={{ marginTop: 2, wordBreak: 'break-all' }}>{f.tech}</div>}
-              </>
-            );
-          })()}
-          <div className="kv" style={{ marginTop: 4 }}>线上仍是上一版,未受影响(线上伺服的是已发布快照,失败的构建产物不会对外);你的草稿改动也原样保留,修好后可再次发布。</div>
-          {(() => {
-            // 失败态下 steps 来自「最近一次」版本,需确认就是这一版的日志(验收 P1:此前失败态取不到日志)
-            const detail = st.stepsOfVersion === lastFailed.id ? st.steps.find((s) => s.status === 'failed')?.detail : null;
-            return detail ? (
-              <>
-                <button className="btn ghost sm" onClick={() => setOpenLog(openLog ? null : 'x')}>{openLog ? '收起' : '查看原始日志'}</button>
-                {openLog && <pre className="mono" style={{ fontSize: 11, whiteSpace: 'pre-wrap', marginTop: 6, maxHeight: 220, overflow: 'auto' }}>{detail}</pre>}
-              </>
-            ) : null;
-          })()}
-        </div>
-      )}
+      <details className="note info" style={{ marginBottom: 12 }}>
+        <summary>线上内容核查范围：全部网页文件</summary>
+        <p className="kv">发布时记录网页指纹，上线前及打开本页时再次比对。样式、脚本和图片不逐个回读，直接覆盖同名资源无法检出。</p>
+      </details>
 
       {/* 本次发布:diff + 前置校验 */}
       {!active && (
         <div className="card" style={{ marginBottom: 12 }}>
-          <h3>本次发布 · {pre.changed} 处改动{pre.reasonRequired && <span className="pill warn" style={{ marginLeft: 6 }}>含高敏字段,须填理由</span>}</h3>
-          {pre.changed === 0 ? (
+          <h3>{pre.message ? '发布前检查' : `本次发布 · ${pre.changed} 处改动`}{pre.reasonRequired && <span className="pill warn" style={{ marginLeft: 6 }}>含高敏字段,须填理由</span>}</h3>
+          {pre.message ? <p className="kv">{pre.message} 配置兼容准备完成后显示改动摘要。</p> : pre.changed === 0 ? (
             <p className="kv">没有待发布的改动(草稿与线上一致)。</p>
           ) : (
-            <table>
+            [...changedGroups].map(([group, paths]) => <details key={group} style={{ marginTop: 8 }}>
+              <summary>{group} · {paths.length} 处</summary>
+              <div className="table-scroll" tabIndex={0} role="region" aria-label={`${group}发布改动，可左右滚动`}><table>
               <thead><tr><th>改动位置</th><th>说明</th></tr></thead>
               <tbody>
-                {(showAllPaths ? pre.changedPaths : pre.changedPaths.slice(0, 30)).map((p) => (
+                {paths.map((p) => (
                   <tr key={p}>
-                    <td>{humanPath(p)}<div className="kv mono" style={{ fontSize: 11 }}>{p}</div></td>
+                    <td>{humanPath(p)}<div className="kv mono" style={{ fontSize: 'var(--text-sm)' }}>{p}</div></td>
                     <td>{pre.sensitiveChanged.includes(p) ? <span className="pill warn">高敏</span> : <span className="kv">普通</span>}</td>
                   </tr>
                 ))}
-                {/* 截断必须给出口:「…另有 N 处」而没有展开按钮 = 那 N 处既看不到也点不了 */}
-                {pre.changedPaths.length > 30 && (
-                  <tr><td colSpan={2}>
-                    <button className="btn ghost sm" onClick={() => setShowAllPaths((v) => !v)}>
-                      {showAllPaths ? '只看前 30 处' : `展开全部 ${pre.changedPaths.length} 处`}
-                    </button>
-                  </td></tr>
-                )}
               </tbody>
-            </table>
+            </table></div></details>)
           )}
           {pre.errors.length > 0 && (
             <div className="note bad" style={{ marginTop: 10 }}>
               <b>前置校验未通过({pre.errors.length} 项),不会进入发布流程:</b>
-              <table><tbody>
+              <div className="table-scroll" tabIndex={0} role="region" aria-label="待修复问题，可左右滚动"><table><tbody>
                 {(showAllErrors ? pre.errors : pre.errors.slice(0, 15)).map((e, i) => (
                   <tr key={i}>
                     <td>{RULE_LABEL[e.rule] ?? e.rule}</td>
-                    <td>{humanPath(e.path)}<div className="kv mono" style={{ fontSize: 11 }}>{e.path}</div></td>
+                    <td>{humanPath(e.path)}<div className="kv mono" style={{ fontSize: 'var(--text-sm)' }}>{e.path}</div></td>
                     <td>{e.message}</td>
                     {/* 「去修复」带上要定位的字段:目标页据此高亮/滚动到那一处(PRD ⑥「定位到红字段」) */}
-                    <td><NavLink className="btn ghost sm" to={`${fixLink(e.path)}?focus=${encodeURIComponent(e.path)}`}>去修复</NavLink></td>
+                    <td>{['structure', 'unknown-key', 'missing-key'].includes(e.rule)
+                      ? <span className="kv">需要发布服务完成配置兼容处理；持续出现时查看服务日志。</span>
+                      : <NavLink className="btn ghost sm" to={fieldEditorLink(e.path)}>去修复</NavLink>}</td>
                   </tr>
                 ))}
-              </tbody></table>
-              {/* 🔴 CON13-E1 逐字要求「列出**全部**红项(每项带去修复跳转)」。
-                  上一版只列 15 条、剩下的既看不到内容也拿不到跳转 —— 运营只能修 15 条、
-                  刷新、再看下 15 条,而且永远不知道总共要修几轮(第十轮独立验收 P1-3)。
-                  三语缺译很容易上百条,截断在这一页尤其伤人。 */}
+              </tbody></table></div>
+              {/* 所有问题都可展开；只有可编辑内容提供字段定位。 */}
               {pre.errors.length > 15 && (
                 <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllErrors((v) => !v)}>
-                  {showAllErrors ? '只看前 15 项' : `展开全部 ${pre.errors.length} 项(每项都能点「去修复」)`}
+                  {showAllErrors ? '只看前 15 项' : `展开全部 ${pre.errors.length} 项`}
                 </button>
               )}
             </div>
           )}
+          {pre.errors.some(e => ['untranslated', 'translation-stale'].includes(e.rule)) && <DefaultTranslationActions disabled={busy || unknown} onChanged={async () => { load(); await reloadShell(); }} />}
           {pre.warnings.length > 0 && (() => {
             /* 🔴 按**规则**归并,而不是取前四条(2026-09-01 第十轮独立验收 P2-1):
                上一版四个位置被**同一条规则**重复占满(实录:四次「SEO 长度(SEO · 英文 · 首页 · 标题)」),
@@ -367,9 +399,9 @@ export default function PublishPage() {
           })()}
           <div className="row" style={{ marginTop: 12 }}>
             <button className="btn primary" disabled={!pre.ready || busy || !st.executor.ready || st.versions.some(v=>v.status==='unknown')} onClick={() => setConfirm({ reason: '', draftRev: pre.draftRev })}>
-              发布(过全部机器门)
+              检查并发布
             </button>
-            <span className="kv">{!pre.ready && (pre.changed === 0 ? '无改动可发布' : '先修完上面的红项')}</span>
+            <span className="kv">{!pre.ready && (pre.errors.length ? '处理上方问题后再发布' : '无改动可发布')}</span>
           </div>
         </div>
       )}
@@ -381,11 +413,11 @@ export default function PublishPage() {
           <p className="kv">
             {confirm.rollbackFrom
               ? '回滚会按当前网站结构恢复该版内容，并发起一次新发布、执行全部检查。旧版格式会自动转换；已修改内容存在兼容冲突时会停止并提示。成功后生成新版本号。'
-              : '确认后系统自动生成配置、执行全部检查、构建并切换新版。检查失败时保留旧版；切换后会核验实际内容。'}
+              : '确认后系统锁定本次草稿，构建官网并执行全部检查，再组装后台、切换和核验。检查失败时保留旧版。'}
           </p>
           {(pre.reasonRequired || confirm.rollbackFrom) && (
-            <div className="field"><label>理由(必填,≥8 字)</label>
-              <textarea value={confirm.reason} onChange={(e) => setConfirm({ ...confirm, reason: e.target.value })} placeholder="例:Google Play 过审,开放安卓下载" /></div>
+            <div className="field"><label htmlFor="publish-reason">理由（必填，至少 8 字）</label>
+              <textarea id="publish-reason" value={confirm.reason} onChange={(e) => setConfirm({ ...confirm, reason: e.target.value })} placeholder="例:Google Play 过审,开放安卓下载" /></div>
           )}
           <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button className="btn ghost" onClick={() => setConfirm(null)}>取消</button>
@@ -396,7 +428,8 @@ export default function PublishPage() {
 
       {/* 版本历史 */}
       <div className="card">
-        <h3>版本历史(只增不删;回滚也走全部机器门)</h3>
+        <h3>版本历史</h3>
+        <p className="kv">版本记录只增不删。回滚会重新执行全部发布检查，成功后生成一个新版本。</p>
         {/* 号会跳空:并发发布拿不到锁时,那个刚建的号会被撤销(不留半个版本行,
             也就不会造出清不掉的假红条)。但从运营那边看,一张写着「只增不删」的表里
             少了个号而界面一句话不说,只会让人以为丢了东西(第十轮 P2-17)。 */}
@@ -416,7 +449,7 @@ export default function PublishPage() {
             只显示最近 {st.versions.filter((v) => v.status !== 'live').length + 1} 条(更早的版本仍在,未删除)。当前线上那一版已单独固定显示在列表里。
           </div>
         )}
-        <table>
+        <div className="table-scroll" tabIndex={0} role="region" aria-label="版本历史，可左右滚动"><table>
           <thead><tr><th>版本</th><th>时间</th><th>状态</th><th>改动数</th><th>理由 / 失败原因</th><th>操作</th></tr></thead>
           <tbody>
             {st.versions.map((v) => (
@@ -438,12 +471,12 @@ export default function PublishPage() {
                             现在默认折起,点开才显示完整原文。 */}
                         {f.tech && (
                           f.raw ? (
-                            <details style={{ maxWidth: 360 }}>
+                            <details style={{ maxWidth: '22.5rem' }}>
                               <summary className="kv" style={{ cursor: 'pointer' }}>查看原始报错</summary>
                               <div className="kv mono" style={{ wordBreak: 'break-all', whiteSpace: 'pre-wrap', marginTop: 4 }}>{f.tech}</div>
                             </details>
                           ) : (
-                            <div className="kv mono" style={{ wordBreak: 'break-all', maxWidth: 360 }}>门:{f.tech}</div>
+                            <div className="kv mono" style={{ wordBreak: 'break-all', maxWidth: '22.5rem' }}>门:{f.tech}</div>
                           )
                         )}
                       </>
@@ -454,13 +487,13 @@ export default function PublishPage() {
                   {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,
                       于是 cancelled 行也长出按钮,点了必 404 —— 界面给的每个按钮都该是能点通的。 */}
                   {v.status === 'archived' && !active && (
-                    <button className="btn ghost sm" onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
+                    <button className="btn ghost sm" disabled={unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
                   )}
                 </td>
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </section>
   );

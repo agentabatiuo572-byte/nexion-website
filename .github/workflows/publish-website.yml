@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   publish:
-    if: github.repository == 'jasonukkd/nexgrid-website' && github.ref == 'refs/heads/main'
+    if: github.repository == 'agentabatiuo572-byte/nexion-website' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     environment: production
     timeout-minutes: 45

@@ -12,6 +12,11 @@ export const AUDIT_ACTIONS = [
   'auth.logout',
   'admin.rollup',
   'config.save',
+  'ai.connection.attempt',
+  'ai.connection.saved',
+  'ai.connection.tested',
+  'ai.connection.removed',
+  'ai.settings',
   'geo.update',
   'geo.update.attempt',
   'geo.update.applied',
@@ -90,7 +95,7 @@ export const AUDIT_GROUPS: Record<string, readonly string[]> = {
   publish: ['config.publish', 'config.rollback'],
   geo: ['geo.', 'bypass.'],
   session: ['login.', 'auth.'],
-  ops: ['admin.'],
+  ops: ['admin.', 'ai.'],
 };
 
 auditRoutes.get('/', async (c) => {

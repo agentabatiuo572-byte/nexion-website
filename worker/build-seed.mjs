@@ -7,17 +7,17 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildManifest, isCollectionBacked, flatten } from '../schema/src/manifest.ts';
-import { SiteConfigSchema, SEO_PAGE_IDS } from '../schema/src/site-config.ts';
+import { SiteConfigSchema } from '../schema/src/site-config.ts';
+import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
+import { addLegacyLocaleFields } from '../schema/src/config-locales.ts';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const SITE = path.join(here, '..');
 const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
 
 export function buildSeed() {
-  const en = readJson(path.join(SITE, 'src/i18n/en.json'));
-  const vi = readJson(path.join(SITE, 'src/i18n/vi.json'));
-  const zh = readJson(path.join(SITE, 'src/i18n/zh.json'));
-  const manifest = buildManifest(en, vi, zh);
+  const dictionaries = Object.fromEntries(LOCALES.map((locale) => [locale, readJson(path.join(SITE, `src/i18n/${locale}.json`))]));
+  const manifest = buildManifest(dictionaries);
 
   /* 非文案域(stats/skus 事实字段/downloads/公告/seo/footer/legal)自 2026-08-31 CON16 接管起
      真源=配置本身:从既有种子延续,不再反读站 TS(站 TS 已是配置的消费者,反读=循环)。
@@ -28,55 +28,41 @@ export function buildSeed() {
     console.error('✗ 缺 seed/site-config.seed.json(非文案域的延续源)。首次引导已在 2026-08-31 完成并入库;若真丢了,从 git 恢复。');
     process.exit(2);
   }
-  const prev = readJson(seedPath);
+  const original = readJson(seedPath);
+  const prev = SiteConfigSchema.parse(addLegacyLocaleFields(original, manifest.editable));
 
   const copyOf = (nested) => Object.fromEntries(flatten(nested).filter(([p]) => !isCollectionBacked(p)));
   const tri = (nested, pathStr) => pathStr.split('.').reduce((o, s) => o?.[s], nested) ?? '';
 
   const faqCount = manifest.en.paths.filter((p) => /^faq\.q\d+$/.test(p)).length;
-  const faqItems = Array.from({ length: faqCount }, (_, i) => ({
-    id: `q${i + 1}`,
-    q: { en: tri(en, `faq.q${i + 1}`), vi: tri(vi, `faq.q${i + 1}`), zh: tri(zh, `faq.q${i + 1}`) },
-    a: { en: tri(en, `faq.a${i + 1}`), vi: tri(vi, `faq.a${i + 1}`), zh: tri(zh, `faq.a${i + 1}`) },
-    sort: i + 1,
-    visible: true,
-  }));
+  const visibleFaq = prev.faq.items.filter((item) => item.visible && !item.deleted).sort((a, b) => a.sort - b.sort);
+  if (faqCount !== visibleFaq.length) throw new Error('FAQ 文件数量与种子可见集合不同；请明确处理集合，生成器不会重建或删除既有条目');
+  const faqIndex = new Map(visibleFaq.map((item, index) => [item.id, index + 1]));
+  const localized = (valueOf) => Object.fromEntries(LOCALES.map((locale) => [locale, valueOf(locale)]));
+  const faqItems = prev.faq.items.map((item) => {
+    const index = faqIndex.get(item.id);
+    if (!index) return item;
+    return { ...item,
+      q: localized((locale) => tri(dictionaries[locale], `faq.q${index}`)),
+      a: localized((locale) => tri(dictionaries[locale], `faq.a${index}`)),
+    };
+  });
 
   const skus = prev.skus.map((s) => ({
     ...s,
-    tagline: {
-      en: tri(en, `devices.tagline.${s.id}`) || s.tagline.en,
-      vi: tri(vi, `devices.tagline.${s.id}`) || s.tagline.vi,
-      zh: tri(zh, `devices.tagline.${s.id}`) || s.tagline.zh,
-    },
+    tagline: localized((locale) => tri(dictionaries[locale], `devices.tagline.${s.id}`) || s.tagline[locale]),
   }));
 
-  const seoPage = (title, desc) => ({ title, description: desc });
-  const triKey = (k) => ({ en: tri(en, k), vi: tri(vi, k), zh: tri(zh, k) });
-  const joinTri = (a, b) => ({ en: `${a.en} — ${b.en}`, vi: `${a.vi} — ${b.vi}`, zh: `${a.zh} — ${b.zh}` });
-  const seoPages = Object.fromEntries(
-    SEO_PAGE_IDS.map((pid) => {
-      switch (pid) {
-        case 'home':
-          return [pid, seoPage(joinTri(triKey('site.name'), triKey('site.tagline')), triKey('site.description'))];
-        case 'learn':
-          return [pid, seoPage(triKey('learn.title'), triKey('learn.subtitle'))];
-        case 'nex':
-          return [pid, seoPage(triKey('nex.teaserTitle'), triKey('nex.pageLead'))];
-        default:
-          return [pid, seoPage(triKey('site.name'), triKey('site.description'))];
-      }
-    }),
-  );
-
   const config = {
-    copy: { en: copyOf(en), vi: copyOf(vi), zh: copyOf(zh) },
+    ...prev,
+    enabledLocales: original.enabledLocales ?? [...DEFAULT_ENABLED_LOCALES],
+    copy: localized((locale) => copyOf(dictionaries[locale])),
     downloads: prev.downloads,
     stats: prev.stats,
     skus,
     faq: { items: faqItems },
     announcement: prev.announcement,
-    seo: { pages: seoPages },
+    seo: prev.seo,
     footer: prev.footer,
     legal: prev.legal,
   };
@@ -98,7 +84,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === path.resolve(process.a
     const { materializeSiteJson } = await import('../schema/src/materialize.ts');
     mkdirSync(path.join(SITE, 'src/config'), { recursive: true });
     writeFileSync(path.join(SITE, 'src/config/site.json'), materializeSiteJson(config));
-    console.log(`✓ 种子已写:seed/*.json + src/config/site.json(copy ${Object.keys(config.copy.en).length} 键 ×3 语,faq ${config.faq.items.length},sku ${config.skus.length})`);
+    console.log(`✓ 种子已写:seed/*.json + src/config/site.json(copy ${Object.keys(config.copy.en).length} 键 ×${LOCALES.length} 语,faq ${config.faq.items.length},sku ${config.skus.length})`);
   } else {
     console.log(`✓ 种子构建 OK(--write 落盘)`);
   }

@@ -1,6 +1,6 @@
 /* NexGrid website design tokens — "axiom" direction R7(2026-08-20 解剖报告落地)。
    排版尺子对齐参考站(见 PRD/specs/WEBSITE-axiom-teardown.md §1):
-   字距无正值 · display 标题 400(Mega 500)· mono 正文 400 / 标签 400 / 按钮 700。
+   字距无正值 · display 标题 400(Mega 500)· 阅读正文 400 / mono 标签 400 / 按钮 700。
    ⚠️ 行高**不是三档**:参考站那三档(0.79/1.0/1.2)只是英文的基线。本站三语并存,
    越南语的叠音符与中文的方块字都容不下这三个值,所以每个型类各带 vi / zh 分支,
    全站实际在用十档以上(0.79/1.0/1.05/1.1/1.12/1.15/1.2/1.25/1.35/1.45/1.5/1.6/1.85)。
@@ -171,6 +171,18 @@
   --x-font-display: 'Be Vietnam Pro', system-ui, sans-serif;
   --x-ch-display: 0.676em; /* Be Vietnam Pro @400 —— 与上面的字体成对,换一个必换另一个 */
 }
+:lang(ja) {
+  --x-font-display: 'Funnel Display', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, sans-serif;
+  --x-font-mono: 'Space Mono', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', Meiryo, monospace;
+  --x-ch-display: 0.575em;
+}
+:lang(ko) {
+  --x-font-display: 'Funnel Display', 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --x-font-mono: 'Space Mono', 'Apple SD Gothic Neo', 'Malgun Gothic', monospace;
+  --x-ch-display: 0.575em;
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+}
 :lang(en) {
   /* vi/zh 页里的英文岛(法务正文)也各吃各的尺,变量不从 html 穿进来。
      值必须与 :root 逐项相同(含 CJK 回退)——只换掉 Be Vietnam Pro,不是顺手瘦身:
@@ -246,7 +258,7 @@ html {
    于是 zh 下贴在一起的这对成了 12/19.2 与 12.5/20,而 en/vi 下两者逐项相同。
    字号那一半 2026-09-01 主人拍板**不补** —— 标签与正文是两个型类,不必然同字号;
    补它要再动 21 个 zh 标签的既有版面,只为消一个 1× 下肉眼无感的 4% 差。是决定,不是遗漏,别顺手"补齐"。 */
-.x-label:lang(zh):not(html) {
+.x-label:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   line-height: 1.6;
 }
 /* vi 变音符与 CJK 同性质:1.2 会让上一行的下点压住下一行的帽子。与 .x-mono 的例外同层。 */
@@ -267,6 +279,16 @@ html {
    「运行时禁用规则」「查组件有无基础行高」「算特异度」判,**每版都自洽、每版都会造成损害**。
    在「一个值有多个来源竞争」的问题上,读数不告诉你来源;推理再周全也只是又一次猜。 */
 
+/* 解释段落和长文共用阅读档；标签、编号及按钮继续使用等宽档。 */
+.x-copy {
+  font-family: var(--x-font-display);
+  font-size: calc(15 * var(--uc));
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  line-height: 1.6;
+}
+
 /* 等宽正文:12px/1.2/零字距/400 */
 .x-mono {
   font-family: var(--x-font-mono);
@@ -276,7 +298,7 @@ html {
   text-transform: uppercase;
   line-height: 1.2;
 }
-.x-mono:lang(zh):not(html) {
+.x-mono:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   font-size: calc(12.5 * var(--uc));
   line-height: 1.6; /* CJK 密排不变量豁免 */
 }
@@ -295,7 +317,7 @@ html {
   text-transform: uppercase;
   line-height: 1.2;
 }
-.x-mono-lg:lang(zh):not(html) {
+.x-mono-lg:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   font-size: max(16.5px, calc(16.56 * var(--u)));
   line-height: 1.5;
 }
@@ -311,7 +333,7 @@ html {
   line-height: 1;
   text-wrap: balance;
 }
-.x-display:lang(zh):not(html) {
+.x-display:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   line-height: 1.15;
   letter-spacing: -0.01em;
 }
@@ -320,6 +342,9 @@ html {
    由门 render-fit 判据 A 兜住 —— 文案换成更极端的串时它会红,而不是靠人再扫一遍。 */
 .x-display:lang(vi):not(html) {
   line-height: 1.25;
+}
+.x-display:is(:lang(es), :lang(pt), :lang(fr), :lang(de)):not(html) {
+  line-height: 1.15;
 }
 
 /* 24 档 · 问句体:手风琴问句 / 可折叠标题。400 字重、行距放宽 —— 它天生要折两行。
@@ -334,7 +359,7 @@ html {
   text-wrap: balance;
 }
 .x-q:lang(vi):not(html),
-.x-q:lang(zh):not(html) {
+.x-q:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   line-height: 1.45; /* 窄屏问句必折两行,1.25 在 vi/zh 下相邻行的墨相接 */
 }
 
@@ -350,27 +375,31 @@ html {
   line-height: 1.1;
 }
 .x-h24:lang(vi):not(html),
-.x-h24:lang(zh):not(html) {
+.x-h24:is(:lang(zh), :lang(ja), :lang(ko)):not(html) {
   line-height: 1.35;
 }
 
 /* Mega 档(hero h1 / 页脚巨字):0.79/-4%/500 */
 .x-display-mega {
+  --x-mega-leading: 0.79;
   font-family: var(--x-font-display);
   font-weight: 500;
   letter-spacing: -0.04em;
-  line-height: 0.79;
+  line-height: var(--x-mega-leading);
 }
 /* zh 覆写只给 CJK 文本;页脚 Latin 字标(.wordmark)在 zh 页也要 0.79——此前吃了 1.05 把页脚右列撑高 31px */
-.x-display-mega:lang(zh):not(html):not(.wordmark) {
-  line-height: 1.05;
+.x-display-mega:is(:lang(zh), :lang(ja), :lang(ko)):not(html):not(.wordmark) {
+  --x-mega-leading: 1.05;
   letter-spacing: -0.02em;
 }
 /* vi 同理,且比 CJK 更极端(叠音符 + 下点可同时出现在一个字母上)。
    0.79 时逐行实测行间 −29.2px:上一行的 g 尾与下一行的帽子直接叠在一起。
    门 render-fit 判据 A 逐行量墨,换了更极端的文案会红。字标(.wordmark)是拉丁字,不吃这一档。 */
 .x-display-mega:lang(vi):not(html):not(.wordmark) {
-  line-height: 1.12;
+  --x-mega-leading: 1.12;
+}
+.x-display-mega:is(:lang(es), :lang(pt), :lang(fr), :lang(de)):not(html):not(.wordmark) {
+  --x-mega-leading: 1.05;
 }
 /* 🔴 窄档:Mega 的 0.79 只在「标题不折行」时成立。窄屏上首屏标题会折出
    「带降部的行压着带上伸的行」这一对 —— 实测 / @320 英文 “Let compute⏎flow” 墨相接 4.4px,
@@ -380,7 +409,7 @@ html {
    由门 render-fit 判据 A 钉住:文案换成更极端的串会红。 */
 @media (max-width: 860px) {
   .x-display-mega:not(.wordmark) {
-    line-height: 0.95;
+    --x-mega-leading: 0.95;
   }
 }
 
@@ -465,7 +494,8 @@ html {
   align-items: center;
   border-radius: calc(999 * var(--uc));
   padding: 0 calc(22 * var(--uc));
-  border: 1px solid var(--x-line);
+  /* 控件轮廓独立于装饰细线；禁用态随较淡的文字降级，保留胶囊与透明底。 */
+  border: 1px solid color-mix(in srgb, currentColor 40%, transparent);
   background: none;
   color: var(--x-ink);
   font-family: var(--x-font-mono);
@@ -517,7 +547,6 @@ html {
 }
 .xbtn.disabled {
   color: var(--x-ink-dim); /* R35:禁用键文字仍可读(faint 档 3.79:1 不过 AA,交互性文字升 dim 档) */
-  border-color: var(--x-line-soft);
   background: var(--x-bg); /* R36:实底护字——透明底会被亮流光扫穿(局部 1.82:1) */
   cursor: default;
 }
