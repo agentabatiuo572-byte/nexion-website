@@ -12,7 +12,7 @@ Your first session takes about 90 seconds from install to dashboard.
 
 ## 1. Install and open the app
 
-Download NexGrid from the App Store or Google Play (or open the web app). The first screen asks for an email or phone number — no documents, no card.
+Download Uvel from the App Store or Google Play (or open the web app). The first screen asks for an email or phone number — no documents, no card.
 
 ## 2. Verify and set a password
 

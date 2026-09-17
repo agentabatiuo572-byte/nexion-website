@@ -151,12 +151,12 @@ it('keeps existing accessible descriptions and loaded text under numeric or prev
 });
 
 it('loads the approved English fixture with its newline intact and no false over-limit warning', () => {
-  const value = 'NexGrid\nLet compute flow', onValueChange = vi.fn();
+  const value = 'Uvel\nLet compute flow', onValueChange = vi.fn();
   const rule = getTextLimit('/copy/en/hero.title', 'en');
   render(<TranslatedTextarea id="target" label="Target" draftFieldId="/copy/en/hero.title" targetLocale="en" source={value} value={value} onValueChange={onValueChange} />);
   const hint = document.getElementById('target-length')!;
   expect(target().value).toBe(value);
-  expect(hint.getAttribute('data-count')).toBe('24');
+  expect(hint.getAttribute('data-count')).toBe('21');
   expect(hint.getAttribute('data-text-limit-over')).toBe('false');
   if (rule.limit === undefined) {
     expect(rule.previewReason).toBeTruthy();

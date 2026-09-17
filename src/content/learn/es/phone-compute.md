@@ -24,4 +24,4 @@ En la pantalla de inicio, toca la tarjeta de tu teléfono y activa el cómputo. 
 
 La tarjeta del dispositivo muestra la actividad de las tareas. Cada tarea completada aparece en la vista de ingresos con su comprobante Proof-of-Compute. Los importes varían con la demanda de la red; la aplicación siempre muestra las cifras actuales.
 
-> Consejo: algunos teléfonos cierran agresivamente las aplicaciones en segundo plano para ahorrar batería. Añadir NexGrid a las excepciones permite que siga conectado y recibiendo trabajo.
+> Consejo: algunos teléfonos cierran agresivamente las aplicaciones en segundo plano para ahorrar batería. Añadir Uvel a las excepciones permite que siga conectado y recibiendo trabajo.

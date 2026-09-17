@@ -12,7 +12,7 @@ Votre première session prend environ 90 secondes, de l’installation au tablea
 
 ## 1. Installez et ouvrez l’application
 
-Téléchargez NexGrid depuis l’App Store ou Google Play, ou ouvrez l’application web. Le premier écran demande une adresse e-mail ou un numéro de téléphone, sans document ni carte bancaire.
+Téléchargez Uvel depuis l’App Store ou Google Play, ou ouvrez l’application web. Le premier écran demande une adresse e-mail ou un numéro de téléphone, sans document ni carte bancaire.
 
 ## 2. Vérifiez et définissez un mot de passe
 

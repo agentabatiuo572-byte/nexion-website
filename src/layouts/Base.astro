@@ -50,9 +50,9 @@ const seoPageId = ({
 const configuredSeo = !noindex && seoPageId ? SITE_CONFIG.seo.pages[seoPageId] : undefined;
 const resolvedTitle = configuredSeo?.title[locale]?.trim() || title;
 const resolvedDescription = configuredSeo?.description[locale]?.trim() || description;
-/* 页标题体例:不含品牌名的标题统一追加后缀(zh「学习中心」这类本语 key 不含 NexGrid),含的不重复 */
+/* 页标题体例:不含品牌名的标题统一追加后缀(zh「学习中心」这类本语 key 不含 Uvel),含的不重复 */
 const t = useT(locale);
-const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolvedTitle} — NexGrid`;
+const fullTitle = resolvedTitle.includes('Uvel') ? resolvedTitle : `${resolvedTitle} — Uvel`;
 ---
 
 <!doctype html>
@@ -89,7 +89,7 @@ const fullTitle = resolvedTitle.includes('NexGrid') ? resolvedTitle : `${resolve
       set:html={JSON.stringify({
         '@context': 'https://schema.org',
         '@type': 'Organization',
-        name: 'NexGrid',
+        name: 'Uvel',
         legalName: 'NexGrid LTD' /* R49-B4:尽调/搜索场景的法定名锚点;address 待主人核册(B5)后补 */,
         url: site.href,
         logo: new URL('/icon-512.png', site).href,

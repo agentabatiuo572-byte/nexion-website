@@ -1,8 +1,8 @@
 {
   "site": {
-    "name": "NexGrid",
+    "name": "Uvel",
     "tagline": "Distributed AI compute. Earn from your idle devices.",
-    "description": "NexGrid pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free."
+    "description": "Uvel pays device owners for AI work their idle phones and hosted devices complete. Earnings settle in USDT. Download the app and start free."
   },
   "nav": {
     "how": "How it works",
@@ -18,7 +18,7 @@
     "ariaLanguage": "Language"
   },
   "hero": {
-    "title": "NexGrid\nLet compute flow",
+    "title": "Uvel\nLet compute flow",
     "subtitle": "The world's leading provider of distributed computing power sharing services.",
     "scrollHint": "See the network",
     "note": "Connecting the world's compute to power AI.",
@@ -45,7 +45,7 @@
     "freeTitle": "Start free with your phone",
     "freeDesc": "Install the app and your phone's spare processing power starts running AI tasks. No hardware to buy, no deposit.",
     "freeCta": "Get started free",
-    "scaleTitle": "Scale with NexGridBox",
+    "scaleTitle": "Scale with Uvel Node",
     "scaleDesc": "Dedicated devices multiply your compute capacity. They run in datacenters and are active from day one.",
     "scaleLink": "See devices",
     "note": "The app shows every task and every payout as it happens."
@@ -53,7 +53,7 @@
   "how": {
     "title": "How it works",
     "head1": "Idle devices hold real compute.",
-    "head2": "NexGrid routes it to the work that needs it.",
+    "head2": "Uvel routes it to the work that needs it.",
     "cat1": "Connect",
     "cat2": "Compute",
     "cat3": "Settle",
@@ -85,7 +85,7 @@
   },
   "trust": {
     "whitepaper": {
-      "title": "NexGrid whitepaper",
+      "title": "Uvel whitepaper",
       "summary": "Explore the product structure, device delivery, task verification and settlement, security design, and development roadmap.",
       "details": "v{version} · English edition · PDF"
     },
@@ -96,7 +96,7 @@
     "certMsbAlt": "FinCEN MSB Registration Status Information for NexGrid LTD",
     "certCoAlt": "Certificate of Document Filed for NexGrid LTD, issued by the Colorado Secretary of State",
     "t1Title": "NexGrid LTD is incorporated in the State of Colorado, USA — a registered Colorado corporation.",
-    "t1Body": "Authorized to issue 100,000,000 common shares. Operates the NexGrid global distributed compute sharing platform. The company registration record can be looked up on the Colorado Secretary of State website.",
+    "t1Body": "Authorized to issue 100,000,000 common shares. Operates the Uvel global distributed compute sharing platform. The company registration record can be looked up on the Colorado Secretary of State website.",
     "t1Chip": "Entity ID 20221592644",
     "t1Cta": "Verify at coloradosos.gov",
     "t2Title": "NexGrid LTD has completed MSB registration with FinCEN — the Financial Crimes Enforcement Network of the U.S. Department of the Treasury.",
@@ -125,7 +125,7 @@
     "act2Num": "80.4%",
     "act2Cap": "Of capacity under construction already pre-leased (CBRE, H1 2026)",
     "act3Title": "The route around",
-    "act3Body": "Not every AI job needs a flagship GPU — image, language and speech inference run on hardware people already own. Volunteers’ idle devices once outran the world’s __top 500 supercomputers combined__^6^. Today there are [[8.8 billion]]^5^ mobile connections on Earth. NexGrid puts that pool to work.",
+    "act3Body": "Not every AI job needs a flagship GPU — image, language and speech inference run on hardware people already own. Volunteers’ idle devices once outran the world’s __top 500 supercomputers combined__^6^. Today there are [[8.8 billion]]^5^ mobile connections on Earth. Uvel puts that pool to work.",
     "act3Num": "2.4 EF",
     "act3Cap": "Folding@home peak on volunteer devices (2020)",
     "quote1": "“NVIDIA compute is fully utilized across every cloud we serve.”",
@@ -147,7 +147,7 @@
     "src5": "GSMA Intelligence — The Mobile Economy 2026, Mar 2026",
     "src6": "Folding@home network statistics, Apr 2020 (as reported by TechSpot)",
     "photoCredit": "Portraits: NVIDIA Newsroom · Microsoft / Brian Smale (CC BY-SA 4.0).",
-    "disclaim": "Company names and figures are cited for industry context only. NexGrid is not affiliated with, sponsored by, or endorsed by any company or organization named above."
+    "disclaim": "Company names and figures are cited for industry context only. Uvel is not affiliated with, sponsored by, or endorsed by any company or organization named above."
   },
   "social": {
     "kicker": "Network scale",
@@ -177,7 +177,7 @@
     },
     "teaserCta": "Learn more about NEX",
     "pageTag": "PLATFORM TOKEN",
-    "pageTitle": "NEX — the token that powers NexGrid's compute economy.",
+    "pageTitle": "NEX — the token that powers Uvel's compute economy.",
     "pageLead": "A plain-language guide: what NEX is, how it's created, and what you can do with it.",
     "compareTitle": "NEX vs USDT",
     "cmpProp": "Property",
@@ -228,7 +228,7 @@
     "whitepaper": "Read the whitepaper"
   },
   "learn": {
-    "title": "Learn NexGrid",
+    "title": "Learn Uvel",
     "subtitle": "Short, practical guides to the app's core features — from first sign-up to withdrawals.",
     "homeTitle": "Learn the app in minutes",
     "browseAll": "Browse all guides",
@@ -249,7 +249,7 @@
   },
   "faq": {
     "title": "Frequently asked questions",
-    "q1": "What is NexGrid?",
+    "q1": "What is Uvel?",
     "a1": "A distributed AI compute network. Idle phones and dedicated devices run AI tasks, and their owners get paid for the work completed.",
     "q2": "How do I earn?",
     "a2": "Install the app, connect your phone's idle compute, and tasks run automatically. You can scale up later with dedicated devices. Real-time earnings show inside the app.",
@@ -263,7 +263,7 @@
     "a6": "Earnings settle in USDT inside the app, and you withdraw USDT to your own wallet. The app walks you through it step by step.",
     "q7": "Will it drain my battery or overheat my phone?",
     "a7": "It's managed — work is scheduled to respect battery and heat, so plugged-in, cool devices do more. You can turn phone compute off anytime in the app.",
-    "q8": "Which countries is NexGrid available in?",
+    "q8": "Which countries is Uvel available in?",
     "a8": "The sign-up flow in the app decides availability — it is the authoritative check for your region.",
     "q9": "Are there any fees?",
     "a9": "Starting is free. USDT withdrawals carry a network confirmation fee, shown on the withdrawal screen before you confirm; you can burn NEX to offset it.",
@@ -284,7 +284,7 @@
     "reducedBg": "Background motion reduced",
     "appPrivacy": "App Privacy",
     "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
-    "forTeams": "For AI teams — NexGrid capacity is built to run production inference workloads.",
+    "forTeams": "For AI teams — Uvel capacity is built to run production inference workloads.",
     "forTeamsCta": "Discuss workloads:"
   },
   "legal": {

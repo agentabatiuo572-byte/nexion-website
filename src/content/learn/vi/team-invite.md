@@ -8,7 +8,7 @@ order: 5
 prdRef: "App PRD §8"
 ---
 
-NexGrid lớn lên nhờ thành viên, và ứng dụng thưởng cho bạn khi đưa những người phù hợp vào mạng lưới.
+Uvel lớn lên nhờ thành viên, và ứng dụng thưởng cho bạn khi đưa những người phù hợp vào mạng lưới.
 
 ## Mã mời của bạn
 

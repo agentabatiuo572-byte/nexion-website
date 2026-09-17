@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Los dispositivos dedicados de las gamas NexGridBox y NexGridRack multiplican tu capacidad de cómputo. Están alojados en centros de datos profesionales, por lo que comprar uno se parece más a activar un servicio que a recibir un paquete.
+Los dispositivos dedicados de las gamas Uvel Node y Uvel Rack multiplican tu capacidad de cómputo. Están alojados en centros de datos profesionales, por lo que comprar uno se parece más a activar un servicio que a recibir un paquete.
 
 ## 1. Elige un modelo
 

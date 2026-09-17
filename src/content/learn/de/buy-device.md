@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Dedizierte Geräte der Reihen NexGridBox und NexGridRack vervielfachen die Rechenkapazität. Sie werden in professionellen Rechenzentren gehostet. Der Kauf ähnelt daher eher der Aktivierung eines Dienstes als dem Empfang eines Pakets.
+Dedizierte Geräte der Reihen Uvel Node und Uvel Rack vervielfachen die Rechenkapazität. Sie werden in professionellen Rechenzentren gehostet. Der Kauf ähnelt daher eher der Aktivierung eines Dienstes als dem Empfang eines Pakets.
 
 ## 1. Modell auswählen
 

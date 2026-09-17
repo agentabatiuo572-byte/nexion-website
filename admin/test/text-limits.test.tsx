@@ -16,7 +16,7 @@ type Measurement = {
 type TestRule = Measurement & { kind: string; description: string; instances?: Record<string, Measurement> };
 const rules = catalog.fields as Record<string, TestRule>;
 // A regression fixture, not a constraint on copy materialized for a publish build.
-const APPROVED_ENGLISH_HERO = 'NexGrid\nLet compute flow';
+const APPROVED_ENGLISH_HERO = 'Uvel\nLet compute flow';
 const byLocale = <T,>(value: T) => Object.fromEntries(LOCALES.map((locale) => [locale, value])) as Record<Locale, T>;
 function withRule(key: string, value: TestRule, test: () => void) {
   const original = rules[key], version = catalog.version;
@@ -63,8 +63,8 @@ it('covers every copy key and represents missing numeric advice explicitly in al
   }
 });
 
-it('keeps the approved 24-character English fixture free of false length warnings', () => {
-  expect(countInputCharacters(APPROVED_ENGLISH_HERO, 'en')).toBe(24);
+it('keeps the approved 21-character English fixture free of false length warnings', () => {
+  expect(countInputCharacters(APPROVED_ENGLISH_HERO, 'en')).toBe(21);
   const result = getTextLimit('/copy/en/hero.title', 'en');
   const { container } = render(<TextLimitHint id="default" fieldId="/copy/en/hero.title" locale="en" value={APPROVED_ENGLISH_HERO} />);
   if (result.limit === undefined) {
@@ -76,7 +76,7 @@ it('keeps the approved 24-character English fixture free of false length warning
     expect(result.basis).toBe('reference');
     expect(container.textContent).toContain('英语按默认断行建议约');
   }
-  expect(container.firstElementChild?.getAttribute('data-count')).toBe('24');
+  expect(container.firstElementChild?.getAttribute('data-count')).toBe('21');
   expect(container.firstElementChild?.getAttribute('data-text-limit-over')).toBe('false');
   expect(container.querySelector('[data-limit="16"]')).toBeNull();
   expect((container.firstElementChild as HTMLElement).style.color).not.toBe('var(--bad)');
@@ -109,13 +109,13 @@ it('resolves names and taglines by actual SKU id without applying another produc
   for (const key of ['sku.name', 'sku.tagline']) withRule(key, {
     kind: 'bounded', description: 'Product card', basis: 'reference', instances: {
       small: { limits: byLocale(8), references: byLocale('Phone') },
-      'large/plus': { limits: byLocale(32), references: byLocale('NexGridBox Plus') },
+      'large/plus': { limits: byLocale(32), references: byLocale('Uvel Node Plus') },
     },
   }, () => {
     for (const locale of LOCALES) {
       expect(getTextLimit(fieldId(key, locale, 'small'), locale).limit).toBe(8);
       const large = getTextLimit(fieldId(key, locale, 'large~1plus'), locale);
-      expect(large.limit).toBe(32); expect(large.reference).toBe('NexGridBox Plus'); expect(large.basis).toBe('reference');
+      expect(large.limit).toBe(32); expect(large.reference).toBe('Uvel Node Plus'); expect(large.basis).toBe('reference');
       const unknown = getTextLimit(fieldId(key, locale, 'new-product'), locale);
       expect(unknown.kind).toBe('bounded'); expect(unknown.limit).toBeUndefined(); expect(unknown.previewReason).toContain('这个产品');
     }
@@ -159,7 +159,7 @@ it('fails closed for obsolete bounded recommendations while retaining non-layout
     expect(result.limit).toBeUndefined(); expect(result.previewReason).toContain('旧建议值正在重新核验');
     expect(getTextLimit('/legal/privacy/md/en', 'en').kind).toBe('flowing');
     expect(getTextLimit('/copy/en/nav.ariaMain', 'en').kind).toBe('metadata');
-    const { container } = render(<TextLimitHint id="old" fieldId="/copy/en/test.obsolete" locale="en" value="NexGrid" />);
+    const { container } = render(<TextLimitHint id="old" fieldId="/copy/en/test.obsolete" locale="en" value="Uvel" />);
     expect(container.querySelector('[data-limit]')).toBeNull();
     expect(container.firstElementChild?.getAttribute('data-text-limit-over')).toBe('false');
   });

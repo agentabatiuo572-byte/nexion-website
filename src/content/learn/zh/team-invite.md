@@ -8,7 +8,7 @@ order: 5
 prdRef: "App PRD §8"
 ---
 
-NexGrid 靠成员成长，App 会为你把合适的人带进网络给予回报。
+Uvel 靠成员成长，App 会为你把合适的人带进网络给予回报。
 
 ## 你的邀请码
 

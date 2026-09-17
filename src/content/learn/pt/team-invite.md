@@ -8,7 +8,7 @@ order: 5
 prdRef: "App PRD §8"
 ---
 
-O NexGrid cresce por meio de seus membros, e o aplicativo recompensa a entrada de novos proprietários de dispositivos na rede.
+O Uvel cresce por meio de seus membros, e o aplicativo recompensa a entrada de novos proprietários de dispositivos na rede.
 
 ## Seu código de convite
 

@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Dedicated devices (NexGridBox and NexGridRack lines) multiply your compute capacity. They are hosted in professional datacenters, so buying one is closer to activating a service than receiving a parcel.
+Dedicated devices (Uvel Node and Uvel Rack lines) multiply your compute capacity. They are hosted in professional datacenters, so buying one is closer to activating a service than receiving a parcel.
 
 ## 1. Choose a model
 

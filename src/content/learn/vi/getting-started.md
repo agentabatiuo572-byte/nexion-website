@@ -8,11 +8,11 @@ order: 1
 prdRef: "App PRD §4"
 ---
 
-Trải nghiệm đầu tiên với NexGrid được thiết kế gói gọn trong khoảng 90 giây — từ cài đặt đến màn hình chính.
+Trải nghiệm đầu tiên với Uvel được thiết kế gói gọn trong khoảng 90 giây — từ cài đặt đến màn hình chính.
 
 ## 1. Cài và mở ứng dụng
 
-Tải NexGrid từ App Store hoặc Google Play (hoặc mở bản web). Màn hình đầu chỉ yêu cầu email hoặc số điện thoại — không giấy tờ, không thẻ.
+Tải Uvel từ App Store hoặc Google Play (hoặc mở bản web). Màn hình đầu chỉ yêu cầu email hoặc số điện thoại — không giấy tờ, không thẻ.
 
 ## 2. Xác minh và đặt mật khẩu
 

@@ -41,8 +41,8 @@ export default function Login() {
 
   return (
     <div className="auth-page">
-      <section className="auth-intro" aria-label="NexGrid 官网管理">
-        <img className="auth-logo" src={logo} alt="NexGrid" width="176" height="60" />
+      <section className="auth-intro" aria-label="Uvel 官网管理">
+        <img className="auth-logo" src={logo} alt="Uvel" width="176" height="60" />
         <div className="auth-story">
           <span className="auth-kicker">SITE CONSOLE</span>
           <h1>让每次更新，<br /><em>清晰可控。</em></h1>
@@ -53,7 +53,7 @@ export default function Login() {
             <span><Icon name="shield" />检查后再发布</span>
           </div>
         </div>
-        <span className="auth-footer">NexGrid · 官网管理工作台</span>
+        <span className="auth-footer">Uvel · 官网管理工作台</span>
       </section>
       <main className="auth-main">
         <form className="auth-form" onSubmit={submit} aria-busy={busy}>

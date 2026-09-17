@@ -8,11 +8,11 @@ order: 1
 prdRef: "App PRD §4"
 ---
 
-NexGrid 的首次体验按 90 秒设计——从安装到进入主界面。
+Uvel 的首次体验按 90 秒设计——从安装到进入主界面。
 
 ## 1. 安装并打开 App
 
-从 App Store 或 Google Play 下载 NexGrid（或直接打开网页版）。首屏只要求邮箱或手机号——不需要证件，不需要银行卡。
+从 App Store 或 Google Play 下载 Uvel（或直接打开网页版）。首屏只要求邮箱或手机号——不需要证件，不需要银行卡。
 
 ## 2. 验证并设置密码
 

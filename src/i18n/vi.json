@@ -1,8 +1,8 @@
 {
   "site": {
-    "name": "NexGrid",
+    "name": "Uvel",
     "tagline": "Sức mạnh AI phân tán. Kiếm thu nhập từ thiết bị nhàn rỗi của bạn.",
-    "description": "NexGrid trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí."
+    "description": "Uvel trả tiền cho chủ thiết bị khi điện thoại nhàn rỗi và thiết bị đặt tại trung tâm dữ liệu hoàn thành công việc AI. Thu nhập kết toán bằng USDT. Tải ứng dụng và bắt đầu miễn phí."
   },
   "nav": {
     "how": "Cách hoạt động",
@@ -18,7 +18,7 @@
     "ariaLanguage": "Ngôn ngữ"
   },
   "hero": {
-    "title": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
+    "title": "Uvel\nĐể sức mạnh tính toán tuôn chảy",
     "subtitle": "Nhà cung cấp dịch vụ chia sẻ năng lực tính toán phân tán toàn cầu.",
     "scrollHint": "Xem mạng lưới",
     "note": "Kết nối năng lực tính toán toàn cầu,\nthúc đẩy kỷ nguyên AI.",
@@ -45,7 +45,7 @@
     "freeTitle": "Bắt đầu miễn phí với điện thoại",
     "freeDesc": "Cài ứng dụng và năng lực tính toán dư thừa của điện thoại bắt đầu chạy tác vụ AI. Không phải mua phần cứng, không đặt cọc.",
     "freeCta": "Bắt đầu miễn phí",
-    "scaleTitle": "Mở rộng với NexGridBox",
+    "scaleTitle": "Mở rộng với Uvel Node",
     "scaleDesc": "Thiết bị chuyên dụng nhân lên năng lực tính toán của bạn. Chúng chạy trong trung tâm dữ liệu và hoạt động ngay từ ngày đầu.",
     "scaleLink": "Xem thiết bị",
     "note": "Ứng dụng hiển thị từng tác vụ và từng khoản chi trả ngay khi diễn ra."
@@ -53,7 +53,7 @@
   "how": {
     "title": "Cách hoạt động",
     "head1": "Thiết bị nhàn rỗi chứa sức mạnh tính toán thực.",
-    "head2": "NexGrid đưa nó đến đúng công việc đang cần.",
+    "head2": "Uvel đưa nó đến đúng công việc đang cần.",
     "cat1": "Kết nối",
     "cat2": "Tính toán",
     "cat3": "Thanh toán",
@@ -85,7 +85,7 @@
   },
   "trust": {
     "whitepaper": {
-      "title": "Whitepaper NexGrid",
+      "title": "Whitepaper Uvel",
       "summary": "Tìm hiểu cấu trúc sản phẩm, bàn giao thiết bị, xác minh và quyết toán tác vụ, thiết kế bảo mật cùng lộ trình phát triển.",
       "details": "v{version} · Bản tiếng Anh · PDF"
     },
@@ -96,7 +96,7 @@
     "certMsbAlt": "Thông tin trạng thái đăng ký MSB của NexGrid LTD tại FinCEN",
     "certCoAlt": "Chứng nhận hồ sơ đã nộp của NexGrid LTD do Thư ký Bang Colorado cấp",
     "t1Title": "NexGrid LTD được thành lập tại bang Colorado, Hoa Kỳ — một công ty Colorado đã đăng ký.",
-    "t1Body": "Được phép phát hành 100.000.000 cổ phần phổ thông. Vận hành nền tảng chia sẻ năng lực tính toán phân tán toàn cầu NexGrid. Hồ sơ đăng ký công ty có thể tra cứu trên trang web Thư ký Bang Colorado.",
+    "t1Body": "Được phép phát hành 100.000.000 cổ phần phổ thông. Vận hành nền tảng chia sẻ năng lực tính toán phân tán toàn cầu Uvel. Hồ sơ đăng ký công ty có thể tra cứu trên trang web Thư ký Bang Colorado.",
     "t1Chip": "Mã thực thể 20221592644",
     "t1Cta": "Kiểm chứng tại coloradosos.gov",
     "t2Title": "NexGrid LTD đã hoàn tất đăng ký MSB với FinCEN — Mạng lưới Thực thi Tội phạm Tài chính thuộc Bộ Tài chính Hoa Kỳ.",
@@ -125,7 +125,7 @@
     "act2Num": "80,4%",
     "act2Cap": "Công suất đang xây dựng đã được thuê trước (CBRE, nửa đầu 2026)",
     "act3Title": "Lối vòng",
-    "act3Body": "Không phải tác vụ AI nào cũng cần GPU cao cấp nhất — suy luận hình ảnh, ngôn ngữ và giọng nói chạy tốt trên thiết bị mọi người đã có. Thiết bị nhàn rỗi của các tình nguyện viên từng vượt __tổng sức mạnh của 500 siêu máy tính mạnh nhất thế giới__^6^. Hôm nay, Trái Đất có [[8,8 tỷ]]^5^ kết nối di động. NexGrid đưa nguồn lực đó vào việc.",
+    "act3Body": "Không phải tác vụ AI nào cũng cần GPU cao cấp nhất — suy luận hình ảnh, ngôn ngữ và giọng nói chạy tốt trên thiết bị mọi người đã có. Thiết bị nhàn rỗi của các tình nguyện viên từng vượt __tổng sức mạnh của 500 siêu máy tính mạnh nhất thế giới__^6^. Hôm nay, Trái Đất có [[8,8 tỷ]]^5^ kết nối di động. Uvel đưa nguồn lực đó vào việc.",
     "act3Num": "2,4 EF",
     "act3Cap": "Đỉnh của Folding@home trên thiết bị tình nguyện (2020)",
     "quote1": "“Sức mạnh tính toán của NVIDIA đã được dùng hết trên mọi đám mây mà chúng tôi phục vụ.”",
@@ -147,7 +147,7 @@
     "src5": "GSMA Intelligence — The Mobile Economy 2026, tháng 3/2026",
     "src6": "Thống kê mạng lưới Folding@home, tháng 4/2020 (theo TechSpot)",
     "photoCredit": "Chân dung: NVIDIA Newsroom · Microsoft / Brian Smale (CC BY-SA 4.0).",
-    "disclaim": "Tên công ty và số liệu trên trang này chỉ được trích dẫn làm bối cảnh ngành. NexGrid không liên kết, không được tài trợ hay bảo chứng bởi bất kỳ công ty hoặc tổ chức nào nêu trên."
+    "disclaim": "Tên công ty và số liệu trên trang này chỉ được trích dẫn làm bối cảnh ngành. Uvel không liên kết, không được tài trợ hay bảo chứng bởi bất kỳ công ty hoặc tổ chức nào nêu trên."
   },
   "social": {
     "kicker": "Quy mô mạng lưới",
@@ -177,7 +177,7 @@
     },
     "teaserCta": "Tìm hiểu thêm về NEX",
     "pageTag": "TOKEN NỀN TẢNG",
-    "pageTitle": "NEX — token vận hành nền kinh tế tính toán của NexGrid.",
+    "pageTitle": "NEX — token vận hành nền kinh tế tính toán của Uvel.",
     "pageLead": "Hướng dẫn dễ hiểu: NEX là gì, được tạo ra thế nào, và bạn có thể làm gì với nó.",
     "compareTitle": "NEX vs USDT",
     "cmpProp": "Thuộc tính",
@@ -228,7 +228,7 @@
     "whitepaper": "Đọc whitepaper"
   },
   "learn": {
-    "title": "Học NexGrid",
+    "title": "Học Uvel",
     "subtitle": "Hướng dẫn ngắn gọn, thực dụng về các tính năng cốt lõi — từ đăng ký đầu tiên đến rút tiền.",
     "homeTitle": "Nắm ứng dụng trong vài phút",
     "browseAll": "Xem tất cả hướng dẫn",
@@ -249,7 +249,7 @@
   },
   "faq": {
     "title": "Câu hỏi thường gặp",
-    "q1": "NexGrid là gì?",
+    "q1": "Uvel là gì?",
     "a1": "Một mạng lưới tính toán AI phân tán. Điện thoại nhàn rỗi và thiết bị chuyên dụng chạy tác vụ AI, chủ sở hữu được trả cho công việc hoàn thành.",
     "q2": "Tôi kiếm thu nhập thế nào?",
     "a2": "Cài ứng dụng, kết nối năng lực nhàn rỗi của điện thoại, tác vụ chạy tự động. Sau này có thể mở rộng với thiết bị chuyên dụng. Thu nhập theo thời gian thực hiển thị trong ứng dụng.",
@@ -263,7 +263,7 @@
     "a6": "Thu nhập kết toán bằng USDT trong ứng dụng, bạn rút USDT về ví của mình. Ứng dụng hướng dẫn từng bước.",
     "q7": "Có làm hao pin hay nóng máy không?",
     "a7": "Luôn trong tầm kiểm soát — tác vụ được lên lịch theo mức pin và nhiệt độ: thiết bị đang cắm sạc và mát sẽ nhận nhiều việc hơn. Bạn có thể tắt tính năng này bất cứ lúc nào trong ứng dụng.",
-    "q8": "NexGrid dùng được ở những quốc gia nào?",
+    "q8": "Uvel dùng được ở những quốc gia nào?",
     "a8": "Phạm vi khả dụng do luồng đăng ký trong ứng dụng quyết định — đó là bước kiểm tra chính thức cho khu vực của bạn.",
     "q9": "Có mất phí gì không?",
     "a9": "Bắt đầu hoàn toàn miễn phí. Rút USDT có một khoản phí xác nhận mạng, hiển thị rõ trên màn hình rút trước khi bạn xác nhận; có thể đốt NEX để bù khoản phí này.",
@@ -284,7 +284,7 @@
     "reducedBg": "Chuyển động nền đã giảm",
     "appPrivacy": "Quyền riêng tư ứng dụng",
     "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
-    "forTeams": "Dành cho đội ngũ AI — hạ tầng NexGrid được xây để chạy khối lượng suy luận cấp sản xuất.",
+    "forTeams": "Dành cho đội ngũ AI — hạ tầng Uvel được xây để chạy khối lượng suy luận cấp sản xuất.",
     "forTeamsCta": "Trao đổi về khối lượng công việc:"
   },
   "legal": {

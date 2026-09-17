@@ -444,12 +444,12 @@ export async function selfTest() {
   try {
     const page = await browser.newPage({ viewport: { width: 390, height: 400 } });
     const probe = (input) => page.evaluate(measureSpecimen, input);
-    await page.setContent('<section class="hero" style="height:auto;min-height:500px;overflow:hidden"><h1 style="font:20px/24px Arial;white-space:pre-line">NexGrid\nLet compute flow</h1></section>');
-    let result = await probe({ selector: 'h1', boundary: '.hero', source: 'NexGrid\nLet compute flow', inspectOnly: true });
-    assert.equal(result.observations[0].referenceLength, 24);
+    await page.setContent('<section class="hero" style="height:auto;min-height:500px;overflow:hidden"><h1 style="font:20px/24px Arial;white-space:pre-line">Uvel\nLet compute flow</h1></section>');
+    let result = await probe({ selector: 'h1', boundary: '.hero', source: 'Uvel\nLet compute flow', inspectOnly: true });
+    assert.equal(result.observations[0].referenceLength, 21);
     assert.equal(result.observations[0].referenceFailure, null, 'Natural growth below the fold is not clipping.');
-    await probe({ selector: 'h1', boundary: '.hero', basis: 'reference', source: 'NexGrid\nLet compute flow', corpus: ' more', ceiling: 30 });
-    assert.equal(await page.locator('h1').textContent(), 'NexGrid\nLet compute flow');
+    await probe({ selector: 'h1', boundary: '.hero', basis: 'reference', source: 'Uvel\nLet compute flow', corpus: ' more', ceiling: 30 });
+    assert.equal(await page.locator('h1').textContent(), 'Uvel\nLet compute flow');
     await page.setContent('<h1 style="width:80px;font:40px/48px Arial;white-space:nowrap;background:linear-gradient(white,gray);background-clip:text;-webkit-text-fill-color:transparent"><span>WWWW</span></h1>');
     result = await probe({ selector: 'h1', source: 'WWWW', inspectOnly: true });
     assert.equal(result.observations[0].referenceFailure, '渐变文字超出背景绘制范围');

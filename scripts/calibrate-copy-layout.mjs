@@ -79,7 +79,7 @@ function fixtureSite(linkedAnnouncement = false) {
   site.announcement.startsAt = '2020-01-01T00:00:00Z'; site.announcement.endsAt = '2099-12-31T00:00:00Z';
   // Empty announcements have no authored positive control. A short brand label
   // makes the real optional surface measurable before adding the locale corpus.
-  for (const locale of LOCALES) site.announcement.text[locale] ||= 'NexGrid';
+  for (const locale of LOCALES) site.announcement.text[locale] ||= 'Uvel';
   if (linkedAnnouncement) site.announcement.href ||= 'https://example.com/announcement';
   else delete site.announcement.href;
   site.footer.contactEmail ||= 'teams@example.com';
@@ -178,7 +178,7 @@ function aggregationSelfTest() {
   assert.equal(mergeEvidence(mergeEvidence(undefined, measured), { status: 'measured', limit: 30 }).limit, 30);
   assert.deepEqual(searchBudget(undefined, 'Hello', 'en'), { ceiling: 512 });
   assert.equal(searchBudget(measured, 'Hello', 'en').ceiling, 36);
-  assert.equal(searchBudget({ ...measured, limit: 24 }, 'NexGrid\nLet compute flow', 'en').ceiling, 1);
+  assert.equal(searchBudget({ ...measured, limit: 21 }, 'Uvel\nLet compute flow', 'en').ceiling, 1);
   assert.equal(searchBudget(uncertain, 'Hello', 'en').inspectOnly, true);
   console.log('[copy-layout v2] unresolved/baseline exceptions veto advice in either order; flowing observations do not');
 }

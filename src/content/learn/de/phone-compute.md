@@ -24,4 +24,4 @@ Auf der Startseite die Gerätekarte des Smartphones antippen und die Rechenfunkt
 
 Die Gerätekarte zeigt die Aufgabenaktivität. Jede abgeschlossene Aufgabe erscheint mit ihrem Proof-of-Compute-Beleg in der Vergütungsansicht. Die Beträge hängen von der Netzwerknachfrage ab; die App zeigt stets die aktuellen Zahlen.
 
-> Tipp: Manche Smartphones beenden Hintergrund-Apps im Energiesparmodus sehr aggressiv. Eine Ausnahme für NexGrid hält die Verbindung aufrecht, damit weiterhin Aufgaben übernommen werden.
+> Tipp: Manche Smartphones beenden Hintergrund-Apps im Energiesparmodus sehr aggressiv. Eine Ausnahme für Uvel hält die Verbindung aufrecht, damit weiterhin Aufgaben übernommen werden.

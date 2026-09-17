@@ -19,16 +19,16 @@ const article = kind === 'article' ? await learnOne(locale, slug!) : null;
 if (kind === 'article' && !article) throw new Error(`Missing learn article: ${locale}/${slug}`);
 const title = kind === 'home' ? `${t('site.name')} — ${t('site.tagline')}`
   : kind === 'nex' ? t('nex.pageTitle') : kind === 'learn' ? t('learn.title')
-  : kind === 'article' ? `${article!.entry.data.title} — NexGrid`
-  : kind === 'terms' ? `${t('footer.terms')} — NexGrid`
-  : kind === 'privacy' ? `${t('footer.privacy')} — NexGrid`
-  : ['en', 'vi', 'zh'].includes(locale) ? 'App Privacy Policy — NexGrid' : `${t('footer.appPrivacy')} — NexGrid`;
+  : kind === 'article' ? `${article!.entry.data.title} — Uvel`
+  : kind === 'terms' ? `${t('footer.terms')} — Uvel`
+  : kind === 'privacy' ? `${t('footer.privacy')} — Uvel`
+  : ['en', 'vi', 'zh'].includes(locale) ? 'App Privacy Policy — Uvel' : `${t('footer.appPrivacy')} — Uvel`;
 // Existing English legal metadata fallbacks remain unchanged; configured SEO wins in Base.
 const description = kind === 'home' ? t('site.description') : kind === 'nex' ? t('nex.pageLead')
   : kind === 'learn' ? t('learn.subtitle') : kind === 'article' ? article!.entry.data.description
-  : kind === 'terms' ? 'NexGrid website terms of service.' : kind === 'privacy' ? 'NexGrid website privacy policy.'
-  : locale === 'vi' ? 'Chính sách quyền riêng tư của ứng dụng NexGrid.'
-  : locale === 'zh' ? 'NexGrid App 隐私政策。' : 'Privacy policy for the NexGrid App.';
+  : kind === 'terms' ? 'Uvel website terms of service.' : kind === 'privacy' ? 'Uvel website privacy policy.'
+  : locale === 'vi' ? 'Chính sách quyền riêng tư của ứng dụng Uvel.'
+  : locale === 'zh' ? 'Uvel App 隐私政策。' : 'Privacy policy for the Uvel App.';
 ---
 <Base locale={locale} title={title} description={description} path={path}>
   {kind === 'home' && <HomePage locale={locale} />}
