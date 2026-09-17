@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "sourceHash": "ae16522d91e0821e7a103f4f338a8ab3354be396faf4ca1b6d56c6d0757237d1",
-  "portableLayoutHash": "dae3f99eddc57d1785805caa0921cf53af935678d88d1fd7d8ab57ada63f71bb",
+  "sourceHash": "776a9174e5ca92ba0f50ab88e9a33e8f7fd1e1ab3bf676d49776d5e9a9e94612",
+  "portableLayoutHash": "ee5f79bdb12d32bf78cae9404cb72837c1793fcd61e52d41475f66b57d6f31c0",
   "locales": [
     "en",
     "vi",
@@ -41,6 +41,7 @@
         "zh": "工作原理"
       },
       "limits": {
+        "en": 24,
         "vi": 19,
         "es": 14,
         "pt": 15,
@@ -48,7 +49,6 @@
         "zh": 22
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
@@ -69,6 +69,7 @@
         "zh": "设备"
       },
       "limits": {
+        "en": 19,
         "vi": 13,
         "es": 13,
         "pt": 14,
@@ -76,7 +77,6 @@
         "zh": 20
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
@@ -97,6 +97,7 @@
         "zh": "信任"
       },
       "limits": {
+        "en": 17,
         "vi": 12,
         "es": 10,
         "pt": 11,
@@ -104,7 +105,6 @@
         "zh": 20
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
@@ -125,6 +125,7 @@
         "zh": "学习中心"
       },
       "limits": {
+        "en": 17,
         "vi": 8,
         "es": 6,
         "pt": 7,
@@ -132,7 +133,6 @@
         "zh": 22
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
@@ -153,6 +153,7 @@
         "zh": "NEX"
       },
       "limits": {
+        "en": 15,
         "vi": 8,
         "es": 4,
         "pt": 5,
@@ -160,7 +161,6 @@
         "zh": 21
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
@@ -208,6 +208,7 @@
         "zh": "下载"
       },
       "limits": {
+        "en": 20,
         "vi": 14,
         "es": 10,
         "pt": 8,
@@ -216,7 +217,6 @@
         "zh": 19
       },
       "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
       }
@@ -242,15 +242,15 @@
       "description": "按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。",
       "basis": "reference",
       "references": {
-        "en": "NexGrid\nLet compute flow",
-        "vi": "NexGrid\nĐể sức mạnh tính toán tuôn chảy",
-        "es": "NexGrid\nQue fluya el cómputo",
-        "pt": "NexGrid\nDeixe a computação fluir",
-        "fr": "NexGrid\nLe calcul en mouvement",
-        "de": "NexGrid\nRechenleistung im Fluss",
-        "ja": "NexGrid\n計算力をつなぐ",
-        "ko": "NexGrid\n연산 능력을 연결하다",
-        "zh": "NexGrid\n让算力流动"
+        "en": "Uvel\nLet compute flow",
+        "vi": "Uvel\nĐể sức mạnh tính toán tuôn chảy",
+        "es": "Uvel\nQue fluya el cómputo",
+        "pt": "Uvel\nDeixe a computação fluir",
+        "fr": "Uvel\nLe calcul en mouvement",
+        "de": "Uvel\nRechenleistung im Fluss",
+        "ja": "Uvel\n計算力をつなぐ",
+        "ko": "Uvel\n연산 능력을 연결하다",
+        "zh": "Uvel\n让算力流动"
       },
       "limits": {},
       "previewReasons": {
@@ -2244,41 +2244,15 @@
         },
         "s1": {
           "references": {
-            "en": "NexGridBox S1",
-            "vi": "NexGridBox S1",
-            "es": "NexGridBox S1",
-            "pt": "NexGridBox S1",
-            "fr": "NexGridBox S1",
-            "de": "NexGridBox S1",
-            "ja": "NexGridBox S1",
-            "ko": "NexGridBox S1",
-            "zh": "NexGridBox S1"
-          },
-          "limits": {
-            "en": 17,
-            "vi": 17,
-            "es": 18,
-            "pt": 18,
-            "fr": 17,
-            "de": 18,
-            "ko": 16,
-            "zh": 16
-          },
-          "previewReasons": {
-            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
-          }
-        },
-        "pro": {
-          "references": {
-            "en": "NexGridBox Pro",
-            "vi": "NexGridBox Pro",
-            "es": "NexGridBox Pro",
-            "pt": "NexGridBox Pro",
-            "fr": "NexGridBox Pro",
-            "de": "NexGridBox Pro",
-            "ja": "NexGridBox Pro",
-            "ko": "NexGridBox Pro",
-            "zh": "NexGridBox Pro"
+            "en": "Uvel Node S1",
+            "vi": "Uvel Node S1",
+            "es": "Uvel Node S1",
+            "pt": "Uvel Node S1",
+            "fr": "Uvel Node S1",
+            "de": "Uvel Node S1",
+            "ja": "Uvel Node S1",
+            "ko": "Uvel Node S1",
+            "zh": "Uvel Node S1"
           },
           "limits": {
             "en": 18,
@@ -2287,6 +2261,32 @@
             "pt": 18,
             "fr": 18,
             "de": 18,
+            "ko": 15,
+            "zh": 15
+          },
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
+        },
+        "pro": {
+          "references": {
+            "en": "Uvel Node Pro",
+            "vi": "Uvel Node Pro",
+            "es": "Uvel Node Pro",
+            "pt": "Uvel Node Pro",
+            "fr": "Uvel Node Pro",
+            "de": "Uvel Node Pro",
+            "ja": "Uvel Node Pro",
+            "ko": "Uvel Node Pro",
+            "zh": "Uvel Node Pro"
+          },
+          "limits": {
+            "en": 18,
+            "vi": 17,
+            "es": 18,
+            "pt": 18,
+            "fr": 18,
+            "de": 19,
             "ko": 16,
             "zh": 16
           },
@@ -2296,40 +2296,41 @@
         },
         "pro-v2": {
           "references": {
-            "en": "NexGridBox Pro v2",
-            "vi": "NexGridBox Pro v2",
-            "es": "NexGridBox Pro v2",
-            "pt": "NexGridBox Pro v2",
-            "fr": "NexGridBox Pro v2",
-            "de": "NexGridBox Pro v2",
-            "ja": "NexGridBox Pro v2",
-            "ko": "NexGridBox Pro v2",
-            "zh": "NexGridBox Pro v2"
+            "en": "Uvel Node Pro v2",
+            "vi": "Uvel Node Pro v2",
+            "es": "Uvel Node Pro v2",
+            "pt": "Uvel Node Pro v2",
+            "fr": "Uvel Node Pro v2",
+            "de": "Uvel Node Pro v2",
+            "ja": "Uvel Node Pro v2",
+            "ko": "Uvel Node Pro v2",
+            "zh": "Uvel Node Pro v2"
           },
           "limits": {
             "en": 19,
-            "vi": 18,
+            "vi": 19,
             "es": 19,
             "pt": 19,
             "fr": 19,
             "de": 19,
-            "ja": 18,
             "ko": 18,
             "zh": 18
           },
-          "previewReasons": {}
+          "previewReasons": {
+            "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
+          }
         },
         "rack-p1": {
           "references": {
-            "en": "NexGridRack P1",
-            "vi": "NexGridRack P1",
-            "es": "NexGridRack P1",
-            "pt": "NexGridRack P1",
-            "fr": "NexGridRack P1",
-            "de": "NexGridRack P1",
-            "ja": "NexGridRack P1",
-            "ko": "NexGridRack P1",
-            "zh": "NexGridRack P1"
+            "en": "Uvel Rack P1",
+            "vi": "Uvel Rack P1",
+            "es": "Uvel Rack P1",
+            "pt": "Uvel Rack P1",
+            "fr": "Uvel Rack P1",
+            "de": "Uvel Rack P1",
+            "ja": "Uvel Rack P1",
+            "ko": "Uvel Rack P1",
+            "zh": "Uvel Rack P1"
           },
           "limits": {
             "en": 18,
@@ -2337,8 +2338,8 @@
             "es": 18,
             "pt": 18,
             "fr": 18,
-            "de": 18,
-            "ko": 16,
+            "de": 19,
+            "ko": 17,
             "zh": 16
           },
           "previewReasons": {
@@ -2347,24 +2348,24 @@
         },
         "rack-p2": {
           "references": {
-            "en": "NexGridRack P2",
-            "vi": "NexGridRack P2",
-            "es": "NexGridRack P2",
-            "pt": "NexGridRack P2",
-            "fr": "NexGridRack P2",
-            "de": "NexGridRack P2",
-            "ja": "NexGridRack P2",
-            "ko": "NexGridRack P2",
-            "zh": "NexGridRack P2"
+            "en": "Uvel Rack P2",
+            "vi": "Uvel Rack P2",
+            "es": "Uvel Rack P2",
+            "pt": "Uvel Rack P2",
+            "fr": "Uvel Rack P2",
+            "de": "Uvel Rack P2",
+            "ja": "Uvel Rack P2",
+            "ko": "Uvel Rack P2",
+            "zh": "Uvel Rack P2"
           },
           "limits": {
             "en": 18,
-            "vi": 17,
+            "vi": 18,
             "es": 18,
             "pt": 18,
             "fr": 18,
-            "de": 18,
-            "ko": 16,
+            "de": 19,
+            "ko": 17,
             "zh": 16
           },
           "previewReasons": {
@@ -2620,5 +2621,5 @@
       "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
     }
   },
-  "evidenceSha256": "8f82ed78e6edfeb79f754a803e831154d95212716a21c661ff9856bc0013d90a"
+  "evidenceSha256": "65f4b601475442d46318e26288aa86e37cdcb88e97f855890ec1beb61cf7674a"
 }

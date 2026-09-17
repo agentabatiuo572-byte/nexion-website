@@ -24,4 +24,4 @@ From the home screen, tap your phone device card and enable compute. That's it â
 
 The device card shows task activity, and every completed task appears with its Proof-of-Compute receipt in your earnings view. Amounts vary with network demand â€” the app always shows the live numbers.
 
-> Tip: battery-saver modes on some phones aggressively kill background apps. Whitelisting NexGrid keeps it connected, so it keeps picking up work.
+> Tip: battery-saver modes on some phones aggressively kill background apps. Whitelisting Uvel keeps it connected, so it keeps picking up work.

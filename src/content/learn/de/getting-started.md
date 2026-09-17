@@ -12,7 +12,7 @@ Vom Installieren bis zum Dashboard dauert der erste Einstieg etwa 90 Sekunden.
 
 ## 1. App installieren und öffnen
 
-NexGrid aus dem App Store oder von Google Play herunterladen oder die Web-App öffnen. Der erste Bildschirm fragt nach einer E-Mail-Adresse oder Telefonnummer – ohne Dokumente und ohne Karte.
+Uvel aus dem App Store oder von Google Play herunterladen oder die Web-App öffnen. Der erste Bildschirm fragt nach einer E-Mail-Adresse oder Telefonnummer – ohne Dokumente und ohne Karte.
 
 ## 2. Bestätigen und Passwort festlegen
 

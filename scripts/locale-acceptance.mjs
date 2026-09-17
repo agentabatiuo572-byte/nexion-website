@@ -105,7 +105,7 @@ try {
           const seo = config.seo.pages[seoId];
           if (seo?.title[locale]?.trim()) {
             const title = seo.title[locale].trim();
-            assert.equal(await page.title(), title.includes('NexGrid') ? title : `${title} — NexGrid`, `${url}: actual SEO title`);
+            assert.equal(await page.title(), title.includes('Uvel') ? title : `${title} — Uvel`, `${url}: actual SEO title`);
           }
           if (seo?.description[locale]?.trim()) assert.equal(await page.locator('meta[name="description"]').getAttribute('content'), seo.description[locale].trim(), `${url}: actual SEO description`);
           if (path === '/') {

@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Thiết bị chuyên dụng (dòng NexGridBox và NexGridRack) nhân lên năng lực tính toán của bạn. Chúng chạy trong trung tâm dữ liệu chuyên nghiệp, nên mua một chiếc giống kích hoạt dịch vụ hơn là nhận bưu kiện.
+Thiết bị chuyên dụng (dòng Uvel Node và Uvel Rack) nhân lên năng lực tính toán của bạn. Chúng chạy trong trung tâm dữ liệu chuyên nghiệp, nên mua một chiếc giống kích hoạt dịch vụ hơn là nhận bưu kiện.
 
 ## 1. Chọn mẫu
 

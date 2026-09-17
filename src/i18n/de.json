@@ -1,8 +1,8 @@
 {
   "site": {
-    "name": "NexGrid",
+    "name": "Uvel",
     "tagline": "Verteilte KI-Rechenleistung. Mit ungenutzten Geräten verdienen.",
-    "description": "NexGrid bezahlt Gerätebesitzer für KI-Aufgaben, die ihre ungenutzten Smartphones und gehosteten Geräte erledigen. Die Vergütung wird in USDT abgerechnet. App herunterladen und kostenlos starten."
+    "description": "Uvel bezahlt Gerätebesitzer für KI-Aufgaben, die ihre ungenutzten Smartphones und gehosteten Geräte erledigen. Die Vergütung wird in USDT abgerechnet. App herunterladen und kostenlos starten."
   },
   "nav": {
     "how": "So funktioniert’s",
@@ -18,7 +18,7 @@
     "ariaLanguage": "Sprache"
   },
   "hero": {
-    "title": "NexGrid\nRechenleistung im Fluss",
+    "title": "Uvel\nRechenleistung im Fluss",
     "subtitle": "Der weltweit führende Anbieter für die gemeinsame Nutzung verteilter Rechenleistung.",
     "scrollHint": "Netzwerk entdecken",
     "note": "Wir verbinden die Rechenleistung der Welt, um KI anzutreiben.",
@@ -45,7 +45,7 @@
     "freeTitle": "Mit dem Smartphone kostenlos starten",
     "freeDesc": "Nach der App-Installation führt die freie Rechenleistung des Smartphones KI-Aufgaben aus. Keine Hardware kaufen, keine Einzahlung.",
     "freeCta": "Kostenlos loslegen",
-    "scaleTitle": "Mit NexGridBox erweitern",
+    "scaleTitle": "Mit Uvel Node erweitern",
     "scaleDesc": "Dedizierte Geräte vervielfachen die Rechenkapazität. Sie laufen in Rechenzentren und sind vom ersten Tag an aktiv.",
     "scaleLink": "Geräte ansehen",
     "note": "Die App zeigt jede Aufgabe und jede Auszahlung, sobald sie erfolgt."
@@ -53,7 +53,7 @@
   "how": {
     "title": "So funktioniert’s",
     "head1": "Ungenutzte Geräte bieten echte Rechenleistung.",
-    "head2": "NexGrid leitet sie dorthin, wo sie gebraucht wird.",
+    "head2": "Uvel leitet sie dorthin, wo sie gebraucht wird.",
     "cat1": "Verbinden",
     "cat2": "Berechnen",
     "cat3": "Abrechnen",
@@ -85,7 +85,7 @@
   },
   "trust": {
     "whitepaper": {
-      "title": "NexGrid Whitepaper",
+      "title": "Uvel Whitepaper",
       "summary": "Erfahre mehr über Produktaufbau, Gerätebereitstellung, Aufgabenprüfung und Abrechnung, Sicherheitskonzept und Entwicklungsplan.",
       "details": "v{version} · Englische Ausgabe · PDF"
     },
@@ -96,7 +96,7 @@
     "certMsbAlt": "FinCEN-Informationen zum MSB-Registrierungsstatus von NexGrid LTD",
     "certCoAlt": "Bescheinigung über die Einreichung von Dokumenten für NexGrid LTD, ausgestellt vom Secretary of State von Colorado",
     "t1Title": "NexGrid LTD wurde im US-Bundesstaat Colorado gegründet und ist dort als Kapitalgesellschaft registriert.",
-    "t1Body": "Zur Ausgabe von 100,000,000 Stammaktien berechtigt. Betreibt die globale Plattform NexGrid zur gemeinsamen Nutzung verteilter Rechenleistung. Der Firmeneintrag ist auf der Website des Secretary of State von Colorado abrufbar.",
+    "t1Body": "Zur Ausgabe von 100,000,000 Stammaktien berechtigt. Betreibt die globale Plattform Uvel zur gemeinsamen Nutzung verteilter Rechenleistung. Der Firmeneintrag ist auf der Website des Secretary of State von Colorado abrufbar.",
     "t1Chip": "Entity ID 20221592644",
     "t1Cta": "Auf coloradosos.gov prüfen",
     "t2Title": "NexGrid LTD hat die MSB-Registrierung bei FinCEN abgeschlossen, dem Financial Crimes Enforcement Network des US-Finanzministeriums.",
@@ -125,7 +125,7 @@
     "act2Num": "80.4%",
     "act2Cap": "Der im Bau befindlichen Kapazität bereits vorvermietet (CBRE, H1 2026)",
     "act3Title": "Der andere Weg",
-    "act3Body": "Nicht jede KI-Aufgabe benötigt eine Spitzen-GPU: Bild-, Text- und Sprachinferenz laufen auf bereits vorhandener Hardware. Die ungenutzten Geräte Freiwilliger übertrafen einst die __500 schnellsten Supercomputer der Welt zusammen__^6^. Heute gibt es weltweit [[8.8 Milliarden]]^5^ Mobilfunkverbindungen. NexGrid erschließt dieses Potenzial.",
+    "act3Body": "Nicht jede KI-Aufgabe benötigt eine Spitzen-GPU: Bild-, Text- und Sprachinferenz laufen auf bereits vorhandener Hardware. Die ungenutzten Geräte Freiwilliger übertrafen einst die __500 schnellsten Supercomputer der Welt zusammen__^6^. Heute gibt es weltweit [[8.8 Milliarden]]^5^ Mobilfunkverbindungen. Uvel erschließt dieses Potenzial.",
     "act3Num": "2.4 EF",
     "act3Cap": "Folding@home-Spitzenleistung auf freiwillig bereitgestellten Geräten (2020)",
     "quote1": "„Die NVIDIA-Rechenleistung ist in jeder von uns bedienten Cloud vollständig ausgelastet.“",
@@ -147,7 +147,7 @@
     "src5": "GSMA Intelligence – The Mobile Economy 2026, März 2026",
     "src6": "Folding@home-Netzwerkstatistik, April 2020 (laut TechSpot)",
     "photoCredit": "Porträts: NVIDIA Newsroom · Microsoft / Brian Smale (CC BY-SA 4.0).",
-    "disclaim": "Unternehmensnamen und Zahlen dienen ausschließlich der Einordnung der Branche. NexGrid ist mit keinem der genannten Unternehmen oder Organisationen verbunden und wird von ihnen weder gesponsert noch unterstützt."
+    "disclaim": "Unternehmensnamen und Zahlen dienen ausschließlich der Einordnung der Branche. Uvel ist mit keinem der genannten Unternehmen oder Organisationen verbunden und wird von ihnen weder gesponsert noch unterstützt."
   },
   "social": {
     "kicker": "Netzwerkgröße",
@@ -177,7 +177,7 @@
     },
     "teaserCta": "Mehr über NEX erfahren",
     "pageTag": "PLATTFORM-TOKEN",
-    "pageTitle": "NEX – der Token hinter der Rechenökonomie von NexGrid.",
+    "pageTitle": "NEX – der Token hinter der Rechenökonomie von Uvel.",
     "pageLead": "Ein verständlicher Leitfaden: was NEX ist, wie er entsteht und wofür er genutzt werden kann.",
     "compareTitle": "NEX und USDT im Vergleich",
     "cmpProp": "Eigenschaft",
@@ -228,7 +228,7 @@
     "whitepaper": "Whitepaper lesen"
   },
   "learn": {
-    "title": "NexGrid kennenlernen",
+    "title": "Uvel kennenlernen",
     "subtitle": "Kurze, praktische Anleitungen zu den wichtigsten App-Funktionen – von der Registrierung bis zur Auszahlung.",
     "homeTitle": "Die App in wenigen Minuten verstehen",
     "browseAll": "Alle Anleitungen ansehen",
@@ -249,7 +249,7 @@
   },
   "faq": {
     "title": "Häufig gestellte Fragen",
-    "q1": "Was ist NexGrid?",
+    "q1": "Was ist Uvel?",
     "a1": "Ein Netzwerk für verteilte KI-Rechenleistung. Ungenutzte Smartphones und dedizierte Geräte führen KI-Aufgaben aus; ihre Besitzer erhalten eine Vergütung für erledigte Arbeit.",
     "q2": "Wie lässt sich damit verdienen?",
     "a2": "App installieren, freie Smartphone-Rechenleistung verbinden und Aufgaben automatisch ausführen lassen. Später lässt sich die Kapazität durch dedizierte Geräte erweitern. Die Vergütung erscheint in Echtzeit in der App.",
@@ -263,7 +263,7 @@
     "a6": "Die Vergütung wird in der App in USDT abgerechnet. USDT lässt sich an die eigene Wallet auszahlen. Die App führt Schritt für Schritt durch den Vorgang.",
     "q7": "Wird der Akku leer oder das Smartphone zu heiß?",
     "a7": "Die Ausführung wird unter Berücksichtigung von Akku und Temperatur geplant. Kühle, angeschlossene Geräte leisten daher mehr. Smartphone-Rechenleistung lässt sich jederzeit in der App abschalten.",
-    "q8": "In welchen Ländern ist NexGrid verfügbar?",
+    "q8": "In welchen Ländern ist Uvel verfügbar?",
     "a8": "Der Registrierungsvorgang in der App entscheidet über die Verfügbarkeit und ist die verbindliche Prüfung für die jeweilige Region.",
     "q9": "Fallen Gebühren an?",
     "a9": "Der Einstieg ist kostenlos. Bei USDT-Auszahlungen fällt eine Netzwerkbestätigungsgebühr an, die vor der Bestätigung angezeigt wird. Sie lässt sich durch Verbrennen von NEX ausgleichen.",
@@ -284,7 +284,7 @@
     "reducedBg": "Hintergrundbewegung reduziert",
     "appPrivacy": "App-Datenschutz",
     "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
-    "forTeams": "Für KI-Teams – NexGrid-Kapazität ist für produktive Inferenzaufgaben ausgelegt.",
+    "forTeams": "Für KI-Teams – Uvel-Kapazität ist für produktive Inferenzaufgaben ausgelegt.",
     "forTeamsCta": "Aufgaben besprechen:"
   },
   "legal": {

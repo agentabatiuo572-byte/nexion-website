@@ -24,4 +24,4 @@ Na tela inicial, toque no cartão do celular e ative a computação. Pronto: as 
 
 O cartão do dispositivo mostra a atividade das tarefas. Cada tarefa concluída aparece na tela de ganhos com seu comprovante Proof-of-Compute. Os valores variam conforme a demanda da rede; o aplicativo sempre mostra os números atuais.
 
-> Dica: alguns celulares encerram aplicativos em segundo plano de forma agressiva para economizar bateria. Adicionar o NexGrid às exceções permite que ele continue conectado e recebendo trabalho.
+> Dica: alguns celulares encerram aplicativos em segundo plano de forma agressiva para economizar bateria. Adicionar o Uvel às exceções permite que ele continue conectado e recebendo trabalho.

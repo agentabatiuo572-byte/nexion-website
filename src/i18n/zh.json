@@ -1,8 +1,8 @@
 {
   "site": {
-    "name": "NexGrid",
+    "name": "Uvel",
     "tagline": "分布式 AI 算力，让闲置设备产生收益。",
-    "description": "NexGrid 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
+    "description": "Uvel 为设备主人支付报酬：闲置手机与托管设备完成 AI 工作，收益以 USDT 结算。下载 App，免费开始。"
   },
   "nav": {
     "how": "工作原理",
@@ -18,7 +18,7 @@
     "ariaLanguage": "语言"
   },
   "hero": {
-    "title": "NexGrid\n让算力流动",
+    "title": "Uvel\n让算力流动",
     "subtitle": "全球领先的分布式计算能力共享服务提供商。",
     "scrollHint": "查看网络",
     "note": "连接世界算力,驱动 AI 时代。",
@@ -45,7 +45,7 @@
     "freeTitle": "用手机免费开始",
     "freeDesc": "装上 App，手机的空余处理能力就开始承接 AI 任务。无需购买硬件，无需押金。",
     "freeCta": "免费开始",
-    "scaleTitle": "用 NexGridBox 扩大规模",
+    "scaleTitle": "用 Uvel Node 扩大规模",
     "scaleDesc": "专用设备成倍提升你的算力。它们运行在数据中心，开通即运行。",
     "scaleLink": "查看设备",
     "note": "每个任务、每笔结算，App 都实时展示。"
@@ -53,7 +53,7 @@
   "how": {
     "title": "工作原理",
     "head1": "闲置设备里，沉睡着真实的算力。",
-    "head2": "NexGrid 把它接到需要它的任务上。",
+    "head2": "Uvel 把它接到需要它的任务上。",
     "cat1": "接入",
     "cat2": "计算",
     "cat3": "结算",
@@ -85,7 +85,7 @@
   },
   "trust": {
     "whitepaper": {
-      "title": "NexGrid 白皮书",
+      "title": "Uvel 白皮书",
       "summary": "了解产品结构、设备交付、任务核验与结算机制，以及安全设计和发展路线。",
       "details": "v{version} · 英文版 · PDF"
     },
@@ -96,7 +96,7 @@
     "certMsbAlt": "NexGrid LTD 的 FinCEN MSB 登记状态信息文件",
     "certCoAlt": "科罗拉多州州务卿出具的 NexGrid LTD 文件备案证书",
     "t1Title": "NexGrid LTD 于美国科罗拉多州注册成立，是一家科罗拉多州公司。",
-    "t1Body": "授权发行 1 亿股普通股，运营 NexGrid 全球分布式算力共享平台。公司注册信息可在科罗拉多州州务卿官网查询。",
+    "t1Body": "授权发行 1 亿股普通股，运营 Uvel 全球分布式算力共享平台。公司注册信息可在科罗拉多州州务卿官网查询。",
     "t1Chip": "实体编号 20221592644",
     "t1Cta": "前往 coloradosos.gov 查证",
     "t2Title": "NexGrid LTD 已在美国财政部金融犯罪执法网络（FinCEN）完成 MSB 登记。",
@@ -125,7 +125,7 @@
     "act2Num": "80.4%",
     "act2Cap": "在建产能中已被预租的比例（CBRE，2026 上半年）",
     "act3Title": "绕行",
-    "act3Body": "并非所有 AI 任务都需要旗舰 GPU——图像、语言、语音推理，在人们已有的设备上就能运行。志愿者的闲置设备曾一度超越__全球 Top 500 超级计算机的总和__^6^。今天，地球上有[[88 亿]]^5^个移动连接。NexGrid 让这座算力池运转起来。",
+    "act3Body": "并非所有 AI 任务都需要旗舰 GPU——图像、语言、语音推理，在人们已有的设备上就能运行。志愿者的闲置设备曾一度超越__全球 Top 500 超级计算机的总和__^6^。今天，地球上有[[88 亿]]^5^个移动连接。Uvel 让这座算力池运转起来。",
     "act3Num": "2.4 EF",
     "act3Cap": "Folding@home 志愿设备峰值算力（2020）",
     "quote1": "「NVIDIA 的算力，在我们服务的每一朵云上都已被完全用满。」",
@@ -147,7 +147,7 @@
     "src5": "GSMA Intelligence——《移动经济 2026》，2026 年 3 月",
     "src6": "Folding@home 网络统计，2020 年 4 月（TechSpot 报道）",
     "photoCredit": "肖像来源：NVIDIA Newsroom · Microsoft / Brian Smale（CC BY-SA 4.0）。",
-    "disclaim": "本页提及的公司名称与数据仅作行业背景引用。NexGrid 与上述任何公司或机构均无隶属、赞助或背书关系。"
+    "disclaim": "本页提及的公司名称与数据仅作行业背景引用。Uvel 与上述任何公司或机构均无隶属、赞助或背书关系。"
   },
   "social": {
     "kicker": "网络规模",
@@ -177,7 +177,7 @@
     },
     "teaserCta": "深入了解 NEX",
     "pageTag": "平台代币",
-    "pageTitle": "NEX——驱动 NexGrid 算力经济的代币。",
+    "pageTitle": "NEX——驱动 Uvel 算力经济的代币。",
     "pageLead": "一份大白话指南：NEX 是什么、怎么产生、你能用它做什么。",
     "compareTitle": "NEX vs USDT",
     "cmpProp": "属性",
@@ -249,7 +249,7 @@
   },
   "faq": {
     "title": "常见问题",
-    "q1": "NexGrid 是什么？",
+    "q1": "Uvel 是什么？",
     "a1": "一个分布式 AI 算力网络。闲置手机与专用设备承接 AI 任务，设备主人按完成的工作获得报酬。",
     "q2": "我怎么获得收益？",
     "a2": "装上 App，连接手机闲置算力，任务自动运行。之后可以用专用设备扩大规模。实时收益在 App 内可查。",
@@ -284,7 +284,7 @@
     "reducedBg": "背景动态已减少",
     "appPrivacy": "App 隐私政策",
     "legalLine": "NexGrid LTD · Colorado, USA · FinCEN MSB 31000329265856",
-    "forTeams": "面向 AI 团队——NexGrid 的算力为生产级推理负载而建。",
+    "forTeams": "面向 AI 团队——Uvel 的算力为生产级推理负载而建。",
     "forTeamsCta": "洽谈工作负载："
   },
   "legal": {

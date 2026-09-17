@@ -12,7 +12,7 @@ La primera sesión, desde la instalación hasta el panel, dura unos 90 segundos.
 
 ## 1. Instala y abre la aplicación
 
-Descarga NexGrid desde App Store o Google Play, o abre la aplicación web. La primera pantalla pide un correo electrónico o un número de teléfono: sin documentos ni tarjeta.
+Descarga Uvel desde App Store o Google Play, o abre la aplicación web. La primera pantalla pide un correo electrónico o un número de teléfono: sin documentos ni tarjeta.
 
 ## 2. Verifica y crea una contraseña
 

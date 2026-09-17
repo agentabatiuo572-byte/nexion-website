@@ -24,4 +24,4 @@ Depuis l’écran d’accueil, touchez la fiche de votre téléphone et activez 
 
 La fiche de l’appareil affiche l’activité des tâches. Chaque tâche terminée apparaît dans la vue des gains avec son reçu Proof-of-Compute. Les montants varient selon la demande du réseau ; l’application affiche toujours les chiffres actuels.
 
-> Conseil : certains téléphones ferment agressivement les applications en arrière-plan pour économiser la batterie. Ajouter NexGrid aux exceptions lui permet de rester connecté et de continuer à recevoir du travail.
+> Conseil : certains téléphones ferment agressivement les applications en arrière-plan pour économiser la batterie. Ajouter Uvel aux exceptions lui permet de rester connecté et de continuer à recevoir du travail.

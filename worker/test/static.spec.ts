@@ -21,7 +21,7 @@ describe('T3 静态伺服与 API 界域', () => {
     expect(res.status).toBe(200);
     const html = await res.text();
     expect(html).toContain('<html');
-    expect(html).toContain('NexGrid');
+    expect(html).toContain('Uvel');
   });
 
   it('不存在的路径 → 404 状态(404 页托底,不裸 500)', async () => {

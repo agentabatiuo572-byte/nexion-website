@@ -220,7 +220,7 @@ export default function Shell() {
     <ShellCtx.Provider value={{ overview, failed, reload, setUnsavedChanges }}>
       <div className="shell" data-unsaved={hasUnsavedChanges ? 'true' : 'false'}>
         <div className="mobile-toolbar">
-          <span className="mobile-brand">NexGrid <span>官网后台</span></span>
+          <span className="mobile-brand">Uvel <span>官网后台</span></span>
           <button className="icon-button" aria-label={menuOpen ? '关闭导航' : '打开导航'} aria-expanded={menuOpen} aria-controls="console-navigation" onClick={() => setMenuOpen((open) => !open)}><Icon name={menuOpen ? 'close' : 'menu'} /></button>
         </div>
         <a href="#workspace" className="skip-link">跳到页面内容</a>
@@ -228,7 +228,7 @@ export default function Shell() {
           <div className="brandrow">
             <img className="brand-mark" src={new URL('../../public/logo-mark-dark.webp', import.meta.url).href} alt="" />
             <div className="lbl">
-              <b className="brand-name">NexGrid</b>
+              <b className="brand-name">Uvel</b>
               <div className="brand-caption">官网运营工作台</div>
             </div>
           </div>

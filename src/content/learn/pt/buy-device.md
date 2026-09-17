@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Os dispositivos dedicados das linhas NexGridBox e NexGridRack multiplicam sua capacidade de computação. Eles ficam em datacenters profissionais, então a compra se parece mais com ativar um serviço do que receber uma encomenda.
+Os dispositivos dedicados das linhas Uvel Node e Uvel Rack multiplicam sua capacidade de computação. Eles ficam em datacenters profissionais, então a compra se parece mais com ativar um serviço do que receber uma encomenda.
 
 ## 1. Escolha um modelo
 

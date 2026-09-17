@@ -71,12 +71,12 @@ export function validateTranslationText(source: string, target: string, text: st
     /\{[^{}\r\n]+\}/g,
     /https?:\/\/[^\s<>"')\]]+/g,
     /\b\d+(?:[.,]\d+)*(?:%|\b)/g,
-    /\b(?:NexGrid|Nexion|NEX|USDT|USDC|FinCEN)\b/g,
+    /\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g,
     /<\/?[A-Za-z][^>]*>/g,
     /\r?\n/g,
     /\]\([^)]+\)/g,
   ]) if (!same(matches(source, re), matches(text, re))) throw new AiError('invalid-result');
-  const prose = (value: string) => value.replace(/\{[^{}]*\}|https?:\/\/\S+|<\/?[A-Za-z][^>]*>|\b(?:NexGrid|Nexion|NEX|USDT|USDC|FinCEN)\b/g, '');
+  const prose = (value: string) => value.replace(/\{[^{}]*\}|https?:\/\/\S+|<\/?[A-Za-z][^>]*>|\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g, '');
   const sourceProse = prose(source), targetProse = prose(text);
   const hanSource = /\p{Script=Han}/u.test(sourceProse);
   const words = sourceProse.match(/[a-z]{2,}/gi) ?? [];

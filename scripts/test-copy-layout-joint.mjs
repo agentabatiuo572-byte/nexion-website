@@ -89,10 +89,10 @@ export function inspectCombination({ specs, locale }) {
 async function selfTest() {
   const browser = await chromium.launch(), page = await browser.newPage();
   try {
-    await page.setContent('<h1 class="title" style="white-space:pre-line">NexGrid\nLet compute flow</h1>');
+    await page.setContent('<h1 class="title" style="white-space:pre-line">Uvel\nLet compute flow</h1>');
     await page.evaluate(() => { window.__measureCopySpecimen = () => ({ observed: 1, observations: [{ geometry: {} }] }); });
     const before = await page.content();
-    const specs = [{ key: 'hero.title', selector: '.title', source: 'NexGrid\nLet compute flow', value: 'NexGrid\nLet compute flow again' }];
+    const specs = [{ key: 'hero.title', selector: '.title', source: 'Uvel\nLet compute flow', value: 'Uvel\nLet compute flow again' }];
     assert.equal((await page.evaluate(inspectCombination, { specs, locale: 'en' })).failures.length, 0);
     assert.equal(await page.content(), before, 'Diagnostics must restore input');
     assert.equal((await page.evaluate(inspectCombination, { specs: [{ ...specs[0], selector: '.missing' }], locale: 'en' })).failures.length, 1);

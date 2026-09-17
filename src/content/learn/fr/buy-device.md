@@ -8,7 +8,7 @@ order: 3
 prdRef: "App PRD §7"
 ---
 
-Les appareils dédiés des gammes NexGridBox et NexGridRack multiplient votre capacité de calcul. Hébergés dans des centres de données professionnels, leur achat ressemble davantage à l’activation d’un service qu’à la réception d’un colis.
+Les appareils dédiés des gammes Uvel Node et Uvel Rack multiplient votre capacité de calcul. Hébergés dans des centres de données professionnels, leur achat ressemble davantage à l’activation d’un service qu’à la réception d’un colis.
 
 ## 1. Choisissez un modèle
 

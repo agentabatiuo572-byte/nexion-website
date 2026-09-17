@@ -1,8 +1,8 @@
 {
   "site": {
-    "name": "NexGrid",
+    "name": "Uvel",
     "tagline": "Computación de IA distribuida. Gana con tus dispositivos inactivos.",
-    "description": "NexGrid paga a los propietarios por el trabajo de IA realizado por sus teléfonos y dispositivos alojados cuando están inactivos. Los ingresos se liquidan en USDT. Descarga la app y empieza gratis."
+    "description": "Uvel paga a los propietarios por el trabajo de IA realizado por sus teléfonos y dispositivos alojados cuando están inactivos. Los ingresos se liquidan en USDT. Descarga la app y empieza gratis."
   },
   "nav": {
     "how": "Cómo funciona",
@@ -18,7 +18,7 @@
     "ariaLanguage": "Idioma"
   },
   "hero": {
-    "title": "NexGrid\nQue fluya el cómputo",
+    "title": "Uvel\nQue fluya el cómputo",
     "subtitle": "Proveedor líder mundial de servicios para compartir capacidad de computación distribuida.",
     "scrollHint": "Conoce la red",
     "note": "Conectamos la capacidad de cómputo del mundo para impulsar la IA.",
@@ -45,7 +45,7 @@
     "freeTitle": "Empieza gratis con tu teléfono",
     "freeDesc": "Instala la app y la capacidad libre de tu teléfono empezará a ejecutar tareas de IA. Sin comprar equipos ni hacer depósitos.",
     "freeCta": "Empezar gratis",
-    "scaleTitle": "Amplía con NexGridBox",
+    "scaleTitle": "Amplía con Uvel Node",
     "scaleDesc": "Los dispositivos dedicados multiplican tu capacidad de cómputo. Funcionan en centros de datos y están activos desde el primer día.",
     "scaleLink": "Ver dispositivos",
     "note": "La app muestra cada tarea y cada pago en cuanto se producen."
@@ -53,7 +53,7 @@
   "how": {
     "title": "Cómo funciona",
     "head1": "Los dispositivos inactivos tienen capacidad real.",
-    "head2": "NexGrid la dirige al trabajo que la necesita.",
+    "head2": "Uvel la dirige al trabajo que la necesita.",
     "cat1": "Conectar",
     "cat2": "Procesar",
     "cat3": "Liquidar",
@@ -85,7 +85,7 @@
   },
   "trust": {
     "whitepaper": {
-      "title": "Documento técnico de NexGrid",
+      "title": "Documento técnico de Uvel",
       "summary": "Conoce la estructura del producto, la entrega de dispositivos, la verificación y liquidación de tareas, la seguridad y la hoja de ruta.",
       "details": "v{version} · Edición en inglés · PDF"
     },
@@ -96,7 +96,7 @@
     "certMsbAlt": "Información del estado de registro MSB de NexGrid LTD en FinCEN",
     "certCoAlt": "Certificado de presentación de documento de NexGrid LTD, emitido por el Secretario de Estado de Colorado",
     "t1Title": "NexGrid LTD está constituida en el estado de Colorado, EE. UU., como sociedad registrada en Colorado.",
-    "t1Body": "Autorizada a emitir 100.000.000 de acciones ordinarias. Opera la plataforma global de computación distribuida compartida NexGrid. El registro de la sociedad puede consultarse en la web del Secretario de Estado de Colorado.",
+    "t1Body": "Autorizada a emitir 100.000.000 de acciones ordinarias. Opera la plataforma global de computación distribuida compartida Uvel. El registro de la sociedad puede consultarse en la web del Secretario de Estado de Colorado.",
     "t1Chip": "ID de entidad 20221592644",
     "t1Cta": "Verificar en coloradosos.gov",
     "t2Title": "NexGrid LTD ha completado su registro MSB en FinCEN, la Red de Control de Delitos Financieros del Departamento del Tesoro de EE. UU.",
@@ -125,7 +125,7 @@
     "act2Num": "80.4%",
     "act2Cap": "Capacidad en construcción ya prealquilada (CBRE, primer semestre de 2026)",
     "act3Title": "Otra vía",
-    "act3Body": "No todas las tareas de IA necesitan una GPU de gama alta: la inferencia de imagen, lenguaje y voz funciona en equipos que la gente ya posee. Los dispositivos inactivos de voluntarios llegaron a superar a las __500 mayores supercomputadoras juntas__^6^. Hoy hay [[8.800 millones]]^5^ de conexiones móviles en el mundo. NexGrid pone esa capacidad a trabajar.",
+    "act3Body": "No todas las tareas de IA necesitan una GPU de gama alta: la inferencia de imagen, lenguaje y voz funciona en equipos que la gente ya posee. Los dispositivos inactivos de voluntarios llegaron a superar a las __500 mayores supercomputadoras juntas__^6^. Hoy hay [[8.800 millones]]^5^ de conexiones móviles en el mundo. Uvel pone esa capacidad a trabajar.",
     "act3Num": "2.4 EF",
     "act3Cap": "Pico de Folding@home en dispositivos voluntarios (2020)",
     "quote1": "«El cómputo de NVIDIA se utiliza al máximo en todas las nubes a las que damos servicio».",
@@ -147,7 +147,7 @@
     "src5": "GSMA Intelligence: The Mobile Economy 2026, marzo de 2026",
     "src6": "Estadísticas de la red Folding@home, abril de 2020 (según TechSpot)",
     "photoCredit": "Retratos: NVIDIA Newsroom · Microsoft / Brian Smale (CC BY-SA 4.0).",
-    "disclaim": "Los nombres de empresas y las cifras se citan únicamente como contexto del sector. NexGrid no está afiliada, patrocinada ni respaldada por ninguna de las empresas u organizaciones mencionadas."
+    "disclaim": "Los nombres de empresas y las cifras se citan únicamente como contexto del sector. Uvel no está afiliada, patrocinada ni respaldada por ninguna de las empresas u organizaciones mencionadas."
   },
   "social": {
     "kicker": "Escala de la red",
@@ -177,7 +177,7 @@
     },
     "teaserCta": "Más información sobre NEX",
     "pageTag": "TOKEN DE LA PLATAFORMA",
-    "pageTitle": "NEX: el token que impulsa la economía de cómputo de NexGrid.",
+    "pageTitle": "NEX: el token que impulsa la economía de cómputo de Uvel.",
     "pageLead": "Una guía clara: qué es NEX, cómo se crea y qué puedes hacer con él.",
     "compareTitle": "NEX frente a USDT",
     "cmpProp": "Característica",
@@ -228,7 +228,7 @@
     "whitepaper": "Leer el documento técnico"
   },
   "learn": {
-    "title": "Conoce NexGrid",
+    "title": "Conoce Uvel",
     "subtitle": "Guías breves y prácticas de las funciones principales, desde el registro hasta las retiradas.",
     "homeTitle": "Aprende a usar la app en minutos",
     "browseAll": "Ver todas las guías",
@@ -249,7 +249,7 @@
   },
   "faq": {
     "title": "Preguntas frecuentes",
-    "q1": "¿Qué es NexGrid?",
+    "q1": "¿Qué es Uvel?",
     "a1": "Una red distribuida de computación de IA. Los teléfonos inactivos y los dispositivos dedicados ejecutan tareas de IA y sus propietarios cobran por el trabajo completado.",
     "q2": "¿Cómo genero ingresos?",
     "a2": "Instala la app, conecta la capacidad inactiva de tu teléfono y las tareas se ejecutarán automáticamente. Más adelante puedes ampliar con dispositivos dedicados. La app muestra los ingresos en tiempo real.",
@@ -263,7 +263,7 @@
     "a6": "Los ingresos se liquidan en USDT dentro de la app y puedes retirar USDT a tu propia cartera. La app te guía paso a paso.",
     "q7": "¿Agotará la batería o calentará demasiado mi teléfono?",
     "a7": "El trabajo se programa teniendo en cuenta la batería y la temperatura; los dispositivos enchufados y frescos procesan más. Puedes desactivar el cómputo del teléfono cuando quieras en la app.",
-    "q8": "¿En qué países está disponible NexGrid?",
+    "q8": "¿En qué países está disponible Uvel?",
     "a8": "El proceso de registro de la app determina la disponibilidad y es la comprobación oficial para tu región.",
     "q9": "¿Hay comisiones?",
     "a9": "Empezar es gratis. Las retiradas en USDT tienen una comisión de confirmación de red, visible antes de confirmar; puedes quemar NEX para compensarla.",
@@ -284,7 +284,7 @@
     "reducedBg": "Movimiento del fondo reducido",
     "appPrivacy": "Privacidad de la app",
     "legalLine": "NexGrid LTD · Colorado, EE. UU. · FinCEN MSB 31000329265856",
-    "forTeams": "Para equipos de IA: la capacidad de NexGrid está diseñada para cargas de inferencia en producción.",
+    "forTeams": "Para equipos de IA: la capacidad de Uvel está diseñada para cargas de inferencia en producción.",
     "forTeamsCta": "Hablemos de tus cargas de trabajo:"
   },
   "legal": {

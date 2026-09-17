@@ -24,4 +24,4 @@ Từ màn hình chính, chạm thẻ thiết bị điện thoại và bật năn
 
 Thẻ thiết bị hiển thị hoạt động tác vụ, mỗi tác vụ hoàn thành kèm biên nhận Proof-of-Compute trong trang thu nhập. Số liệu thay đổi theo nhu cầu mạng — lấy con số trực tiếp trong ứng dụng làm chuẩn.
 
-> Mẹo: chế độ tiết kiệm pin ở một số máy đóng ứng dụng nền rất mạnh tay. Đưa NexGrid vào danh sách trắng giúp thiết bị giữ hạng kết nối cao hơn.
+> Mẹo: chế độ tiết kiệm pin ở một số máy đóng ứng dụng nền rất mạnh tay. Đưa Uvel vào danh sách trắng giúp thiết bị giữ hạng kết nối cao hơn.

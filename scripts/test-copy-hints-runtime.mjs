@@ -407,7 +407,7 @@ try {
   await navigate('content/seo'); await scan(['contact-email'], 'en', 'defaults/footer-email');
   report.checks.push('every-default-input-all-nine-locales-and-instances-before-artificial-boundaries');
   await navigate('content?focus=copy.en.hero.title');
-  assert.equal(await input('copy-hero.title-en').inputValue(), 'NexGrid\nLet compute flow');
+  assert.equal(await input('copy-hero.title-en').inputValue(), 'Uvel\nLet compute flow');
   await checkKeyboard('copy-hero.title-en');
   await page.screenshot({ path: resolve(out, 'default-hero-desktop.png') });
   await input('copy-hero.title-en').locator('..').screenshot({ path: resolve(out, 'default-hero-desktop-field.png') });
