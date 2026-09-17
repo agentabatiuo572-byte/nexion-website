@@ -513,9 +513,9 @@ try {
     check(`H04 ${locale} 十一条不截断`, elevenFaq.labels.length === 11 && elevenFaq.json?.mainEntity?.length === 11, `DOM=${elevenFaq.labels.length}`);
   }
 
-  const whitepaperUrl = '/documents/nexgrid-whitepaper-v1.2-en.pdf';
+  const whitepaperUrl = '/documents/uvel-whitepaper-v1.2-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '51946dc591b5535b3e39c3d70a0984a10f3f7e3238db173bd5172c62885eba23');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === 'e8c1d128cc1362b36e33ac50875311acba9530790148afb54bd6cace2734ce4e');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
