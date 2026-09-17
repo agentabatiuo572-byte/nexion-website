@@ -475,6 +475,32 @@ try {
 
   const staticContext = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
   const page = await staticContext.newPage();
+  // Every enabled locale must have one complete 404, including without client scripts.
+  for (const javaScriptEnabled of [false, true]) {
+    const context = await browser.newContext({ javaScriptEnabled, reducedMotion: 'reduce' });
+    const notFound = await context.newPage();
+    for (const locale of enabledLocales) {
+      const prefix = locale === 'en' ? '' : `/${locale}`;
+      const expected = core.copy[locale]['notfound.title'] || core.copy.en['notfound.title'];
+      for (const width of [390, 1440]) {
+        await notFound.setViewportSize({ width, height: 900 });
+        const response = await notFound.goto(`${coreUrl}${prefix}/404.html`);
+        check(`404 ${locale}/${width}/js=${javaScriptEnabled} 单语正文`, response.status() === 200
+          && await notFound.locator('main .blk').count() === 1
+          && await notFound.locator('main h1').textContent() === expected
+          && await notFound.locator('html').getAttribute('lang') === locale);
+        check(`404 ${locale}/${width}/js=${javaScriptEnabled} 首页及导航语言`,
+          await notFound.locator('main .xbtn').getAttribute('href') === `${prefix}/`
+          && await notFound.locator('#site-nav .logo').getAttribute('href') === `${prefix}/`
+          && await notFound.locator(`.site-footer a[href="${prefix}/legal/privacy/"]`).count() === 1);
+        await notFound.reload();
+        check(`404 ${locale}/${width}/js=${javaScriptEnabled} 刷新仍为单语`,
+          await notFound.locator('main .blk').count() === 1
+          && await notFound.locator('main h1').textContent() === expected);
+      }
+    }
+    await context.close();
+  }
   for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     const three = await faqData(page);

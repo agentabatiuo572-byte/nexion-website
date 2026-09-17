@@ -2,7 +2,7 @@
 import { defineConfig } from 'astro/config';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
-import { readFileSync } from 'node:fs';
+import { readFileSync, renameSync, rmdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { resolveEnabledLocales } from './src/lib/locale-policy.ts';
 
@@ -17,7 +17,18 @@ const activeLocales = resolveEnabledLocales(JSON.parse(readFileSync(siteFile, 'u
 export default defineConfig({
   site: 'https://nexgrid.ai',
   output: 'static',
-  integrations: [sitemap({
+  integrations: [{
+    name: 'localized-not-found',
+    hooks: {
+      'astro:build:done': ({ dir }) => {
+        // Astro directory output uses /<locale>/404/index.html; the asset host needs /<locale>/404.html.
+        for (const locale of activeLocales.filter((locale) => locale !== 'en')) {
+          renameSync(new URL(`${locale}/404/index.html`, dir), new URL(`${locale}/404.html`, dir));
+          rmdirSync(new URL(`${locale}/404/`, dir));
+        }
+      },
+    },
+  }, sitemap({
     i18n: { defaultLocale: 'en', locales: Object.fromEntries(activeLocales.map((locale) => [locale, locale])) },
     filter: (page) => !/\/404\/?$/.test(new URL(page).pathname),
   })],

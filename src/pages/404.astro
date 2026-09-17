@@ -1,52 +1,25 @@
 ---
-/* 404 — 静态托管对任意缺失路径返回 dist/404.html,无法知道来访语言,故三语并列(en 在前)。
-   noindex,不发 canonical/hreflang。文案 key:notfound.* (R45 新增,三语 parity 门守)。 */
+/* 每个语言目录提供自己的 404.html，由静态托管按缺失路径就近选择。 */
 import Base from '../layouts/Base.astro';
-import { useT } from '../i18n';
-import { activeLocales } from '../lib/locales';
-const t = useT('en');
-const home = (l: string) => (l === 'en' ? '/' : `/${l}/`);
+import { useT, type Locale } from '../i18n';
+import { localizedPath } from '../lib/locale-policy';
+interface Props { locale?: Locale }
+const { locale = 'en' } = Astro.props;
+const t = useT(locale);
 ---
 
-{/* 标题用语言中性形式:三语并列的页面,标签页不该只说英文那一句 */}
-<Base locale="en" title="404 — NexGrid" description={t('notfound.body')} path="/404" noindex>
+<Base locale={locale} title={t('notfound.title')} description={t('notfound.body')} path="/404" noindex>
   <main class="nf">
-    {
-      activeLocales.map((l, i) => {
-        const tt = useT(l);
-        const Heading = i === 0 ? 'h1' : 'p';
-        return (
-          <section class="blk" lang={l}>
-            <Heading class="title x-display">{tt('notfound.title')}</Heading>
-            <p class="body x-mono">{tt('notfound.body')}</p>
-            {/* 三块结构完全平行,按钮也平行:只用一个属性打破平行读起来像疏漏而不是层级 */}
-            <a class="xbtn solid" href={home(l)}>
-              <span class="xbtn-ghost" aria-hidden="true">{tt('notfound.home')} <span class="arr">→</span></span>
-              <span class="xbtn-a">{tt('notfound.home')} <span class="arr">→</span></span>
-              <span class="xbtn-b" aria-hidden="true">{tt('notfound.home')} <span class="arr">→</span></span>
-            </a>
-          </section>
-        );
-      })
-    }
+    <section class="blk" lang={locale}>
+      <h1 class="title x-display">{t('notfound.title')}</h1>
+      <p class="body x-mono">{t('notfound.body')}</p>
+      <a class="xbtn solid" href={localizedPath(locale, '/')}>
+        <span class="xbtn-ghost" aria-hidden="true">{t('notfound.home')} <span class="arr">→</span></span>
+        <span class="xbtn-a">{t('notfound.home')} <span class="arr">→</span></span>
+        <span class="xbtn-b" aria-hidden="true">{t('notfound.home')} <span class="arr">→</span></span>
+      </a>
+    </section>
   </main>
-  {/* 静态托管对 /vi/... 与 /zh/... 的缺失路径也返回这一份 404:导航是按英文站渲染的,
-      按真实路径把整页链与锚点链补上语言前缀(语言切换链本身已是 / /vi/ /zh/,跳过)。 */}
-  <script is:inline define:vars={{ activeLocales }}>
-    (function () {
-      var locale = location.pathname.split('/')[1];
-      if (locale === 'en' || !activeLocales.includes(locale)) return;
-      var p = '/' + locale;
-      var nav = document.getElementById('site-nav');
-      if (!nav) return;
-      var links = nav.querySelectorAll('a[href^="/"]');
-      for (var i = 0; i < links.length; i++) {
-        var h = links[i].getAttribute('href');
-        if (links[i].hasAttribute('hreflang')) continue;
-        links[i].setAttribute('href', p + h);
-      }
-    })();
-  </script>
 </Base>
 
 <style>
@@ -58,9 +31,7 @@ const home = (l: string) => (l === 'en' ? '/' : `/${l}/`);
     display: grid;
     gap: calc(56 * var(--uc));
   }
-  /* 三块都直压粒子(实测 VI 54px 白标题 1.40:1、EN 说明行 1.22:1),而本轮自己刚按
-     「小字密集板块禁直压粒子线」把目录/相关文章搬进纸面板;这里不套白卡(会破坏 404 的暗调),
-     用与页脚同配方的局部护字层。 */
+  /* 沿用页脚的局部护字层，避免粒子线压住提示文案。 */
   .blk::before {
     content: '';
     position: absolute;

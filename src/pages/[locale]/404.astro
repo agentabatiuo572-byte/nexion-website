@@ -1,0 +1,11 @@
+---
+import NotFound from '../404.astro';
+import { activeLocales } from '../../lib/locales';
+import type { Locale } from '../../i18n';
+
+export function getStaticPaths() {
+  return activeLocales.filter((locale) => locale !== 'en').map((locale) => ({ params: { locale } }));
+}
+const locale = Astro.params.locale as Locale;
+---
+<NotFound locale={locale} />
