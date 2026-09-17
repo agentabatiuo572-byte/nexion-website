@@ -123,7 +123,7 @@ export async function serve(dist) {
 
 export function routeMatches(route, family, home) {
   if (family === 'all') return true;
-  if (family === '404') return route === '/404.html';
+  if (family === '404') return route.endsWith('/404.html');
   if (family === 'home') return home;
   if (family === 'article') return /\/learn\/[^/]+\/$/.test(route);
   if (family === 'legal') return /\/legal\//.test(route);
@@ -254,7 +254,7 @@ async function calibrate() {
   // Every viewport is retained. Tight spaces establish the shared minimum
   // first, so later wider states need fewer sequential candidate checks.
   matrix.views.sort((a, b) => a.width * a.height - b.width * b.height);
-  const allPages = [...readBuiltPages(dist), ...LOCALES.map((locale) => ({ route: '/404.html', locale, home: false }))];
+  const allPages = [...readBuiltPages(dist), ...LOCALES.map((locale) => ({ route: `${locale === 'en' ? '' : '/' + locale}/404.html`, locale, home: false }))];
   assert.deepEqual([...new Set(allPages.map((page) => page.locale))].sort(), [...LOCALES].sort());
   const pages = smoke ? allPages.filter((page) => page.home && ['en', 'vi', 'zh'].includes(page.locale)) : allPages;
   if (smoke) matrix.views = [{ width: 320, height: 844 }, { width: 390, height: 521 }, { width: 1440, height: 900 }];
@@ -304,11 +304,10 @@ async function calibrate() {
     const page = await context.newPage();
     try {
       const targets = Object.entries(COPY_LAYOUT_CATALOG).flatMap(([key, rule]) => rule.kind !== 'bounded' ? [] : rule.consumers
-        .filter((consumer) => routeMatches(entry.route, consumer.route, entry.home)
-          && (entry.route !== '/404.html' || entry.locale === 'en' || key.startsWith('notfound.')))
+        .filter((consumer) => routeMatches(entry.route, consumer.route, entry.home))
         .flatMap((consumer) => key.startsWith('sku.') ? site.skus.map((sku, slot) => ({ key, rule, instance: sku.id,
           consumer: { ...consumer, selector: consumer.selector.replace('#devices .card', '#devices .card:nth-child(' + (slot + 1) + ')') } }))
-          : [{ key, rule, consumer: entry.route === '/404.html' ? { ...consumer, selector: consumer.selector + ':lang(' + entry.locale + ')' } : consumer }]));
+          : [{ key, rule, consumer }]));
       if (!targets.length) return;
       for (const target of targets) {
         const states = target.key === 'trust.certClose' ? ['dialog-open']
@@ -320,7 +319,7 @@ async function calibrate() {
       await page.setViewportSize(matrix.views[0]);
       const response = await page.goto(base + entry.route, { waitUntil: 'load' });
       assert(response.ok());
-      const file = entry.route === '/404.html' ? join(dist, '404.html') : join(dist, entry.route.slice(1), 'index.html');
+      const file = entry.route.endsWith('/404.html') ? join(dist, entry.route.slice(1)) : join(dist, entry.route.slice(1), 'index.html');
       assert.equal(digest(await response.text()), digest(readFileSync(file)), 'Served HTML differs from built file');
       report.pages.push({ ...entry, sha256: digest(readFileSync(file)) });
       const linkedFile = join(linkedFixture.dist, relative(dist, file));

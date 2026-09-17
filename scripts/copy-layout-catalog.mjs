@@ -8,7 +8,7 @@
  * icons or all three xbtn faces: probes must preserve those siblings. Dynamic topic
  * and collection consumers intentionally cover every possible slot, not saved IDs.
  * `boundary` is a closest-ancestor selector, except html/body which denote the viewport.
- * `all` includes the shared 404 document; Worker-only geo selectors have no Astro match.
+ * `all` includes each localized 404 document; Worker-only geo selectors have no Astro match.
  */
 
 const at = (route, selector, constraint, boundary) => ({
@@ -271,9 +271,9 @@ export const COPY_LAYOUT_CATALOG = {
   'footer.forTeams': flowing('团队合作说明、联系引导与邮箱共用段落，可自然换行。', all('.site-footer .teams')),
   'footer.forTeamsCta': flowing('仅配置联系邮箱时显示，与说明及邮箱共用可换行段落。', all('.site-footer .teams')),
   'legal.enPrevails': flowing('法律正文回退英文时显示，提示框可自然增高。', at('legal', '.legal .prevails')),
-  'notfound.title': flowing('共享 404 页为各启用语言逐块渲染，标题自然增高。', at('404', '.nf .blk .title')),
-  'notfound.body': flowing('共享 404 页为各启用语言逐块渲染，说明自然增高；英文也供 SEO 描述。', at('404', '.nf .blk .body')),
-  'notfound.home': bounded('共享 404 各语言返回按钮均为单行。', at('404', '.nf .blk .xbtn', 'inline', '.blk')),
+  'notfound.title': flowing('各语言 404 页仅渲染当前语言，标题自然增高。', at('404', '.nf .blk .title')),
+  'notfound.body': flowing('各语言 404 页仅渲染当前语言，说明自然增高，并供 SEO 描述。', at('404', '.nf .blk .body')),
+  'notfound.home': bounded('各语言 404 页的返回按钮均为单行。', at('404', '.nf .blk .xbtn', 'inline', '.blk')),
 
   'sku.name': reference(`${card} 商品名称为跨语言共用值，按实际名称字形检查，也用于商品图 alt。`, home('#devices .card .body > h3', 'card', '.card')),
   'sku.tagline': reference(`${card} 简介可换行，右侧说明与左侧价格共用文字区。`, home('#devices .card .cols > .col:nth-child(2)', 'card', '.card')),

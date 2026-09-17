@@ -64,7 +64,7 @@ if (built) {
   });
   const expectedLocales = Object.keys(manifest).filter((key) => key !== 'editable').sort();
   assert.deepEqual([...new Set(pages.map((page) => page.locale))].sort(), expectedLocales, 'Consumer acceptance needs the complete language snapshot.');
-  assert.equal(pages.filter((page) => page.route === '404').length, 1, 'Consumer acceptance needs the shared multilingual 404 document.');
+  assert.deepEqual(pages.filter((page) => page.route === '404').map((page) => page.locale).sort(), expectedLocales, 'Each language needs its own 404 document.');
   // Only these individual positions are conditional. In particular the H5 navigation
   // link can be absent, but both H5 download buttons still render in their disabled state.
   const conditional = new Set(['nav.launchH5:0', 'devices.comingBadge:0', 'announcement.text:0', 'footer.contact:0', 'footer.contactEmail:0', 'learn.enOnly:0', 'learn.untranslated:0', 'legal.enPrevails:0', 'stats.asOf:0']);
@@ -111,7 +111,7 @@ if (built) {
           hasBody: Boolean(block.querySelector('.body')),
           hasHome: Boolean(block.querySelector('.xbtn')),
         })));
-        assert.deepEqual(blocks.map((block) => block.locale).sort(), expectedLocales, '404 must include every language block exactly once.');
+        assert.deepEqual(blocks.map((block) => block.locale), [page.locale], '404 must include only its own language block.');
         assert.ok(blocks.every((block) => block.hasTitle && block.hasBody && block.hasHome), 'Each 404 language block needs its title, body and home button.');
       }
     }
@@ -120,9 +120,7 @@ if (built) {
       for (const [key, field] of Object.entries(catalog)) {
         if (key.startsWith('geo.')) continue; // Worker HTML is outside an Astro snapshot.
         for (const [index, consumer] of field.consumers.entries()) {
-          // 404 is one multilingual document, physically stored at the English root.
-          const ownLocale = key.startsWith('notfound.') ? 'en' : locale;
-          if (!(matches.get(`${ownLocale}:${key}:${index}`) > 0)) {
+          if (!(matches.get(`${locale}:${key}:${index}`) > 0)) {
             const label = `${locale}:${key}:${consumer.selector}`;
             assert.ok(conditional.has(`${key}:${index}`), `Missing source consumer: ${label}`);
             unmatched.push(label);
