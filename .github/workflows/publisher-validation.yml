@@ -1,0 +1,108 @@
+name: Publisher validation
+
+on:
+  push:
+    branches: [fix/publisher-upgrade-recheck]
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/publisher-validation.yml'
+      - 'admin/**'
+      - 'worker/**'
+      - 'schema/**'
+      - 'scripts/**'
+      - 'start-website.ps1'
+      - 'package.json'
+      - 'package-lock.json'
+
+# These jobs never deploy, use production secrets, or modify repository refs.
+permissions:
+  contents: read
+
+concurrency:
+  group: publisher-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  application:
+    name: Application checks (Node 24)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin/package-lock.json
+            worker/package-lock.json
+            schema/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          npm ci --prefix schema
+          npm ci --prefix worker
+          npm ci --prefix admin
+      - name: Install the test browser
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Publisher regressions
+        run: npm --prefix worker run test:publisher
+      - name: Worker typecheck
+        run: npm --prefix worker run typecheck
+      - name: Worker tests
+        run: npm --prefix worker test
+      - name: Admin typecheck
+        run: npm --prefix admin run typecheck
+      - name: Admin tests
+        run: npm --prefix admin test
+      - name: Admin build
+        run: npm --prefix admin run build
+      - name: Site typecheck
+        run: npm run typecheck
+      - name: Site verification
+        run: npm run verify
+      - name: Verify the recorded gate exit code
+        run: node -e "const fs=require('node:fs'); const code=fs.readFileSync('.verify-exit.code','utf8').trim(); if(code!=='0') throw new Error('Website gates did not finish successfully: '+code);"
+
+  windows-launcher:
+    name: Windows PowerShell 5.1 regressions
+    runs-on: windows-2022
+    timeout-minutes: 25
+    defaults:
+      run:
+        shell: powershell
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin/package-lock.json
+            worker/package-lock.json
+            schema/package-lock.json
+      - name: Install locked dependencies
+        run: |
+          npm ci
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix schema
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix worker
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm ci --prefix admin
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Launcher regression suite
+        run: |
+          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\test-start-website.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Standalone upgrade regression suite
+        run: |
+          powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\test-publish-upgrade.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
