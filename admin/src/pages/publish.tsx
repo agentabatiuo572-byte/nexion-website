@@ -8,7 +8,7 @@ import { splitFailReason } from '../lib/fail-reason';
 import { changeGroup, humanPath } from '../lib/human-path';
 import { fieldEditorLink } from '../lib/field-target';
 import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
-import { decodePublishProgress, publishFailureAdvice } from '../../../schema/src/publish-feedback';
+import { decodePublishProgress, groupPublishChecks, publishFailureAdvice, type PublishCheck } from '../../../schema/src/publish-feedback';
 import { DefaultTranslationActions, useTranslations } from '../lib/translations';
 import { useShell } from '../shell';
 
@@ -24,6 +24,8 @@ interface StepRow { step: string; status: string; detail: string | null; started
 interface VersionRow { id: number; status: string; reason: string | null; fail_reason: string | null; created_by: string; created_at: number; published_at: number | null; changed?: number }
 interface Status {
   activeVersion: number | null; stepsOfVersion: number | null; steps: StepRow[]; versions: VersionRow[]; stepNames: string[];
+  /** 检查明细(进度窗数据源)，与 steps 同属 checksOfVersion 标明的版本；缺席时沿用旧 steps 窗。 */
+  checksOfVersion?: number | null; checks?: PublishCheck[];
   /** 线上快照对不上:版本号不符,或版本号对但内容被直接改过(tampered 列出对不上的文件) */
   drift: { dbLive: number; snapshot: number | null; tampered?: string[] } | null;
   /** 版本列表被截断了(只回最近若干条)——界面必须说出来,别让人以为这就是全部 */
@@ -35,7 +37,36 @@ interface Status {
 }
 
 const STEP_LABEL: Record<string, string> = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' };
-const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '等待自动执行', publishing: '发布中', unknown:'切换结果待核实' };
+/** 检查明细状态徽中文；未知状态兜底显“未知”，不直出英文枚举。 */
+const CHECK_STATUS_LABEL: Record<string, string> = { running: '进行中', ok: '通过', failed: '失败', skipped: '跳过', unknown: '未知' };
+const STATUS_LABEL: Record<string, string> = { live: '线上', archived: '历史', failed: '失败(未上线)', cancelled: '已取消', validating: '等待自动执行', publishing: '发布中', unknown: '切换结果待核实' };
+const CHECK_TITLE_LABEL: Record<string, string> = {
+  'forbidden-words': '合规禁用词检查', 'i18n-parity': '多语言完整性检查', 'deploy-gate': '发布占位标记检查',
+  'launch-assets': '上线资产检查', 'state-hook-consumer': '页面状态检查', 'anchor-check': '页面锚点检查',
+  'brand-parity': '品牌一致性检查', 'particle-hue': '背景色调检查', 'canvas-hazard': '画布单位检查',
+  'css-shadowed': '样式有效性检查', 'canvas-geometry': '画布几何检查', 'render-fit': '页面布局检查',
+  'deck-clearance': '设备叠卡检查', 'config-consistency': '配置一致性检查', 'console-copy': '后台文案检查',
+  'regex-escape': '转义检查', 'site-behavior': '内容与交互检查', 'xbtn': '按钮状态检查',
+  /* verify runGate 检查标题（中文操作名，直出即中文；归一化剥括号后查表译成规范名） */
+  '网站内容与交互': '内容与交互检查', 'CSS 声明': '样式有效性检查', '画布几何': '画布几何检查',
+  '各语言与屏幕尺寸的页面布局': '页面布局检查', '设备叠卡布局': '设备叠卡检查', '按钮轮廓与状态回归': '按钮状态检查',
+  'artifact-unchanged': '产物一致性检查', 'gate-self-tests': '检查程序自测',
+  /* runner-gates suites（verify 子进程门外、隔离副本里跑的前置门）：标题原文直出即英文，逐项译成人话。
+     增量跳过（-自检/-红测后缀）与 typecheck:<包> 按归一化查表，缺映射显原文。 */
+  'jsonc-reader': '配置读取检查', 'exit-finally': '中断收尾检查', 'beacon-size': '上报体积检查',
+  'worker-AI-runtime': '后台智能运行检查', 'worker': '后台检查', 'publisher': '发布器回归检查',
+  'worker-types': '后台类型检查', 'site-build': '官网构建', 'source-equivalence': '源码基线检查',
+  'publish-config': '发布配置检查', 'publish-materialization': '配置物化检查', 'verify-process': '检查进程',
+  'verify': '官网内容检查', 'verify-not-run': '官网检查未执行',
+};
+/* 检查门标题归一化：剥执行口径后缀 → 剥 -自检/-红测/-单测/-故障回归 → 取冒号前 → 查表。
+   缺映射显原文（不隐藏），由直出扫描单测守新增英文。 */
+export const normalizeCheckTitle = (raw: string): string => {
+  const noScope = raw.replace(/\(.*?\)/g, '').replace(/-(自检|红测|单测|故障回归)$/, '').trim();
+  const base = noScope.split(':')[0].trim();
+  if (base === 'typecheck') return '类型检查';
+  return CHECK_TITLE_LABEL[base] ?? (raw.startsWith('检查程序自测') ? '检查程序自测' : raw);
+};
 /** 把校验规则译成人话;缺映射显规则名原文,不隐藏 */
 const RULE_LABEL: Record<string, string> = {
   'forbidden-word': '合规禁用词', placeholder: '占位符缺失', untranslated: '缺译', 'unknown-key': '非法 key',
@@ -179,8 +210,16 @@ export default function PublishPage() {
   // 步骤只认「本次进行中版本」的日志,防把上一次的步骤画进这一次(stepsOfVersion 由服务端标明)
   const stepDone = (name: string) => (st.stepsOfVersion === active ? st.steps.find((s) => s.step === name) : undefined);
   const activeStarts = active ? st.steps.filter((s) => s.started_at > 0).map((s) => s.started_at) : [];
+  // 检查明细只认与 steps 同版本的落库行；checks 为空不覆盖旧 steps 窗（向后兼容）。
+  const statusChecks = st.checksOfVersion === st.stepsOfVersion ? st.checks ?? [] : [];
+  const checkGroups = statusChecks.length
+    ? groupPublishChecks(statusChecks, st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap'])
+    : [];
+  const failedChecks = checkGroups.flatMap((group) => group.items.filter((item) => item.status === 'failed'));
+  /* 进度按收口后计数：groupPublishChecks 已按 (step,title) 留最新 seq，running+ok 双行不虚高。 */
+  const coalescedChecks = checkGroups.flatMap((group) => group.items);
+  const doneChecks = coalescedChecks.filter((item) => item.status === 'ok').length;
   const activeElapsed = activeStarts.length ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
-
   return (
     <section className="editor-page">
       <header className="page-heading">
@@ -232,6 +271,39 @@ export default function PublishPage() {
             <p>系统会继续刷新状态。请等待确认停止后再重新检查并发布，最后收到的检查内容保留在下方。</p>
             <button className="btn ghost sm" onClick={load}>刷新状态</button>
           </div>}
+          {checkGroups.length ? (
+            <div style={{ background: '#0c1912', border: '1px solid #314239', borderRadius: 8, padding: '12px 14px', marginTop: 8 }} role="region" aria-label="检查明细">
+              <p className="kv" style={{ color: '#e4ece6' }}>已通过 {doneChecks} / {coalescedChecks.length} 项检查</p>
+              <div role="progressbar" aria-label="检查完成进度" aria-valuemin={0} aria-valuemax={coalescedChecks.length} aria-valuenow={doneChecks} style={{ height: 6, background: '#405147', borderRadius: 5, marginTop: 8, overflow: 'hidden' }}>
+                <span style={{ display: 'block', height: '100%', width: `${coalescedChecks.length ? Math.round((doneChecks / coalescedChecks.length) * 100) : 0}%`, background: '#9edc1d', borderRadius: 5 }} />
+              </div>
+              {activeElapsed > 2 && <p className="kv" style={{ color: '#9eafa3' }}>本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</p>}
+              {checkGroups.map((group) => (
+                <section key={group.step} style={{ marginTop: 12 }} aria-label={`${STEP_LABEL[group.step] ?? '检查分组'}`}>
+                  <h4 style={{ color: '#e4ece6', fontSize: 'var(--text-sm)', margin: '0 0 6px' }}>{STEP_LABEL[group.step] ?? '检查分组'} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} 通过</h4>
+                  {group.items.map((item) => (
+                    <div className="row" key={item.seq} style={{ padding: '6px 0', borderTop: '1px solid #314239' }}>
+                      <span className={`pill ${item.status === 'ok' ? 'ok' : item.status === 'failed' ? 'bad' : item.status === 'running' ? 'warn' : ''}`} style={{ minWidth: '3.625rem', textAlign: 'center' }}>
+                        {CHECK_STATUS_LABEL[item.status] ?? '未知'}
+                      </span>
+                      <div style={{ color: '#e4ece6', minWidth: 0, flex: 1 }}>
+                        {normalizeCheckTitle(item.title)}
+                        {item.status === 'failed' && item.output && <details style={{ marginTop: 4 }}>
+                          <summary style={{ cursor: 'pointer' }}>查看原文</summary>
+                          <pre className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto', margin: '6px 0', fontSize: 'var(--text-sm)' }}>{item.output}</pre>
+                        </details>}
+                      </div>
+                    </div>
+                  ))}
+                </section>
+              ))}
+              {failedChecks.length > 0 && <div className="row" style={{ marginTop: 8 }}>
+                <span className="kv" style={{ color: '#ef8077' }}>有 {failedChecks.length} 项检查未通过，本次任务停止后可在下方重新发布。</span>
+                <button className="btn ghost sm" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新发布</button>
+              </div>}
+            </div>
+          ) : (
+          <>
           <p className="kv">已完成 {st.stepNames.filter(name => stepDone(name)?.status === 'ok').length} / {st.stepNames.length} 个步骤</p>
           {activeElapsed > 2 && <p className="kv">本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</p>}
           {st.stepNames.map((name) => {
@@ -257,6 +329,14 @@ export default function PublishPage() {
               </div>
             );
           })}
+          {st.steps.length > 0 && (
+            <div className="note" role="status">
+              检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。
+              <button className="btn ghost sm" onClick={load}>重新加载明细</button>
+            </div>
+          )}
+          </>
+          )}
           {st.steps.length === 0 && (
             <div className="note warn">
               已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。

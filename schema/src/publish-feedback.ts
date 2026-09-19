@@ -5,6 +5,33 @@ export interface PublishProgress {
   output: string;
   updatedAt: string;
 }
+/** /api/publish/status.checks 明细(绿色科技风进度窗的数据源)。旧 steps/detail 语义不动。 */
+export type PublishCheckStatus = 'running' | 'ok' | 'failed' | 'skipped' | 'unknown';
+export interface PublishCheck {
+  version_id: number;
+  step: string;
+  seq: number;
+  title: string;
+  status: PublishCheckStatus | string;
+  output: string | null;
+  started_at: number;
+  ended_at: number | null;
+}
+/** 按 step 分组前先按 (step,title) 收口到最新 seq：同一门 running→ok 只留终态行；
+   running 仅在无终态行时保留（门仍在跑或上报中断）。组内按 seq 排序，组顺序沿用步骤名顺序。 */
+export function groupPublishChecks(checks: PublishCheck[], stepOrder: string[]): { step: string; items: PublishCheck[] }[] {
+  const order: Record<string, number> = {};
+  for (let index = 0; index < stepOrder.length; index++) order[stepOrder[index]] = index;
+  const latest: Record<string, PublishCheck> = {};
+  for (const check of [...checks].sort((a, b) => a.seq - b.seq)) latest[`${check.step} ${check.title}`] = check;
+  const buckets: Record<string, PublishCheck[]> = {};
+  for (const check of Object.values(latest).sort((a, b) => a.seq - b.seq)) {
+    (buckets[check.step] ??= []).push(check);
+  }
+  return Object.entries(buckets)
+    .sort((a, b) => (order[a[0]] ?? 999) - (order[b[0]] ?? 999))
+    .map(([step, items]) => ({ step, items }));
+}
 
 /** Fits the existing step.detail limit, including JSON escaping. */
 export function encodePublishProgress(title: string, output: string, updatedAt: string): string {

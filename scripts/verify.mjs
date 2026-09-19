@@ -28,6 +28,14 @@ const ROUTE_SCOPE = routesArgument?.split(',').map(route => route.trim()).filter
 const scopedArgs = (base) => (ROUTE_SCOPE ? [...base, '--routes', ROUTE_SCOPE] : base);
 const scopeSuffix = ROUTE_SCOPE ? '·路由裁剪' : '';
 const results = [];
+/* 同步门(无子进程)也发检查明细事件:recordGate 与 results.push 同位置调用。
+   title 用门名,runner 侧按同一步同标题去重 running 行。 */
+export function recordGate(name, pass, detail = []) {
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: pass ? 'ok' : 'failed' }));
+  const entry = { gate: name, pass, detail };
+  results.push(entry);
+  return entry;
+}
 export async function runGate(name, command, args, options = {}) {
   // 发布遇到阻断就结束；手动 verify 仍汇总全部问题，不拿未执行的门冒充通过。
   if (process.argv.includes('--fail-fast')) {
@@ -39,6 +47,9 @@ export async function runGate(name, command, args, options = {}) {
   }
   console.log(`[verify] 开始检查：${name}`);
   console.log('[publish-progress] ' + JSON.stringify({ detail: `正在检查：${name}` }));
+  /* 检查明细事件(runner 经 [publish-check] 行解析 → /check 落库,进度窗数据源)。
+     stdout 同行输出,跑在隔离副本里；手动 verify 时这些行只是日志,无副作用。 */
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: 'running' }));
   const startedAt = Date.now();
   const result = await new Promise((resolveResult) => {
     const child = execFile(command, args, { windowsHide: true, ...options }, (error, stdout, stderr) => {
@@ -49,6 +60,7 @@ export async function runGate(name, command, args, options = {}) {
     child.stderr.on('data', (chunk) => process.stderr.write(chunk));
   });
   console.log(`[verify] 结束检查：${name}，耗时 ${Math.round((Date.now() - startedAt) / 1000)} 秒，exit ${result.status}`);
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: result.status === 0 ? 'ok' : 'failed' }));
   return result;
 }
 async function verify() {
@@ -105,7 +117,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   for (const f of files) {
     for (const h of scanForbidden(readFileSync(f, 'utf8'))) hits.push(`${rel(f)}: [${h.label}] "${h.match}"`);
   }
-  results.push({ gate: 'forbidden-words', pass: hits.length === 0, detail: hits });
+  recordGate('forbidden-words', hits.length === 0, hits);
 }
 
 /* ── 门 2:全部语言 key parity，启用语言文案完整(PRD §6-2)── */
@@ -114,7 +126,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     JSON.parse(readFileSync(join(SRC, 'i18n', `${locale}.json`), 'utf8'))]));
   const siteConfig = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
   const detail = i18nParity(dictionaries, siteConfig.enabledLocales);
-  results.push({ gate: 'i18n-parity', pass: detail.length === 0, detail });
+  recordGate('i18n-parity', detail.length === 0, detail);
 }
 
 /* ── 门 3:部署门(PRD §6-4:PENDING 标记 / Legal 缺失禁生产)── */
@@ -138,7 +150,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     }
   }
   // 非 --prod 只告警不拦(开发期必然半成品);--prod 阻断
-  results.push({ gate: 'deploy-gate' + (PROD ? '' : '(warn-only)'), pass: detail.length === 0 || !PROD, warn: !PROD && detail.length > 0, detail });
+  recordGate('deploy-gate' + (PROD ? '' : '(warn-only)'), detail.length === 0 || !PROD, detail).warn = !PROD && detail.length > 0;
 }
 
 /* ── 门 3b:上线资产门(R49-F1)——把「带哪些降级态上线」变成显式清单而非默认发生。
@@ -200,12 +212,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
       }
     }
   }
-  results.push({
-    gate: 'launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'),
-    pass: detail.length === 0,
-    warn: detail.length === 0 && info.length > 0,
-    detail: [...detail, ...info],
-  });
+  recordGate('launch-assets(R49-F1)' + (PROD ? '' : '(空值仅列示)'), detail.length === 0, [...detail, ...info]).warn = detail.length === 0 && info.length > 0;
 }
 
 /* ── 门 3c:状态钩子消费方门(R49-F2)——渲染出的状态钩子必须有消费方。
@@ -241,7 +248,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
       (all.match(new RegExp(`getAttribute\\(['"\`]data-${h}`, 'g')) || []).length;
     if (emits > 0 && consumers === 0) detail.push(`data-${h}:渲染了 ${emits} 处但没有任何地方读它——状态出现在页面上却没有用户可见面`);
   }
-  results.push({ gate: `state-hook-consumer(R49-F2)`, pass: detail.length === 0, detail: detail.length ? detail : [`已核 ${emitted.length} 个状态钩子,均有消费方`] });
+  recordGate(`state-hook-consumer(R49-F2)`, detail.length === 0, detail.length ? detail : [`已核 ${emitted.length} 个状态钩子,均有消费方`]);
 }
 
 /* ── 门 4:页内锚点存在性(PRD §6-5 近似;T11 升级为 dist 级死链扫描)── */
@@ -256,7 +263,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     const ids = new Set([...text.matchAll(/\bid="([\w-]+)"/g)].map((m) => m[1]));
     for (const a of anchors) if (a && !ids.has(a)) detail.push(`${rel(f)}: href="#${a}" 无对应 id`);
   }
-  results.push({ gate: 'anchor-check(src 近似)', pass: detail.length === 0, detail });
+  recordGate('anchor-check(src 近似)', detail.length === 0, detail);
 }
 
 /* ── 门 5:品牌同值哨兵(R37,R38 收紧)──────────────────────
@@ -307,7 +314,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     if (!/--x-accent-ink:\s*var\(--x-accent\)/.test(site))
       detail.push('--x-accent-ink 未以 var(--x-accent) 引用主档 — 品牌值第二字面量,门锁不住');
   }
-  results.push({ gate: 'brand-parity(App V5)', pass: detail.length === 0 || warn, warn, detail });
+  recordGate('brand-parity(App V5)', detail.length === 0 || warn, detail).warn = warn;
 }
 
 /* ── 门 6:粒子色相同族哨兵(R38)────────────────────────────
@@ -339,11 +346,18 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
       if (diff > 6) detail.push(`粒子 ${m[1]} 色相 ${h.toFixed(1)}° 偏离品牌 ${bh.toFixed(1)}° 达 ${diff.toFixed(1)}°(>6°)`);
     }
   }
-  results.push({ gate: 'particle-hue(同族 ±6°)', pass: detail.length === 0, detail });
+  recordGate('particle-hue(同族 ±6°)', detail.length === 0, detail);
 }
 
-results.push(canvasUnitGate(SRC, rel));
-results.push(regexEscapeGate(ROOT, rel));
+/* 纯函数门(canvas/regex)无副作用,跑完一次发 ok/failed 行,失败明细如实记录。 */
+{
+  const cu = canvasUnitGate(SRC, rel);
+  results.push(cu);
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: cu.gate, status: cu.pass ? 'ok' : 'failed' }));
+  const re = regexEscapeGate(ROOT, rel);
+  results.push(re);
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: re.gate, status: re.pass ? 'ok' : 'failed' }));
+}
 
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
    这里覆盖静态文本门看不见的公告/SEO/footer/Legal/FAQ 与跨日、动态偏好、焦点、history。 */
@@ -358,11 +372,7 @@ results.push(regexEscapeGate(ROOT, rel));
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
   );
   const out = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').filter(Boolean);
-  results.push({
-    gate: 'site-behavior(配置消费/运行时)',
-    pass: r.status === 0,
-    detail: r.status === 0 ? [] : out.slice(-30).map((line) => line.trim()),
-  });
+  results.push({ gate: 'site-behavior(配置消费/运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : out.slice(-30).map((line) => line.trim()) });
 }
 
 /* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
@@ -374,11 +384,7 @@ results.push(regexEscapeGate(ROOT, rel));
 {
   const r = await runGate('CSS 声明', process.execPath, [join(ROOT, 'scripts', 'gate-css-shadowed.mjs')], { cwd: ROOT, encoding: 'utf8' });
   const out = (r.stdout || '').trim().split('\n').filter(Boolean);
-  results.push({
-    gate: 'css-shadowed(死声明)',
-    pass: r.status === 0,
-    detail: r.status === 0 ? [] : out.filter((l) => !/^\[css-shadowed\] ✓/.test(l)).map((l) => l.replace(/^\s*/, '')),
-  });
+  results.push({ gate: 'css-shadowed(死声明)', pass: r.status === 0, detail: r.status === 0 ? [] : out.filter((l) => !/^\[css-shadowed\] ✓/.test(l)).map((l) => l.replace(/^\s*/, '')) });
 }
 
 /* ── 第七门:画布几何(运行时,复用入口已构建的正式产物) ──
@@ -395,8 +401,6 @@ results.push(regexEscapeGate(ROOT, rel));
   if (r.status === 3) {
     // 跑不起来 ≠ 放行:非 prod 走可见 warn(与 brand-parity 的跨仓缺席同体例),prod 硬红
     // R43:NOT-RUN 一律判红。此前 pass:!PROD ⇒ 人读的那行说「未执行不算过」,
-    //      而机器读的 .verify-exit.code 写的是 0 —— 两条结论相反,且仓规指定读文件。
-    //      要放行须显式 --allow-not-run。
     const allow = process.argv.includes('--allow-not-run');
     results.push({ gate: `canvas-geometry(运行时${scopeSuffix})`, pass: allow, warn: allow, detail: [...detail, 'NOT-RUN:本门未实际执行,不构成任何背书'] });
   } else {
@@ -424,7 +428,6 @@ results.push(regexEscapeGate(ROOT, rel));
     results.push({ gate: `render-fit(运行时${scopeSuffix})`, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
   }
 }
-
 /* ── 第十一门:叠卡编舞几何(运行时) ──
    9e24b27 的兜底栅格 max-width 漏进编舞档:包含块 1440→1120,卡锚 27.43%→21.3%、
    卡宽 45.14%→35.1%、侵入左栏文字 29-89px —— 当时十门全绿,主人肉眼抓到。
