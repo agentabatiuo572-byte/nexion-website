@@ -13,19 +13,19 @@ on:
       - 'package.json'
       - 'package-lock.json'
 
-# These jobs never deploy, use production secrets, or modify repository refs.
+# No deployment, production credentials, database migration or ref mutation.
 permissions:
   contents: read
 
 concurrency:
-  group: publisher-validation-${{ github.ref }}
+  group: publisher-validation-${{ github.ref }}-${{ github.sha }}
   cancel-in-progress: true
 
 jobs:
   linux:
     name: Linux ${{ matrix.suite }} (Node 24)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     strategy:
       fail-fast: false
       matrix:
@@ -51,38 +51,63 @@ jobs:
           npm ci --prefix worker
           npm ci --prefix admin
       - name: Install the test browser
-        if: matrix.suite != 'application'
         run: npx --no-install playwright install --with-deps chromium
+      - name: Create a verified private source snapshot
+        id: snapshot
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFile } from 'node:fs/promises';
+          import path from 'node:path';
+          import { createWorkspace } from './worker/lib/runner-core.mjs';
+          const workspace = await createWorkspace(process.cwd(), path.join(process.env.RUNNER_TEMP, 'publisher-validation'));
+          await appendFile(process.env.GITHUB_ENV, `VALIDATION_ROOT=${workspace.site}\n`);
+          console.log(`Verified source snapshot: ${workspace.sourceSnapshot.sha256}`);
+          NODE
+      - name: Generate current Worker binding types
+        run: npm --prefix "$VALIDATION_ROOT/worker" run types
       - name: Publisher regressions
         if: matrix.suite == 'publisher'
-        timeout-minutes: 8
-        run: npm --prefix worker run test:publisher
+        timeout-minutes: 15
+        run: npm --prefix "$VALIDATION_ROOT/worker" run test:publisher
       - name: Worker typecheck
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
-        run: npm --prefix worker run typecheck
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
+        run: npm --prefix "$VALIDATION_ROOT/worker" run typecheck
+      - name: Build fresh static assets in the private snapshot
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
+        id: assets
+        run: |
+          cd "$VALIDATION_ROOT"
+          node --import ./worker/register-ts-ext.mjs --input-type=module <<'NODE'
+          import { buildSiteForGates, prepareWorkerTestAssets } from './worker/lib/runner-gates.mjs';
+          const result = await buildSiteForGates(process.cwd(), { onOutput: text => process.stdout.write(text) });
+          if (!result.ok) throw new Error(`${result.gate}: ${result.tail}`);
+          await prepareWorkerTestAssets(process.cwd());
+          NODE
       - name: Worker tests
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
-        timeout-minutes: 8
-        run: npm --prefix worker test
+        if: ${{ !cancelled() && steps.assets.outcome == 'success' && matrix.suite == 'application' }}
+        timeout-minutes: 10
+        run: npm --prefix "$VALIDATION_ROOT/worker" test
       - name: Admin typecheck
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
-        run: npm --prefix admin run typecheck
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
+        run: npm --prefix "$VALIDATION_ROOT/admin" run typecheck
       - name: Admin tests
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
         timeout-minutes: 5
-        run: npm --prefix admin test
+        run: npm --prefix "$VALIDATION_ROOT/admin" test
       - name: Admin build
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
-        run: npm --prefix admin run build
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
+        run: npm --prefix "$VALIDATION_ROOT/admin" run build
       - name: Site typecheck
         if: matrix.suite == 'site'
-        run: npm run typecheck
+        run: npm --prefix "$VALIDATION_ROOT" run typecheck
       - name: Site verification
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'site' }}
-        run: npm run verify
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'site' }}
+        timeout-minutes: 20
+        run: npm --prefix "$VALIDATION_ROOT" run verify
       - name: Verify the recorded gate exit code
-        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'site' }}
+        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'site' }}
         run: |
+          cd "$VALIDATION_ROOT"
           node -e "const fs=require('node:fs'); const code=fs.readFileSync('.verify-exit.code','utf8').trim(); if(code!=='0') throw new Error('Website gates did not finish successfully: '+code);"
 
   windows-launcher:
