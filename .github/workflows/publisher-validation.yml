@@ -66,7 +66,8 @@ jobs:
       - name: Site verification
         run: npm run verify
       - name: Verify the recorded gate exit code
-        run: node -e "const fs=require('node:fs'); const code=fs.readFileSync('.verify-exit.code','utf8').trim(); if(code!=='0') throw new Error('Website gates did not finish successfully: '+code);"
+        run: |
+          node -e "const fs=require('node:fs'); const code=fs.readFileSync('.verify-exit.code','utf8').trim(); if(code!=='0') throw new Error('Website gates did not finish successfully: '+code);"
 
   windows-launcher:
     name: Windows PowerShell 5.1 regressions
