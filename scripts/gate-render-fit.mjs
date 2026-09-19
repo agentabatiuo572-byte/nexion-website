@@ -569,6 +569,34 @@ const FIXTURE_G = `<!doctype html><html lang="en"><head><meta charset="utf-8"><s
   </div>
 </body></html>`;
 
+// Linux Chromium can quantize a 100px canvas glyph advance to whole pixels
+// (57.5 -> 58 and 67.6 -> 68). A larger sample keeps that rendering detail
+// well below the 0.5% drift threshold without changing the metric being read.
+const FONT_SAMPLE_PX = 1000;
+
+const SCAN_CH = ({ names, samplePx }) => {
+  const root = document.documentElement;
+  const cs = getComputedStyle(root);
+  const out = [];
+  for (const n of names) {
+    const declared = cs.getPropertyValue(n).trim();
+    const fontVar = n.replace('--x-ch-', '--x-font-');
+    const stack = cs.getPropertyValue(fontVar).trim();
+    if (!declared) { out.push({ n, err: '声明缺席(被谁删了?)' }); continue; }
+    if (!stack) { out.push({ n, err: '配对的 ' + fontVar + ' 未定义 —— 比值失去归属' }); continue; }
+    const m = declared.match(/^([0-9.]+)em$/);
+    if (!m) { out.push({ n, err: '值「' + declared + '」不是 N em 形式,无法与字体度量比对' }); continue; }
+    // canvas 直接量「0」的前进宽(= ch 的定义),不经过 CSS 长度解算,故不吃 ch 的兜底态。
+    // 字重固定 400:与下方「已知天花板」那条对应,变了要连那条一起改。
+    const ctx = document.createElement('canvas').getContext('2d');
+    ctx.font = '400 ' + samplePx + 'px ' + stack;
+    const measured = ctx.measureText('0').width / samplePx;
+    out.push({ n, declared: +m[1], measured: Math.round(measured * 1e5) / 1e5,
+      font: stack.split(',')[0].replace(/["']/g, ''), lang: root.lang });
+  }
+  return out;
+};
+
 if (process.argv.includes('--self-test')) {
   const b = await chromium.launch();
   const c = await b.newContext({ viewport: { width: 320, height: 700 }, deviceScaleFactor: 1 });
@@ -607,6 +635,21 @@ if (process.argv.includes('--self-test')) {
   const gRaw = await p.evaluate(SCAN_SIBS);
   const gHit = gRaw.map((x) => x.path + ' ' + x.sel).join(' | ');
   const gDelta = gRaw.find((x) => x.path.indexOf('bug') >= 0)?.delta ?? 0;
+  // H:fake canvas reproduces Linux's whole-pixel quantization and exercises the real scanner.
+  await p.setContent('<!doctype html><html lang="en" style="--x-ch-display:0.575em;--x-font-display:Fixture"><body></body></html>');
+  await p.evaluate(() => {
+    HTMLCanvasElement.prototype.getContext = () => ({
+      size: 0,
+      set font(value) { this.size = Number(value.match(/([0-9.]+)px/)[1]); },
+      measureText() { return { width: Math.round(0.575 * this.size) }; },
+    });
+  });
+  const scanH = (samplePx) => p.evaluate(SCAN_CH, { names: ['--x-ch-display'], samplePx }).then(([result]) => result);
+  const hStable = await scanH(FONT_SAMPLE_PX);
+  const hLegacyFalseRed = await scanH(100);
+  await p.evaluate(() => document.documentElement.style.setProperty('--x-ch-display', '0.612em'));
+  const hRealDrift = await scanH(FONT_SAMPLE_PX);
+  const hOff = (result) => Math.abs(result.declared - result.measured) / result.measured;
   await b.close();
   const expect = [
     ['① 行距不足的多行文本 → 抓到', names.indexOf('bad') >= 0],
@@ -634,6 +677,8 @@ if (process.argv.includes('--self-test')) {
     ['⑳ G 逃生阀 sibling-align-ok 生效', gHit.indexOf('div.esc') < 0],
     ['㉑ G class 不同 = 不是同类,不比对', gHit.indexOf('div.diff') < 0],
     ['㉒ G 有意居中(自身内容就不等高)不报 —— 实景回灌的红测', gHit.indexOf('div.mid') < 0],
+    ['㉓ H 放大样本消除整像素量化假红', hOff(hStable) <= 0.005 && hOff(hLegacyFalseRed) > 0.005],
+    ['㉔ H 真字体漂移仍会判红', hOff(hRealDrift) > 0.005],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
@@ -944,28 +989,6 @@ for (const [index, r] of HOME.entries()) {
    来源:判据本体与 SCAN_CH 取自 claude/inspiring-hamilton-6fde54 的 7bc8c13,交叉验证段取自其 5a62518,
    字重缝与本条自指提醒由 claude/heuristic-bohr-68a3fb 复核指出;三条线独立收敛出同一套修法,
    本条是差集,单独摘取(其余整份丢弃,因与 f1e0fc9 重复)。 */
-const SCAN_CH = (names) => {
-  const root = document.documentElement;
-  const cs = getComputedStyle(root);
-  const out = [];
-  for (const n of names) {
-    const declared = cs.getPropertyValue(n).trim();
-    const fontVar = n.replace('--x-ch-', '--x-font-');
-    const stack = cs.getPropertyValue(fontVar).trim();
-    if (!declared) { out.push({ n, err: '声明缺席(被谁删了?)' }); continue; }
-    if (!stack) { out.push({ n, err: '配对的 ' + fontVar + ' 未定义 —— 比值失去归属' }); continue; }
-    const m = declared.match(/^([0-9.]+)em$/);
-    if (!m) { out.push({ n, err: '值「' + declared + '」不是 N em 形式,无法与字体度量比对' }); continue; }
-    // canvas 直接量「0」的前进宽(= ch 的定义),不经过 CSS 长度解算,故不吃 ch 的兜底态。
-    // 字重固定 400:与上面「已知天花板」那条对应,变了要连那条一起改。
-    const ctx = document.createElement('canvas').getContext('2d');
-    ctx.font = '400 100px ' + stack;
-    const measured = ctx.measureText('0').width / 100;
-    out.push({ n, declared: +m[1], measured: Math.round(measured * 1e5) / 1e5,
-      font: stack.split(',')[0].replace(/["']/g, ''), lang: root.lang });
-  }
-  return out;
-};
 const CH_NAMES = [...new Set(readdirSync(join(DIST, '_astro'))
   .filter((f) => f.endsWith('.css'))
   .map((f) => readFileSync(join(DIST, '_astro', f), 'utf8'))
@@ -976,7 +999,7 @@ for (const [index, r] of HOME.entries()) {
   progress(`页面布局：字体检查 ${index + 1}/${HOME.length}，当前 ${r}`);
   await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
   await page.evaluate(() => document.fonts.ready);
-  for (const g of await page.evaluate(SCAN_CH, CH_NAMES)) {
+  for (const g of await page.evaluate(SCAN_CH, { names: CH_NAMES, samplePx: FONT_SAMPLE_PX })) {
     if (g.err) { hitsH.push(r + '  ' + g.n + ':' + g.err); continue; }
     const off = Math.abs(g.declared - g.measured) / g.measured;
     if (off > 0.005)
