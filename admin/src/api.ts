@@ -89,6 +89,9 @@ export function toast(msg: string): void {
     el.id = 'toast';
     document.body.appendChild(el);
   }
+  el.setAttribute('role', 'status');
+  el.setAttribute('aria-live', 'polite');
+  el.setAttribute('aria-atomic', 'true');
   el.textContent = msg;
   el.classList.add('on');
   clearTimeout((el as HTMLElement & { _h?: number })._h);

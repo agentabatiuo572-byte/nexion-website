@@ -79,7 +79,7 @@ it('uses this job heartbeat for stale progress, refresh and recovery without wri
   expect(screen.getByText(/发布检查信息暂时无法刷新/)).toBeTruthy();
   expect(screen.getByRole('region', { name: '当前检查最近输出' }).textContent).toBe('最后收到的输出');
   expect(screen.getByRole('heading', { name: '发布状态待核实 v2' })).toBeTruthy();
-  expect(screen.getByText('待核实')).toBeTruthy();
+  expect(screen.getAllByText('待核实').length).toBeGreaterThan(0);
   expect(screen.queryByText(/服务持续报告运行状态/)).toBeNull();
   expect(screen.getByRole('region', { name: '当前检查最近输出' }).textContent).toBe('最后收到的输出');
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: '刷新状态' })); });
@@ -139,7 +139,13 @@ it.each([
   fireEvent.click(summary);
   expect(details.open).toBe(true);
   expect(details.querySelector('pre')?.textContent).toBe(combinedRaw);
-  expect(screen.getByRole('button', { name: '查看原始日志' })).toBeTruthy();
+  expect(screen.getByRole('heading', { name: '最近一次执行失败 · v2' })).toBeTruthy();
+  expect(screen.getByText('执行失败')).toBeTruthy();
+  const logButton = screen.getByRole('button', { name: '查看原始日志' });
+  expect(logButton.getAttribute('aria-expanded')).toBe('false');
+  fireEvent.click(logButton);
+  expect(screen.getByRole('button', { name: '收起' }).getAttribute('aria-expanded')).toBe('true');
+  expect(document.getElementById('publish-failure-log')?.textContent).toBe('Complete check output');
   expect(screen.getByText(/当前能否发布以下方检查为准/)).toBeTruthy();
   expect(screen.getByRole('button', { name: '检查并发布' })).toBeTruthy();
 });
@@ -206,12 +212,12 @@ it('refreshes structured output and timestamp, counts completed steps, and rende
   expect(output.textContent).toContain('<img src=x onerror=alert(1)>');
   expect(output.querySelector('img')).toBeNull();
   expect(output.style.maxHeight).toBe('220px');
-  expect(document.querySelector('time')?.dateTime).toBe('2026-09-10T04:05:06.000Z');
+  expect(document.querySelector('time[datetime="2026-09-10T04:05:06.000Z"]')).toBeTruthy();
   st.steps[1].detail = encodePublishProgress('检查布局', '第二行', '2026-09-10T04:05:11.000Z');
   await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
   expect(screen.getByText('检查布局')).toBeTruthy();
   expect(output.textContent).toBe('第二行');
-  expect(document.querySelector('time')?.dateTime).toBe('2026-09-10T04:05:11.000Z');
+  expect(document.querySelector('time[datetime="2026-09-10T04:05:11.000Z"]')).toBeTruthy();
 });
 
 it('stops showing waiting steps on failure and rechecks before confirming a fresh draft revision', async () => {
@@ -220,7 +226,7 @@ it('stops showing waiting steps on failure and rechecks before confirming a fres
   let revision = 8;
   mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight(revision) : { ...st });
   await act(async () => { render(<MemoryRouter><PublishPage /></MemoryRouter>); });
-  expect(screen.getAllByText('等待')).toHaveLength(2);
+  expect(screen.getAllByText('等待')).toHaveLength(1);
   st.activeVersion = null; st.steps[1].status = 'failed';
   await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
   expect(screen.getByText('v2 发布已停止')).toBeTruthy();
@@ -229,8 +235,16 @@ it('stops showing waiting steps on failure and rechecks before confirming a fres
   expect(screen.getByText(/发布自检缺少文案检查依赖/)).toBeTruthy();
   expect(screen.getByText(/维护人员需补齐隔离测试副本/)).toBeTruthy();
   revision = 12;
-  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重新检查并发布' })); });
+  const recheckButton = screen.getByRole('button', { name: '重新检查并发布' });
+  recheckButton.focus();
+  await act(async () => { fireEvent.click(recheckButton); });
   expect(mocks.api.mock.calls.filter(([path]) => path === '/api/publish')).toHaveLength(0);
+  const dialog = screen.getByRole('dialog', { name: '确认发布 1 处改动?' });
+  expect(dialog).toBeTruthy();
+  expect(document.activeElement).toBe(screen.getByRole('heading', { name: '确认发布 1 处改动?' }));
+  fireEvent.click(screen.getByRole('button', { name: '取消' }));
+  expect(document.activeElement).toBe(recheckButton);
+  await act(async () => { fireEvent.click(recheckButton); });
   await act(async () => { fireEvent.click(screen.getByRole('button', { name: '确认', exact: true })); });
   const call = mocks.api.mock.calls.find(([path]) => path === '/api/publish')!;
   expect(JSON.parse(call[1].body)).toEqual({ reason: '', draftRev: 12 });
@@ -283,24 +297,26 @@ it('renders grouped check details with Chinese badges and collapsible failure ou
     { version_id: 2, step: 'gates', seq: 2, title: 'i18n-parity', status: 'ok', output: null, started_at: 2, ended_at: 3 },
     { version_id: 2, step: 'gates', seq: 1, title: 'forbidden-words', status: 'failed', output: '第 3 行有禁用词', started_at: 1, ended_at: 2 },
     { version_id: 2, step: 'materialize', seq: 0, title: '快照锁定', status: 'running', output: null, started_at: 1, ended_at: null },
+    { version_id: 2, step: 'gates', seq: 4, title: 'canvas-geometry', status: 'running', output: null, started_at: 4, ended_at: null },
   ];
   mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
   render(<MemoryRouter><PublishPage /></MemoryRouter>);
   expect(await screen.findByRole('region', { name: '检查明细' })).toBeTruthy();
-  expect(screen.getByRole('progressbar', { name: '检查完成进度' }).getAttribute('aria-valuenow')).toBe('2');
-  expect(screen.getByText('已通过 2 / 4 项检查')).toBeTruthy();
-  expect(screen.getByText('准备文案与站点配置 · 0/1 通过')).toBeTruthy();
+  expect(screen.getByRole('progressbar', { name: '检查完成进度' }).getAttribute('aria-valuenow')).toBe('3');
+  expect(screen.getByText('已完成 3 / 5 项 · 2 通过 · 1 失败')).toBeTruthy();
+  const window = screen.getByRole('region', { name: '当前检查窗口' });
+  expect(window.querySelectorAll('[data-publish-check-row]')).toHaveLength(3);
+  expect(window.textContent).toContain('画布几何检查');
+  expect(window.textContent).not.toContain('合规禁用词检查');
+  const all = screen.getByText('查看全部 5 项检查');
+  fireEvent.click(all);
   expect(screen.getByText('合规禁用词检查')).toBeTruthy();
   expect(screen.queryByText('forbidden-words')).toBeNull();
-  expect(screen.getByText('配置读取检查')).toBeTruthy();
+  expect(screen.getAllByText('配置读取检查').length).toBeGreaterThan(0);
   expect(screen.queryByText('jsonc-reader-红测')).toBeNull();
-  expect(screen.getAllByText('通过')).toHaveLength(2);
-  const summary = screen.getByText('查看原文');
-  const details = summary.closest('details')!;
-  expect(details.open).toBe(false);
+  const summary = screen.getByText('查看失败原文');
   fireEvent.click(summary);
-  expect(details.open).toBe(true);
-  expect(details.querySelector('pre')?.textContent).toBe('第 3 行有禁用词');
+  expect(summary.closest('details')?.querySelector('pre')?.textContent).toBe('第 3 行有禁用词');
   expect(screen.getByRole('button', { name: '重新发布' })).toBeTruthy();
 });
 
@@ -311,9 +327,42 @@ it('keeps the legacy step window when checks are empty and shows a retry placeho
   mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
   render(<MemoryRouter><PublishPage /></MemoryRouter>);
   expect(await screen.findByText('已完成 1 / 4 个步骤')).toBeTruthy();
+  expect(screen.getByRole('region', { name: '发布执行控制台' })).toBeTruthy();
   expect(screen.getByText('检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。')).toBeTruthy();
   expect(screen.getByRole('button', { name: '重新加载明细' })).toBeTruthy();
-  expect(screen.queryByRole('region', { name: '检查明细' })).toBeNull();
+  expect(screen.getByRole('region', { name: '检查明细' })).toBeTruthy();
+});
+
+it('counts skipped checks as complete and fills the progress bar', async () => {
+  const st = status(); st.activeVersion = null;
+  st.steps = st.stepNames.map((step, index) => ({ step, status: 'ok', detail: null, started_at: index + 1, ended_at: index + 2 }));
+  st.versions = [{ ...st.versions[1], id: 2, status: 'live', created_at: 2, published_at: 2 }];
+  (st as unknown as Record<string, unknown>).checksOfVersion = 2;
+  (st as unknown as Record<string, unknown>).checks = [
+    { version_id: 2, step: 'gates', seq: 1, title: 'site-build', status: 'ok', output: null, started_at: 1, ended_at: 2 },
+    { version_id: 2, step: 'gates', seq: 2, title: 'canvas-geometry', status: 'skipped', output: null, started_at: 2, ended_at: 3 },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  const progress = await screen.findByRole('progressbar', { name: '检查完成进度' });
+  expect(progress.getAttribute('aria-valuenow')).toBe('2');
+  expect(progress.getAttribute('aria-valuemax')).toBe('2');
+  expect(progress.querySelector('span')?.getAttribute('style')).toContain('width: 100%');
+  expect(screen.getByText('已完成 2 / 2 项 · 1 通过 · 1 跳过')).toBeTruthy();
+});
+
+it('shows the latest three legacy steps after a terminal run', async () => {
+  const st = status(); st.activeVersion = null;
+  st.steps = st.stepNames.map((step, index) => ({ step, status: 'ok', detail: null, started_at: index + 1, ended_at: index + 2 }));
+  st.versions = [{ ...st.versions[1], id: 2, status: 'live', created_at: 2, published_at: 2 }];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  const window = await screen.findByRole('region', { name: '当前检查窗口' });
+  expect(window.querySelectorAll('[data-publish-check-row]')).toHaveLength(3);
+  expect(window.textContent).not.toContain('准备文案与站点配置');
+  expect(window.textContent).toContain('切换新版并核验');
+  expect(screen.getByRole('heading', { name: '最近一次执行 · v2' })).toBeTruthy();
+  expect(screen.getByText('执行完成')).toBeTruthy();
 });
 
 it('maps runner-side gate titles to Chinese and never renders raw English identifiers', () => {

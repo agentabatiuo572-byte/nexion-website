@@ -68,6 +68,19 @@ export const normalizeCheckTitle = (raw: string): string => {
   if (base === 'typecheck') return '类型检查';
   return CHECK_TITLE_LABEL[base] ?? (raw.startsWith('检查程序自测') ? '检查程序自测' : raw);
 };
+
+function PublishStateIcon({ status }: { status: string }) {
+  const state = ['running', 'ok', 'failed', 'skipped', 'unknown'].includes(status) ? status : 'unknown';
+  return <span className={`publisher-state-icon ${state}`} aria-hidden="true">
+    <svg viewBox="0 0 32 32" focusable="false">
+      {state === 'running' && <circle cx="16" cy="16" r="11" />}
+      {state === 'ok' && <><circle cx="16" cy="16" r="11" /><path className="publisher-check-stroke" d="m10 16 4 4 8-9" /></>}
+      {state === 'failed' && <><circle cx="16" cy="16" r="11" /><path d="m11 11 10 10m0-10L11 21" /></>}
+      {state === 'skipped' && <><circle cx="12" cy="16" r="7" /><circle cx="20" cy="16" r="7" /></>}
+      {state === 'unknown' && <><circle cx="16" cy="16" r="11" /><path d="M12 12a4 4 0 0 1 8 0c0 3-4 3-4 6m0 5v.1" /></>}
+    </svg>
+  </span>;
+}
 /** 把校验规则译成人话;缺映射显规则名原文,不隐藏 */
 const RULE_LABEL: Record<string, string> = {
   'forbidden-word': '合规禁用词', placeholder: '占位符缺失', untranslated: '缺译', 'unknown-key': '非法 key',
@@ -100,6 +113,9 @@ export default function PublishPage() {
   const timer = useRef<number | null>(null);
   const requests = useRef(createPublishRequestGate());
   const acting = useRef(false);
+  const confirmHeading = useRef<HTMLHeadingElement | null>(null);
+  const confirmTrigger = useRef<HTMLElement | null>(null);
+  const confirmVisible = confirm !== null;
 
   const refresh = useCallback(async () => {
     const ticket = requests.current.begin();
@@ -123,6 +139,9 @@ export default function PublishPage() {
   // Keep an effect-safe, void-returning entry point for existing refresh buttons.
   const load = useCallback(() => { void refresh(); }, [refresh]);
   useEffect(() => { load(); return () => requests.current.invalidate(); }, [load]);
+  useEffect(() => {
+    if (confirmVisible) confirmHeading.current?.focus();
+  }, [confirmVisible]);
   useEffect(() => {
     if (translations && pre && translations.draftRev > pre.draftRev) load();
   }, [translations?.draftRev, pre?.draftRev, load]);
@@ -184,6 +203,7 @@ export default function PublishPage() {
 
   async function recheckAndConfirm(intent: PublishIntent = 'draft') {
     if (acting.current) return;
+    const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     acting.current = true;
     setBusy(true);
     try {
@@ -192,8 +212,14 @@ export default function PublishPage() {
       const { p, s } = result;
       const blocked = publishBlockReason(p, s, intent);
       if (blocked) { toast(blocked); return; }
+      confirmTrigger.current = trigger;
       setConfirm(preparePublishConfirmation(p, s, intent));
     } finally { acting.current = false; setBusy(false); }
+  }
+
+  function closeConfirmation() {
+    setConfirm(null);
+    confirmTrigger.current?.focus();
   }
 
   /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
@@ -257,8 +283,36 @@ export default function PublishPage() {
   const failedChecks = checkGroups.flatMap((group) => group.items.filter((item) => item.status === 'failed'));
   /* 进度按收口后计数：groupPublishChecks 已按 (step,title) 留最新 seq，running+ok 双行不虚高。 */
   const coalescedChecks = checkGroups.flatMap((group) => group.items);
-  const doneChecks = coalescedChecks.filter((item) => item.status === 'ok').length;
+  const passedChecks = coalescedChecks.filter((item) => item.status === 'ok').length;
+  const skippedChecks = coalescedChecks.filter((item) => item.status === 'skipped').length;
+  const completedChecks = passedChecks + skippedChecks + failedChecks.length;
   const activeElapsed = activeStarts.length ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
+  const phaseNames = st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap'];
+  const consoleVersion = active ?? st.checksOfVersion ?? st.stepsOfVersion ?? liveVersion?.id ?? null;
+  const phaseStep = (name: string) => st.stepsOfVersion === consoleVersion ? st.steps.find((step) => step.step === name) : undefined;
+  const displayedStep = (name: string) => active ? stepDone(name) : phaseStep(name);
+  const visibleChecks = coalescedChecks.slice(-3);
+  const legacyCandidates = active ? phaseNames : phaseNames.filter((name) => displayedStep(name));
+  const legacyCurrentIndex = legacyCandidates.findIndex((name) => ['running', 'failed', 'unknown'].includes(displayedStep(name)?.status ?? ''));
+  const legacyWindowStart = legacyCurrentIndex < 0
+    ? Math.max(0, legacyCandidates.length - 3)
+    : Math.max(0, Math.min(legacyCurrentIndex - 1, legacyCandidates.length - 3));
+  const legacyWindow = legacyCandidates.slice(legacyWindowStart, legacyWindowStart + 3);
+  const completedPhaseCount = phaseNames.filter(name => displayedStep(name)?.status === 'ok').length;
+  const hasHistoricalSteps = !active && !!consoleVersion && st.steps.length > 0;
+  const historicalFailed = hasHistoricalSteps && phaseNames.some(name => displayedStep(name)?.status === 'failed');
+  const historicalComplete = hasHistoricalSteps && phaseNames.every(name => displayedStep(name)?.status === 'ok');
+  const consoleHeading = active
+    ? taskDisconnected || pollFailed ? `发布状态待核实 v${active}` : `正在发布 v${active}`
+    : consoleVersion && coalescedChecks.length ? `最近一次检查 · v${consoleVersion}`
+    : hasHistoricalSteps ? `${historicalFailed ? '最近一次执行失败' : '最近一次执行'} · v${consoleVersion}` : '发布器待命';
+  const consoleDescription = active
+    ? '完成项自动向上移出，当前窗口只保留最近三项真实检查。'
+    : coalescedChecks.length ? '显示最近一次真实检查记录；新发布开始后会自动切换到实时进度。' : '发起发布后，这里会显示真实检查进度、失败位置和最终核验结果。';
+  const consoleState = active ? taskDisconnected || pollFailed ? 'unknown' : 'running'
+    : unknown ? 'unknown' : historicalFailed ? 'failed' : historicalComplete ? 'ok' : 'idle';
+  const consoleStateText = active ? taskDisconnected || pollFailed ? '结果待核实' : '执行中'
+    : unknown ? '结果待核实' : historicalFailed ? '执行失败' : historicalComplete ? '执行完成' : hasHistoricalSteps ? '最近记录' : '等待任务';
   return (
     <section className="editor-page">
       <header className="page-heading">
@@ -266,19 +320,112 @@ export default function PublishPage() {
         <h2>发布与版本</h2>
         <p className="page-description">核对已保存的草稿，让修改在官网生效。发布前自动检查，历史版本可随时查看。</p>
       </header>
-      <ol className="publish-steps" aria-label="发布流水线进度">
-        {(st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap']).map((name, i) => {
-          const s = active ? stepDone(name) : undefined;
-          const state = !active ? 'idle' : s?.status === 'ok' ? 'done' : s?.status === 'failed' ? 'failed' : s?.status === 'running' ? 'doing' : 'todo';
-          const stateWord = !active ? '空闲' : s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? '进行中' : '未开始';
-          return (
-            <li key={name} data-state={state} aria-label={`${STEP_LABEL[name] ?? name}：${stateWord}`}>
-              <span>{String(i + 1).padStart(2, '0')}</span>
-              <div><b>{STEP_LABEL[name] ?? name}</b></div>
-            </li>
-          );
-        })}
-      </ol>
+      <section className="publisher-console" role="region" aria-label="发布执行控制台">
+        <header className="publisher-console-heading">
+          <div>
+            <span className="publisher-console-kicker">实际发布状态</span>
+            <h3>{consoleHeading}</h3>
+            <p>{consoleDescription}</p>
+          </div>
+          <span className={`publisher-live-state ${consoleState}`}>{consoleStateText}</span>
+        </header>
+
+        <ol className="publisher-phases" aria-label="发布流水线进度">
+          {phaseNames.map((name, i) => {
+            const step = phaseStep(name);
+            const state = step?.status === 'ok' ? 'done' : step?.status === 'failed' ? 'failed'
+              : step?.status === 'running' ? taskDisconnected || pollFailed ? 'unknown' : 'doing' : active ? 'todo' : 'idle';
+            const stateWord = state === 'done' ? '完成' : state === 'failed' ? '失败' : state === 'doing' ? '进行中'
+              : state === 'unknown' ? '待核实' : state === 'todo' ? '未开始' : '待命';
+            return <li key={name} data-state={state} aria-label={`${STEP_LABEL[name] ?? name}：${stateWord}`}>
+              <span className="publisher-phase-number">{String(i + 1).padStart(2, '0')}</span>
+              <div><b>{STEP_LABEL[name] ?? name}</b><small>{stateWord}</small></div>
+            </li>;
+          })}
+        </ol>
+
+        <section className="publisher-check-panel" role="region" aria-label="检查明细">
+          <div className="publisher-progress-copy">
+            <div>
+              <span>{coalescedChecks.length ? '真实检查进度' : '发布阶段进度'}</span>
+              <b>{coalescedChecks.length ? `已完成 ${completedChecks} / ${coalescedChecks.length} 项 · ${passedChecks} 通过${skippedChecks ? ` · ${skippedChecks} 跳过` : ''}${failedChecks.length ? ` · ${failedChecks.length} 失败` : ''}`
+                : `已完成 ${completedPhaseCount} / ${phaseNames.length} 个步骤`}</b>
+            </div>
+            {activeElapsed > 2 && <time>本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</time>}
+          </div>
+          <div className="publisher-progress-track" role="progressbar" aria-label="检查完成进度" aria-valuemin={0}
+            aria-valuemax={coalescedChecks.length || phaseNames.length}
+            aria-valuenow={coalescedChecks.length ? completedChecks : completedPhaseCount}>
+            <span style={{ width: `${coalescedChecks.length
+              ? Math.round((completedChecks / coalescedChecks.length) * 100)
+              : Math.round((completedPhaseCount / phaseNames.length) * 100)}%` }} />
+          </div>
+
+          <div className="publisher-check-window" role="region" aria-label="当前检查窗口" aria-live="polite">
+            {visibleChecks.map((item) => <div className="publisher-check-row" data-publish-check-row="" data-state={item.status} key={item.seq}>
+              <PublishStateIcon status={item.status} />
+              <span className="publisher-check-copy">
+                <span className="publisher-check-title"><span>{String(Math.max(1, coalescedChecks.indexOf(item) + 1)).padStart(2, '0')}</span>{normalizeCheckTitle(item.title)}</span>
+                <small>{STEP_LABEL[item.step] ?? item.step}</small>
+              </span>
+              <span className="publisher-check-state">{CHECK_STATUS_LABEL[item.status] ?? '未知'}</span>
+            </div>)}
+            {!coalescedChecks.length && legacyWindow.map((name) => {
+              const step = displayedStep(name);
+              const progress = decodePublishProgress(step?.detail);
+              const status = step?.status === 'ok' ? 'ok' : step?.status === 'failed' ? 'failed'
+                : step?.status === 'running' ? taskDisconnected || pollFailed ? 'unknown' : 'running' : 'unknown';
+              const secs = step?.started_at ? Math.round(((step.ended_at ?? Date.now()) - step.started_at) / 1000) : 0;
+              return <div className="publisher-check-row legacy" data-publish-check-row="" data-state={status} key={name}>
+                <PublishStateIcon status={status} />
+                <span className="publisher-check-copy">
+                  <span className="publisher-check-title">{STEP_LABEL[name] ?? name}</span>
+                  {step?.status === 'running' && step.detail && <small>{progress?.title ?? step.detail}</small>}
+                  {step?.status === 'running' && progress && <>
+                    <small>最后更新：<time dateTime={progress.updatedAt}>{new Date(progress.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}</time></small>
+                    {progress.output && <pre className="mono" tabIndex={0} role="region" aria-label="当前检查最近输出" style={{ maxHeight: 220, overflow: 'auto' }}>{progress.output}</pre>}
+                  </>}
+                </span>
+                <span className="publisher-check-state">
+                  {step?.status === 'ok' ? '完成' : step?.status === 'failed' ? '失败' : step?.status === 'running' ? taskDisconnected || pollFailed ? '待核实' : '进行中' : '等待'}
+                  {step && secs > 2 && <small>{secs < 60 ? `${secs} 秒` : `${Math.floor(secs / 60)} 分 ${secs % 60} 秒`}</small>}
+                </span>
+              </div>;
+            })}
+            {!active && !coalescedChecks.length && st.steps.length === 0 && <div className="publisher-console-empty">暂无执行中的发布任务</div>}
+          </div>
+
+          {coalescedChecks.length > 0 && <details className="publisher-all-checks">
+            <summary>查看全部 {coalescedChecks.length} 项检查</summary>
+            <div className="publisher-all-checks-list">
+              {checkGroups.map((group) => <section key={group.step} aria-label={STEP_LABEL[group.step] ?? group.step}>
+                <h4>{STEP_LABEL[group.step] ?? group.step} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} 通过</h4>
+                {group.items.map((item) => <div className="publisher-all-check-row" data-state={item.status} key={item.seq}>
+                  <PublishStateIcon status={item.status} />
+                  <div><b>{normalizeCheckTitle(item.title)}</b><small>{CHECK_STATUS_LABEL[item.status] ?? '未知'}</small>
+                    {item.status === 'failed' && item.output && <details>
+                      <summary>查看失败原文</summary>
+                      <pre className="mono">{item.output}</pre>
+                    </details>}
+                  </div>
+                </div>)}
+              </section>)}
+            </div>
+          </details>}
+          {!coalescedChecks.length && active && st.steps.length > 0 && <div className="publisher-console-notice" role="status">
+            检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。
+            <button className="publisher-console-link" onClick={load}>重新加载明细</button>
+          </div>}
+          {failedChecks.length > 0 && active && <div className="publisher-console-result failed">
+            <span>有 {failedChecks.length} 项检查未通过，本次任务停止后可重新发布。</span>
+            <button className="publisher-console-link" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新发布</button>
+          </div>}
+        </section>
+        <footer className="publisher-console-footer">
+          <span><i className="running" />进行中</span><span><i className="ok" />通过</span><span><i className="skipped" />跳过</span><span><i className="unknown" />待核实</span>
+          <button className="publisher-console-link" disabled={busy || refreshing} onClick={load}>{refreshing ? '检查中…' : '刷新发布状态'}</button>
+        </footer>
+      </section>
       {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。恢复连接后将核实执行结果。</div>}
       {failed && <div className="note warn" role="status">{loadError || '发布检查信息暂时无法刷新，已保留上次结果。'}<button className="btn ghost sm" onClick={load}>重试</button></div>}
       <div className="row" style={{ marginBottom: 12 }}>
@@ -300,115 +447,34 @@ export default function PublishPage() {
           <pre className="kv mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failureAdvice.raw || '原因未记录'}</pre>
         </details>
         {failedStep?.detail && <>
-          <button className="btn ghost sm" onClick={() => setOpenLog(openLog ? null : 'failure')}>{openLog ? '收起' : '查看原始日志'}</button>
-          {openLog && <pre className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failedStep.detail}</pre>}
+          <button className="btn ghost sm" aria-expanded={openLog === 'failure'} aria-controls="publish-failure-log" onClick={() => setOpenLog(openLog ? null : 'failure')}>{openLog ? '收起' : '查看原始日志'}</button>
+          {openLog && <pre id="publish-failure-log" className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failedStep.detail}</pre>}
         </>}
       </div>}
 
-      {/* 进行中:四步进度 */}
-      {active && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <h3>{taskDisconnected || pollFailed ? '发布状态待核实' : '正在发布'} v{active}</h3>
-          {taskDisconnected && <div className="note warn" role="status">
-            <p>本次执行器已超过 1 分钟未报告心跳，发布结果待核实。</p>
-            <p>系统会继续刷新状态。请等待确认停止后再重新检查并发布，最后收到的检查内容保留在下方。</p>
-            <button className="btn ghost sm" onClick={load}>刷新状态</button>
-          </div>}
-          {checkGroups.length ? (
-            <div style={{ background: '#0c1912', border: '1px solid #314239', borderRadius: 8, padding: '12px 14px', marginTop: 8 }} role="region" aria-label="检查明细">
-              <p className="kv" style={{ color: '#e4ece6' }}>已通过 {doneChecks} / {coalescedChecks.length} 项检查</p>
-              <div role="progressbar" aria-label="检查完成进度" aria-valuemin={0} aria-valuemax={coalescedChecks.length} aria-valuenow={doneChecks} style={{ height: 6, background: '#405147', borderRadius: 5, marginTop: 8, overflow: 'hidden' }}>
-                <span style={{ display: 'block', height: '100%', width: `${coalescedChecks.length ? Math.round((doneChecks / coalescedChecks.length) * 100) : 0}%`, background: '#9edc1d', borderRadius: 5 }} />
-              </div>
-              {activeElapsed > 2 && <p className="kv" style={{ color: '#9eafa3' }}>本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</p>}
-              {checkGroups.map((group) => (
-                <section key={group.step} style={{ marginTop: 12 }} aria-label={`${STEP_LABEL[group.step] ?? '检查分组'}`}>
-                  <h4 style={{ color: '#e4ece6', fontSize: 'var(--text-sm)', margin: '0 0 6px' }}>{STEP_LABEL[group.step] ?? '检查分组'} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} 通过</h4>
-                  {group.items.map((item) => (
-                    <div className="row" key={item.seq} style={{ padding: '6px 0', borderTop: '1px solid #314239' }}>
-                      <span className={`pill ${item.status === 'ok' ? 'ok' : item.status === 'failed' ? 'bad' : item.status === 'running' ? 'warn' : ''}`} style={{ minWidth: '3.625rem', textAlign: 'center' }}>
-                        {CHECK_STATUS_LABEL[item.status] ?? '未知'}
-                      </span>
-                      <div style={{ color: '#e4ece6', minWidth: 0, flex: 1 }}>
-                        {normalizeCheckTitle(item.title)}
-                        {item.status === 'failed' && item.output && <details style={{ marginTop: 4 }}>
-                          <summary style={{ cursor: 'pointer' }}>查看原文</summary>
-                          <pre className="mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto', margin: '6px 0', fontSize: 'var(--text-sm)' }}>{item.output}</pre>
-                        </details>}
-                      </div>
-                    </div>
-                  ))}
-                </section>
-              ))}
-              {failedChecks.length > 0 && <div className="row" style={{ marginTop: 8 }}>
-                <span className="kv" style={{ color: '#ef8077' }}>有 {failedChecks.length} 项检查未通过，本次任务停止后可在下方重新发布。</span>
-                <button className="btn ghost sm" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新发布</button>
-              </div>}
-            </div>
-          ) : (
-          <>
-          <p className="kv">已完成 {st.stepNames.filter(name => stepDone(name)?.status === 'ok').length} / {st.stepNames.length} 个步骤</p>
-          {activeElapsed > 2 && <p className="kv">本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</p>}
-          {st.stepNames.map((name) => {
-            const s = stepDone(name);
-            const progress = decodePublishProgress(s?.detail);
-            const cls = s?.status === 'ok' ? 'ok' : s?.status === 'failed' ? 'bad' : s?.status === 'running' ? 'warn' : '';
-            const secs = s?.started_at ? Math.round(((s.ended_at ?? Date.now()) - s.started_at) / 1000) : 0;
-            return (
-              <div className="row" key={name} style={{ padding: '6px 0' }}>
-                <span className={`pill ${cls}`} style={{ minWidth: '3.625rem', textAlign: 'center' }}>
-                  {s?.status === 'ok' ? '完成' : s?.status === 'failed' ? '失败' : s?.status === 'running' ? taskDisconnected || pollFailed ? '待核实' : '进行中' : '等待'}
-                </span>
-                <div style={{ color: s ? 'var(--ink)' : 'var(--ink4)', minWidth: 0, flex: 1 }}>
-                  {STEP_LABEL[name] ?? name}
-                  {s?.status === 'running' && s.detail && <span className="kv" style={{ display: 'block', overflowWrap: 'anywhere' }}>{progress?.title ?? s.detail}</span>}
-                  {s?.status === 'running' && progress && <>
-                    <span className="kv" style={{ display: 'block' }}>最后更新：<time dateTime={progress.updatedAt}>{new Date(progress.updatedAt).toLocaleTimeString('zh-CN', { hour12: false })}</time></span>
-                    {progress.output && <pre className="mono" tabIndex={0} role="region" aria-label="当前检查最近输出" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto', margin: '6px 0', fontSize: 'var(--text-sm)' }}>{progress.output}</pre>}
-                  </>}
-                </div>
-                {/* 「已耗时 881s」对运营是机器单位;门链本来就要跑十几分钟(实景走查 P2-7) */}
-                {s && secs > 2 && <span className="kv">已耗时 {secs < 60 ? `${secs} 秒` : `${Math.floor(secs / 60)} 分 ${secs % 60} 秒`}</span>}
-              </div>
-            );
-          })}
-          {st.steps.length > 0 && (
-            <div className="note" role="status">
-              检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。
-              <button className="btn ghost sm" onClick={load}>重新加载明细</button>
-            </div>
-          )}
-          </>
-          )}
-          {st.steps.length === 0 && (
-            <div className="note warn">
-              已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。
-              <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
-            </div>
-          )}
-          {/* 已开工但执行器可能已经死了:给出口。服务端只在失联满 12 分钟时才放行,理由必填、记审计。 */}
-          {st.steps.length > 0 && !forcing && (
-            <div className="note" style={{ marginTop: 8 }}>
-              执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
-              {!pollFailed && !taskDisconnected && <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>}
-            </div>
-          )}
-          {forcing && (
-            <div className="note bad" style={{ marginTop: 8 }}>
-              <b>强制中止 v{active}</b>
-              {/* 口径要与列表和审计一致:中止后列表显示「已取消」,这里就不能写「记为失败」(第五轮 P1-7) */}
-              {/* JSX 里 `**…**` 就是两个星号,会原样印在界面上;要加重用 <b>(gate-console-copy 守) */}
-              <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
-              <div className="kv">中止后系统会撤销本次执行权限；发布服务确认权限失效后停止操作。</div>
-              <div className="row" style={{ marginTop: 6, gap: 8 }}>
-                <input aria-label="中止理由（至少 4 个字）" className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
-                <button className="btn" onClick={forceCancel}>确认中止</button>
-                <button className="btn ghost" onClick={() => { setForcing(false); setForceReason(''); }}>返回</button>
-              </div>
-            </div>
-          )}
+      {active && taskDisconnected && <div className="note warn" role="status">
+        <p>本次执行器已超过 1 分钟未报告心跳，发布结果待核实。</p>
+        <p>系统会继续刷新状态。请等待确认停止后再重新检查并发布，最后收到的检查内容已保留。</p>
+        <button className="btn ghost sm" onClick={load}>刷新状态</button>
+      </div>}
+      {active && st.steps.length === 0 && <div className="note warn">
+        已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。
+        <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
+      </div>}
+      {active && st.steps.length > 0 && !forcing && <div className="note">
+        执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
+        {!pollFailed && !taskDisconnected && <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>}
+      </div>}
+      {active && forcing && <div className="note bad">
+        <b>强制中止 v{active}</b>
+        <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
+        <div className="kv">中止后系统会撤销本次执行权限；发布服务确认权限失效后停止操作。</div>
+        <div className="row" style={{ marginTop: 6, gap: 8 }}>
+          <input aria-label="中止理由（至少 4 个字）" className="inp" style={{ flex: 1 }} placeholder="中止理由(至少 4 个字)" value={forceReason} onChange={(e) => setForceReason(e.target.value)} />
+          <button className="btn" onClick={forceCancel}>确认中止</button>
+          <button className="btn ghost" onClick={() => { setForcing(false); setForceReason(''); }}>返回</button>
         </div>
-      )}
+      </div>}
 
       {/* 线上快照与系统记录对不上:切换已落盘、回报没送到时会这样,必须让人看见而不是静默 */}
       {st.drift && (
@@ -537,8 +603,8 @@ export default function PublishPage() {
 
       {/* 确认弹窗 */}
       {confirm && (
-        <div className="card" style={{ marginBottom: 12, outline: '2px solid var(--brand)' }}>
-          <h3>{confirm.rebuild ? `确认使用当前代码重新构建 v${confirm.rollbackFrom}?` : confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
+        <div className="card" role="dialog" aria-modal="false" aria-labelledby="publish-confirm-title" style={{ marginBottom: 12, outline: '2px solid var(--brand)' }}>
+          <h3 id="publish-confirm-title" ref={confirmHeading} tabIndex={-1}>{confirm.rebuild ? `确认使用当前代码重新构建 v${confirm.rollbackFrom}?` : confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
           <p className="kv">
             {confirm.rebuild
               ? '本次使用所确认版本的内容和执行器当前代码重新构建，仍执行全部发布检查。草稿不会覆盖该版本内容，也不会被重建操作改写。确认的是具体版本，不会自动改成稍后出现的其他版本。成功后生成新版本号。'
@@ -551,7 +617,7 @@ export default function PublishPage() {
               <textarea id="publish-reason" value={confirm.reason} onChange={(e) => setConfirm({ ...confirm, reason: e.target.value })} placeholder="例:Google Play 过审,开放安卓下载" /></div>
           )}
           <div className="row" style={{ justifyContent: 'flex-end' }}>
-            <button className="btn ghost" onClick={() => setConfirm(null)}>取消</button>
+            <button className="btn ghost" onClick={closeConfirmation}>取消</button>
             <button className="btn primary" disabled={unavailable || ((pre.reasonRequired || confirm.rollbackFrom !== undefined) && confirm.reason.trim().length < 8)} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
           </div>
         </div>
