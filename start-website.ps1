@@ -293,7 +293,11 @@ function Start-Website {
     }
     Ensure-LocalService 'api'
     Ensure-PublishApi $publish.Token
+    # A dev server can keep its pre-update module graph across a Git fast-forward.
+    # Refresh only the stateless code surfaces; API/runner retain their job-safe reload protocols.
+    Restart-OwnedFrontendService 'site'
     Ensure-LocalService 'site'
+    Restart-OwnedFrontendService 'admin'
     Ensure-LocalService 'admin'
     # Recheck ownership immediately before sending credentials to the local API.
     if (@(Get-OwnedListener (Get-ServiceDefinition 'api')).Count -eq 0) { throw 'The local API stopped before initialization.' }

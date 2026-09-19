@@ -205,16 +205,16 @@ function Stop-VerifiedProcess($Expected) {
     Stop-Process -Id $current.ProcessId -Force -ErrorAction Stop
 }
 
-function Get-VerifiedApiSupervisor {
-    $definition = Get-ServiceDefinition 'api'
+function Get-VerifiedServiceSupervisor([string]$Name) {
+    $definition = Get-ServiceDefinition $Name
     $listeners = @(Get-OwnedListener $definition)
     if ($listeners.Count -eq 0) { return $null }
-    $supervisor = Get-OwnedSupervisor 'api'
-    if (-not $supervisor) { throw 'API ownership is not proven by a live launcher supervisor; no process was stopped.' }
+    $supervisor = Get-OwnedSupervisor $Name
+    if (-not $supervisor) { throw "$Name ownership is not proven by a live launcher supervisor; no process was stopped." }
     $roots = @{}
     foreach ($listener in $listeners) {
         $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction Stop
-        if (-not $process -or -not (Test-ServiceCommandPath $process.CommandLine $definition.Marker)) { throw 'API ownership changed; no service was stopped.' }
+        if (-not $process -or -not (Test-ServiceCommandPath $process.CommandLine $definition.Marker)) { throw "$Name ownership changed; no service was stopped." }
         $root = $null
         $parent = $process
         # Walk only parents with a matching lifetime. A global npm/terminal process
@@ -225,15 +225,17 @@ function Get-VerifiedApiSupervisor {
             if ($supervisor -and $next.ProcessId -eq $supervisor.ProcessId -and $next.CreationDate -eq $supervisor.CreationDate) { $root = $next; break }
             $parent = $next
         }
-        if (-not $root) { throw 'API listener is not a descendant of the verified launcher supervisor; no process was stopped.' }
+        if (-not $root) { throw "$Name listener is not a descendant of the verified launcher supervisor; no process was stopped." }
         $roots[[string]$root.ProcessId] = $root
     }
     return $supervisor
 }
 
-function Stop-OwnedApi {
-    $definition = Get-ServiceDefinition 'api'
-    $supervisor = Get-VerifiedApiSupervisor
+function Get-VerifiedApiSupervisor { return Get-VerifiedServiceSupervisor 'api' }
+
+function Stop-OwnedService([string]$Name) {
+    $definition = Get-ServiceDefinition $Name
+    $supervisor = Get-VerifiedServiceSupervisor $Name
     if (-not $supervisor) { return }
     $branches = @(Get-ProcessBranch $supervisor)
     # All roots and descendants are captured before the first stop. Recheck each
@@ -247,8 +249,45 @@ function Stop-OwnedApi {
     }
     $deadline = [DateTime]::UtcNow.AddSeconds(15)
     while (@(Get-OwnedListener $definition).Count -gt 0) {
-        if ([DateTime]::UtcNow -ge $deadline) { throw 'The owned API did not stop. Restart was aborted.' }
+        if ([DateTime]::UtcNow -ge $deadline) { throw "The owned $Name service did not stop. Restart was aborted." }
         Start-Sleep -Milliseconds 250
+    }
+}
+
+function Stop-OwnedApi { Stop-OwnedService 'api' }
+
+function Restart-OwnedFrontendService([ValidateSet('site', 'admin')][string]$Name) {
+    $definition = Get-ServiceDefinition $Name
+    $listeners = @(Get-OwnedListener $definition)
+    if ($listeners.Count -eq 0) { return }
+    Write-Host "[refresh] $Name :$($definition.Port)"
+    try {
+        # Astro 7 detaches from its launcher supervisor. Its already-validated
+        # fixed-port listener is therefore the narrowest safe restart target.
+        if ($Name -eq 'site' -and -not (Get-OwnedSupervisor $Name)) {
+            foreach ($listener in $listeners) {
+                $process = Get-CimInstance Win32_Process -Filter "ProcessId=$($listener.OwningProcess)" -ErrorAction Stop
+                if (-not $process) { continue }
+                if (-not (Test-ServiceCommandPath $process.CommandLine $definition.Marker)) { throw "$Name ownership changed; no process was stopped." }
+                Stop-VerifiedProcess $process
+            }
+            $deadline = [DateTime]::UtcNow.AddSeconds(15)
+            while (@(Get-OwnedListener $definition).Count -gt 0) {
+                if ([DateTime]::UtcNow -ge $deadline) { throw "The owned $Name service did not stop. Restart was aborted." }
+                Start-Sleep -Milliseconds 250
+            }
+        } else {
+            Stop-OwnedService $Name
+        }
+    }
+    catch {
+        $problem = $_
+        # A dev server may exit after the first ownership read. Accept only a
+        # genuinely free port; a replacement/foreign listener remains fatal.
+        try { $remaining = @(Get-NetTCPConnection -State Listen -ErrorAction Stop | Where-Object { $_.LocalPort -eq $definition.Port }) }
+        catch { throw $problem }
+        if ($remaining.Count -eq 0) { return }
+        throw $problem
     }
 }
 

@@ -632,6 +632,51 @@ try {
         Assert-Throws { Stop-VerifiedProcess $expected } 'identity changed'
         Assert-True ($script:Stopped.Count -eq 0 -and $script:ProcessTable.ContainsKey(71002)) 'A recycled PID was terminated.'
     }
+    Invoke-Test 'Owned frontend refresh stops only its verified same-checkout supervisor tree' {
+        $siteCommand = 'powershell.exe -NoProfile -File "' + $LauncherPath + '" -Service site'
+        $script:ProcessTable = @{
+            71500 = (New-FakeProcess 71500 71999 $siteCommand $script:Created)
+            71501 = (New-FakeProcess 71501 71500 ('node.exe "' + (Get-ServiceDefinition 'site').Marker + 'astro/bin/astro.mjs" dev') $script:Created.AddSeconds(1))
+            71999 = (New-FakeProcess 71999 0 'powershell.exe -File C:\unrelated.ps1' $script:Created.AddMinutes(-1))
+        }
+        $script:Stopped.Clear()
+        @{ ProcessId = 71500; Created = $script:Created.ToString('o') } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $LocalDir 'site-process.json')
+        Set-TestFunction 'Get-NetTCPConnection' {
+            [CmdletBinding()]
+            param([string]$State)
+            if ($script:ProcessTable.ContainsKey(71501)) { return [pscustomobject]@{ LocalPort = 4321; LocalAddress = '127.0.0.1'; OwningProcess = 71501 } }
+        }
+        Restart-OwnedFrontendService 'site'
+        Assert-True (($script:Stopped -join ',') -ceq '71500,71501') 'Frontend refresh did not stop its verified supervisor tree.'
+        Assert-True ($script:ProcessTable.Count -eq 1 -and $script:ProcessTable.ContainsKey(71999)) 'Frontend refresh stopped an unrelated process.'
+    }
+    Invoke-Test 'Frontend refresh accepts an owned listener that exits between identity reads' {
+        $script:ProcessTable = @{ 71601 = (New-FakeProcess 71601 71600 ('node.exe "' + (Get-ServiceDefinition 'site').Marker + 'astro/bin/astro.mjs" dev') $script:Created) }
+        $script:ListenerReads = 0
+        Set-TestFunction 'Get-NetTCPConnection' {
+            [CmdletBinding()]
+            param([string]$State)
+            $script:ListenerReads++
+            if ($script:ListenerReads -eq 2) { $script:ProcessTable.Remove(71601) }
+            if ($script:ListenerReads -le 2) { return [pscustomobject]@{ LocalPort = 4321; LocalAddress = '127.0.0.1'; OwningProcess = 71601 } }
+        }
+        Restart-OwnedFrontendService 'site'
+        Assert-True ($script:ListenerReads -eq 3) 'A vanished owned listener was not rechecked before accepting the completed refresh.'
+    }
+    Invoke-Test 'Astro daemon refresh stops its verified orphan listener without a live supervisor' {
+        $script:ProcessTable = @{
+            71701 = (New-FakeProcess 71701 71700 ('node.exe "' + (Get-ServiceDefinition 'site').Marker + 'astro/bin/astro.mjs" dev --port 4321 --host 127.0.0.1 --json') $script:Created)
+        }
+        $script:Stopped.Clear()
+        Remove-Item -LiteralPath (Join-Path $LocalDir 'site-process.json') -ErrorAction SilentlyContinue
+        Set-TestFunction 'Get-NetTCPConnection' {
+            [CmdletBinding()]
+            param([string]$State)
+            if ($script:ProcessTable.ContainsKey(71701)) { return [pscustomobject]@{ LocalPort = 4321; LocalAddress = '127.0.0.1'; OwningProcess = 71701 } }
+        }
+        Restart-OwnedFrontendService 'site'
+        Assert-True (($script:Stopped -join ',') -ceq '71701' -and $script:ProcessTable.Count -eq 0) 'Verified Astro daemon listener was left running or an unrelated process was stopped.'
+    }
     Invoke-Test 'Owned API reload stops only its verified supervisor tree' {
         $apiCommand = 'powershell.exe -NoProfile -File "' + $LauncherPath + '" -Service api'
         $script:ProcessTable = @{
@@ -762,12 +807,13 @@ try {
         $script:OpenedUrls = New-Object 'Collections.Generic.List[string]'
         Set-TestFunction 'Start-Process' { param([string]$FilePath); $script:OpenedUrls.Add($FilePath) }
         Set-TestFunction 'Initialize-PublishConfiguration' { $script:StartupEvents.Add('publish-config'); return @{ Token = 'synthetic-dedicated-publish-token-for-startup' } }
+        Set-TestFunction 'Restart-OwnedFrontendService' { param([string]$Name); $script:StartupEvents.Add('refresh-' + $Name) }
         Set-TestFunction 'Ensure-LocalService' { param([string]$Name); $script:StartupEvents.Add($Name) }
         Set-TestFunction 'Ensure-PublishApi' { $script:StartupEvents.Add('api-authenticated') }
         Set-TestFunction 'Initialize-LocalAdmin' { $script:StartupEvents.Add('admin-login'); return @{ Created = $false; Password = 'synthetic-admin' } }
         Set-TestFunction 'Ensure-PublishRunner' { $script:StartupEvents.Add('runner-ready') }
         Start-Website
-        Assert-True (($script:StartupEvents -join ',') -ceq 'publish-config,api,api-authenticated,site,admin,admin-login,runner-ready') 'One-click startup omitted publish setup, API authentication, account verification, or the runner.'
+        Assert-True (($script:StartupEvents -join ',') -ceq 'publish-config,api,api-authenticated,refresh-site,site,refresh-admin,admin,admin-login,runner-ready') 'One-click startup did not refresh both code surfaces before readiness, or omitted a managed service.'
         Assert-True ($script:OpenedUrls.Count -eq 0) 'NoBrowser still opened a browser.'
         # Missing schema dependencies must install in that package using its lock.
         Remove-Item -LiteralPath (Join-Path $fixture.Root 'schema/node_modules/zod/package.json')
