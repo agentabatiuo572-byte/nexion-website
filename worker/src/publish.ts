@@ -803,6 +803,61 @@ publishRoutes.post('/step', async (c) => {
   if (!eff.ok) return c.json({ error: eff.error, why: eff.why }, 409);
   return c.json({ ok: true, ...(b.status === 'failed' ? { failed: true, reason: eff.reason } : {}) });
 });
+/** 检查明细追加写入(绿色科技风进度窗的数据源)。
+    复用 /step 的第零层身份校验(claim_nonce + runner_id),再加第二层的锁校验:
+    身份 + 锁都通过才写,不另造授权。publish_steps.detail 只存"当前窗口",
+    本表按版本追加,旧 detail 语义不动。seq 由服务端按版本 MAX(seq)+1 分配,保证单调。 */
+export const PUBLISH_CHECK_STATUSES = ['running', 'ok', 'failed', 'skipped', 'unknown'] as const;
+export type PublishCheckStatus = (typeof PUBLISH_CHECK_STATUSES)[number];
+publishRoutes.post('/check', async (c) => {
+  const b = await c.req.json<{ versionId?: number; step?: string; title?: string; status?: string; output?: string; stamp?: string; runnerId?: string }>().catch(() => null);
+  if (!Number.isSafeInteger(b?.versionId) || !b?.step || !PUBLISH_STEPS.includes(b.step as PublishStep)
+    || typeof b.title !== 'string' || !b.title.trim()
+    || !PUBLISH_CHECK_STATUSES.includes(b.status as PublishCheckStatus)
+    || (b.output != null && typeof b.output !== 'string')) {
+    return c.json({ error: 'bad-request' }, 400);
+  }
+  const now = Date.now();
+  /* 第零层:身份 —— 与 /step 同一判据(版本行上的 claim_nonce + runner_id),与锁无关。 */
+  const versionNonce = await c.env.DB
+    .prepare('SELECT claim_nonce, status, runner_id FROM config_versions WHERE id=?1')
+    .bind(b.versionId)
+    .first<{ claim_nonce: string | null; status: string; runner_id: string | null }>();
+  if (!versionNonce) return c.json({ error: 'no-such-version' }, 404);
+  if (!versionNonce.claim_nonce || b.stamp !== versionNonce.claim_nonce || b.runnerId !== versionNonce.runner_id) {
+    return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
+  }
+  /* 只允许向进行中的版本写:终态(live/archived/failed/unknown)一律拒写,迟到回报不复活历史。 */
+  if (versionNonce.status !== 'validating' && versionNonce.status !== 'publishing') {
+    return c.json({ error: 'version-not-active', status: versionNonce.status }, 409);
+  }
+  /* 第二层:锁 —— 必须是当前锁、未过期、已被领取。口令已在第零层按版本行验过,这里只认领单事实。 */
+  const lock = await c.env.DB
+    .prepare('SELECT version_id, expires_at, claim_nonce, claimed_at FROM publish_lock WHERE id = 1')
+    .first<{ version_id: number; expires_at: number; claim_nonce: string | null; claimed_at: number | null }>();
+  if (!lock || lock.version_id !== b.versionId) return c.json({ error: 'not-current-job' }, 409);
+  if (lock.expires_at <= now) return c.json({ error: 'lock-expired(发布已超时,请重新发起)' }, 409);
+  if (!lock.claimed_at || !lock.claim_nonce) {
+    return c.json({ error: 'not-the-claimed-runner(请先领取任务)' }, 409);
+  }
+  /* seq 服务端分配:同版本 MAX(seq)+1,单调递增。output 沿 detail 口径截断,防无界增长。 */
+  const seqRow = await c.env.DB
+    .prepare('SELECT MAX(seq) AS maxSeq FROM publish_checks WHERE version_id=?1')
+    .bind(b.versionId)
+    .first<{ maxSeq: number | null }>();
+  const seq = (seqRow?.maxSeq ?? 0) + 1;
+  const inserted = await c.env.DB.prepare(
+    `INSERT INTO publish_checks (version_id, step, seq, title, status, output, started_at)
+      SELECT ?1, ?2, ?3, ?4, ?5, ?6, ?7
+      WHERE EXISTS(SELECT 1 FROM config_versions v JOIN publish_lock l ON l.version_id=v.id
+        WHERE v.id=?1 AND v.status IN ('validating','publishing') AND v.claim_nonce=?8 AND v.runner_id=?9
+          AND l.id=1 AND l.claim_nonce=?8 AND l.claimed_by=?9 AND l.claimed_at IS NOT NULL AND l.expires_at>?7)`)
+    .bind(b.versionId, b.step, seq, b.title.trim(), b.status, b.output?.slice(-6000) ?? null, now, b.stamp!, b.runnerId!)
+    .run();
+  if ((inserted.meta.changes ?? 0) === 0) return c.json({ error: 'not-current-job' }, 409);
+  return c.json({ ok: true, seq });
+});
+
 
 /** 版本列表 + 当前发布进度(UI 轮询用)。
     🔴 读时自愈:锁已过期(或根本没锁)却还挂在 validating/publishing 的版本,一律标 failed——
@@ -830,12 +885,15 @@ publishRoutes.get('/status', async (c) => {
       await recoverInterrupted(c.env,v.id,'发布服务中断或超时，草稿已保留，可重新发布。',{observedAt:now});
     }
   }
-  if (!active && lock) await releaseExpiredTerminalLock(c.env, lock.version_id, now);
-  /* 步骤日志:进行中看当前版本;没有进行中时回**最近一次**的步骤日志——
-     否则失败态下「查看原始日志」永远没有数据可渲染(验收 P1:日志存了却取不回)。 */
   const stepsOf = active ?? (await c.env.DB.prepare('SELECT version_id FROM publish_steps ORDER BY id DESC LIMIT 1').first<{ version_id: number }>())?.version_id ?? null;
   const steps = stepsOf
     ? (await c.env.DB.prepare('SELECT version_id, step, status, detail, started_at, ended_at FROM publish_steps WHERE version_id=?1 ORDER BY id').bind(stepsOf).all()).results
+    : [];
+  /* 检查明细与步骤日志绑定同一版本:进行中看当前版本,没有进行中时回最近一次 ——
+     两边永远是同一任务,不串任务。checks 按 seq 排序,截断只截版本列表,不丢 checks。 */
+  const checksOfVersion = stepsOf;
+  const checks = checksOfVersion
+    ? (await c.env.DB.prepare('SELECT version_id, step, seq, title, status, output, started_at, ended_at FROM publish_checks WHERE version_id=?1 ORDER BY seq').bind(checksOfVersion).all()).results
     : [];
   /* 🔴 截断要说出来,而且**当前线上那一版必须在**(2026-09-01 实景走查 P1)。
      此前固定取最近 30 条,46 个版本时线上那一行直接消失,而表头写着「只增不删」——
@@ -895,9 +953,8 @@ publishRoutes.get('/status', async (c) => {
   const silentMs = lastSeen ? now-lastSeen : 0;
   const swapping = steps.some((s) => s.step==='swap');
   const cancelable = active ? (swapping ? 'no' : started ? (silentMs >= RUNNER_SILENT_MS ? 'force' : 'no') : 'yes') : 'none';
-
   return c.json({
-    activeVersion: active, stepsOfVersion: stepsOf, steps, versions, versionsTruncated: truncated,
+    activeVersion: active, stepsOfVersion: stepsOf, steps, checksOfVersion, checks, versions, versionsTruncated: truncated,
     stepNames: PUBLISH_STEPS, drift, cancelable, silentMs,
     executor:await executorState(c.env),
   });

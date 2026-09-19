@@ -6,8 +6,8 @@ import { MemoryRouter } from 'react-router-dom';
 const mocks = vi.hoisted(() => ({ api: vi.fn(), toast: vi.fn(), reload: vi.fn() }));
 vi.mock('../src/api', () => ({ api: mocks.api, toast: mocks.toast, apiErrorHint: vi.fn(), ApiError: class extends Error {} }));
 vi.mock('../src/shell', () => ({ useShell: () => ({ reload: mocks.reload }) }));
-import PublishPage from '../src/pages/publish';
-import { encodePublishProgress } from '../../schema/src/publish-feedback';
+import PublishPage, { normalizeCheckTitle } from '../src/pages/publish';
+import { encodePublishProgress, groupPublishChecks } from '../../schema/src/publish-feedback';
 import { TranslationProvider } from '../src/lib/translations';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); });
@@ -273,4 +273,73 @@ it('uses the existing one-click missing translation action without publishing', 
   expect(screen.queryByText('缺少译文')).toBeNull();
   expect(mocks.api.mock.calls.filter(([path]) => path === '/api/publish')).toHaveLength(0);
   expect(mocks.reload).toHaveBeenCalled();
+});
+
+it('renders grouped check details with Chinese badges and collapsible failure output', async () => {
+  const st = status(); st.activeVersion = 2; st.versions = [];
+  (st as unknown as Record<string, unknown>).checksOfVersion = 2;
+  (st as unknown as Record<string, unknown>).checks = [
+    { version_id: 2, step: 'gates', seq: 3, title: 'jsonc-reader-红测', status: 'ok', output: null, started_at: 3, ended_at: 4 },
+    { version_id: 2, step: 'gates', seq: 2, title: 'i18n-parity', status: 'ok', output: null, started_at: 2, ended_at: 3 },
+    { version_id: 2, step: 'gates', seq: 1, title: 'forbidden-words', status: 'failed', output: '第 3 行有禁用词', started_at: 1, ended_at: 2 },
+    { version_id: 2, step: 'materialize', seq: 0, title: '快照锁定', status: 'running', output: null, started_at: 1, ended_at: null },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  expect(await screen.findByRole('region', { name: '检查明细' })).toBeTruthy();
+  expect(screen.getByRole('progressbar', { name: '检查完成进度' }).getAttribute('aria-valuenow')).toBe('2');
+  expect(screen.getByText('已通过 2 / 4 项检查')).toBeTruthy();
+  expect(screen.getByText('准备文案与站点配置 · 0/1 通过')).toBeTruthy();
+  expect(screen.getByText('合规禁用词检查')).toBeTruthy();
+  expect(screen.queryByText('forbidden-words')).toBeNull();
+  expect(screen.getByText('配置读取检查')).toBeTruthy();
+  expect(screen.queryByText('jsonc-reader-红测')).toBeNull();
+  expect(screen.getAllByText('通过')).toHaveLength(2);
+  const summary = screen.getByText('查看原文');
+  const details = summary.closest('details')!;
+  expect(details.open).toBe(false);
+  fireEvent.click(summary);
+  expect(details.open).toBe(true);
+  expect(details.querySelector('pre')?.textContent).toBe('第 3 行有禁用词');
+  expect(screen.getByRole('button', { name: '重新发布' })).toBeTruthy();
+});
+
+it('keeps the legacy step window when checks are empty and shows a retry placeholder', async () => {
+  const st = status(); st.activeVersion = 2; st.versions = [];
+  (st as unknown as Record<string, unknown>).checksOfVersion = 2;
+  (st as unknown as Record<string, unknown>).checks = [];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() : { ...st });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  expect(await screen.findByText('已完成 1 / 4 个步骤')).toBeTruthy();
+  expect(screen.getByText('检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '重新加载明细' })).toBeTruthy();
+  expect(screen.queryByRole('region', { name: '检查明细' })).toBeNull();
+});
+
+it('maps runner-side gate titles to Chinese and never renders raw English identifiers', () => {
+  // runner-gates suites（含增量后缀）与 verify 门名（含执行口径后缀）必须全部译成人话
+  const cases: Array<[string, string]> = [
+    ['jsonc-reader-红测', '配置读取检查'], ['exit-finally-红测', '中断收尾检查'],
+    ['config-consistency-自检', '配置一致性检查'], ['console-copy-自检', '后台文案检查'],
+    ['beacon-size', '上报体积检查'], ['worker-AI-runtime', '后台智能运行检查'],
+    ['worker-单测', '后台检查'], ['publisher-故障回归', '发布器回归检查'],
+    ['typecheck:worker', '类型检查'], ['typecheck:site', '类型检查'],
+    ['source-equivalence', '源码基线检查'], ['site-build', '官网构建'],
+    ['publish-config', '发布配置检查'], ['publish-materialization', '配置物化检查'],
+    ['canvas-geometry(运行时)', '画布几何检查'], ['deploy-gate(warn-only)', '发布占位标记检查'],
+  ];
+  for (const [raw, expected] of cases) expect(normalizeCheckTitle(raw)).toBe(expected);
+});
+
+it('coalesces running+ok rows of the same gate to the latest seq', () => {
+  const groups = groupPublishChecks([
+    { version_id: 2, step: 'gates', seq: 1, title: '网站内容与交互', status: 'running', output: null, started_at: 1, ended_at: null },
+    { version_id: 2, step: 'gates', seq: 2, title: '网站内容与交互', status: 'ok', output: 'ok', started_at: 1, ended_at: 2 },
+    { version_id: 2, step: 'gates', seq: 3, title: 'forbidden-words', status: 'failed', output: 'bad', started_at: 1, ended_at: 2 },
+    { version_id: 2, step: 'gates', seq: 4, title: '画布几何', status: 'running', output: null, started_at: 1, ended_at: null },
+  ], ['materialize', 'gates', 'build', 'swap']);
+  expect(groups).toHaveLength(1);
+  expect(groups[0].items.map((i) => `${i.title}/${i.status}/#${i.seq}`)).toEqual([
+    '网站内容与交互/ok/#2', 'forbidden-words/failed/#3', '画布几何/running/#4',
+  ]);
 });

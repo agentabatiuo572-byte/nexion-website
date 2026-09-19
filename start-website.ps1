@@ -234,7 +234,7 @@ function Wait-LocalService($Definition, [int]$TimeoutSeconds = 120) {
                     if ($reply.Status -eq 200 -and $reply.Json.service -eq 'nexgrid-site-worker' -and $reply.Json.environment -eq 'dev') { return }
                 } else {
                     $response = Invoke-WebRequest -Uri $Definition.Url -UseBasicParsing -TimeoutSec 8 -MaximumRedirection 0
-                    if ($response.StatusCode -eq 200 -and $response.Content -match 'NexGrid') { return }
+                    if ($response.StatusCode -eq 200 -and $response.Content -match 'Uvel') { return }
                 }
             } catch { }
         }

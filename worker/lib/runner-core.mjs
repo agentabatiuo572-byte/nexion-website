@@ -229,7 +229,7 @@ export async function killProcessTree(pid) {
   if (processAlive(pid) !== false) throw new Error(`进程 ${pid} 仍活跃或退出状态未知`);
 }
 
-export function runCommand(command, args, { cwd, signal, env = childEnvironment(), onChild, onOutput, onCommand, onProgress, maxOutput = 32 * 1024, timeoutMs = 30 * 60 * 1000 } = {}) {
+export function runCommand(command, args, { cwd, signal, env = childEnvironment(), onChild, onOutput, onCommand, onProgress, onCheck, maxOutput = 32 * 1024, timeoutMs = 30 * 60 * 1000 } = {}) {
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0 || timeoutMs > 2 ** 31 - 1) throw new Error('命令 timeoutMs 必须是 1 至 2147483647 的整数毫秒');
   if (signal?.aborted) return Promise.resolve({ code: null, output: '发布已中断', aborted: true, timedOut: false });
   return new Promise((resolve) => {
@@ -255,6 +255,12 @@ export function runCommand(command, args, { cwd, signal, env = childEnvironment(
     let progressCancelled = false;
     let cancelProgress;
     const progressStopped = new Promise((stop) => { cancelProgress = stop; });
+    /* 检查明细事件([publish-check])与进度([publish-progress])走同一 stdout 行流：
+       按序解析、全量经 onCheck 透出（不合并、不丢弃——每条都是落库行）。
+       校验口径与 progress 同例：title 非空、status 合法，不合法记 failProgress。 */
+    let checkWork = Promise.resolve();
+    let checking = false;
+    let pendingChecks = [];
     let markClosed;
     const closed = new Promise((resolveClosed) => { markClosed = resolveClosed; });
     let markStopped;
@@ -279,13 +285,16 @@ export function runCommand(command, args, { cwd, signal, env = childEnvironment(
     const finish = async (result) => {
       if (finishing) return;
       finishing = true;
-      // 已确认失败的命令直接交回原始错误，交由调用方停止上报；成功才需排空进度。
+      /* 失败也先排空已解析的 [publish-check] 终态行（failed 配对 running），再停进度上报；
+         但排空有界（5s）：onCheck 挂起（如上报链断）不能卡住 finish 收口（P1 回归：无界 drain 挂死测试）。 */
+      try { await Promise.race([checkWork, delay(5000)]); }
+      catch { /* checkWork 内部已 failProgress 落盘，不再抛 */ }
       if (Number.isInteger(result.code) && result.code !== 0) {
         progressCancelled = true;
         pendingProgressDetail = undefined;
+        pendingChecks = [];
         cancelProgress();
-      } else await Promise.race([progressWork, progressStopped]);
-      clearTimeout(timer);
+      } else await Promise.race([Promise.all([progressWork, checkWork]), progressStopped]);
       signal?.removeEventListener('abort', abort);
       progressReader?.close();
       if (killing) {
@@ -301,12 +310,15 @@ export function runCommand(command, args, { cwd, signal, env = childEnvironment(
       const status = { ...result, aborted: !!signal?.aborted, timedOut, terminationUnconfirmed };
       try { onCommand?.({ ...details, phase: 'end', durationMs: Math.round(performance.now() - started), ...status }); }
       catch (error) { output += `\n命令进度未收口：${error.message}`; status.code = null; }
+      // 熔丝覆盖 drain 全程，收口才清：既不断未完成 onProgress 的超时截断，也不留 timer 拖住进程退出。
+      clearTimeout(timer);
       resolve({ ...status, output, truncated });
     };
     const abort = () => {
       if (resolved) return;
       progressCancelled = true;
       pendingProgressDetail = undefined;
+      pendingChecks = [];
       cancelProgress();
       if (!childClosed && child) killing ??= requestStop();
       void finish({ code: null });
@@ -322,16 +334,39 @@ export function runCommand(command, args, { cwd, signal, env = childEnvironment(
       catch (error) { output += `\n命令输出未能持久化：${error.message}`; abort(); }
     };
     child.stdout.on('data', collect); child.stderr.on('data', collect);
-    if (onProgress) {
+    if (onProgress || onCheck) {
       const failProgress = (error) => {
         if (progressCancelled) return;
         progressFailed = true;
         output += `\n命令进度未能持久化：${error.message}`;
         abort();
       };
+      const handleCheckLine = (line) => {
+        let event;
+        try {
+          event = JSON.parse(line.slice('[publish-check] '.length));
+          if (typeof event?.title !== 'string' || !event.title.trim() || event.title.length > 200) throw new Error('检查标题格式无效');
+          if (!['running', 'ok', 'failed', 'skipped', 'unknown'].includes(event.status)) throw new Error('检查状态格式无效');
+          if (event.step != null && typeof event.step !== 'string') throw new Error('检查步骤格式无效');
+        } catch (error) { failProgress(error); return; }
+        pendingChecks.push({ step: typeof event.step === 'string' && event.step ? event.step : 'gates', title: event.title.trim(), status: event.status });
+        if (checking) return;
+        checking = true;
+        checkWork = (async () => {
+          try {
+            while (!progressCancelled && pendingChecks.length) {
+              const check = pendingChecks.shift();
+              await onCheck?.(check);
+            }
+          } catch (error) { failProgress(error); }
+          finally { checking = false; }
+        })();
+      };
       progressReader = createInterface({ input: child.stdout, crlfDelay: Infinity });
       progressReader.on('line', (line) => {
-        if (finishing || progressCancelled || !line.startsWith('[publish-progress] ')) return;
+        if (finishing || progressCancelled) return;
+        if (line.startsWith('[publish-check] ')) return handleCheckLine(line);
+        if (!onProgress || !line.startsWith('[publish-progress] ')) return;
         try {
           const { detail } = JSON.parse(line.slice('[publish-progress] '.length));
           if (typeof detail !== 'string' || detail.length > 6000) throw new Error('进度说明格式无效');

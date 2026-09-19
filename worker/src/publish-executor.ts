@@ -5,12 +5,12 @@ import { checkDraftUpgrade } from './config-upgrade';
 
 export const RUNNER_FRESH_MS = 60_000;
 export const RUNNER_ID = /^[a-zA-Z0-9_.:-]{1,100}$/;
-const MACHINE_ROUTES = new Set(['next', 'step', 'heartbeat', 'runner-state', 'runner-fail']);
+const MACHINE_ROUTES: Record<string, true> = { next: true, step: true, check: true, heartbeat: true, 'runner-state': true, 'runner-fail': true };
 
 /** Execution credentials never authorize editing, publishing or administrator operations. */
 export const requirePublishIdentity: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const route = new URL(c.req.url).pathname.replace(/\/$/, '').split('/').at(-1)!;
-  if (!MACHINE_ROUTES.has(route)) return requireAuth(c, next);
+  if (!MACHINE_ROUTES[route]) return requireAuth(c, next);
   const secret = c.env.PUBLISH_RUNNER_TOKEN ?? '';
   const supplied = c.req.header('authorization') ?? '';
   if (secret.length < 32 || supplied.length > 1024 || !timingSafeEqualHex(supplied, `Bearer ${secret}`)) {

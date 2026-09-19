@@ -123,17 +123,24 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   const incremental = options.changeTier === 'content-only' && options.sourceUnchanged === true;
   const skipped = [];
   const worker = path.join(site, 'worker');
+  await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'running' });
   const bindings = await generateWorkerTypes(site, commandOptions);
   if (!bindings.ok) return bindings;
+  await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'ok' });
   // Admin build 自带 typecheck + test；相同输入只检查一次。
   // worker 类型只与 worker 源码有关,增量时源码未变可跳；官网侧保留(物化 i18n 落进 src)。
   for (const cwd of [site, worker]) {
-    if (incremental && cwd === worker) { skipped.push(`typecheck:${path.basename(cwd)}`); continue; }
+    const gate = `typecheck:${path.basename(cwd)}`;
+    if (incremental && cwd === worker) { skipped.push(gate); await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' }); continue; }
+    await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'running' });
     const result = await runNpm(['run', 'typecheck'], { ...commandOptions, cwd });
-    if (result.code !== 0 || result.aborted) return { ok: false, gate: `typecheck:${path.basename(cwd)}`, tail: result.output };
+    if (result.code !== 0 || result.aborted) return { ok: false, gate, tail: result.output };
+    await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'ok' });
   }
+  await commandOptions.onCheck?.({ step: 'gates', title: 'site-build', status: 'running' });
   const built = await buildSiteForGates(site, commandOptions);
   if (!built.ok) return built;
+  await commandOptions.onCheck?.({ step: 'gates', title: 'site-build', status: 'ok' });
   const artifact = directoryDigest(path.join(site, 'dist'));
   // 先检查后台与执行器，确定性错误不必等九语浏览器检查结束才暴露。
   await prepareWorkerTestAssets(site, commandOptions);
@@ -152,19 +159,27 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
     if (incremental && SOURCE_STATIC_SUITES.has(gate)) {
       skipped.push(gate);
       await commandOptions.onProgress?.(`跳过检查:${gate}(文案改动且源码未变,复用上次全量结论)`);
+      await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' });
       continue;
     }
+    await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'running' });
     await commandOptions.onProgress?.(`执行检查:${gate}`);
     const result = await runCommand(process.execPath, args, { ...commandOptions, cwd });
     if (result.code !== 0 || result.aborted) return { ok: false, gate, tail: result.output };
+    /* 同门 running 后必有终态 ok：/check 只增不改，终态靠终态行覆盖 running 行展示；
+       否则 live 版本永远残留“进行中”。 */
+    await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'ok' });
   }
   assertDigest(path.join(site, 'dist'), artifact.sha256);
   if (incremental) {
     skipped.push(INCREMENTAL_SKIPPED_PUBLISHER_TEST);
     await commandOptions.onProgress?.(`跳过检查:${INCREMENTAL_SKIPPED_PUBLISHER_TEST}(文案改动且源码未变,复用上次全量结论)`);
+    await commandOptions.onCheck?.({ step: 'gates', title: INCREMENTAL_SKIPPED_PUBLISHER_TEST, status: 'skipped' });
   } else {
+    await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'running' });
     const publisher = await runNpm(['run', 'test:publisher'], { ...commandOptions, cwd: worker });
     if (publisher.code !== 0 || publisher.aborted) return { ok: false, gate: 'publisher-故障回归', tail: publisher.output };
+    await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'ok' });
   }
   assertDigest(path.join(site, 'dist'), artifact.sha256);
   // 源码缓存不证明线上快照通过当前门；每次发布都对本次产物全站实测。

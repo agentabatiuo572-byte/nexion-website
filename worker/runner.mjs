@@ -214,6 +214,47 @@ async function main() {
       void progressReports.catch(error => evidenceAbort.abort(error));
       return progressReports;
     };
+    /* 检查明细上报（进度窗数据源）：POST /api/publish/check，复用 confirmWithinLease；
+       检查行是辅助证据——上报失败只记 evidence、不中断发布（P1：gates 期间 /check 持续 5xx
+       不应杀死 healthy 发布；400 系归属错误仍抛，由调用方按失败收口）。 */
+    const reportCheck = async (step, title, status, output) => {
+      signal.throwIfAborted();
+      try {
+        await confirmWithinLease(retrySignal => api('/api/publish/check',
+          { versionId: job.versionId, stamp: job.stamp, runnerId, step, title, status, ...(output != null ? { output } : {}) }, retrySignal));
+      } catch (error) {
+        if (!signal.aborted && ![400, 401, 403, 404, 409].includes(error.status)) {
+          writeEvidence({ checkReportError: error.message });
+          log(`v${job.versionId} 检查明细暂未送达(${error.message})，发布继续，明细缺口见证据`);
+          return;
+        }
+        throw error;
+      }
+    };
+    let checkReports = Promise.resolve();
+    let pendingChecks = [];
+    let reportingChecks = false;
+    /* 检查行只增不改：全量上报、不合并（与 progress 只留最新不同）。
+       同一步同标题的 running 只报一次（verify 每门首尾事件天然去重）。 */
+    const seenRunning = new Set();
+    const flushCheck = (check) => {
+      if (check.status === 'running') {
+        const key = check.step + ' ' + check.title;
+        if (seenRunning.has(key)) return checkReports;
+        seenRunning.add(key);
+      }
+      pendingChecks.push(check);
+      if (reportingChecks) return checkReports;
+      reportingChecks = true;
+      checkReports = checkReports.then(async () => {
+        while (pendingChecks.length) {
+          const current = pendingChecks.shift();
+          await reportCheck(current.step, current.title, current.status, current.output);
+        }
+      }).catch(error => { throw error; }).finally(() => { reportingChecks = false; });
+      void checkReports.catch(error => evidenceAbort.abort(error));
+      return checkReports;
+    };
     const commandOptions = {
       signal, env: childEnvironment(),
       onChild: (pid) => {
@@ -233,6 +274,7 @@ async function main() {
         progressTitle = redact(detail);
         await flushProgress();
       },
+      onCheck: async (check) => { signal.throwIfAborted(); await flushCheck(check); },
       onCommand: (command) => {
         clearTimeout(outputTimer); outputTimer = undefined;
         terminationUnconfirmed ||= !!command.terminationUnconfirmed;
@@ -255,15 +297,17 @@ async function main() {
         }
       },
     };
+    const STEP_TITLES = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' };
     const begin = async (step) => {
       clearTimeout(outputTimer); outputTimer = undefined;
-      await progressReports;
+      await progressReports; await checkReports;
       signal.throwIfAborted(); await confirmWithinLease(retrySignal => lease.check(retrySignal)); commandTail = ''; save({ step, phase: 'running' }); await confirmWithinLease(retrySignal => report(step, 'running', {}, retrySignal));
-      progressTitle = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' }[step];
+      progressTitle = STEP_TITLES[step];
       evidence.steps.push({ step, status: 'running', at: new Date().toISOString() }); writeEvidence({ status: step });
       await flushProgress();
+      await flushCheck({ step, title: STEP_TITLES[step], status: 'running' });
     };
-    const passed = async (step) => { await flushProgress(); signal.throwIfAborted(); await confirmWithinLease(retrySignal => lease.check(retrySignal)); await confirmWithinLease(retrySignal => report(step, 'ok', {}, retrySignal)); save({ phase: 'ok' }); evidence.steps.push({ step, status: 'ok', output: commandTail, at: new Date().toISOString() }); writeEvidence(); };
+    const passed = async (step) => { await flushProgress(); await checkReports; signal.throwIfAborted(); await confirmWithinLease(retrySignal => lease.check(retrySignal)); await confirmWithinLease(retrySignal => report(step, 'ok', {}, retrySignal)); save({ phase: 'ok' }); evidence.steps.push({ step, status: 'ok', output: commandTail, at: new Date().toISOString() }); writeEvidence(); await flushCheck({ step, title: STEP_TITLES[step], status: 'ok' }); };
     try {
       await lease.ready;
       await mkdir(evidenceDir, { recursive: true, mode: 0o700 });
@@ -278,16 +322,22 @@ async function main() {
       }
       // 门和它的语言/进程依赖都从本单副本加载，不消费常驻进程的旧模块缓存。
       const { runGates, runNpm, runSourceBaseline, validateMaterialized } = await import(pathToFileURL(path.join(site, 'worker/lib/runner-gates.mjs')).href);
+      await flushCheck({ step: 'materialize', title: 'source-equivalence', status: 'running' });
       const baseline = await runSourceBaseline(site, commandOptions);
-      if (!baseline.ok) throw new Error(`源码种子基线未通过：${redact(baseline.tail).slice(-5000)}`);
+      if (!baseline.ok) { await flushCheck({ step: 'materialize', title: 'source-equivalence', status: 'failed', output: redact(baseline.tail).slice(-4000) }); throw new Error(`源码种子基线未通过：${redact(baseline.tail).slice(-5000)}`); }
+      await flushCheck({ step: 'materialize', title: 'source-equivalence', status: 'ok' });
       const { materializeI18n, materializeSiteJson } = await import(pathToFileURL(path.join(site, 'schema/src/materialize.ts')).href);
       const { LOCALES } = await import(pathToFileURL(path.join(site, 'schema/src/locales.ts')).href);
       const manifest = JSON.parse(await readFile(path.join(site, 'worker/seed/copy-manifest.json'), 'utf8'));
       for (const loc of LOCALES) await writeFile(path.join(site, `src/i18n/${loc}.json`), materializeI18n(job.config, manifest, loc));
       await mkdir(path.join(site, 'src/config'), { recursive: true });
       await writeFile(path.join(site, 'src/config/site.json'), materializeSiteJson(job.config));
+      await flushCheck({ step: 'materialize', title: 'publish-config', status: 'running' });
+      await flushCheck({ step: 'materialize', title: 'publish-materialization', status: 'running' });
       const materialized = await validateMaterialized(site, job.config);
-      if (!materialized.ok) throw new Error(`${materialized.gate}：${materialized.tail}`);
+      if (!materialized.ok) { const failedTitle = materialized.gate ?? 'publish-materialization'; const otherTitle = failedTitle === 'publish-config' ? 'publish-materialization' : 'publish-config'; await flushCheck({ step: 'materialize', title: failedTitle, status: 'failed', output: redact(materialized.tail).slice(-4000) }); await flushCheck({ step: 'materialize', title: otherTitle, status: 'skipped' }); throw new Error(`${materialized.gate}：${materialized.tail}`); }
+      await flushCheck({ step: 'materialize', title: 'publish-config', status: 'ok' });
+      await flushCheck({ step: 'materialize', title: 'publish-materialization', status: 'ok' });
       const { MATERIALIZED_FILES } = await import(pathToFileURL(path.join(site, 'schema/src/locales.ts')).href);
       const parts = await Promise.all(MATERIALIZED_FILES.map(async (rel) => `${rel}\0${await readFile(path.join(site, rel), 'utf8')}`));
       writeEvidence({ materializedConfigSha: createHash('sha256').update(parts.join('\0')).digest('hex') });
@@ -302,7 +352,7 @@ async function main() {
       const changeTier = job.changeTier === 'content-only' ? 'content-only' : 'config-shape';
       log(`v${job.versionId} 正在隔离副本执行${changeTier === 'content-only' && sourceUnchanged ? '增量(文案改动)' : '完整'}发布门`);
       const gates = await runGates(site, options.mode, commandOptions, { changeTier, sourceUnchanged });
-      if (!gates.ok) throw new Error(`门未通过(${gates.gate})：${redact(gates.tail).slice(-5000)}`);
+      if (!gates.ok) { await flushCheck({ step: 'gates', title: gates.gate ?? '发布门', status: 'failed', output: redact(gates.tail ?? '').slice(-4000) }); throw new Error(`门未通过(${gates.gate})：${redact(gates.tail).slice(-5000)}`); }
       assertDigest(path.join(site, 'dist'), gates.artifact?.sha256);
       writeEvidence({ websiteArtifact: gates.artifact, changeTier, gateSkipped: gates.skipped ?? [] });
       if ((gates.skipped ?? []).length === 0) {
@@ -357,6 +407,7 @@ async function main() {
       clearTimeout(outputTimer); outputTimer = undefined;
       const cause = firstCommandFailure ?? (signal.aborted ? signal.reason : error);
       const failureMessage = cause instanceof Error ? cause.message : String(cause);
+      try { await flushCheck({ step: record.step, title: STEP_TITLES[record.step] ?? record.step, status: 'failed', output: redact(failureMessage).slice(-4000) }); } catch { /* 检查行是辅助证据，收口失败不掩盖主错误；须在 evidenceAbort 前上报，否则 signal 已中断直接吞掉 */ }
       evidenceAbort.abort(cause);
       await progressReports.catch(() => {});
       if (published) {
