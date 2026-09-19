@@ -1,0 +1,47 @@
+name: Publisher diagnostics
+
+on:
+  push:
+    branches: [fix/publisher-upgrade-recheck]
+    paths: ['.github/workflows/publisher-diagnostics.yml']
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            admin/package-lock.json
+            worker/package-lock.json
+            schema/package-lock.json
+      - name: Install locked dependencies
+        id: install
+        run: |
+          npm ci
+          npm ci --prefix schema
+          npm ci --prefix worker
+          npm ci --prefix admin
+      - name: Isolated regression failure details
+        run: |
+          node --test --test-reporter=tap --test-name-pattern='isolated real worker|a cold isolated site' worker/lib/runner-tests.mjs
+      - name: Admin typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm --prefix admin run typecheck
+      - name: Admin tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        timeout-minutes: 3
+        run: npm --prefix admin test
+      - name: Admin build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm --prefix admin run build

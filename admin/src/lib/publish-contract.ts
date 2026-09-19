@@ -1,6 +1,8 @@
 export interface PublishConfirmation {
   reason: string;
   rollbackFrom?: number;
+  /** UI intent only; the server still uses the checked fromVersion publication path. */
+  rebuild?: boolean;
   /** 普通发布在打开确认面时冻结的草稿 revision。 */
   draftRev?: number;
 }

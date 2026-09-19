@@ -590,7 +590,8 @@ test('isolated real worker regenerates ignored binding types before its full typ
     await mkdir(path.dirname(path.join(origin, rel)), { recursive: true });
     await copyFile(path.join(sourceRoot, rel), path.join(origin, rel));
   }
-  await writeFile(path.join(origin, '.gitignore'), 'node_modules/\n');
+  // No trailing slash: the fixture uses dependency symlinks on Linux, not directories.
+  await writeFile(path.join(origin, '.gitignore'), 'node_modules\n');
   for (const rel of ['node_modules', 'worker/node_modules']) {
     await symlink(path.join(sourceRoot, rel), path.join(origin, rel), process.platform === 'win32' ? 'junction' : 'dir');
   }
@@ -656,7 +657,8 @@ test('a cold isolated site builds current content and supplies private assets to
   const workerPkg = JSON.parse(await readFile(path.join(origin, 'worker/package.json'), 'utf8'));
   workerPkg.scripts['test:publisher'] = 'node -e "process.exit(0)"';
   await writeFile(path.join(origin, 'worker/package.json'), JSON.stringify(workerPkg));
-  await writeFile(path.join(origin, '.gitignore'), 'node_modules/\ndist/\ndist-live/\n.astro/\nworker/worker-configuration.d.ts\n');
+  // No trailing slash: the fixture uses dependency symlinks on Linux, not directories.
+  await writeFile(path.join(origin, '.gitignore'), 'node_modules\ndist/\ndist-live/\n.astro/\nworker/worker-configuration.d.ts\n');
   for (const rel of ['node_modules', 'worker/node_modules', 'admin/node_modules']) await symlink(path.join(sourceRoot, rel), path.join(origin, rel), process.platform === 'win32' ? 'junction' : 'dir');
   const marker = 'Cold publication artifact proof';
   await writeFile(path.join(origin, 'verify-order.cjs'), `const fs=require('node:fs'); const assert=require('node:assert/strict'); assert.ok(fs.readFileSync('dist/index.html','utf8').includes(${JSON.stringify(marker)})); for(const locale of JSON.parse(fs.readFileSync('src/config/site.json','utf8')).enabledLocales.filter(l=>l!=='en')) assert.ok(fs.readFileSync('dist/'+locale+'/index.html','utf8').length>0); fs.writeFileSync('.verify-exit.code','2'); console.log('CURRENT_BUILD_PRECEDES_VERIFY'); process.exit(7);`);

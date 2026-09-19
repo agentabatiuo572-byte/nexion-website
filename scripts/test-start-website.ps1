@@ -669,34 +669,48 @@ try {
     Set-TestFunction 'Get-VerifiedApiSupervisor' { return @{ ProcessId = 72000 } }
     Set-TestFunction 'Invoke-LocalApi' {
         param([string]$BaseUri, [string]$Path, [string]$Method, $Body, [string]$Cookie, [string]$BearerToken)
-        Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and $Path -ceq '/api/publish/runner-state' -and $Method -ceq 'GET') 'Runner readiness used an unexpected API route.'
+        Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and $Path -in @('/api/publish/runner-state', '/api/publish/runner-state?readiness=1') -and $Method -ceq 'GET') 'Runner readiness used an unexpected API route.'
         Assert-True (-not $Cookie -and $BearerToken -ceq $script:ExpectedPublishToken -and $null -eq $Body) 'Runner readiness borrowed a password/session or lost its independent bearer.'
+        if ($Path -ceq '/api/publish/runner-state?readiness=1') {
+            return @{ Status = $script:RunnerApiStatus; Json = [pscustomobject]@{
+                protocol = 1; environment = 'dev'; mode = 'local'; storageReady = $script:StorageReady
+                restartSafe = (-not $script:StorageReady); activeVersion = $null; requiredMigration = '0021_publish_checks.sql'
+            } }
+        }
         return @{ Status = $script:RunnerApiStatus; Json = @{ environment = 'dev'; executor = @{ mode = 'local'; ready = $true } } }
     }
     $script:ExpectedPublishToken = New-LocalPassword
     $script:RunnerApiStatus = 200
+    $script:StorageReady = $true
     Invoke-Test 'Publish readiness authenticates only with its dedicated bearer' {
         Assert-True (Get-PublishRunnerState $script:ExpectedPublishToken).executor.ready 'Dedicated runner readiness failed.'
         $script:RunnerApiStatus = 401
         Assert-Throws { Get-PublishRunnerState $script:ExpectedPublishToken } 'not loaded'
         $script:RunnerApiStatus = 200
     }
-    Set-TestFunction 'Stop-OwnedApi' { $script:ReloadEvents.Add('stop-owned'); $script:RunnerApiStatus = 200 }
+    Set-TestFunction 'Stop-OwnedApi' { $script:ReloadEvents.Add('stop-owned'); $script:StorageReady = $true }
     Set-TestFunction 'Ensure-LocalService' { param([string]$Name); $script:ReloadEvents.Add('start-' + $Name) }
     $script:ReloadEvents = New-Object 'Collections.Generic.List[string]'
-    Invoke-Test 'An old running API is reloaded before runner startup and then reused' {
-        $script:RunnerApiStatus = 401
+    Invoke-Test 'A verified idle API with missing schema is reloaded once and then reused' {
+        $script:StorageReady = $false
         Ensure-PublishApi $script:ExpectedPublishToken
         Ensure-PublishApi $script:ExpectedPublishToken
         Assert-True (($script:ReloadEvents -join ',') -ceq 'stop-owned,start-api') 'API reload was skipped or repeated after authenticated readiness succeeded.'
     }
-    Invoke-Test 'API ownership failure aborts reload before launching a replacement' {
+    Invoke-Test 'Authentication failure cannot authorize stopping an API with unknown job state' {
         $script:ReloadEvents.Clear()
         $script:RunnerApiStatus = 401
+        Assert-Throws { Ensure-PublishApi $script:ExpectedPublishToken } 'HTTP 401'
+        Assert-True ($script:ReloadEvents.Count -eq 0) 'Authentication failure authorized an API restart.'
+        $script:RunnerApiStatus = 200
+    }
+    Invoke-Test 'API ownership failure aborts reload before launching a replacement' {
+        $script:ReloadEvents.Clear()
+        $script:StorageReady = $false
         Set-TestFunction 'Stop-OwnedApi' { throw 'Unowned service must remain running.' }
         Assert-Throws { Ensure-PublishApi $script:ExpectedPublishToken } 'Unowned service'
         Assert-True ($script:ReloadEvents.Count -eq 0) 'Replacement API started despite rejected ownership.'
-        $script:RunnerApiStatus = 200
+        $script:StorageReady = $true
     }
     Invoke-Test 'Runner receives the dedicated secret but no administrator password or cookie' {
         $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN', 'AI_CREDENTIAL_ENCRYPTION_KEY', 'AI_TICK_TOKEN', 'OPENAI_API_KEY', 'ai_future_secret')
@@ -768,6 +782,12 @@ try {
         Assert-True ($script:SchemaInstalls -eq 1) 'Missing schema dependencies were not installed.'
         Assert-True (($script:OpenedUrls -join ',') -ceq 'http://127.0.0.1:8787/,http://127.0.0.1:5175/admin/') 'Startup opened an unpublished preview instead of the published website and console.'
     }
+    Invoke-Test 'Publish upgrade capability and restart safety regressions' {
+        $suite = Join-Path (Split-Path -Parent $script:LauncherUnderTest) 'scripts/test-publish-upgrade.ps1'
+        & $WindowsPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $suite
+        Assert-True ($LASTEXITCODE -eq 0) 'Publish upgrade capability regression suite failed.'
+    }
+
     Set-TestFunction 'Start-Process' { throw 'Regression tests must never start a process.' }
     $script:NoBrowser = $true
     $script:RepoRoot = $script:RealRepoRoot

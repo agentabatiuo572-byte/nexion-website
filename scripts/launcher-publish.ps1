@@ -260,12 +260,45 @@ function Get-PublishRunnerState([string]$Token) {
     return $reply.Json
 }
 
+function Get-PublishReadiness([string]$Token) {
+    if (@(Get-OwnedListener (Get-ServiceDefinition 'api')).Count -eq 0) { throw 'The local API is not running.' }
+    if (-not (Get-VerifiedApiSupervisor)) { throw 'API supervisor ownership could not be verified; no credential was sent.' }
+    $reply = Invoke-LocalApi 'http://127.0.0.1:8787' '/api/publish/runner-state?readiness=1' 'GET' $null '' $Token
+    if ($reply.Status -ne 200) { throw "Publish upgrade readiness could not be verified (HTTP $($reply.Status)). No service was stopped; check the API log and matching publish credentials." }
+    $state = $reply.Json
+    if ($state.protocol -ne 1 -or $state.environment -ne 'dev' -or $state.mode -ne 'local' -or
+        $state.storageReady -isnot [bool] -or $state.restartSafe -isnot [bool] -or
+        $state.requiredMigration -cne '0021_publish_checks.sql') {
+        throw 'The running API does not support the current publish upgrade probe. No service was stopped. Finish or resolve active publications, then restart this repository''s services with the updated launcher.'
+    }
+    # A missing activeVersion property must not be mistaken for a proven idle API.
+    if (-not ($state.PSObject.Properties.Name -contains 'activeVersion')) {
+        throw 'Publish upgrade readiness is incomplete; no service was stopped.'
+    }
+    return $state
+}
+
 function Ensure-PublishApi([string]$Token) {
-    try { [void](Get-PublishRunnerState $Token); return } catch { }
-    Write-Host '[reload] Loading the local publish configuration into the owned API'
-    Stop-OwnedApi
-    Ensure-LocalService 'api'
-    # A successful HTTP health check alone cannot prove the secret was loaded.
+    $state = Get-PublishReadiness $Token
+    if (-not $state.storageReady) {
+        if (-not $state.restartSafe -or $null -ne $state.activeVersion) {
+            throw 'A publication is running or awaiting verification. The API was preserved; finish recovery before applying local migrations.'
+        }
+        # Repeat the read immediately before the existing process-identity checks.
+        # New submissions/claims are blocked by the missing-schema guard, so an
+        # idle incomplete schema cannot accept a new job between this read and stop.
+        $state = Get-PublishReadiness $Token
+        if (-not $state.storageReady) {
+            if (-not $state.restartSafe -or $null -ne $state.activeVersion) { throw 'Publish upgrade safety changed; no service was stopped.' }
+            Write-Host '[upgrade] Restarting the verified idle API to apply pending local migrations'
+            Stop-OwnedApi
+            # worker npm run dev applies all migrations before starting Wrangler.
+            Ensure-LocalService 'api'
+            $state = Get-PublishReadiness $Token
+            if (-not $state.storageReady) { throw 'The publish database upgrade did not complete. Original data was preserved; see the API log. No repeat restart was attempted.' }
+        }
+    }
+    # Health/protocol/schema alone cannot prove the execution mode and secret work.
     [void](Get-PublishRunnerState $Token)
 }
 
