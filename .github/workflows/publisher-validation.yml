@@ -1,8 +1,6 @@
 name: Publisher validation
 
 on:
-  push:
-    branches: [fix/publisher-upgrade-recheck]
   pull_request:
     branches: [main]
     paths:
@@ -24,10 +22,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  application:
-    name: Application checks (Node 24)
+  linux:
+    name: Linux ${{ matrix.suite }} (Node 24)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [application, publisher, site]
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,37 +44,51 @@ jobs:
             worker/package-lock.json
             schema/package-lock.json
       - name: Install locked dependencies
+        id: install
         run: |
           npm ci
           npm ci --prefix schema
           npm ci --prefix worker
           npm ci --prefix admin
       - name: Install the test browser
+        if: matrix.suite != 'application'
         run: npx --no-install playwright install --with-deps chromium
       - name: Publisher regressions
+        if: matrix.suite == 'publisher'
+        timeout-minutes: 8
         run: npm --prefix worker run test:publisher
       - name: Worker typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix worker run typecheck
       - name: Worker tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
+        timeout-minutes: 8
         run: npm --prefix worker test
       - name: Admin typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix admin run typecheck
       - name: Admin tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
+        timeout-minutes: 5
         run: npm --prefix admin test
       - name: Admin build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix admin run build
       - name: Site typecheck
+        if: matrix.suite == 'site'
         run: npm run typecheck
       - name: Site verification
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'site' }}
         run: npm run verify
       - name: Verify the recorded gate exit code
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && matrix.suite == 'site' }}
         run: |
           node -e "const fs=require('node:fs'); const code=fs.readFileSync('.verify-exit.code','utf8').trim(); if(code!=='0') throw new Error('Website gates did not finish successfully: '+code);"
 
   windows-launcher:
     name: Windows PowerShell 5.1 regressions
     runs-on: windows-2022
-    timeout-minutes: 25
+    timeout-minutes: 15
     defaults:
       run:
         shell: powershell
