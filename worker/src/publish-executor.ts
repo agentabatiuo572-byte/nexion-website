@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from 'hono';
 import type { Env } from './env';
 import { requireAuth, timingSafeEqualHex } from './auth';
 import { checkDraftUpgrade } from './config-upgrade';
+import { needsPublishStorage, publishReadiness, publishStorageReady, PUBLISH_STORAGE_MESSAGE } from './publish-readiness';
 
 export const RUNNER_FRESH_MS = 60_000;
 export const RUNNER_ID = /^[a-zA-Z0-9_.:-]{1,100}$/;
@@ -10,13 +11,28 @@ const MACHINE_ROUTES: Record<string, true> = { next: true, step: true, check: tr
 /** Execution credentials never authorize editing, publishing or administrator operations. */
 export const requirePublishIdentity: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
   const route = new URL(c.req.url).pathname.replace(/\/$/, '').split('/').at(-1)!;
-  if (!MACHINE_ROUTES[route]) return requireAuth(c, next);
+  const requireStorage = async () => {
+    if (needsPublishStorage(route, c.req.method) && !(await publishStorageReady(c.env.DB))) {
+      c.res = c.json({ error: 'publish-schema-upgrade-required', message: PUBLISH_STORAGE_MESSAGE }, 503);
+      return;
+    }
+    await next();
+  };
+  // Authenticate first: schema or job information is not a public diagnostic endpoint.
+  if (!MACHINE_ROUTES[route]) return requireAuth(c, requireStorage);
   const secret = c.env.PUBLISH_RUNNER_TOKEN ?? '';
   const supplied = c.req.header('authorization') ?? '';
   if (secret.length < 32 || supplied.length > 1024 || !timingSafeEqualHex(supplied, `Bearer ${secret}`)) {
     return c.json({error:'unauthorized'}, 401);
   }
-  await next();
+  // A versioned, read-only machine probe must work before ensureInit and before the
+  // status route touches publish_checks. Old APIs ignore the query; the launcher
+  // rejects their missing protocol instead of treating a 200 as upgrade success.
+  if (route === 'runner-state' && c.req.method === 'GET' && c.req.query('readiness') === '1') {
+    return c.json({ environment: c.env.ENVIRONMENT, mode: c.env.PUBLISH_EXECUTION_MODE ?? 'unconfigured',
+      ...(await publishReadiness(c.env.DB)) });
+  }
+  await requireStorage();
 };
 
 /** Infrastructure availability also serves existing immutable jobs, independent of today's draft. */
@@ -43,6 +59,10 @@ async function executionAvailability(env: Env, now = Date.now()) {
 
 /** Accepting a new publication additionally requires the current draft to be compatible. */
 export async function executorState(env: Env, now = Date.now()) {
+  if (!(await publishStorageReady(env.DB))) return {
+    mode: env.PUBLISH_EXECUTION_MODE ?? 'unconfigured', ready: false,
+    reason: PUBLISH_STORAGE_MESSAGE, lastSeenAt: null,
+  };
   const result = await executionAvailability(env, now);
   if ((env.PUBLISH_RUNNER_TOKEN ?? '').length < 32) return result;
   const upgrade = await checkDraftUpgrade(env.DB);

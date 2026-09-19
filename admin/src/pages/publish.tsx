@@ -8,6 +8,7 @@ import { splitFailReason } from '../lib/fail-reason';
 import { changeGroup, humanPath } from '../lib/human-path';
 import { fieldEditorLink } from '../lib/field-target';
 import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
+import { createPublishRequestGate, preparePublishConfirmation, publishBlockReason, type PublishIntent } from '../lib/publish-actions';
 import { decodePublishProgress, groupPublishChecks, publishFailureAdvice, type PublishCheck } from '../../../schema/src/publish-feedback';
 import { DefaultTranslationActions, useTranslations } from '../lib/translations';
 import { useShell } from '../shell';
@@ -86,6 +87,8 @@ export default function PublishPage() {
   const [pre, setPre] = useState<Preflight | null>(null);
   const [st, setSt] = useState<Status | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
   const [pollFailed, setPollFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [confirm, setConfirm] = useState<PublishConfirmation | null>(null);
@@ -95,13 +98,31 @@ export default function PublishPage() {
   const [showAllErrors, setShowAllErrors] = useState(false);
   const [showAllWarnings, setShowAllWarnings] = useState(false);
   const timer = useRef<number | null>(null);
+  const requests = useRef(createPublishRequestGate());
+  const acting = useRef(false);
 
-  const load = useCallback(() => {
-    Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')])
-      .then(([p, s]) => { setPre(p); setSt(s); setFailed(false); setPollFailed(false); })
-      .catch(() => setFailed(true));
+  const refresh = useCallback(async () => {
+    const ticket = requests.current.begin();
+    setRefreshing(true);
+    setConfirm(null);
+    try {
+      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
+      if (!requests.current.isCurrent(ticket)) return null;
+      setPre(p); setSt(s); setFailed(false); setPollFailed(false); setLoadError('');
+      return { p, s, ticket };
+    } catch (error) {
+      if (requests.current.isCurrent(ticket)) {
+        setFailed(true);
+        setLoadError(apiErrorHint(error, '发布检查暂时无法刷新，请稍后重试。'));
+      }
+      return null;
+    } finally {
+      if (requests.current.isCurrent(ticket)) { requests.current.finish(ticket); setRefreshing(false); }
+    }
   }, []);
-  useEffect(load, [load]);
+  // Keep an effect-safe, void-returning entry point for existing refresh buttons.
+  const load = useCallback(() => { void refresh(); }, [refresh]);
+  useEffect(() => { load(); return () => requests.current.invalidate(); }, [load]);
   useEffect(() => {
     if (translations && pre && translations.draftRev > pre.draftRev) load();
   }, [translations?.draftRev, pre?.draftRev, load]);
@@ -111,15 +132,21 @@ export default function PublishPage() {
     let stopped = false;
     if (st) {
       const poll = () => {
+        const retry = () => { if (!stopped) timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000); };
+        if (requests.current.pending()) { retry(); return; }
+        const ticket = requests.current.current();
         api<Status>('/api/publish/status').then((s) => {
           if (stopped) return;
+          if (!requests.current.isCurrent(ticket)) { retry(); return; }
           setPollFailed(false);
           setSt(s);
-          if ((st.activeVersion && !s.activeVersion) || (!st.executor.ready && s.executor.ready)) { load(); reloadShell(); }
+          // Never leave a confirmation enabled after another publisher acquired the job.
+          if (s.activeVersion || !s.executor.ready || s.versions.some(v => v.status === 'unknown')) setConfirm(null);
+          if ((st.activeVersion && !s.activeVersion) || (!st.executor.ready && s.executor.ready)) { load(); void reloadShell(); }
         }).catch(() => {
           if (stopped) return;
-          setPollFailed(true);
-          timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
+          if (requests.current.isCurrent(ticket)) setPollFailed(true);
+          retry();
         });
       };
       timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
@@ -128,11 +155,17 @@ export default function PublishPage() {
   }, [st, load, reloadShell]);
 
   async function doPublish() {
-    if (!confirm) return;
+    if (!confirm || acting.current || refreshing || failed || pollFailed || !st || st.activeVersion
+      || !st.executor.ready || st.versions.some(v => v.status === 'unknown')) return;
+    if ((pre?.reasonRequired || confirm.rollbackFrom !== undefined) && confirm.reason.trim().length < 8) {
+      toast('需要填写理由（至少 8 字）'); return;
+    }
+    acting.current = true;
+    requests.current.invalidate();
     setBusy(true);
     try {
       await api('/api/publish', { method: 'POST', body: JSON.stringify(publishRequestBody(confirm)) });
-      toast(confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
+      toast(confirm.rebuild ? '版本重建已发起，将执行全部发布检查' : confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
       setConfirm(null);
       load();
     } catch (e) {
@@ -143,23 +176,24 @@ export default function PublishPage() {
         load();
         return;
       }
-      const serviceMessage = e instanceof ApiError && ['executor-unavailable', 'config-upgrade-conflict', 'config-upgrade-retry'].includes(err)
+      const serviceMessage = e instanceof ApiError && ['executor-unavailable', 'config-upgrade-conflict', 'config-upgrade-retry', 'publish-schema-upgrade-required'].includes(err)
         ? String(e.body.message ?? e.body.hint ?? '配置升级尚未完成，请刷新查看具体原因') : null;
       toast(serviceMessage ?? (err.includes('reason') ? '需要填写理由(≥8 字)' : err.includes('in-progress') ? '已有发布正在进行或等待核实' : err.includes('preflight') ? '前置校验未通过' : '发起失败,请重试'));
-    } finally { setBusy(false); }
+    } finally { acting.current = false; setBusy(false); }
   }
 
-  async function recheckAndConfirm() {
+  async function recheckAndConfirm(intent: PublishIntent = 'draft') {
+    if (acting.current) return;
+    acting.current = true;
     setBusy(true);
-    setConfirm(null);
     try {
-      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
-      setPre(p); setSt(s);
-      if (p.ready && !s.activeVersion && s.executor.ready && !s.versions.some(v => v.status === 'unknown')) {
-        setConfirm({ reason: '', draftRev: p.draftRev });
-      } else toast('检查结果已刷新，请先处理当前问题或等待发布服务恢复');
-    } catch { toast('检查结果暂时无法刷新，请稍后重试'); }
-    finally { setBusy(false); }
+      const result = await refresh();
+      if (!result || !requests.current.isCurrent(result.ticket)) return;
+      const { p, s } = result;
+      const blocked = publishBlockReason(p, s, intent);
+      if (blocked) { toast(blocked); return; }
+      setConfirm(preparePublishConfirmation(p, s, intent));
+    } finally { acting.current = false; setBusy(false); }
   }
 
   /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
@@ -189,10 +223,15 @@ export default function PublishPage() {
     }
   }
 
-  if (failed && (!pre || !st)) return <section><h2>发布与版本</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={load}>重试</button></div></section>;
+  if (failed && (!pre || !st)) return <section><h2>发布与版本</h2><div className="note bad">{loadError || '数据获取失败'} <button className="btn ghost sm" disabled={refreshing || busy} onClick={load}>重新检查</button></div></section>;
   if (!pre || !st) return <section><h2>发布与版本</h2><div className="skl" style={{ height: 80 }} /></section>;
 
   const active = st.activeVersion;
+  const blocked = publishBlockReason(pre, st);
+  const rebuildBlocked = publishBlockReason(pre, st, 'rebuild');
+  const liveVersion = st.versions.find(v => v.status === 'live');
+  const snapshotStale = failed || pollFailed;
+  const unavailable = busy || refreshing || snapshotStale || !!active || !st.executor.ready || st.versions.some(v => v.status === 'unknown');
   // 当前任务心跳与输出更新时间不同；安静的长检查仍会续租。
   const taskDisconnected = !!active && !pollFailed && st.stepsOfVersion === active && st.steps.length > 0
     && typeof st.silentMs === 'number' && Number.isFinite(st.silentMs) && st.silentMs >= 60_000;
@@ -241,7 +280,11 @@ export default function PublishPage() {
         })}
       </ol>
       {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。恢复连接后将核实执行结果。</div>}
-      {failed && <div className="note warn" role="status">发布检查信息暂时无法刷新，已保留上次结果。<button className="btn ghost sm" onClick={load}>重试</button></div>}
+      {failed && <div className="note warn" role="status">{loadError || '发布检查信息暂时无法刷新，已保留上次结果。'}<button className="btn ghost sm" onClick={load}>重试</button></div>}
+      <div className="row" style={{ marginBottom: 12 }}>
+        <button className="btn ghost" disabled={busy || refreshing} onClick={load}>{refreshing ? '检查中…' : '重新检查'}</button>
+        <span className="kv" role="status">{snapshotStale ? '连接恢复并重新检查成功前，暂停提交发布。' : blocked}</span>
+      </div>
       {unknown ? <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>
         : !active && !st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
 
@@ -252,7 +295,7 @@ export default function PublishPage() {
         <p>{failureAdvice.suggestion}</p>
         <p className="kv">草稿改动已保留。{failedStep && failedStep.step !== 'swap' && !st.drift && !unknown
           ? '未切换新版，官网保留原先版本。' : '线上状态以当前核验结果为准。'}当前能否发布以下方检查为准。</p>
-        <button className="btn" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新检查并发布</button>
+        <button className="btn" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新检查并发布</button>
         <details className="inline-help"><summary>查看失败技术详情</summary>
           <pre className="kv mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failureAdvice.raw || '原因未记录'}</pre>
         </details>
@@ -299,7 +342,7 @@ export default function PublishPage() {
               ))}
               {failedChecks.length > 0 && <div className="row" style={{ marginTop: 8 }}>
                 <span className="kv" style={{ color: '#ef8077' }}>有 {failedChecks.length} 项检查未通过，本次任务停止后可在下方重新发布。</span>
-                <button className="btn ghost sm" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新发布</button>
+                <button className="btn ghost sm" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新发布</button>
               </div>}
             </div>
           ) : (
@@ -389,7 +432,7 @@ export default function PublishPage() {
           {/* 🔴 出路必须是**当下真能点的**:草稿零改动时「发布」按钮是灰的,劝人「重新发起」等于没说(第四轮 P1-6)。
               回滚到当前记录的线上版本会走完整门链并重新搬运快照,正好把两边对齐。 */}
           <div className="row" style={{ marginTop: 6, gap: 8 }}>
-            <button className="btn" disabled={!!active || unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
+            <button className="btn" disabled={unavailable} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
               重新发布 v{st.drift.dbLive} 以对齐
             </button>
             <span className="kv">会走完整门链,门红则线上保持现状。</span>
@@ -478,20 +521,28 @@ export default function PublishPage() {
             );
           })()}
           <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary" disabled={!pre.ready || busy || !st.executor.ready || st.versions.some(v=>v.status==='unknown')} onClick={() => setConfirm({ reason: '', draftRev: pre.draftRev })}>
+            <button className="btn primary" disabled={unavailable || !!blocked} onClick={() => void recheckAndConfirm()}>
               检查并发布
             </button>
-            <span className="kv">{!pre.ready && (pre.errors.length ? '处理上方问题后再发布' : '无改动可发布')}</span>
+            <span className="kv">{blocked}</span>
           </div>
+          {pre.changed === 0 && liveVersion && <div className="note info" style={{ marginTop: 12 }}>
+            <p>代码升级不会计入草稿改动。可使用当前发布器代码重新构建 v{liveVersion.id}，同时更新官网和后台静态页面。</p>
+            <p className="kv">内容取自确认的版本，不覆盖草稿；仍须经过全部检查、切换和核验。不会更新正在运行的发布器进程。</p>
+            <button className="btn" disabled={unavailable || !!rebuildBlocked} onClick={() => void recheckAndConfirm('rebuild')}>重新构建 v{liveVersion.id}（使用当前代码）</button>
+            {rebuildBlocked && <p className="kv">{rebuildBlocked}</p>}
+          </div>}
         </div>
       )}
 
       {/* 确认弹窗 */}
       {confirm && (
         <div className="card" style={{ marginBottom: 12, outline: '2px solid var(--brand)' }}>
-          <h3>{confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
+          <h3>{confirm.rebuild ? `确认使用当前代码重新构建 v${confirm.rollbackFrom}?` : confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
           <p className="kv">
-            {confirm.rollbackFrom
+            {confirm.rebuild
+              ? '本次使用所确认版本的内容和执行器当前代码重新构建，仍执行全部发布检查。草稿不会覆盖该版本内容，也不会被重建操作改写。确认的是具体版本，不会自动改成稍后出现的其他版本。成功后生成新版本号。'
+              : confirm.rollbackFrom
               ? '回滚会按当前网站结构恢复该版内容，并发起一次新发布、执行全部检查。旧版格式会自动转换；已修改内容存在兼容冲突时会停止并提示。成功后生成新版本号。'
               : '确认后系统锁定本次草稿，构建官网并执行全部检查，再组装后台、切换和核验。检查失败时保留旧版。'}
           </p>
@@ -501,7 +552,7 @@ export default function PublishPage() {
           )}
           <div className="row" style={{ justifyContent: 'flex-end' }}>
             <button className="btn ghost" onClick={() => setConfirm(null)}>取消</button>
-            <button className="btn primary" disabled={busy} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
+            <button className="btn primary" disabled={unavailable || ((pre.reasonRequired || confirm.rollbackFrom !== undefined) && confirm.reason.trim().length < 8)} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
           </div>
         </div>
       )}
@@ -567,7 +618,7 @@ export default function PublishPage() {
                   {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,
                       于是 cancelled 行也长出按钮,点了必 404 —— 界面给的每个按钮都该是能点通的。 */}
                   {v.status === 'archived' && !active && (
-                    <button className="btn ghost sm" disabled={unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
+                    <button className="btn ghost sm" disabled={unavailable} onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
                   )}
                 </td>
               </tr>
