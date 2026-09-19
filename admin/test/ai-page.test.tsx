@@ -26,6 +26,11 @@ beforeEach(() => { connection = fixture(); mocks.api.mockImplementation(async (_
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 const mount = () => render(<MemoryRouter><AiPage /></MemoryRouter>);
 
+it('opens translation tasks when linked from publish readiness', () => {
+  const { container } = render(<MemoryRouter initialEntries={['/ai#translation-tasks']}><AiPage /></MemoryRouter>);
+  expect((container.querySelector('#translation-tasks') as HTMLDetailsElement).open).toBe(true);
+});
+
 it('reads state without testing and clears a submitted key while preserving a failed replacement', async () => {
   mount(); await screen.findByLabelText('OpenCode Zen API Key');
   expect(mocks.api.mock.calls.every((call) => !call[1]?.method)).toBe(true);

@@ -5,15 +5,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { ApiError, api, apiErrorHint, toast } from '../api';
 import { splitFailReason } from '../lib/fail-reason';
-import { changeGroup, humanPath } from '../lib/human-path';
-import { fieldEditorLink } from '../lib/field-target';
+import { changeGroup, humanPath, LOCALE_NAME } from '../lib/human-path';
+import { fieldEditorLink, parseFieldTarget } from '../lib/field-target';
 import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
 import { createPublishRequestGate, preparePublishConfirmation, publishBlockReason, type PublishIntent } from '../lib/publish-actions';
 import { decodePublishProgress, groupPublishChecks, publishFailureAdvice, type PublishCheck } from '../../../schema/src/publish-feedback';
-import { DefaultTranslationActions, useTranslations } from '../lib/translations';
+import { useTranslations } from '../lib/translations';
 import { useShell } from '../shell';
 
 interface Finding { path: string; rule: string; message: string }
+interface FindingGroup { key: string; label: string; message: string; items: Finding[]; locales: Array<[string, number]> }
 interface Preflight {
   ready: boolean; errors: Finding[]; warnings: Finding[];
   message?: string;
@@ -87,12 +88,32 @@ const RULE_LABEL: Record<string, string> = {
   'missing-key': '缺 key', 'enabled-empty-url': '开启的入口缺 URL', url: '链接格式', email: '邮箱格式',
   'all-hidden': '设备板块全隐藏', 'min-visible': 'FAQ 可见不足 3 条', 'dup-id': 'FAQ id 重复', window: '公告时间窗',
   structure: '数据结构', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
-  'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符',
+  'translation-stale': '译文待更新', 'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符',
   'growth-noop': '自动增长没配增量', 'growth-future': '自动增长起算日在未来', 'growth-too-fast': '自动增长过快',
 };
 // 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)
 /** 红项 → 该去哪个页面修 */
+
+/** 同一根因只显示一次；路径仍保留少量定位样本。 */
+export function groupFindings(findings: Finding[]): FindingGroup[] {
+  const groups = new Map<string, FindingGroup>();
+  for (const finding of findings) {
+    const key = finding.rule;
+    const group = groups.get(key) ?? { key, label: RULE_LABEL[finding.rule] ?? finding.message, message: finding.message, items: [], locales: [] };
+    group.items.push(finding);
+    groups.set(key, group);
+  }
+  for (const group of groups.values()) {
+    const locales = new Map<string, number>();
+    for (const finding of group.items) {
+      const locale = parseFieldTarget(finding.path).locale;
+      if (locale) locales.set(locale, (locales.get(locale) ?? 0) + 1);
+    }
+    group.locales = [...locales].sort((a, b) => b[1] - a[1]);
+  }
+  return [...groups.values()].sort((a, b) => b.items.length - a.items.length);
+}
 
 export default function PublishPage() {
   const { reload: reloadShell } = useShell();
@@ -108,8 +129,6 @@ export default function PublishPage() {
   const [forcing, setForcing] = useState(false);
   const [forceReason, setForceReason] = useState('');
   const [openLog, setOpenLog] = useState<string | null>(null);
-  const [showAllErrors, setShowAllErrors] = useState(false);
-  const [showAllWarnings, setShowAllWarnings] = useState(false);
   const timer = useRef<number | null>(null);
   const requests = useRef(createPublishRequestGate());
   const acting = useRef(false);
@@ -272,6 +291,13 @@ export default function PublishPage() {
     if (!changedGroups.has(group)) changedGroups.set(group, []);
     changedGroups.get(group)!.push(path);
   }
+  const errorGroups = groupFindings(pre.errors);
+  const warningGroups = groupFindings(pre.warnings);
+  const translationOnly = pre.errors.length > 0 && pre.errors.every((finding) => ['translation-stale', 'untranslated'].includes(finding.rule));
+  const editableFinding = pre.errors.find((finding) => !['structure', 'unknown-key', 'missing-key'].includes(finding.rule));
+  const pendingTranslations = translations?.counts.pending ?? 0;
+  const issueAction = translationOnly ? { to: '/ai#translation-tasks', label: `处理 ${pre.errors.length} 项译文` }
+    : editableFinding ? { to: fieldEditorLink(editableFinding.path), label: `修复 ${pre.errors.length} 项阻断问题` } : null;
   // 步骤只认「本次进行中版本」的日志,防把上一次的步骤画进这一次(stepsOfVersion 由服务端标明)
   const stepDone = (name: string) => (st.stepsOfVersion === active ? st.steps.find((s) => s.step === name) : undefined);
   const activeStarts = active ? st.steps.filter((s) => s.started_at > 0).map((s) => s.started_at) : [];
@@ -428,10 +454,6 @@ export default function PublishPage() {
       </section>
       {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。恢复连接后将核实执行结果。</div>}
       {failed && <div className="note warn" role="status">{loadError || '发布检查信息暂时无法刷新，已保留上次结果。'}<button className="btn ghost sm" onClick={load}>重试</button></div>}
-      <div className="row" style={{ marginBottom: 12 }}>
-        <button className="btn ghost" disabled={busy || refreshing} onClick={load}>{refreshing ? '检查中…' : '重新检查'}</button>
-        <span className="kv" role="status">{snapshotStale ? '连接恢复并重新检查成功前，暂停提交发布。' : blocked}</span>
-      </div>
       {unknown ? <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>
         : !active && !st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
 
@@ -513,84 +535,58 @@ export default function PublishPage() {
         <p className="kv">发布时记录网页指纹，上线前及打开本页时再次比对。样式、脚本和图片不逐个回读，直接覆盖同名资源无法检出。</p>
       </details>
 
-      {/* 本次发布:diff + 前置校验 */}
+      {/* 发布准备：默认只给结论和下一步，逐字段内容按需展开。 */}
       {!active && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <h3>{pre.message ? '发布前检查' : `本次发布 · ${pre.changed} 处改动`}{pre.reasonRequired && <span className="pill warn" style={{ marginLeft: 6 }}>含高敏字段,须填理由</span>}</h3>
+        <div className="card publish-readiness" id="publish-readiness" style={{ marginBottom: 12 }}>
+          <header className="publish-readiness-heading">
+            <div><span className="eyebrow">发布准备</span><h3>{pre.errors.length ? '还有内容需要处理' : pre.changed ? '可以进入发布检查' : '当前没有内容改动'}</h3>
+              <p>{pre.errors.length ? `${pre.errors.length} 项阻断已归并为 ${errorGroups.length} 个处理任务。` : '确认摘要后，系统会锁定草稿并自动完成检查、构建、切换和核验。'}</p></div>
+            <button className="btn ghost sm" disabled={busy || refreshing} onClick={load}>{refreshing ? '检查中…' : '重新检查'}</button>
+          </header>
+          <dl className="publish-readiness-metrics" aria-label="本次发布摘要">
+            <div><dt>待发布改动</dt><dd><b>{pre.changed}</b><small>{changedGroups.size} 个模块</small></dd></div>
+            <div data-tone={pre.errors.length ? 'bad' : 'ok'}><dt>阻断问题</dt><dd><b>{pre.errors.length}</b><small>{pre.errors.length ? '处理后可发布' : '已经通过'}</small></dd></div>
+            <div data-tone={pre.warnings.length ? 'warn' : 'ok'}><dt>非阻断提醒</dt><dd><b>{pre.warnings.length}</b><small>不影响发布</small></dd></div>
+          </dl>
+          {pre.reasonRequired && <p className="publish-sensitive-note"><span className="pill warn">含高敏字段</span> 发布确认时需要填写理由。</p>}
           {pre.message ? <p className="kv">{pre.message} 配置兼容准备完成后显示改动摘要。</p> : pre.changed === 0 ? (
             <p className="kv">没有待发布的改动(草稿与线上一致)。</p>
           ) : (
-            [...changedGroups].map(([group, paths]) => <details key={group} style={{ marginTop: 8 }}>
-              <summary>{group} · {paths.length} 处</summary>
-              <div className="table-scroll" tabIndex={0} role="region" aria-label={`${group}发布改动，可左右滚动`}><table>
-              <thead><tr><th>改动位置</th><th>说明</th></tr></thead>
-              <tbody>
-                {paths.map((p) => (
-                  <tr key={p}>
-                    <td>{humanPath(p)}<div className="kv mono" style={{ fontSize: 'var(--text-sm)' }}>{p}</div></td>
-                    <td>{pre.sensitiveChanged.includes(p) ? <span className="pill warn">高敏</span> : <span className="kv">普通</span>}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table></div></details>)
+            <details className="publish-disclosure">
+              <summary>查看 {changedGroups.size} 个模块的改动摘要</summary>
+              <div className="publish-summary-list">
+                {[...changedGroups].map(([group, paths]) => {
+                  const sensitive = paths.filter((path) => pre.sensitiveChanged.includes(path)).length;
+                  return <div className="publish-summary-row" key={group}><div><b>{group}</b><p>{paths.slice(0, 3).map(humanPath).join(' · ')}{paths.length > 3 ? ` · 另 ${paths.length - 3} 处` : ''}</p></div>
+                    <span className={`pill ${sensitive ? 'warn' : ''}`}>{paths.length} 处{sensitive ? ` · ${sensitive} 高敏` : ''}</span></div>;
+                })}
+              </div>
+            </details>
           )}
           {pre.errors.length > 0 && (
-            <div className="note bad" style={{ marginTop: 10 }}>
-              <b>前置校验未通过({pre.errors.length} 项),不会进入发布流程:</b>
-              <div className="table-scroll" tabIndex={0} role="region" aria-label="待修复问题，可左右滚动"><table><tbody>
-                {(showAllErrors ? pre.errors : pre.errors.slice(0, 15)).map((e, i) => (
-                  <tr key={i}>
-                    <td>{RULE_LABEL[e.rule] ?? e.rule}</td>
-                    <td>{humanPath(e.path)}<div className="kv mono" style={{ fontSize: 'var(--text-sm)' }}>{e.path}</div></td>
-                    <td>{e.message}</td>
-                    {/* 「去修复」带上要定位的字段:目标页据此高亮/滚动到那一处(PRD ⑥「定位到红字段」) */}
-                    <td>{['structure', 'unknown-key', 'missing-key'].includes(e.rule)
-                      ? <span className="kv">需要发布服务完成配置兼容处理；持续出现时查看服务日志。</span>
-                      : <NavLink className="btn ghost sm" to={fieldEditorLink(e.path)}>去修复</NavLink>}</td>
-                  </tr>
-                ))}
-              </tbody></table></div>
-              {/* 所有问题都可展开；只有可编辑内容提供字段定位。 */}
-              {pre.errors.length > 15 && (
-                <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllErrors((v) => !v)}>
-                  {showAllErrors ? '只看前 15 项' : `展开全部 ${pre.errors.length} 项`}
-                </button>
-              )}
-            </div>
+            <section className="publish-blockers" aria-labelledby="publish-blockers-title">
+              <div className="publish-section-title"><div><span>发布前需要处理</span><h4 id="publish-blockers-title">{pre.errors.length} 项问题 · {errorGroups.length} 个根因</h4></div></div>
+              <div className="publish-finding-list">{errorGroups.map((group) => <div className="publish-finding" key={group.key}>
+                <span className="publish-finding-mark" aria-hidden="true">!</span><div><b>{group.label}</b><p>{group.message}</p>
+                  {group.locales.length > 0 && <div className="publish-locale-counts">{group.locales.map(([locale, count]) => <span className="pill" key={locale}>{LOCALE_NAME[locale] ?? locale} {count}</span>)}</div>}
+                </div><strong>{group.items.length}</strong>
+              </div>)}</div>
+              <details className="publish-disclosure compact"><summary>查看定位示例</summary>
+                <div className="publish-example-list">{errorGroups.flatMap((group) => group.items.slice(0, 5)).map((finding) => <div key={`${finding.rule}:${finding.path}`}><span>{humanPath(finding.path)}</span>
+                  {['structure', 'unknown-key', 'missing-key'].includes(finding.rule) ? <small>由发布服务处理配置兼容</small> : <NavLink to={fieldEditorLink(finding.path)}>定位字段</NavLink>}</div>)}</div>
+              </details>
+            </section>
           )}
-          {pre.errors.some(e => ['untranslated', 'translation-stale'].includes(e.rule)) && <DefaultTranslationActions disabled={busy || unknown} onChanged={async () => { load(); await reloadShell(); }} />}
-          {pre.warnings.length > 0 && (() => {
-            /* 🔴 按**规则**归并,而不是取前四条(2026-09-01 第十轮独立验收 P2-1):
-               上一版四个位置被**同一条规则**重复占满(实录:四次「SEO 长度(SEO · 英文 · 首页 · 标题)」),
-               另外 15 条可能是完全不同的问题,一条都看不到、也没有展开入口。
-               归并后每种问题至少露一次脸,数量写在括号里,再给展开看全部。 */
-            const byRule = new Map<string, string[]>();
-            for (const w of pre.warnings) {
-              const key = RULE_LABEL[w.rule] ?? w.rule;
-              byRule.set(key, [...(byRule.get(key) ?? []), humanPath(w.path)]);
-            }
-            return (
-              <div className="note warn" style={{ marginTop: 8 }}>
-                <b>提醒({pre.warnings.length} 项,不阻断发布)</b>
-                {[...byRule].map(([rule, paths]) => (
-                  <div key={rule} style={{ marginTop: 4 }}>
-                    {rule}({paths.length} 处):
-                    <span className="kv"> {(showAllWarnings ? paths : paths.slice(0, 3)).join(' · ')}{!showAllWarnings && paths.length > 3 ? ` …另 ${paths.length - 3} 处` : ''}</span>
-                  </div>
-                ))}
-                {pre.warnings.length > byRule.size && (
-                  <button className="btn ghost sm" style={{ marginTop: 6 }} onClick={() => setShowAllWarnings((v) => !v)}>
-                    {showAllWarnings ? '收起' : '展开全部位置'}
-                  </button>
-                )}
-              </div>
-            );
-          })()}
-          <div className="row" style={{ marginTop: 12 }}>
-            <button className="btn primary" disabled={unavailable || !!blocked} onClick={() => void recheckAndConfirm()}>
-              检查并发布
-            </button>
-            <span className="kv">{blocked}</span>
+          {pre.warnings.length > 0 && <details className="publish-reminders">
+            <summary><span>非阻断提醒 · {pre.warnings.length}</span><small>{warningGroups.map((group) => `${group.label} ${group.items.length}`).join(' · ')}</small></summary>
+            <div className="publish-summary-list">{warningGroups.map((group) => <div className="publish-summary-row" key={group.key}><div><b>{group.label}</b><p>{group.items.slice(0, 3).map((finding) => humanPath(finding.path)).join(' · ')}{group.items.length > 3 ? ` · 另 ${group.items.length - 3} 处` : ''}</p></div><span className="pill warn">{group.items.length} 处</span></div>)}</div>
+          </details>}
+          <div className="publish-primary-action">
+            {pre.errors.length > 0 && issueAction ? <NavLink className="btn primary" to={issueAction.to}>{issueAction.label}</NavLink>
+              : <button className="btn primary" disabled={unavailable || !!blocked} onClick={() => void recheckAndConfirm()}>检查并发布</button>}
+            <span className="kv" role="status">{translationOnly && pendingTranslations > 0
+              ? `当前 ${pre.errors.length} 项阻断；队列另有 ${Math.max(0, pendingTranslations - pre.errors.length)} 项待处理内容，共 ${pendingTranslations} 项。`
+              : snapshotStale ? '连接恢复并重新检查成功前，暂停提交发布。' : blocked}</span>
           </div>
           {pre.changed === 0 && liveVersion && <div className="note info" style={{ marginTop: 12 }}>
             <p>代码升级不会计入草稿改动。可使用当前发布器代码重新构建 v{liveVersion.id}，同时更新官网和后台静态页面。</p>

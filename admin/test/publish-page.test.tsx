@@ -162,14 +162,15 @@ it('groups every changed field and separates system compatibility from editable 
     executor: { ready: true, mode: 'local', reason: '', lastSeenAt: null },
   });
   render(<MemoryRouter><PublishPage /></MemoryRouter>);
-  const group = await screen.findByText('首屏 Hero · 34 处');
-  expect(group.closest('details')?.open).toBe(false);
-  fireEvent.click(group);
-  for (const path of paths) expect(screen.getAllByText(path).length).toBeGreaterThan(0);
-  const links = screen.getAllByRole('link', { name: '去修复' });
-  expect(links).toHaveLength(1);
-  expect(links[0].getAttribute('href')).toContain('downloads');
-  expect(screen.getByText(/需要发布服务完成配置兼容处理/)).toBeTruthy();
+  const summary = await screen.findByText('查看 2 个模块的改动摘要');
+  expect(summary.closest('details')?.open).toBe(false);
+  fireEvent.click(summary);
+  expect(screen.getByText('首屏 Hero')).toBeTruthy();
+  expect(screen.getByText('34 处')).toBeTruthy();
+  expect(screen.getByText(/另 31 处/)).toBeTruthy();
+  const action = screen.getByRole('link', { name: '修复 2 项阻断问题' });
+  expect(action.getAttribute('href')).toContain('downloads');
+  expect(screen.getByText(/由发布服务处理配置兼容/)).toBeTruthy();
 });
 
 it('keeps unknown outcomes blocked across publish, rollback and realignment', async () => {
@@ -182,7 +183,7 @@ it('keeps unknown outcomes blocked across publish, rollback and realignment', as
     executor: { ready: true, mode: 'local', reason: '', lastSeenAt: null },
   });
   render(<MemoryRouter><PublishPage /></MemoryRouter>);
-  await screen.findByText('发布前检查');
+  await screen.findByText('发布准备');
   expect(screen.queryByText(/没有待发布的改动/)).toBeNull();
   for (const name of ['检查并发布', '回滚到此版', '重新发布 v2 以对齐']) {
     expect((screen.getByRole('button', { name }) as HTMLButtonElement).disabled).toBe(true);
@@ -262,31 +263,63 @@ it('hides the old failure after a newer success while retaining its history log'
   expect(screen.getByText('发布检查未通过')).toBeTruthy();
 });
 
-it('uses the existing one-click missing translation action without publishing', async () => {
+it('replaces a blocked publish button with one clear translation action and refreshes when work completes', async () => {
   vi.useFakeTimers();
   let missing = true;
   let revision = 8;
   mocks.api.mockImplementation(async (path: string, options?: RequestInit) => {
     if (path === '/api/translations') return options?.method === 'POST' ? { queued: 1 }
-      : { draftRev: revision, counts: {}, states: [], items: [], nextCursor: null };
+      : { draftRev: revision, counts: { pending: 2 }, states: [], items: [], nextCursor: null };
     if (path.endsWith('/preflight')) return { ...preflight(revision), ready: !missing,
       errors: missing ? [{ path: 'copy.vi.hero.line1', rule: 'untranslated', message: '缺少译文' }] : [] };
     return { ...status(), versions: [] };
   });
   await act(async () => { render(<MemoryRouter><TranslationProvider draftRevision={8} onDraftChanged={mocks.reload}><PublishPage /></TranslationProvider></MemoryRouter>); });
-  const button = screen.getByRole('button', { name: '一键补译缺项' });
-  const link = screen.getByRole('link', { name: '去修复' });
-  expect(link.getAttribute('href')).toContain('focus=copy.vi.hero.line1');
-  await act(async () => { fireEvent.click(button); });
-  const call = mocks.api.mock.calls.find(([path, options]) => path === '/api/translations' && options?.method === 'POST')!;
-  expect(JSON.parse(call[1].body)).toEqual({ mode: 'missing' });
-  expect((screen.getByRole('button', { name: '检查并发布' }) as HTMLButtonElement).disabled).toBe(true);
+  const action = screen.getByRole('link', { name: '处理 1 项译文' });
+  expect(action.getAttribute('href')).toBe('/ai#translation-tasks');
+  expect(screen.getByText('当前 1 项阻断；队列另有 1 项待处理内容，共 2 项。')).toBeTruthy();
+  expect(screen.getByRole('link', { name: '定位字段' }).getAttribute('href')).toContain('focus=copy.vi.hero.line1');
+  expect(screen.queryByRole('button', { name: '检查并发布' })).toBeNull();
+  expect(mocks.api.mock.calls.some(([path, options]) => path === '/api/translations' && options?.method === 'POST')).toBe(false);
   missing = false; revision = 9;
   await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
   expect((screen.getByRole('button', { name: '检查并发布' }) as HTMLButtonElement).disabled).toBe(false);
   expect(screen.queryByText('缺少译文')).toBeNull();
   expect(mocks.api.mock.calls.filter(([path]) => path === '/api/publish')).toHaveLength(0);
   expect(mocks.reload).toHaveBeenCalled();
+});
+
+it('keeps the blocker repair action available during a transient status poll failure', async () => {
+  vi.useFakeTimers();
+  let statusOffline = false;
+  mocks.api.mockImplementation(async (path: string) => {
+    if (path === '/api/translations') return { draftRev: 8, counts: {}, states: [], items: [], nextCursor: null };
+    if (path.endsWith('/preflight')) return { ...preflight(), ready: false,
+      errors: [{ path: 'copy.vi.hero.line1', rule: 'translation-stale', message: '原文已更新，译文尚未更新' }] };
+    if (statusOffline) throw new Error('network disconnected');
+    return { ...status(), versions: [] };
+  });
+  await act(async () => { render(<MemoryRouter><TranslationProvider draftRevision={8} onDraftChanged={mocks.reload}><PublishPage /></TranslationProvider></MemoryRouter>); });
+  statusOffline = true;
+  await act(async () => { await vi.advanceTimersByTimeAsync(5000); });
+  expect(screen.getByText(/暂时无法刷新发布状态/)).toBeTruthy();
+  expect(screen.getByRole('link', { name: '处理 1 项译文' }).getAttribute('href')).toBe('/ai#translation-tasks');
+  expect(screen.queryByRole('button', { name: '检查并发布' })).toBeNull();
+});
+
+it('collapses non-blocking reminders into rule groups instead of listing every field', async () => {
+  const warnings = [
+    ...Array.from({ length: 9 }, (_, i) => ({ path: `seo.home.title.${i % 2 ? 'vi' : 'en'}`, rule: 'seo-length', message: '标题过长' })),
+    ...Array.from({ length: 8 }, (_, i) => ({ path: `copy.${i % 2 ? 'vi' : 'en'}.social.line${i}`, rule: 'newline-shape', message: '换行结构不同' })),
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? { ...preflight(), warnings } : { ...status(), versions: [] });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  const summary = await screen.findByText('非阻断提醒 · 17');
+  const details = summary.closest('details')!;
+  expect(details.open).toBe(false);
+  expect(summary.parentElement?.textContent).toContain('SEO 长度 9');
+  expect(summary.parentElement?.textContent).toContain('换行结构 8');
+  expect(details.querySelectorAll('.publish-summary-row')).toHaveLength(2);
 });
 
 it('renders grouped check details with Chinese badges and collapsible failure output', async () => {

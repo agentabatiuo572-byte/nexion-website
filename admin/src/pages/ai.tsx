@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { api } from '../api';
 import { useShell, useUnsavedChanges } from '../shell';
 import { DefaultTranslationActions, TranslationTasks, translationError } from '../lib/translations';
@@ -26,6 +27,8 @@ function allowedModel(provider: AiConnectionView['providers'][number] | undefine
 }
 
 export default function AiPage() {
+  const location = useLocation();
+  const [tasksOpen, setTasksOpen] = useState(location.hash === '#translation-tasks');
   const { reload } = useShell();
   const [connection, setConnection] = useState<AiConnectionView | null>(null), [error, setError] = useState(''), [message, setMessage] = useState('');
   const [apiKey, setApiKey] = useState(''), [model, setModel] = useState<string | null>(null), [limit, setLimit] = useState<string | null>(null);
@@ -132,6 +135,6 @@ export default function AiPage() {
         <p className="kv">UTC 日期 {connection.usage.day} · 已发送 {connection.usage.sentCharacters.toLocaleString()} 字符 · {connection.usage.calls} 次调用 · 已知输入/输出 token {connection.usage.inputTokens}/{connection.usage.outputTokens}{connection.usage.unknownCalls > 0 ? ` · ${connection.usage.unknownCalls} 次用量待确认` : ''}。字符上限不是账单金额。</p>
       </section>
     </>}
-    <details className="card"><summary>高级：批量补译与任务</summary><DefaultTranslationActions onChanged={reload} /><TranslationTasks /></details>
+    <details className="card" id="translation-tasks" open={tasksOpen} onToggle={(event) => setTasksOpen(event.currentTarget.open)}><summary>高级：批量补译与任务</summary><DefaultTranslationActions onChanged={reload} /><TranslationTasks /></details>
   </section>;
 }
