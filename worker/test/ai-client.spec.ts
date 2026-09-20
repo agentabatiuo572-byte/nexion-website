@@ -84,7 +84,8 @@ describe('seven fixed provider transports', () => {
     for (const id of ['constructor', '__proto__', 'toString', '', 'OpenAI', null, {}]) expect(isAiProvider(id)).toBe(false);
   });
   it('routes OpenCode Zen DeepSeek V4 Flash Free through the chat endpoint', async () => {
-    expect(AI_PROVIDERS.zen.allowedModels).toContain('deepseek-v4-flash-free');
+    expect(AI_PROVIDERS.zen.defaultModel).toBe('deepseek-v4-flash-free');
+    expect(AI_PROVIDERS.zen.allowedModels[0]).toBe('deepseek-v4-flash-free');
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geminiResult()));
     const answer = await requestTranslations('synthetic-zen-key', 'deepseek-v4-flash-free', 'en', fields, undefined, 'zen');
     expect(answer).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
