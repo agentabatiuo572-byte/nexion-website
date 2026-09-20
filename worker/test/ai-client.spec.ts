@@ -340,6 +340,13 @@ describe('OpenCode Zen raw Responses boundary', () => {
     await expect(requestTranslations('synthetic-provider-key', AI_DEFAULT_MODEL, 'en', fields))
       .rejects.toMatchObject({ code: 'billing-required', message: 'billing-required' });
   });
+  it('identifies an unavailable Zen upstream model without exposing the provider message', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: {
+      type: 'server_error', message: 'Error from provider: Model is unavailable. private-detail',
+    } }, { status: 400 }));
+    await expect(requestTranslations('synthetic-provider-key', 'deepseek-v4-flash-free', 'en', fields, undefined, 'zen'))
+      .rejects.toMatchObject({ code: 'model-unavailable', message: 'model-unavailable' });
+  });
   it('distinguishes quota exhaustion from temporary 429 and preserves retry delay', async () => {
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: { code: 'insufficient_quota' } }, { status: 429 }));
     await expect(requestTranslations('key', AI_DEFAULT_MODEL, 'en', fields)).rejects.toMatchObject({ code: 'quota-exhausted', retryable: false });
