@@ -68,6 +68,7 @@ const providers = [
   ['deepseek', 'https://api.deepseek.com/chat/completions', 'chat'],
   ['groq', 'https://api.groq.com/openai/v1/chat/completions', 'chat'],
   ['openrouter', 'https://openrouter.ai/api/v1/chat/completions', 'chat'],
+  ['nvidia', 'https://integrate.api.nvidia.com/v1/chat/completions', 'chat'],
 ] as const;
 const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }], model: string = AI_PROVIDERS[provider].defaultModel) => {
   const text = JSON.stringify({ translations });
@@ -78,8 +79,8 @@ const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields
 };
 const callProvider = (provider: AiProvider, model: string = AI_PROVIDERS[provider].defaultModel) =>
   requestTranslations('synthetic-' + provider + '-key', model, 'en', fields, undefined, provider);
-describe('seven fixed provider transports', () => {
-  it('accepts exactly the seven registered IDs, rejecting inherited object properties', () => {
+describe('eight fixed provider transports', () => {
+  it('accepts exactly the eight registered IDs, rejecting inherited object properties', () => {
     expect(Object.keys(AI_PROVIDERS)).toEqual(providers.map(([id]) => id));
     for (const id of ['constructor', '__proto__', 'toString', '', 'OpenAI', null, {}]) expect(isAiProvider(id)).toBe(false);
   });
@@ -95,6 +96,13 @@ describe('seven fixed provider transports', () => {
     expect(body).toMatchObject({ model: 'deepseek-v4-flash-free', max_tokens: 4096,
       response_format: { type: 'json_object' }, messages: [{ role: 'system' }, { role: 'user' }] });
     for (const key of ['input', 'text', 'store', 'reasoning', 'max_output_tokens', 'thinking']) expect(body[key]).toBeUndefined();
+  });
+  it('accepts NVIDIA JSON fences only after the chat envelope passes validation', async () => {
+    expect(AI_PROVIDERS.nvidia.defaultModel).toBe('mistralai/mistral-nemotron');
+    const fenced = '```json\n' + JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] }) + '\n```';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop',
+      message: { role: 'assistant', content: fenced } }] }));
+    await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
   });
   it.each(providers.flatMap(([provider, endpoint, protocol]) => AI_PROVIDERS[provider].allowedModels.map(model => ({ provider, model,
     endpoint: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'https://opencode.ai/zen/v1/chat/completions' : endpoint,
@@ -122,7 +130,11 @@ describe('seven fixed provider transports', () => {
           expect(body.messages).toBeUndefined();
         } else {
           expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
-          if (provider === 'deepseek' || (provider === 'zen' && model === 'deepseek-v4-flash-free')) {
+          if (provider === 'nvidia') {
+            expect(body.response_format).toBeUndefined();
+            expect(body.temperature).toBe(0);
+            expect(body.messages[0].content).toContain('JSON object'); expect(body.messages[0].content).toContain('"translations"');
+          } else if (provider === 'deepseek' || (provider === 'zen' && model === 'deepseek-v4-flash-free')) {
             expect(body.response_format).toEqual({ type: 'json_object' });
             expect(body.messages[0].content).toContain('JSON object'); expect(body.messages[0].content).toContain('"translations"');
             if (provider === 'deepseek') expect(body.thinking).toEqual({ type: 'disabled' });

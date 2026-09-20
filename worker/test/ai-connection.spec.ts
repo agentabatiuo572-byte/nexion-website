@@ -41,8 +41,11 @@ const migrationStatements = (name: string) => {
   return migration.queries.map(sql => env.DB.prepare(sql));
 };
 const mainstreamMigration = () => migrationStatements('0020_ai_mainstream_providers.sql');
+const nvidiaMigration = () => migrationStatements('0022_ai_nvidia_provider.sql');
 const restore0019 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection'),
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql')]);
+const restore0020 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection'),
+  ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql'), ...mainstreamMigration()]);
 const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to NexGrid.') => {
   const content = JSON.stringify({ translations: [{ id, text }] });
   if (AI_PROVIDERS[provider].protocol === 'responses' && provider !== 'zen') return Response.json({ status: 'completed', error: null, incomplete_details: null,
@@ -68,6 +71,8 @@ beforeEach(async () => {
   // Migration tests deliberately rebuild older schemas; subsequent tests start on the latest one.
   const schema = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='ai_connection'").first<{ sql: string }>();
   if (schema && !schema.sql.includes("'openrouter'")) await env.DB.batch(mainstreamMigration());
+  const current = await env.DB.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='ai_connection'").first<{ sql: string }>();
+  if (current && !current.sql.includes("'nvidia'")) await env.DB.batch(nvidiaMigration());
   // Workerd storage is shared within the file; reset only this suite's isolated database state.
   await env.DB.prepare('DELETE FROM ai_connection').run();
   await env.DB.prepare('INSERT INTO ai_connection(id) VALUES(1)').run();
@@ -193,6 +198,17 @@ describe('provider migration and Gemini credentials', () => {
 });
 
 describe('mainstream provider migration and registry routes', () => {
+  it('0022 preserves the active connection while adding NVIDIA to the provider constraint', async () => {
+    await restore0020(); await configured();
+    const before = await getAiConnection(env.DB);
+    await expect(env.DB.prepare("UPDATE ai_connection SET provider='nvidia' WHERE id=1").run()).rejects.toThrow();
+    await env.DB.batch(nvidiaMigration());
+    expect(await getAiConnection(env.DB)).toEqual(before);
+    await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=? WHERE id=1").bind(AI_PROVIDERS.nvidia.defaultModel).run();
+    expect(await getAiConnection(env.DB)).toMatchObject({ provider: 'nvidia', model: AI_PROVIDERS.nvidia.defaultModel });
+    await expect(env.DB.prepare("UPDATE ai_connection SET provider='unknown' WHERE id=1").run()).rejects.toThrow();
+  });
+
   it.each(['zen', 'gemini'] as const)('0020 preserves all 35 old %s fields, constraints and ciphertext', async provider => {
     await restore0019();
     const iv = new Uint8Array(12).fill(7), bytes = new Uint8Array(32).fill(17);
@@ -215,7 +231,8 @@ describe('mainstream provider migration and registry routes', () => {
     expect(await getAiConnectionState(local())).toMatchObject({ busy: true });
     expect(await claimAiCall(local(), { purpose: 'preview', characters: 1, expectedCredentialRev: before.credential_rev })).toMatchObject({ status: 'rejected', error: 'busy' });
     expect((await env.DB.prepare("SELECT name FROM sqlite_master WHERE name='ai_connection_next'").all()).results).toEqual([]);
-    for (const id of providers) await env.DB.prepare('UPDATE ai_connection SET provider=? WHERE id=1').bind(id).run();
+    for (const id of providers.filter(id => id !== 'nvidia')) await env.DB.prepare('UPDATE ai_connection SET provider=? WHERE id=1').bind(id).run();
+    await expect(env.DB.prepare("UPDATE ai_connection SET provider='nvidia' WHERE id=1").run()).rejects.toThrow();
     await expect(env.DB.prepare("UPDATE ai_connection SET provider='unknown'").run()).rejects.toThrow();
     await expect(env.DB.prepare('UPDATE ai_connection SET enabled=2').run()).rejects.toThrow();
     await expect(env.DB.prepare('INSERT INTO ai_connection(id) VALUES(2)').run()).rejects.toThrow();

@@ -15,6 +15,7 @@ const endpoints = {
   deepseek: 'https://api.deepseek.com/chat/completions',
   groq: 'https://api.groq.com/openai/v1/chat/completions',
   openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+  nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions',
 };
 
 // Compile the real client, then intercept below workerd's native fetch option parsing.
@@ -62,6 +63,7 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
       const body = await request.json();
       const instructions = body.instructions ?? body.system ?? body.messages?.[0]?.content;
       assert.ok(instructions.includes('from zh into en'));
+      if (provider === 'nvidia') assert.equal(body.response_format, undefined);
       if (provider === 'anthropic') {
         assert.equal(request.headers.get('x-api-key'), 'synthetic-runtime-fixture-key');
         assert.equal(request.headers.get('anthropic-version'), '2023-06-01');
@@ -77,7 +79,7 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
         type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
       }] });
       if (provider !== 'openai') return Response.json({ choices: [{ finish_reason: 'stop', message: {
-        role: 'assistant', content: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
+        role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }) + (provider === 'nvidia' ? '\n```' : ''),
       } }] });
       return Response.json({ status: 'completed', output: [{
         type: 'message', role: 'assistant', status: 'completed', content: [{

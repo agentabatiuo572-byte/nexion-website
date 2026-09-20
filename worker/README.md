@@ -41,11 +41,11 @@ npm run test:red-d1   # 故意去掉 D1 binding 跑同一套测试:必须非零�
 
 ## AI 翻译(CON17)
 
-入口为 `/admin/ai`。支持 **OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter、OpenCode Zen**；选择服务商和对应模型，填入该服务商的 API Key，测试并保存。模型选项由服务端 `AI_PROVIDERS` 返回，并受 `AI_ALLOWED_MODELS` 限制。切换服务商会清空尚未提交的 Key，测试失败保留原连接。编辑页在语言与缺译状态旁提供“AI 翻译”：按当前英语生成建议，填入输入框，可继续人工修改，点击本页保存后才写草稿。已有默认译文直接显示在输入框内。
+入口为 `/admin/ai`。支持 **OpenAI、Anthropic Claude、Google Gemini、DeepSeek、Groq、OpenRouter、OpenCode Zen、NVIDIA NIM**；选择服务商和对应模型，填入该服务商的 API Key，测试并保存。模型选项由服务端 `AI_PROVIDERS` 返回，并受 `AI_ALLOWED_MODELS` 限制。切换服务商会清空尚未提交的 Key，测试失败保留原连接。编辑页在语言与缺译状态旁提供“AI 翻译”：按当前英语生成建议，填入输入框，可继续人工修改，点击本页保存后才写草稿。已有默认译文直接显示在输入框内。
 
 自动补译缺项默认关闭，关闭不影响逐项按钮。开启后，自动任务只补缺译和过期的机器译文，人工内容受保护。批量操作与任务查看属于高级操作。
 
-- API Key 经服务端加密存入 D1，密文绑定服务商，后台只返回连接状态。各服务商仅使用注册表中的固定官方 HTTPS 地址，不接收代理地址。迁移 `0019_ai_providers.sql`、`0020_ai_mainstream_providers.sql` 扩展服务商约束，保留已有密文、用量、租约和修订。
+- API Key 经服务端加密存入 D1，密文绑定服务商，后台只返回连接状态。各服务商仅使用注册表中的固定官方 HTTPS 地址，不接收代理地址。迁移 `0019_ai_providers.sql`、`0020_ai_mainstream_providers.sql`、`0022_ai_nvidia_provider.sql` 扩展服务商约束，保留已有密文、用量、租约和修订。
 - 默认每日上限为 50,000 个原文加上下文字符；每次最多 20 项、3,000 字符。网络中断可能已产生费用，消耗未知会保留记录；任务重试不会承诺上游只收费一次。
 - 本机一键启动器保留一个 API 监督进程，每分钟执行一次有界任务。`.local-start` 下保存 Windows 账号绑定的 DPAPI 恢复文件；`.dev.vars` 仅供 Worker 加载。首次安装或更新旧监督进程后，需要正常重启 API，后台加密状态就绪后才能录入 Key。
 - 生产需应用 D1 迁移，并用 Cloudflare Worker Secret 配置 `AI_CREDENTIAL_ENCRYPTION_KEY`：内容为随机 32 字节的 Base64。使用现有分钟 cron，不设置本机 `AI_TICK_TOKEN`。AI Key 仍从后台录入，不进入 GitHub、构建环境或静态站文件。
