@@ -16,6 +16,7 @@ export class AiError extends Error {
 }
 export const AI_ENDPOINT = 'https://opencode.ai/zen/v1/responses';
 export const AI_TIMEOUT_MS = 20_000;
+const NVIDIA_TIMEOUT_MS = 45_000;
 export const AI_RESPONSE_BYTES = 256 * 1024;
 export const AI_MAX_SOURCE_CHARACTERS = 3_000;
 export const AI_MAX_FIELDS = 20;
@@ -162,7 +163,7 @@ export async function requestTranslations(
     ...(provider === 'openrouter' ? { provider: { require_parameters: true }, reasoning: { effort: 'low' } } : {}),
   };
   try {
-    const timeout = AbortSignal.timeout(AI_TIMEOUT_MS);
+    const timeout = AbortSignal.timeout(nvidia ? NVIDIA_TIMEOUT_MS : AI_TIMEOUT_MS);
     response = await fetch(config.endpoint, {
       method: 'POST', redirect: 'manual', signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
       headers: { 'content-type': 'application/json', ...(config.protocol === 'messages'

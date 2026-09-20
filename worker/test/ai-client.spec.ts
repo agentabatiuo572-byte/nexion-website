@@ -104,6 +104,17 @@ describe('eight fixed provider transports', () => {
       message: { role: 'assistant', content: fenced } }] }));
     await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
   });
+  it('allows the slower NVIDIA free endpoint more time without changing other providers', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async url => {
+      const provider: AiProvider = String(url).includes('nvidia.com') ? 'nvidia' : 'gemini';
+      return Response.json(responseFor(provider));
+    });
+    await callProvider('nvidia');
+    expect(timeout).toHaveBeenLastCalledWith(45_000);
+    await callProvider('gemini');
+    expect(timeout).toHaveBeenLastCalledWith(20_000);
+  });
   it.each(providers.flatMap(([provider, endpoint, protocol]) => AI_PROVIDERS[provider].allowedModels.map(model => ({ provider, model,
     endpoint: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'https://opencode.ai/zen/v1/chat/completions' : endpoint,
     protocol: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'chat' : protocol }))))(
