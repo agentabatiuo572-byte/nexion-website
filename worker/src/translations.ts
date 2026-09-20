@@ -16,6 +16,7 @@ type C = Context<{ Bindings: AiEnv }>;
 const key = (f: { fieldId: string; targetLocale: string }) => translationStateKey(f.fieldId, f.targetLocale);
 const jobKey = (j: TranslationJobRow) => translationStateKey(j.field_id, j.target_locale);
 const MAX_ATTEMPTS = 3;
+export const TRANSLATION_ENQUEUE_BATCH_SIZE = 50;
 const JOB_STATUSES = ['pending', 'running', 'succeeded', 'obsolete', 'cancelled', 'failed'] as const;
 const connectionGuard = 'EXISTS (SELECT 1 FROM ai_connection WHERE id=1 AND enabled=1 AND credential_rev=? AND execution_rev=?)';
 const stateGuard = 'EXISTS (SELECT 1 FROM translation_state s WHERE s.field_id=translation_jobs.field_id AND s.target_locale=translation_jobs.target_locale AND s.generation=translation_jobs.generation AND s.deleted=0)';
@@ -63,23 +64,34 @@ const safeResult = (result: Awaited<ReturnType<typeof commitDraftWrite>>) => ({
 });
 
 /** Explicit scans also run when AI is re-enabled; cancellations are not silently rescanned by ticks. */
-export async function enqueueMissingTranslations(env: AiEnv) {
+export async function enqueueMissingTranslations(env: AiEnv, requestedLocale?: (typeof TRANSLATION_TARGET_LOCALES)[number], requestedLimit = TRANSLATION_ENQUEUE_BATCH_SIZE) {
   await current(env.DB);
-  await fillDraftDefaults(env.DB);
   for (let attempt = 0; attempt < 3; attempt++) {
     const ctx = await current(env.DB);
-    const existing = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status IN ('pending','running')").all<TranslationJobRow>()).results;
+    const existing = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status IN ('pending','running') AND intent='auto'").all<TranslationJobRow>()).results;
+    const activeLocales = new Set(existing.map(job => job.target_locale));
     const changes: TranslationChanges = { states: [], jobs: [] };
+    let targetLocale = requestedLocale;
     for (const f of ctx.fields) {
+      if (!isTranslationTarget(f.targetLocale)) continue;
+      if (requestedLocale && f.targetLocale !== requestedLocale) continue;
+      if (activeLocales.has(f.targetLocale)) continue;
       const s = ctx.states.get(key(f));
       if (!f.source.trim() || s?.origin === 'manual' || (f.target.trim() && (!s || s.deleted || s.applied_value_hash !== await hashTranslationText(f.target)))) continue;
       const hash = await ctx.sourceHash(f);
       if (f.target.trim() && s?.source_hash === hash) continue;
-      if (existing.some(j => jobKey(j) === key(f) && j.generation === s?.generation && j.source_hash === hash && j.target_value === f.target)) continue;
+      if (!targetLocale) targetLocale = f.targetLocale;
+      if (f.targetLocale !== targetLocale) continue;
       const row = await stateFor(ctx, f, false, false);
       changes.states.push(row); changes.jobs.push(createTranslationJob(f, row.generation, hash));
+      if (changes.jobs.length >= requestedLimit) break;
     }
-    try { return safeResult(await commitDraftWrite(env.DB, { snapshot: ctx.snapshot, payload: ctx.config, translation: changes, reason: 'translation.enqueue' })); }
+    try {
+      const result = await commitDraftWrite(env.DB, { snapshot: ctx.snapshot, payload: ctx.config, translation: changes, reason: 'translation.enqueue' });
+      const inserted = changes.jobs.length ? await env.DB.prepare('SELECT COUNT(*) AS count FROM translation_jobs WHERE id IN (SELECT value FROM json_each(?))')
+        .bind(JSON.stringify(changes.jobs.map(job => job.id))).first<{ count: number }>() : null;
+      return { ...safeResult(result), queued: inserted?.count ?? 0, targetLocale: targetLocale ?? null, batchLimit: TRANSLATION_ENQUEUE_BATCH_SIZE };
+    }
     catch (e) { if (!(e instanceof DraftWriteError) || e.status !== 409 || attempt === 2) throw e; }
   }
   throw new DraftWriteError(409, { error: 'conflict' });
@@ -143,13 +155,15 @@ async function status(env: AiEnv, offset: number, limit: number) {
       createdAt: j.created_at, updatedAt: j.updated_at, attempts: j.attempts,
       canRetry: !!f && !!f.source.trim() && ['failed', 'cancelled', 'obsolete'].includes(j.status) };
   }));
-  return { draftRev: ctx.snapshot.draft_rev, counts, states, items, nextCursor: rows.length > limit ? String(offset + limit) : null };
+  return { draftRev: ctx.snapshot.draft_rev, enabledLocales: ctx.config.enabledLocales, batchLimit: TRANSLATION_ENQUEUE_BATCH_SIZE,
+    counts, states, items, nextCursor: rows.length > limit ? String(offset + limit) : null };
 }
 
 const fieldBaseline = { fieldId: z.string().min(1).max(512), targetLocale: z.custom<(typeof TRANSLATION_TARGET_LOCALES)[number]>(isTranslationTarget),
   sourceHash: z.string().regex(/^[a-f0-9]{64}$/), targetValue: z.string().max(20000) };
 const fieldRequest = z.object({ mode: z.enum(['retranslate','keep']), ...fieldBaseline }).strict();
-const enqueueRequest = z.union([z.object({ mode: z.literal('missing') }).strict(), fieldRequest]);
+const enqueueRequest = z.union([z.object({ mode: z.literal('missing'),
+  targetLocale: fieldBaseline.targetLocale, limit: z.number().int().min(1).max(TRANSLATION_ENQUEUE_BATCH_SIZE).optional() }).strict(), fieldRequest]);
 const retryRequest = z.object({ items: z.array(z.object({ id: z.string().uuid(), sourceHash: fieldBaseline.sourceHash, targetValue: fieldBaseline.targetValue }).strict()).min(1).max(100) }).strict();
 const cancelRequest = z.object({ ids: z.array(z.string().uuid()).min(1).max(100) }).strict();
 async function body<T extends z.ZodType>(c: C, schema: T): Promise<z.infer<T>> {
@@ -183,7 +197,7 @@ translationsRoutes.post('/defaults', async c => {
 });
 translationsRoutes.post('/', async c => {
   const input = await body(c, enqueueRequest);
-  return c.json(input.mode === 'missing' ? await enqueueMissingTranslations(c.env) : await explicit(c.env, input));
+  return c.json(input.mode === 'missing' ? await enqueueMissingTranslations(c.env, input.targetLocale, input.limit) : await explicit(c.env, input));
 });
 translationsRoutes.post('/retry', async c => {
   const input = await body(c, retryRequest), ctx = await current(c.env.DB);
@@ -283,19 +297,34 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
   }
   if (Date.now() - started > 4000) return { ...summary, status: 'partial' };
   const ctx = await current(env.DB);
-  const pending = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=? ORDER BY created_at,id LIMIT 100")
-    .bind(MAX_ATTEMPTS, Date.now()).all<TranslationJobRow>()).results;
-  const batch: Array<{ job: TranslationJobRow; field: TranslationField }> = []; let characters = 0;
-  for (const job of pending) {
-    const field = await eligible(ctx, job);
-    if (!field) { await updateOwned(env.DB, job, 'obsolete', 'baseline-changed'); continue; }
-    const count = countCharacters(field);
-    if (count > 3000) { await updateOwned(env.DB, job, 'failed', 'too-long'); continue; }
-    if (batch.length && field.targetLocale !== batch[0].field.targetLocale) continue;
-    if (characters + count > 3000 || batch.length >= 20) continue;
-    batch.push({ job, field }); characters += count;
+  const today = new Date(started).toISOString().slice(0, 10);
+  const remainingCharacters = connection.daily_character_limit - (connection.usage_day === today ? connection.sent_characters : 0);
+  if (remainingCharacters <= 0) return { ...summary, status: 'daily-limit' };
+  const characterLimit = Math.min(3000, remainingCharacters);
+  const now = Date.now();
+  const locales = (await env.DB.prepare(`SELECT target_locale,MIN(created_at) AS oldest FROM translation_jobs
+    WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=?
+    GROUP BY target_locale ORDER BY oldest,target_locale`).bind(MAX_ATTEMPTS, now).all<{ target_locale: string }>()).results;
+  if (!locales.length) return summary;
+  let batch: Array<{ job: TranslationJobRow; field: TranslationField }> = [], characters = 0, budgetBlocked = false;
+  for (const locale of locales) {
+    const pending = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=? AND target_locale=? ORDER BY created_at,id LIMIT 100")
+      .bind(MAX_ATTEMPTS, now, locale.target_locale).all<TranslationJobRow>()).results;
+    const candidate: typeof batch = []; let candidateCharacters = 0;
+    for (const job of pending) {
+      const field = await eligible(ctx, job);
+      if (!field) { await updateOwned(env.DB, job, 'obsolete', 'baseline-changed'); continue; }
+      const count = countCharacters(field);
+      if (count > 3000) { await updateOwned(env.DB, job, 'failed', 'too-long'); continue; }
+      if (candidateCharacters + count > characterLimit) { budgetBlocked = true; continue; }
+      candidate.push({ job, field }); candidateCharacters += count;
+      if (candidate.length >= 20) break;
+    }
+    if (candidate.length) { batch = candidate; characters = candidateCharacters; break; }
+    if (Date.now() - started > 4000) return { ...summary, status: 'partial' };
   }
-  if (!batch.length || Date.now() - started > 4000) return summary;
+  if (!batch.length) return budgetBlocked ? { ...summary, status: 'daily-limit' } : summary;
+  if (Date.now() - started > 4000) return summary;
   const ids = JSON.stringify(batch.map(b => b.job.id));
   const claim = await claimAiCall(env, { purpose: 'translation', characters, expectedCredentialRev: connection.credential_rev,
     expectedExecutionRev: connection.execution_rev }, lease => [env.DB.prepare(`UPDATE translation_jobs SET status='running',lease_token=?,lease_until=?,

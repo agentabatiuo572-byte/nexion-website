@@ -202,9 +202,16 @@ aiRoutes.patch('/settings', async c => {
 });
 async function settingsResult(c: C, scan: boolean) {
   let scanStatus: 'not-needed' | 'queued' | 'retry' = 'not-needed';
+  let scanLocale: string | null = null;
+  let scanQueued = 0;
   if (scan) {
-    try { await enqueueMissingTranslations(c.env); scanStatus = 'queued'; }
+    try {
+      const result = await enqueueMissingTranslations(c.env);
+      scanLocale = result.targetLocale;
+      scanQueued = result.queued;
+      scanStatus = result.queued ? 'queued' : 'not-needed';
+    }
     catch { scanStatus = 'retry'; } // The settings transaction already committed successfully.
   }
-  return c.json({ ...(await getAiConnectionState(c.env)), scanStatus });
+  return c.json({ ...(await getAiConnectionState(c.env)), scanStatus, scanLocale, scanQueued });
 }

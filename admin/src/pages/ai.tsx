@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { api } from '../api';
 import { useShell, useUnsavedChanges } from '../shell';
 import { DefaultTranslationActions, TranslationTasks, translationError } from '../lib/translations';
+import { LOCALE_NAME } from '../lib/human-path';
 
 type AiProvider = 'zen' | 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'openrouter';
 export interface AiConnectionView {
@@ -11,7 +12,7 @@ export interface AiConnectionView {
   credentialRev: number; activeRevision: number; settingsRev: number; executionRev: number; enabled: boolean;
   status: string; ready: boolean; operationSeq: number; operationId: string | null; operationStatus: string;
   operationError: string | null; lastTestAt: number | null; busy: boolean; dailyCharacterLimit: number;
-  scanStatus?: 'not-needed' | 'queued' | 'retry';
+  scanStatus?: 'not-needed' | 'queued' | 'retry'; scanLocale?: string | null; scanQueued?: number;
   usage: { day: string; sentCharacters: number; calls: number; inputTokens: number; outputTokens: number; unknownCalls: number };
 }
 const statusText: Record<string, string> = {
@@ -88,7 +89,11 @@ export default function AiPage() {
     try {
       const next = await api<AiConnectionView>('/api/ai/settings', { method: 'PATCH', body: JSON.stringify({ expectedSettingsRev: settingsBase.current ?? connection.settingsRev, ...change }) });
       setConnection(next); setLimit(null); settingsBase.current = null;
-      setMessage(next.scanStatus === 'retry' ? '已启用，缺项扫描未完成，请在高级设置点击一键补译缺项重试。' : change.enabled === false ? '自动补译已关闭，输入框旁的 AI 翻译仍可使用。' : 'AI 设置已保存并即时生效。');
+      setMessage(next.scanStatus === 'retry' ? '已启用，首批待办未建立；请在下方按语种建立补译批次。'
+        : change.enabled === false ? '自动补译已关闭，输入框旁的 AI 翻译仍可使用。'
+          : next.scanStatus === 'queued' && next.scanLocale && next.scanQueued
+            ? `AI 设置已保存，并已建立${LOCALE_NAME[next.scanLocale] ?? next.scanLocale}首批 ${next.scanQueued} 项。`
+            : 'AI 设置已保存并即时生效。');
     } catch (e) { setError(translationError(e)); await refresh(); }
     finally { setBusy(false); }
   }
@@ -129,12 +134,12 @@ export default function AiPage() {
           <button className="btn" disabled={busy} onClick={() => void remove()}>确认移除配置</button><button className="btn ghost" onClick={() => setConfirmRemove(false)}>取消</button></div>}
         {connection.operationId && <p className="kv">最近操作：{statusText[connection.operationStatus] ?? '结果待确认'}。{connection.operationStatus === 'unknown' && '请先刷新确认，避免重复发起付费测试。'}</p>}
       </section>
-      <section className="card"><h3>翻译与用量</h3><label className="row tap44"><input type="checkbox" checked={connection.enabled} disabled={busy || limit !== null || (!connection.ready && !connection.enabled)} onChange={(event) => void settings({ enabled: event.target.checked })} />自动补译缺项</label><p className="kv">开启后在后台补译缺项；关闭时仍可逐项点击 AI 翻译。{limit !== null && '先保存用量上限，再切换自动补译。'}</p>
+      <section className="card"><h3>翻译与用量</h3><label className="row tap44"><input type="checkbox" checked={connection.enabled} disabled={busy || limit !== null || (!connection.ready && !connection.enabled)} onChange={(event) => void settings({ enabled: event.target.checked })} />自动补译缺项</label><p className="kv">开启后在后台逐批处理已入队缺项；历史缺项可在下方按语种分批建立。关闭时仍可逐项点击 AI 翻译。{limit !== null && '先保存用量上限，再切换自动补译。'}</p>
         <div className="field"><label htmlFor="ai-daily-limit">每日发送字符上限</label><input id="ai-daily-limit" type="number" min={1000} max={500000} step={1000} value={limit ?? connection.dailyCharacterLimit} disabled={busy} onChange={(event) => { if (settingsBase.current === null) settingsBase.current = connection.settingsRev; setLimit(event.target.value); }} /></div>
         {!validLimit && <p className="note bad">上限须为 1,000–500,000 之间的整数。</p>}<button className="btn" disabled={busy || limit === null || !validLimit} onClick={() => void settings({ dailyCharacterLimit: limitNumber })}>保存用量上限</button>
         <p className="kv">UTC 日期 {connection.usage.day} · 已发送 {connection.usage.sentCharacters.toLocaleString()} 字符 · {connection.usage.calls} 次调用 · 已知输入/输出 token {connection.usage.inputTokens}/{connection.usage.outputTokens}{connection.usage.unknownCalls > 0 ? ` · ${connection.usage.unknownCalls} 次用量待确认` : ''}。字符上限不是账单金额。</p>
       </section>
     </>}
-    <details className="card" id="translation-tasks" open={tasksOpen} onToggle={(event) => setTasksOpen(event.currentTarget.open)}><summary>高级：批量补译与任务</summary><DefaultTranslationActions onChanged={reload} /><TranslationTasks /></details>
+    <details className="card" id="translation-tasks" open={tasksOpen} onToggle={(event) => setTasksOpen(event.currentTarget.open)}><summary>高级：按语种补译与任务</summary><DefaultTranslationActions onChanged={reload} /><TranslationTasks /></details>
   </section>;
 }

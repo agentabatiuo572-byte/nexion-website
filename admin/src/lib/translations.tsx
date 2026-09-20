@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api, ApiError } from '../api';
 import { fieldEditorLink } from './field-target';
 import { humanPath, LOCALE_NAME } from './human-path';
-import { SOURCE_LOCALE } from '../../../schema/src/locales';
+import { LOCALES, SOURCE_LOCALE, type Locale } from '../../../schema/src/locales';
 
 export interface TranslationStateView {
   fieldId: string; targetLocale: string; draftFieldId: string; origin: 'seed' | 'ai' | 'manual' | 'none';
@@ -15,7 +15,8 @@ export interface TranslationTaskView {
   sourceHash: string | null; targetValue: string | null; createdAt: number; updatedAt: number; attempts: number; canRetry: boolean;
 }
 export interface TranslationOverview {
-  draftRev: number; counts: Record<string, number>; states: TranslationStateView[]; items: TranslationTaskView[]; nextCursor: string | null;
+  draftRev: number; enabledLocales?: Locale[]; batchLimit?: number; counts: Record<string, number>;
+  states: TranslationStateView[]; items: TranslationTaskView[]; nextCursor: string | null;
 }
 interface TranslationContextValue { data: TranslationOverview | null; error: string | null; refresh: () => Promise<void> }
 const TASK_ERRORS: Record<string, string> = {
@@ -53,27 +54,68 @@ export function TranslationProvider({ children, draftRevision, onDraftChanged }:
 }
 
 export function DefaultTranslationActions({ disabled = false, onChanged }: { disabled?: boolean; onChanged?: () => Promise<unknown> }) {
-  const { refresh } = useTranslations();
-  const [preview, setPreview] = useState<number | null>(null), [busy, setBusy] = useState(false), [message, setMessage] = useState('');
-  async function run(mode: 'preview' | 'defaults' | 'missing') {
+  const { data, error, refresh } = useTranslations();
+  const [preview, setPreview] = useState<number | null>(null), [busy, setBusy] = useState(false);
+  const [busyLocale, setBusyLocale] = useState<Locale | null>(null), [message, setMessage] = useState(''), [messageError, setMessageError] = useState(false);
+  const enabled = new Set(data?.enabledLocales ?? data?.states.map(state => state.targetLocale as Locale) ?? []);
+  const localeRows = LOCALES.filter(locale => locale !== SOURCE_LOCALE).map(locale => {
+    const needed = (data?.states ?? []).filter(state => state.targetLocale === locale && state.origin !== 'manual' && (state.missing || state.stale));
+    const pending = needed.filter(state => state.jobStatus === 'pending').length;
+    const running = needed.filter(state => state.jobStatus === 'running').length;
+    const active = pending + running;
+    const failed = needed.filter(state => state.jobStatus === 'failed').length;
+    return { locale, enabled: enabled.has(locale), needed: needed.length, pending, running, active, failed, available: needed.length - active };
+  });
+  async function run(mode: 'preview' | 'defaults') {
     if (disabled || busy) return;
-    setBusy(true); setMessage('');
+    setBusy(true); setMessage(''); setMessageError(false);
     try {
-      if (mode === 'missing') { const response = await api<{ queued?: number }>('/api/translations', { method: 'POST', body: JSON.stringify({ mode: 'missing' }) }); setMessage(`补译待办已建立${typeof response.queued === 'number' ? ` · ${response.queued} 项` : ''}，译文写入草稿后仍需发布。`); }
-      else {
-        const response = await api<{ applied: number; skipped: number; draftRev: number }>('/api/translations/defaults', { method: 'POST', body: JSON.stringify({ dryRun: mode === 'preview' }) });
-        if (mode === 'preview') setPreview(response.applied);
-        else { setPreview(null); setMessage(`已补齐 ${response.applied} 项默认译文 · 草稿 r${response.draftRev} · 未发布`); }
-      }
+      const response = await api<{ applied: number; skipped: number; draftRev: number }>('/api/translations/defaults', { method: 'POST', body: JSON.stringify({ dryRun: mode === 'preview' }) });
+      if (mode === 'preview') setPreview(response.applied);
+      else { setPreview(null); setMessage(`已补齐 ${response.applied} 项默认译文 · 草稿 r${response.draftRev} · 未发布`); }
       if (mode !== 'preview') { await refresh(); await onChanged?.(); }
-    } catch (error) { setMessage(translationError(error)); }
+    } catch (error) { setMessage(translationError(error)); setMessageError(true); }
     finally { setBusy(false); }
   }
+  async function enqueue(locale: Locale) {
+    if (disabled || busy || !data) return;
+    setBusy(true); setBusyLocale(locale); setMessage(''); setMessageError(false);
+    try {
+      const limit = data.batchLimit ?? 50;
+      const response = await api<{ queued: number; targetLocale: string | null }>('/api/translations', {
+        method: 'POST', body: JSON.stringify({ mode: 'missing', targetLocale: locale, limit }),
+      });
+      setMessage(response.queued
+        ? `已为${LOCALE_NAME[locale]}建立本批 ${response.queued} 项；后台按语种逐批处理，译文写入草稿后仍需发布。`
+        : `${LOCALE_NAME[locale]}没有新的可入队缺项；已在队列中的任务会继续处理。`);
+      await refresh(); await onChanged?.();
+    } catch (error) { setMessage(translationError(error)); setMessageError(true); }
+    finally { setBusy(false); setBusyLocale(null); }
+  }
   return <div className="card"><h3>准备其它语言</h3><p className="kv">优先复用与当前{LOCALE_NAME[SOURCE_LOCALE]}源文匹配的已有默认译文；不覆盖人工内容。AI 只处理需要补译的草稿字段。</p>
-    <div className="row"><button type="button" className="btn ghost" disabled={disabled || busy} onClick={() => void run('preview')}>查看可补齐默认文案</button><button type="button" className="btn" disabled={disabled || busy} onClick={() => void run('missing')}>一键补译缺项</button></div>
+    <div className="row"><button type="button" className="btn ghost" disabled={disabled || busy} onClick={() => void run('preview')}>查看可补齐默认文案</button></div>
     {preview !== null && <div className="note info">当前可确定补齐 {preview} 项。
       <button type="button" className="btn primary" disabled={disabled || busy || preview === 0} onClick={() => void run('defaults')}>补齐默认文案</button></div>}
-    {disabled && <p className="kv">先保存本页改动，再补齐译文。</p>}{message && <p role="status">{message}</p>}
+    <h4 className="section-label">按语种建立补译批次</h4>
+    <p className="kv">未发布语言也可提前建立批次；AI 服务开启时会计入用量，发布后才会在前台显示。</p>
+    {!data ? error ? <div className="note bad" role="alert">{error} <button type="button" className="btn ghost sm" onClick={() => void refresh()}>重试</button></div>
+      : <p className="kv">正在读取各语种待办…</p> : <ul className="translation-batch-list">{localeRows.map(row => {
+      const count = row.active ? 0 : Math.min(row.available, data.batchLimit ?? 50);
+      const statusId = `translation-batch-status-${row.locale}`;
+      const action = busyLocale === row.locale ? `正在建立${LOCALE_NAME[row.locale]}批次…` : row.running ? '处理中'
+        : row.pending ? '已入队 · 等待处理' : count ? `建立本批 · ${count} 项` : '已补齐';
+      const actionLabel = busyLocale === row.locale ? `正在为${LOCALE_NAME[row.locale]}建立批次` : row.running ? `${LOCALE_NAME[row.locale]}：处理中`
+        : row.pending ? `${LOCALE_NAME[row.locale]}：已入队，等待处理` : count ? `为${LOCALE_NAME[row.locale]}建立本批，共 ${count} 项` : `${LOCALE_NAME[row.locale]}：已补齐`;
+      return <li className="translation-batch-row" key={row.locale} aria-busy={busyLocale === row.locale}>
+        <div><div className="row"><b>{LOCALE_NAME[row.locale]}</b>{!row.enabled && <span className="pill">未发布 · 可先补译</span>}</div>
+          <p className="kv" id={statusId} aria-live="polite" aria-atomic="true">{busyLocale === row.locale && '正在建立批次 · '}待补 {row.needed} · 排队 {row.pending} · 处理中 {row.running}{row.failed ? ` · 失败 ${row.failed}` : ''}</p></div>
+        <button type="button" className="btn sm" disabled={disabled || busy || row.active > 0 || count === 0} aria-describedby={statusId}
+          aria-label={actionLabel} onClick={() => void enqueue(row.locale)}>
+          {action}
+        </button>
+      </li>;
+    })}</ul>}
+    {disabled && <p className="kv">先保存本页改动，再补齐译文。</p>}{message && <p className={messageError ? 'note bad' : undefined} role={messageError ? 'alert' : 'status'}>{message}</p>}
   </div>;
 }
 

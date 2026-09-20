@@ -49,7 +49,7 @@ it('reads state without testing and clears a submitted key while preserving a fa
   expect(screen.queryByDisplayValue('synthetic-test-value')).toBeNull();
 });
 
-it('shows incomplete scan recovery after enable and guards a pending budget edit', async () => {
+it('shows bounded scan recovery after enable and guards a pending budget edit', async () => {
   mount(); await screen.findByLabelText('自动补译缺项');
   mocks.api.mockImplementationOnce(async (path: string, init: RequestInit) => {
     expect(path).toBe('/api/ai/settings');
@@ -57,9 +57,9 @@ it('shows incomplete scan recovery after enable and guards a pending budget edit
     return { ...connection, enabled: true, scanStatus: 'retry', settingsRev: 7 };
   });
   fireEvent.click(screen.getByLabelText('自动补译缺项'));
-  expect(await screen.findByText('已启用，缺项扫描未完成，请在高级设置点击一键补译缺项重试。')).toBeTruthy();
-  fireEvent.click(screen.getByText('高级：批量补译与任务'));
-  expect(screen.getByRole('button', { name: '一键补译缺项' })).toBeTruthy();
+  expect(await screen.findByText('已启用，首批待办未建立；请在下方按语种建立补译批次。')).toBeTruthy();
+  fireEvent.click(screen.getByText('高级：按语种补译与任务'));
+  expect(screen.getByText('正在读取各语种待办…')).toBeTruthy();
   fireEvent.change(screen.getByLabelText('每日发送字符上限'), { target: { value: '30000' } });
   expect((screen.getByLabelText('自动补译缺项') as HTMLInputElement).disabled).toBe(true);
   mocks.api.mockImplementationOnce(async (_path: string, init: RequestInit) => {

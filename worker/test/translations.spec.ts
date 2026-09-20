@@ -200,6 +200,67 @@ describe('persistent translation application', () => {
     await drainTranslations(local());
     expect(await env.DB.prepare('SELECT origin FROM translation_state WHERE field_id=? AND target_locale=?').bind(field.fieldId, 'ja').first()).toEqual({ origin: 'ai' });
   });
+  it('bulk scans enqueue one requested language in bounded batches', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const names = Object.keys(config.copy.zh).slice(0, 12);
+    const untouchedDefault = Object.keys(config.copy.zh).find(name => !names.includes(name) && config.copy.ja[name])!;
+    config.copy.ja[untouchedDefault] = '';
+    for (const name of names) {
+      config.copy.zh[name] = 'A phrase that needs translation.';
+      config.copy.ja[name] = '';
+      config.copy.fr[name] = '';
+    }
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    const first = await (await request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 5 })).json() as {
+      queued: number; targetLocale: string; batchLimit: number;
+    };
+    expect(first).toMatchObject({ queued: 5, targetLocale: 'fr', batchLimit: 50 });
+    expect((await jobs()).filter(job => job.target_locale === 'fr')).toHaveLength(5);
+    expect((await jobs()).filter(job => job.target_locale === 'ja')).toHaveLength(0);
+    const second = await (await request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 50 })).json() as typeof first;
+    expect(second.queued).toBe(0);
+    expect((await jobs()).filter(job => job.target_locale === 'fr')).toHaveLength(first.queued);
+    expect((await jobs()).filter(job => job.target_locale === 'ja')).toHaveLength(0);
+    expect(SiteConfigSchema.parse(JSON.parse((await readDraftSnapshot(env.DB)).payload)).copy.ja[untouchedDefault]).toBe('');
+  });
+  it('bulk scan request rejects unsupported targets and oversized batches', async () => {
+    expect((await request('', 'POST', { mode: 'missing' })).status).toBe(400);
+    expect((await request('', 'POST', { mode: 'missing', targetLocale: SOURCE_LOCALE, limit: 50 })).status).toBe(400);
+    expect((await request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 51 })).status).toBe(400);
+    expect(await jobs()).toEqual([]);
+  });
+  it('concurrent clicks keep one current job per field and language', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const names = Object.keys(config.copy.zh).slice(0, 4);
+    for (const name of names) { config.copy.zh[name] = 'Concurrent batch source.'; config.copy.fr[name] = ''; }
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    const responses = await Promise.all([
+      request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 50 }),
+      request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 50 }),
+    ]);
+    expect(responses.map(response => response.status)).toEqual([200, 200]);
+    const payloads = await Promise.all(responses.map(response => response.json() as Promise<{ queued: number }>));
+    const localeJobs = (await jobs()).filter(job => job.target_locale === 'fr');
+    expect(payloads.reduce((sum, response) => sum + response.queued, 0)).toBe(localeJobs.length);
+    const selected = (await jobs()).filter(job => job.target_locale === 'fr' && names.includes(job.field_id.slice('/copy/'.length)));
+    expect(selected).toHaveLength(4);
+    expect(new Set(selected.map(job => `${job.field_id}:${job.target_locale}:${job.generation}`)).size).toBe(4);
+  });
+  it('a manual field translation does not block a separate automatic language batch', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const [manualName, automaticName] = Object.keys(config.copy.zh).slice(0, 2);
+    config.copy.zh[manualName!] = 'Translate this field manually.'; config.copy.fr[manualName!] = '';
+    config.copy.zh[automaticName!] = 'Translate this field in the batch.'; config.copy.fr[automaticName!] = '';
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    const fields = enumerateTranslationFields(config, DRAFT_MANIFEST);
+    const manual = fields.find(field => field.fieldId === `/copy/${manualName}` && field.targetLocale === 'fr')!;
+    await enqueue(manual);
+    const response = await (await request('', 'POST', { mode: 'missing', targetLocale: 'fr', limit: 50 })).json() as { queued: number };
+    expect(response.queued).toBeGreaterThan(0);
+    const selected = await jobs();
+    expect(selected.find(job => job.field_id === `/copy/${manualName}` && job.target_locale === 'fr')).toMatchObject({ intent: 'manual', status: 'pending' });
+    expect(selected.find(job => job.field_id === `/copy/${automaticName}` && job.target_locale === 'fr')).toMatchObject({ intent: 'auto', status: 'pending' });
+  });
   it('full field states include current-generation failures outside the paginated task list', async () => {
     const field = await setupField(); await enqueueMissingTranslations(local());
     const job = (await jobs()).find(j => j.field_id === field.fieldId && j.target_locale === 'ja')!;
@@ -414,6 +475,48 @@ describe('persistent translation application', () => {
     expect((await jobs()).filter(j => j.status === 'pending')).toHaveLength(3);
     expect(await getAiConnection(env.DB)).toMatchObject({ call_count: 1, input_tokens: 20, output_tokens: 10 });
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('uses the remaining daily character budget for a smaller language batch', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const names = Object.keys(config.copy.zh).slice(0, 2);
+    for (const name of names) { config.copy.zh[name] = 'A short source.'; config.copy.ja[name] = ''; }
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    const fields = enumerateTranslationFields(config, DRAFT_MANIFEST).filter(field => field.targetLocale === 'ja' && names.includes(field.fieldId.slice('/copy/'.length)));
+    await enqueue(fields[0]!); await enqueue(fields[1]!);
+    const selected = (await jobs()).filter(job => job.target_locale === 'ja' && names.includes(job.field_id.slice('/copy/'.length)));
+    await env.DB.prepare('UPDATE translation_jobs SET created_at=? WHERE id=?').bind(1, selected[0]!.id).run();
+    await env.DB.prepare('UPDATE translation_jobs SET created_at=? WHERE id=?').bind(2, selected[1]!.id).run();
+    const first = fields.find(field => field.fieldId === selected[0]!.field_id)!;
+    const characters = Array.from(first.source).length + Array.from(first.context).length;
+    const connection = await getAiConnection(env.DB);
+    await env.DB.prepare('UPDATE ai_connection SET usage_day=?,sent_characters=?').bind(new Date().toISOString().slice(0, 10), connection.daily_character_limit - characters).run();
+    expect(await drainTranslations(local())).toMatchObject({ status: 'processed', requested: 1, applied: 1 });
+    expect((await jobs()).filter(job => job.status === 'pending' && job.target_locale === 'ja')).toHaveLength(1);
+  });
+  it('uses another language when the oldest language cannot fit the remaining daily budget', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const [longName, shortName] = Object.keys(config.copy.zh).slice(0, 2);
+    config.copy.zh[longName!] = 'L'.repeat(240); config.copy.ja[longName!] = '';
+    config.copy.zh[shortName!] = 'Short.'; config.copy.fr[shortName!] = '';
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    const fields = enumerateTranslationFields(config, DRAFT_MANIFEST);
+    const long = fields.find(field => field.fieldId === `/copy/${longName}` && field.targetLocale === 'ja')!;
+    const short = fields.find(field => field.fieldId === `/copy/${shortName}` && field.targetLocale === 'fr')!;
+    await enqueue(long); await enqueue(short);
+    const selected = await jobs(), longJob = selected.find(job => job.target_locale === 'ja')!, shortJob = selected.find(job => job.target_locale === 'fr')!;
+    await env.DB.prepare('UPDATE translation_jobs SET created_at=? WHERE id=?').bind(1, longJob.id).run();
+    await env.DB.prepare('UPDATE translation_jobs SET created_at=? WHERE id=?').bind(2, shortJob.id).run();
+    const shortCharacters = Array.from(short.source).length + Array.from(short.context).length;
+    expect(Array.from(long.source).length + Array.from(long.context).length).toBeGreaterThan(shortCharacters);
+    const connection = await getAiConnection(env.DB);
+    await env.DB.prepare('UPDATE ai_connection SET usage_day=?,sent_characters=?').bind(new Date().toISOString().slice(0, 10), connection.daily_character_limit - shortCharacters).run();
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.input) as { fields: Array<{ id: string }> };
+      return success(input.fields.map(field => field.id), 'Traduction courte.');
+    });
+    expect(await drainTranslations(local())).toMatchObject({ status: 'processed', requested: 1, applied: 1 });
+    expect((await jobs()).find(job => job.id === longJob.id)).toMatchObject({ status: 'pending' });
+    expect((await jobs()).find(job => job.id === shortJob.id)).toMatchObject({ status: 'succeeded' });
   });
   it('a deleted FAQ stays deleted when its in-flight translation returns', async () => {
     const config = SiteConfigSchema.parse(seed), faq = config.faq.items[0];

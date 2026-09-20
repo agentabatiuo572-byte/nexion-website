@@ -47,6 +47,44 @@ it('previews defaults without applying and applies on one explicit click then re
   expect(mocks.api.mock.calls.filter((call) => call[1]?.method)).toHaveLength(2);
 });
 
+it('queues one bounded language batch without mixing other languages', async () => {
+  overview.enabledLocales = ['zh', 'fr', 'ja']; overview.batchLimit = 50;
+  overview.states = [
+    ...overview.states,
+    { fieldId: '/copy/hero.note', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.note', origin: 'none', generation: 0,
+      stale: false, missing: true, sourceHash: 'fr-note', targetValue: '', required: true },
+    { fieldId: '/copy/hero.body', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.body', origin: 'none', generation: 0,
+      stale: false, missing: true, sourceHash: 'fr-body', targetValue: '', required: true },
+    { fieldId: '/copy/hero.note', targetLocale: 'ja', draftFieldId: '/copy/ja/hero.note', origin: 'none', generation: 0,
+      stale: false, missing: true, sourceHash: 'ja-note', targetValue: '', required: true },
+  ];
+  render(wrap(<DefaultTranslationActions onChanged={mocks.changed} />));
+  const action = await screen.findByRole('button', { name: '为法语建立本批，共 2 项' });
+  mocks.api.mockImplementationOnce(async (path: string, init: RequestInit) => {
+    expect(path).toBe('/api/translations');
+    expect(JSON.parse(String(init.body))).toEqual({ mode: 'missing', targetLocale: 'fr', limit: 50 });
+    return { queued: 2, targetLocale: 'fr' };
+  });
+  fireEvent.click(action);
+  expect(await screen.findByText('已为法语建立本批 2 项；后台按语种逐批处理，译文写入草稿后仍需发布。')).toBeTruthy();
+  await waitFor(() => expect(mocks.changed).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole('button', { name: '为日语建立本批，共 1 项' })).toBeTruthy();
+});
+
+it('names each language action and keeps an active language to one queued batch', async () => {
+  overview.enabledLocales = ['zh', 'fr']; overview.batchLimit = 50;
+  overview.states = [
+    { fieldId: '/copy/hero.note', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.note', origin: 'none', generation: 1,
+      stale: false, missing: true, sourceHash: 'fr-note', targetValue: '', required: true, jobStatus: 'pending' },
+    { fieldId: '/copy/hero.body', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.body', origin: 'none', generation: 0,
+      stale: false, missing: true, sourceHash: 'fr-body', targetValue: '', required: true },
+  ];
+  render(wrap(<DefaultTranslationActions />));
+  const action = await screen.findByRole('button', { name: '法语：已入队，等待处理' });
+  expect((action as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.getByText('待补 2 · 排队 1 · 处理中 0')).toBeTruthy();
+});
+
 it('uses exact retry baseline and readable task errors', async () => {
   overview.items = [{ id: 'task-a', status: 'failed', fieldId: '/copy/hero.title', targetLocale: 'fr', intent: 'manual', errorCode: 'connection-changed', sourceHash: 'current-source-hash', targetValue: 'French text', createdAt: 0, updatedAt: 0, attempts: 1, canRetry: true }];
   render(wrap(<TranslationTasks />));

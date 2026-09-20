@@ -280,6 +280,10 @@ input,textarea,select,[data-field] { scroll-margin-block:6.25rem 8.75rem; }
 details > summary { cursor:pointer; color:var(--ink2); font-size: var(--text-sm); min-height:2.75rem; padding-block:0.6875rem; }
 details[open] > summary { margin-bottom:0.5rem; }
 .editor-page > .note.info { max-width:68.75rem; }
+.translation-batch-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:0.625rem; margin:0; padding:0; list-style:none; }
+.translation-batch-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:4rem; padding:0.75rem 0.875rem; border:1px solid var(--border); border-radius:0.625rem; background:var(--surface2); }
+.translation-batch-row > div { min-width:0; }
+.translation-batch-row .btn { flex:none; }
 @media (min-width:1700px) { main.content { padding-inline:3rem; } }
 @media (min-width:761px) and (max-width:1100px) {
   .shell { grid-template-columns:15rem minmax(0,1fr); }
@@ -318,6 +322,9 @@ details[open] > summary { margin-bottom:0.5rem; }
   table { display:block; overflow-x:auto; }
   .note,.note .row { flex-wrap:wrap; }
   .note a,.note .btn { white-space:nowrap; flex:none; }
+  .translation-batch-row { align-items:flex-start; flex-direction:column; }
+  .translation-batch-row .btn { width:100%; }
+  .translation-batch-list { grid-template-columns:minmax(0,1fr); }
   .publisher-console { padding:1.125rem 0.875rem; border-radius:0.75rem; }
   .publisher-console-heading { display:block; margin-bottom:1.125rem; }
   .publisher-live-state { margin-top:0.75rem; }
