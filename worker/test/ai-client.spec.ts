@@ -341,6 +341,16 @@ describe('OpenCode Zen raw Responses boundary', () => {
     await expect(requestTranslations('synthetic-provider-key', AI_DEFAULT_MODEL, 'en', fields))
       .rejects.toMatchObject({ code: 'billing-required', message: 'billing-required' });
   });
+  it.each([
+    ['ModelError', 'model-unavailable'],
+    ['AuthError', 'invalid-key'],
+  ])('uses the Zen error type to distinguish %s responses', async (type, code) => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: {
+      type, message: 'private provider detail',
+    } }, { status: 401 }));
+    await expect(requestTranslations('synthetic-provider-key', 'deepseek-v4-flash-free', 'en', fields, undefined, 'zen'))
+      .rejects.toMatchObject({ code, message: code });
+  });
   it('identifies an unavailable Zen upstream model without exposing the provider message', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ error: {
       type: 'server_error', message: 'Error from provider: Model is unavailable. private-detail',

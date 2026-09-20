@@ -424,6 +424,63 @@ describe('encrypted AI credentials and administrator routes', () => {
     expect(row.call_lease_token).toBeNull();
     expect((await request('/connection')).headers.get('cache-control')).toBe('no-store');
   });
+  it('saves an explicitly submitted candidate when its model is unavailable, but keeps it disabled', async () => {
+    await configured();
+    vi.mocked(fetch).mockResolvedValue(Response.json({ error: {
+      type: 'server_error', message: 'Error from provider: Model is unavailable. synthetic detail',
+    } }, { status: 400 }));
+    const response = await request('/connection', 'PUT', { ...saveBody(1), model: AI_PROVIDERS.zen.defaultModel });
+    expect(response.status).toBe(200);
+    const view = await response.json();
+    expect(view).toMatchObject({ saved: true, configured: true, provider: 'zen',
+      model: AI_PROVIDERS.zen.defaultModel, status: 'model-unavailable', ready: false, enabled: false,
+      credentialRev: 2, settingsRev: 1, executionRev: 1, operationSeq: 1, operationStatus: 'succeeded',
+      usage: { calls: 1, unknownCalls: 1 } });
+    const row = await getAiConnection(env.DB);
+    expect(row).toMatchObject({ provider: 'zen', model: AI_PROVIDERS.zen.defaultModel,
+      credential_rev: 2, settings_rev: 1, execution_rev: 1, connection_status: 'model-unavailable',
+      enabled: 0, operation_status: 'succeeded', operation_error: null, call_lease_token: null,
+      call_count: 1, unknown_usage_count: 1 });
+    expect(await decryptApiKey(local(), row)).toBe(KEY);
+    expect(JSON.stringify(view)).not.toContain(KEY);
+    expect(JSON.stringify(await env.DB.prepare('SELECT * FROM audit').all())).not.toContain(KEY);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM audit WHERE action='ai.connection.saved'").first()).toEqual({ count: 1 });
+    expect(await env.DB.prepare("SELECT after_summary FROM audit WHERE action='ai.connection.saved'").first())
+      .toMatchObject({ after_summary: expect.stringContaining('status model-unavailable') });
+    expect(await env.DB.prepare("SELECT COUNT(*) AS count FROM audit WHERE action='ai.connection.tested'").first()).toEqual({ count: 0 });
+    expect(await (await request('/connection', 'PUT', { ...saveBody(1), model: AI_PROVIDERS.zen.defaultModel })).json())
+      .toMatchObject({ duplicate: true, saved: true, status: 'model-unavailable', ready: false });
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('does not save an unavailable-model candidate from another provider', async () => {
+    await configured();
+    const before = await getAiConnection(env.DB);
+    vi.mocked(fetch).mockResolvedValue(Response.json({ error: {
+      code: 404, status: 'NOT_FOUND', message: 'synthetic unavailable model',
+    } }, { status: 404 }));
+    const response = await request('/connection', 'PUT', geminiBody(1));
+    expect(response.status).toBe(422);
+    expect(await response.json()).toMatchObject({ error: 'model-unavailable' });
+    const after = await getAiConnection(env.DB);
+    expect(after).toMatchObject({ provider: before.provider, model: before.model,
+      key_ciphertext: before.key_ciphertext, key_iv: before.key_iv, key_version: before.key_version,
+      credential_rev: before.credential_rev, connection_status: before.connection_status, enabled: before.enabled });
+    expect(await decryptApiKey(local(), after)).toBe(KEY);
+  });
+  it('does not half-commit a degraded save through a second tested-audit transaction', async () => {
+    await configured();
+    await env.DB.prepare("CREATE TRIGGER ai_fail_degraded_test_audit BEFORE INSERT ON audit WHEN NEW.action='ai.connection.tested' BEGIN SELECT RAISE(ABORT, 'synthetic-private-error'); END").run();
+    vi.mocked(fetch).mockResolvedValue(Response.json({ error: {
+      type: 'server_error', message: 'Error from provider: Model is unavailable. synthetic detail',
+    } }, { status: 400 }));
+    try {
+      const response = await request('/connection', 'PUT', { ...saveBody(1), model: AI_PROVIDERS.zen.defaultModel });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ saved: true, status: 'model-unavailable', ready: false, enabled: false });
+      expect(await getAiConnection(env.DB)).toMatchObject({ provider: 'zen', connection_status: 'model-unavailable',
+        credential_rev: 2, operation_status: 'succeeded', call_lease_token: null });
+    } finally { await env.DB.prepare('DROP TRIGGER ai_fail_degraded_test_audit').run(); }
+  });
   it('requires origin and rejects arbitrary providers/models before a paid call', async () => {
     expect((await request('/connection', 'PUT', saveBody(), local(), { origin: 'https://attacker.example' })).status).toBe(403);
     expect((await request('/connection', 'PUT', { ...saveBody(), provider: 'unlisted-provider' })).status).toBe(400);
@@ -438,13 +495,24 @@ describe('encrypted AI credentials and administrator routes', () => {
     expect((await request('/connection', 'DELETE', { expectedCredentialRev: 1 }, without)).status).toBe(200);
     expect(await getAiConnection(env.DB)).toMatchObject({ key_ciphertext: null, credential_rev: 2, root_initialized: 1 });
   });
-  it('candidate failure preserves active connection and returns business error rather than HTTP 401', async () => {
+  it.each([
+    ['invalid-key', () => Response.json({ error: { message: 'synthetic invalid key' } }, { status: 401 })],
+    ['permission-denied', () => Response.json({ error: { message: 'synthetic permission denial' } }, { status: 403 })],
+    ['billing-required', () => Response.json({ error: { type: 'CreditsError', message: 'No payment method configured' } }, { status: 401 })],
+    ['provider-rejected', () => new Response(null, { status: 307, headers: { location: 'https://untrusted.example/' } })],
+  ] as const)('candidate %s failure preserves the active connection and returns a business error', async (error, providerResponse) => {
     await configured();
-    vi.mocked(fetch).mockResolvedValue(Response.json({ error: { message: KEY } }, { status: 401 }));
-    const response = await request('/connection', 'PUT', saveBody(1));
+    const before = await getAiConnection(env.DB);
+    vi.mocked(fetch).mockResolvedValue(providerResponse());
+    const response = await request('/connection', 'PUT', { ...saveBody(1),
+      model: AI_PROVIDERS.zen.defaultModel, apiKey: GEMINI_KEY });
     expect(response.status).toBe(422);
-    expect(await response.json()).toMatchObject({ error: 'invalid-key' });
-    expect(await getAiConnection(env.DB)).toMatchObject({ credential_rev: 1, connection_status: 'available', enabled: 1, operation_status: 'failed' });
+    expect(await response.json()).toMatchObject({ error });
+    const after = await getAiConnection(env.DB);
+    expect(after).toMatchObject({ provider: before.provider, model: before.model,
+      key_ciphertext: before.key_ciphertext, key_iv: before.key_iv, key_version: before.key_version,
+      credential_rev: 1, connection_status: 'available', enabled: 1, operation_status: 'failed', operation_error: error });
+    expect(await decryptApiKey(local(), after)).toBe(KEY);
     expect((await getAiConnectionState(local())).ready).toBe(true);
   });
   it('duplicate in-flight and completed operation IDs do not repeat the paid request', async () => {
@@ -459,7 +527,7 @@ describe('encrypted AI credentials and administrator routes', () => {
     expect(await duplicate.json()).toMatchObject({ duplicate: true, operationStatus: 'running' });
     release();
     expect((await first).status).toBe(200);
-    expect(await (await request('/connection', 'PUT', saveBody())).json()).toMatchObject({ duplicate: true, operationStatus: 'succeeded' });
+    expect(await (await request('/connection', 'PUT', saveBody())).json()).toMatchObject({ duplicate: true, saved: true, operationStatus: 'succeeded' });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
   it('a later limit edit is preserved when a candidate test completes', async () => {

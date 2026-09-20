@@ -12,6 +12,7 @@ export interface AiConnectionView {
   credentialRev: number; activeRevision: number; settingsRev: number; executionRev: number; enabled: boolean;
   status: string; ready: boolean; operationSeq: number; operationId: string | null; operationStatus: string;
   operationError: string | null; lastTestAt: number | null; busy: boolean; dailyCharacterLimit: number;
+  saved?: boolean;
   scanStatus?: 'not-needed' | 'queued' | 'retry'; scanLocale?: string | null; scanQueued?: number;
   usage: { day: string; sentCharacters: number; calls: number; inputTokens: number; outputTokens: number; unknownCalls: number };
 }
@@ -76,7 +77,10 @@ export default function AiPage() {
           operationId, ...(save ? { provider: selectedProvider!.id, model: selectedModel, apiKey: key } : {}) }),
       });
       setConnection(next); setModel(null); setProvider(null);
-      setMessage(next.operationStatus === 'succeeded' ? save ? '连接已测试并保存，可以使用输入框旁的 AI 翻译。' : '当前连接测试成功。' : `操作${statusText[next.operationStatus] ?? '等待确认'}，请查看最新状态。`);
+      setMessage(save && next.saved && next.status === 'model-unavailable'
+        ? '连接配置已保存；所选模型当前不可用，AI 翻译保持关闭。'
+        : next.operationStatus === 'succeeded' ? save ? '连接已测试并保存，可以使用输入框旁的 AI 翻译。' : '当前连接测试成功。'
+          : `操作${statusText[next.operationStatus] ?? '等待确认'}，请查看最新状态。`);
     } catch (e) {
       setError(translationError(e));
       const current = await refresh();

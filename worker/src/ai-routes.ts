@@ -124,40 +124,50 @@ async function testConnection(c: C, save: boolean) {
     operationId: input.operationId, provider: input.provider, model: input.model, candidateKey: input.apiKey,
   });
   if (claimed.status === 'rejected') return failure(c, claimed.error);
-  if (claimed.status === 'duplicate') return c.json({ ...(await getAiConnectionState(c.env)), duplicate: true });
+  if (claimed.status === 'duplicate') return c.json({ ...(await getAiConnectionState(c.env)), duplicate: true,
+    saved: save && claimed.operationStatus === 'succeeded' });
   const lease = claimed.lease;
   let result: TranslationResult | undefined;
   let error: string | undefined;
   let applied = false;
+  const zenUnavailable = () => save && lease.provider === 'zen' && error === 'model-unavailable';
   try {
     if (!(await markAiCallSent(c.env, lease))) throw new AiError('cancelled');
-    result = await requestTranslations(lease.apiKey, lease.model, TEST_TARGET, TEST_FIELDS, undefined, lease.provider);
-    const now = Date.now();
-    if (save) {
-      const encrypted = await encryptApiKey(c.env, lease.apiKey, lease.provider);
-      const rows = await c.env.DB.batch([
-        c.env.DB.prepare('UPDATE ai_connection SET key_ciphertext=?1,key_iv=?2,key_version=?3,root_initialized=1,' +
-          'model=?4,provider=?12,credential_rev=credential_rev+1,execution_rev=execution_rev+1,connection_status=?5,last_test_at=?6,' +
-          'operation_status=?7,operation_error=NULL,updated_at=?6 ' +
-          'WHERE id=1 AND credential_rev=?8 AND operation_seq=?9 AND operation_id=?10 AND call_lease_token=?11 AND call_lease_until>?6')
-          .bind(encrypted.ciphertext, encrypted.iv, encrypted.version, lease.model, 'available', now, 'succeeded',
-            lease.credentialRev, lease.operationSeq, lease.operationId, lease.token, lease.provider),
-        aiAudit(c.env.DB, 'ai.connection.saved', 'credential ' + (lease.credentialRev + 1) + '; provider ' + lease.provider + '; model ' + lease.model, now),
-      ]);
-      applied = (rows[0].meta.changes ?? 0) > 0;
-    } else {
-      const rows = await c.env.DB.batch([
-        c.env.DB.prepare('UPDATE ai_connection SET connection_status=?1,last_test_at=?2,operation_status=?3,operation_error=NULL,updated_at=?2 ' +
-          'WHERE id=1 AND credential_rev=?4 AND execution_rev=?5 AND operation_seq=?6 AND operation_id=?7 AND call_lease_token=?8 AND call_lease_until>?2')
-          .bind('available', now, 'succeeded', lease.credentialRev, lease.executionRev, lease.operationSeq, lease.operationId, lease.token),
-        aiAudit(c.env.DB, 'ai.connection.tested', 'credential ' + lease.credentialRev + '; provider ' + lease.provider + '; model ' + lease.model, now),
-      ]);
-      applied = (rows[0].meta.changes ?? 0) > 0;
+    try { result = await requestTranslations(lease.apiKey, lease.model, TEST_TARGET, TEST_FIELDS, undefined, lease.provider); }
+    catch (e) { error = e instanceof AiError ? e.code : 'ai-operation-failed'; }
+    if (!error || zenUnavailable()) {
+      const now = Date.now();
+      if (save) {
+        const encrypted = await encryptApiKey(c.env, lease.apiKey, lease.provider);
+        const status = error ?? 'available';
+        const disable = Number(status === 'model-unavailable');
+        const rows = await c.env.DB.batch([
+          c.env.DB.prepare('UPDATE ai_connection SET key_ciphertext=?1,key_iv=?2,key_version=?3,root_initialized=1,' +
+            'model=?4,provider=?13,credential_rev=credential_rev+1,execution_rev=execution_rev+1,connection_status=?5,last_test_at=?6,' +
+            'enabled=CASE WHEN ?12=1 THEN 0 ELSE enabled END,settings_rev=settings_rev+CASE WHEN ?12=1 AND enabled=1 THEN 1 ELSE 0 END,' +
+            'operation_status=?7,operation_error=NULL,updated_at=?6 ' +
+            'WHERE id=1 AND credential_rev=?8 AND operation_seq=?9 AND operation_id=?10 AND call_lease_token=?11 AND call_lease_until>?6')
+            .bind(encrypted.ciphertext, encrypted.iv, encrypted.version, lease.model, status, now, 'succeeded',
+              lease.credentialRev, lease.operationSeq, lease.operationId, lease.token, disable, lease.provider),
+          aiAudit(c.env.DB, 'ai.connection.saved', 'credential ' + (lease.credentialRev + 1) + '; provider ' + lease.provider +
+            '; model ' + lease.model + '; status ' + status, now),
+        ]);
+        applied = (rows[0].meta.changes ?? 0) > 0;
+      } else {
+        const rows = await c.env.DB.batch([
+          c.env.DB.prepare('UPDATE ai_connection SET connection_status=?1,last_test_at=?2,operation_status=?3,operation_error=NULL,updated_at=?2 ' +
+            'WHERE id=1 AND credential_rev=?4 AND execution_rev=?5 AND operation_seq=?6 AND operation_id=?7 AND call_lease_token=?8 AND call_lease_until>?2')
+            .bind('available', now, 'succeeded', lease.credentialRev, lease.executionRev, lease.operationSeq, lease.operationId, lease.token),
+          aiAudit(c.env.DB, 'ai.connection.tested', 'credential ' + lease.credentialRev + '; provider ' + lease.provider + '; model ' + lease.model, now),
+        ]);
+        applied = (rows[0].meta.changes ?? 0) > 0;
+      }
+      if (!applied) error = 'cancelled';
     }
-    if (!applied) error = 'cancelled';
   } catch (e) { error = e instanceof AiError ? e.code : 'ai-operation-failed'; }
-  finally { await finishAiCall(c.env, lease, { usage: result?.usage, error }); }
-  if (error) return failure(c, error);
+  finally { await finishAiCall(c.env, lease, { usage: result?.usage,
+    error: zenUnavailable() && applied ? undefined : error }); }
+  if (error && !(zenUnavailable() && applied)) return failure(c, error);
   return c.json({ ...(await getAiConnectionState(c.env)), saved: applied });
 }
 aiRoutes.put('/connection', c => testConnection(c, true));

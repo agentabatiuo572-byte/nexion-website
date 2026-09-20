@@ -8,9 +8,9 @@ vi.mock('../src/api', () => ({ api: mocks.api, ApiError: class extends Error {} 
 vi.mock('../src/shell', () => ({ useShell: () => ({ reload: mocks.reload }), useUnsavedChanges: () => {} }));
 import AiPage, { type AiConnectionView } from '../src/pages/ai';
 
-const fixture = (): AiConnectionView => ({ provider: 'zen', model: 'gpt-5.4-mini', allowedModels: ['gpt-5.4-mini', 'gpt-5.4-nano'], configured: true,
+const fixture = (): AiConnectionView => ({ provider: 'zen', model: 'deepseek-v4-flash-free', allowedModels: ['deepseek-v4-flash-free', 'gpt-5.4-mini', 'gpt-5.4-nano'], configured: true,
   providers: [
-    { id: 'zen', name: 'OpenCode Zen', defaultModel: 'gpt-5.4-mini', allowedModels: ['gpt-5.4-mini', 'gpt-5.4-nano'] },
+    { id: 'zen', name: 'OpenCode Zen', defaultModel: 'deepseek-v4-flash-free', allowedModels: ['deepseek-v4-flash-free', 'gpt-5.4-mini', 'gpt-5.4-nano'] },
     { id: 'gemini', name: 'Google Gemini', defaultModel: 'gemini-3.5-flash-lite', allowedModels: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] },
     { id: 'openai', name: 'OpenAI', defaultModel: 'gpt-5.4-mini', allowedModels: ['gpt-5.4-mini', 'gpt-5.4-nano'] },
     { id: 'anthropic', name: 'Anthropic Claude', defaultModel: 'claude-haiku-4-5-20251001', allowedModels: ['claude-haiku-4-5-20251001'] },
@@ -124,7 +124,7 @@ it('keeps the existing saved provider visible after a failed Gemini replacement'
   mocks.api.mockRejectedValueOnce(new Error('mock rejected'));
   fireEvent.click(screen.getByRole('button', { name: '测试并保存' }));
   await screen.findByRole('alert');
-  expect(screen.getByText('当前连接：OpenCode Zen · gpt-5.4-mini')).toBeTruthy();
+  expect(screen.getByText('当前连接：OpenCode Zen · deepseek-v4-flash-free')).toBeTruthy();
   expect((screen.getByLabelText('Google Gemini API Key') as HTMLInputElement).value).toBe('');
   expect(mocks.api.mock.calls.filter(call => call[1]?.method === 'PUT')).toHaveLength(1);
 });
@@ -141,6 +141,20 @@ it('selects the allowed Gemini model when the configured default is excluded', a
   });
   fireEvent.click(screen.getByRole('button', { name: '测试并保存' }));
   await screen.findByText('当前连接：Google Gemini · gemini-3.1-flash-lite');
+});
+
+it('shows a saved Zen configuration separately from an unavailable model', async () => {
+  connection = { ...fixture(), provider: 'groq', model: 'openai/gpt-oss-20b', allowedModels: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'] };
+  mount(); await screen.findByLabelText('AI 服务商');
+  fireEvent.change(screen.getByLabelText('AI 服务商'), { target: { value: 'zen' } });
+  fireEvent.change(screen.getByLabelText('OpenCode Zen API Key'), { target: { value: 'synthetic-zen-key' } });
+  mocks.api.mockImplementationOnce(async () => ({ ...fixture(), status: 'model-unavailable', ready: false, saved: true,
+    credentialRev: 5, operationStatus: 'failed', operationError: 'model-unavailable' }));
+  fireEvent.click(screen.getByRole('button', { name: '测试并保存' }));
+  expect(await screen.findByText('连接配置已保存；所选模型当前不可用，AI 翻译保持关闭。')).toBeTruthy();
+  expect(screen.getByText('当前连接：OpenCode Zen · deepseek-v4-flash-free')).toBeTruthy();
+  expect(screen.getByText('模型不可用')).toBeTruthy();
+  expect((screen.getByLabelText('OpenCode Zen API Key') as HTMLInputElement).placeholder).toMatch(/^•{8,}$/u);
 });
 
 it('repairs a stored model excluded by the allowlist without switching providers', async () => {

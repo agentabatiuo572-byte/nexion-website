@@ -191,6 +191,8 @@ export async function requestTranslations(
     if (provider === 'zen' && response.status === 400 && error.type === 'server_error' &&
       typeof error.message === 'string' && error.message.toLowerCase().includes('model is unavailable')) throw new AiError('model-unavailable');
     if (provider === 'zen' && error.type === 'CreditsError') throw new AiError('billing-required');
+    if (provider === 'zen' && error.type === 'ModelError') throw new AiError('model-unavailable');
+    if (provider === 'zen' && error.type === 'AuthError') throw new AiError('invalid-key');
     if (response.status === 401) throw new AiError('invalid-key');
     if (response.status === 402) throw new AiError('billing-required');
     if (response.status === 403) throw new AiError('permission-denied');
