@@ -83,6 +83,18 @@ describe('seven fixed provider transports', () => {
     expect(Object.keys(AI_PROVIDERS)).toEqual(providers.map(([id]) => id));
     for (const id of ['constructor', '__proto__', 'toString', '', 'OpenAI', null, {}]) expect(isAiProvider(id)).toBe(false);
   });
+  it('routes OpenCode Zen DeepSeek V4 Flash Free through the chat endpoint', async () => {
+    expect(AI_PROVIDERS.zen.allowedModels).toContain('deepseek-v4-flash-free');
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geminiResult()));
+    const answer = await requestTranslations('synthetic-zen-key', 'deepseek-v4-flash-free', 'en', fields, undefined, 'zen');
+    expect(answer).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
+    const [url, init] = fetcher.mock.calls[0];
+    expect(url).toBe('https://opencode.ai/zen/v1/chat/completions');
+    const body = JSON.parse(String(init?.body));
+    expect(body).toMatchObject({ model: 'deepseek-v4-flash-free', max_tokens: 4096,
+      response_format: { type: 'json_object' }, messages: [{ role: 'system' }, { role: 'user' }] });
+    for (const key of ['input', 'text', 'store', 'reasoning', 'max_output_tokens', 'thinking']) expect(body[key]).toBeUndefined();
+  });
   it.each(providers.flatMap(([provider, endpoint, protocol]) => AI_PROVIDERS[provider].allowedModels.map(model => ({ provider, endpoint, protocol, model }))))(
     '$provider / $model uses its fixed endpoint, credentials and protocol', async ({ provider, endpoint, protocol, model }) => {
       const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {

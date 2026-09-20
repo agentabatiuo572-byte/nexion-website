@@ -49,6 +49,15 @@ it('reads state without testing and clears a submitted key while preserving a fa
   expect(screen.queryByDisplayValue('synthetic-test-value')).toBeNull();
 });
 
+it('shows a non-secret mask for a saved key without treating it as replacement input', async () => {
+  mount();
+  const keyField = await screen.findByLabelText('OpenCode Zen API Key') as HTMLInputElement;
+  expect(keyField.value).toBe('');
+  expect(keyField.placeholder).toMatch(/^•{8,}$/u);
+  expect((screen.getByRole('button', { name: '测试并保存' }) as HTMLButtonElement).disabled).toBe(true);
+  expect(screen.queryByDisplayValue(/^•+$/u)).toBeNull();
+});
+
 it('shows bounded scan recovery after enable and guards a pending budget edit', async () => {
   mount(); await screen.findByLabelText('自动补译缺项');
   mocks.api.mockImplementationOnce(async (path: string, init: RequestInit) => {
