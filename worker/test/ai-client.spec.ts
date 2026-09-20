@@ -6,8 +6,8 @@ import { SiteConfigSchema } from '../../schema/src/index.js';
 import { DRAFT_MANIFEST } from '../src/draft-write';
 import seed from '../seed/site-config.seed.json';
 
-const fields = [{ id: '/copy/hero', source: '下载 NexGrid 2.0\n适用于 {name}', maxLength: 160 }];
-const result = (text = 'Download NexGrid 2.0\nfor {name}') => ({
+const fields = [{ id: '/copy/hero', source: '下载 Uvel 2.0\n适用于 {name}', maxLength: 160 }];
+const result = (text = 'Download Uvel 2.0\nfor {name}') => ({
   status: 'completed', error: null, incomplete_details: null, id: 'resp-fixture',
   output: [{ type: 'message', role: 'assistant', status: 'completed',
     content: [{ type: 'output_text', text: JSON.stringify({ translations: [{ id: fields[0].id, text }] }) }] }],
@@ -40,7 +40,7 @@ describe('Chinese source contract', () => {
       expect(() => validateTranslationText(source, target, source)).toThrow(AiError);
       expect(() => validateTranslationText(source, target, '连接闲置设备，开始共享算力！')).toThrow(AiError);
     }
-    expect(() => validateTranslationText('NexGrid · USDT {name} 2.0', target, 'NexGrid · USDT {name} 2.0')).not.toThrow();
+    expect(() => validateTranslationText('Uvel · USDT {name} 2.0', target, 'Uvel · USDT {name} 2.0')).not.toThrow();
   });
   it.each(['安全', '法律'])('allows the valid Chinese/Japanese shared term %s', source => {
     expect(() => validateTranslationText(source, 'ja', source)).not.toThrow();
@@ -57,7 +57,7 @@ describe('Chinese source contract', () => {
   });
 });
 const geminiResult = () => ({ id: 'chatcmpl-fixture', choices: [{ index: 0, finish_reason: 'stop',
-  message: { role: 'assistant', content: JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] }) } }],
+  message: { role: 'assistant', content: JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] }) } }],
   usage: { prompt_tokens: 12, completion_tokens: 18, total_tokens: 30 } });
 const gemini = () => requestTranslations('AQ.synthetic-key-never-real', AI_PROVIDERS.gemini.defaultModel, 'en', fields, undefined, 'gemini');
 const providers = [
@@ -70,7 +70,7 @@ const providers = [
   ['openrouter', 'https://openrouter.ai/api/v1/chat/completions', 'chat'],
   ['nvidia', 'https://integrate.api.nvidia.com/v1/chat/completions', 'chat'],
 ] as const;
-const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }], model: string = AI_PROVIDERS[provider].defaultModel) => {
+const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }], model: string = AI_PROVIDERS[provider].defaultModel) => {
   const text = JSON.stringify({ translations });
   if (provider === 'anthropic') return { id: 'msg_fixture', type: 'message', role: 'assistant', stop_reason: 'end_turn',
     content: [{ type: 'text', text }], usage: { input_tokens: 12, output_tokens: 18 } };
@@ -89,7 +89,7 @@ describe('eight fixed provider transports', () => {
     expect(AI_PROVIDERS.zen.allowedModels[0]).toBe('deepseek-v4-flash-free');
     const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(geminiResult()));
     const answer = await requestTranslations('synthetic-zen-key', 'deepseek-v4-flash-free', 'en', fields, undefined, 'zen');
-    expect(answer).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
+    expect(answer).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] });
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe('https://opencode.ai/zen/v1/chat/completions');
     const body = JSON.parse(String(init?.body));
@@ -99,10 +99,10 @@ describe('eight fixed provider transports', () => {
   });
   it('accepts NVIDIA JSON fences only after the chat envelope passes validation', async () => {
     expect(AI_PROVIDERS.nvidia.defaultModel).toBe('mistralai/mistral-nemotron');
-    const fenced = '```json\n' + JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] }) + '\n```';
+    const fenced = '```json\n' + JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] }) + '\n```';
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop',
       message: { role: 'assistant', content: fenced } }] }));
-    await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }] });
+    await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] });
   });
   it('allows the slower NVIDIA free endpoint more time without changing other providers', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
@@ -122,7 +122,7 @@ describe('eight fixed provider transports', () => {
       const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
         new Request(url, init); return Response.json(responseFor(provider, undefined, model));
       });
-      expect(await callProvider(provider, model)).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }],
+      expect(await callProvider(provider, model)).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }],
         usage: { inputTokens: 12, outputTokens: 18, totalTokens: 30 } });
       const [url, init] = fetcher.mock.calls[0];
       expect(url).toBe(endpoint); expect(init?.redirect).toBe('manual');
@@ -161,8 +161,8 @@ describe('eight fixed provider transports', () => {
     });
   it.each(providers)('%s cannot bypass field validation, follow redirects or accept another protocol', async provider => {
     const fetcher = vi.spyOn(globalThis, 'fetch');
-    for (const translations of [[], [{ id: 'foreign', text: '下载' }], [{ id: fields[0].id, text: '下载 NexGrid 9.0\n适用于 {name}' }],
-      [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}', extra: 'unwanted' }]]) {
+    for (const translations of [[], [{ id: 'foreign', text: '下载' }], [{ id: fields[0].id, text: '下载 Uvel 9.0\n适用于 {name}' }],
+      [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}', extra: 'unwanted' }]]) {
       fetcher.mockResolvedValueOnce(Response.json(responseFor(provider, translations)));
       await expect(callProvider(provider)).rejects.toMatchObject({ code: 'invalid-result' });
     }
@@ -213,7 +213,7 @@ describe('Gemini OpenAI-compatible chat boundary', () => {
     });
     const answer = await requestTranslations('AQ.synthetic-key-never-real', model, 'en', fields, undefined, 'gemini');
     expect(answer).toMatchObject({ usage: { inputTokens: 12, outputTokens: 18, totalTokens: 30 }, responseId: 'chatcmpl-fixture' });
-    expect(answer.translations[0].text).toBe('Download NexGrid 2.0\nfor {name}');
+    expect(answer.translations[0].text).toBe('Download Uvel 2.0\nfor {name}');
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe(AI_PROVIDERS.gemini.endpoint);
     expect(init).toMatchObject({ redirect: 'manual', headers: { authorization: 'Bearer AQ.synthetic-key-never-real' } });
@@ -294,7 +294,7 @@ describe('OpenCode Zen raw Responses boundary', () => {
       return Response.json(result());
     });
     const answer = await requestTranslations('synthetic-provider-key', AI_DEFAULT_MODEL, 'en', fields);
-    expect(answer.translations).toEqual([{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }]);
+    expect(answer.translations).toEqual([{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }]);
     expect(answer.usage).toEqual({ inputTokens: 12, outputTokens: 18, totalTokens: 30 });
     const [url, init] = fetcher.mock.calls[0];
     expect(url).toBe('https://opencode.ai/zen/v1/responses');
@@ -318,11 +318,11 @@ describe('OpenCode Zen raw Responses boundary', () => {
     ['error', () => ({ ...result(), error: { message: 'synthetic-provider-key' } })],
     ['tool', () => ({ ...result(), output: [{ type: 'function_call', name: 'edit' }] })],
     ['SDK-only', () => ({ status: 'completed', output_text: JSON.stringify({ translations: [] }) })],
-    ['number', () => result('下载 NexGrid 3.0\n适用于 {name}')],
-    ['placeholder', () => result('下载 NexGrid 2.0\n适用于 {other}')],
-    ['newline', () => result('下载 NexGrid 2.0 适用于 {name}')],
+    ['number', () => result('下载 Uvel 3.0\n适用于 {name}')],
+    ['placeholder', () => result('下载 Uvel 2.0\n适用于 {other}')],
+    ['newline', () => result('下载 Uvel 2.0 适用于 {name}')],
     ['brand', () => result('下载 Other 2.0\n适用于 {name}')],
-    ['language', () => result('下载 NexGrid 2.0\n适用于 {name}')],
+    ['language', () => result('下载 Uvel 2.0\n适用于 {name}')],
   ])('rejects %s without exposing provider content', async (_label, response) => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(response()));
     await expect(requestTranslations('synthetic-provider-key', AI_DEFAULT_MODEL, 'en', fields)).rejects.toBeInstanceOf(AiError);
@@ -388,7 +388,7 @@ describe('OpenCode Zen raw Responses boundary', () => {
     await expect(requestTranslations('key', AI_DEFAULT_MODEL, 'en', fields)).rejects.toMatchObject({ code: 'rate-limited', retryable: true, retryAfterMs: 360000 });
   });
   it('preserves duplicate placeholder and URL multiplicity', async () => {
-    const input = [{ id: fields[0].id, source: 'Visit https://nexgrid.ai/{name} and {name}.' }];
+    const input = [{ id: fields[0].id, source: 'Visit https://uvel.example/{name} and {name}.' }];
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(result('访问 https://other.example/{name}。')));
     await expect(requestTranslations('key', AI_DEFAULT_MODEL, 'en', input)).rejects.toMatchObject({ code: 'invalid-result' });
   });

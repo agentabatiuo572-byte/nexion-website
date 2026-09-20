@@ -20,7 +20,7 @@ const request = (path: string, method = 'GET', body?: unknown, bindings = local(
 const successful = () => Response.json({
   id: 'resp-test', status: 'completed', error: null, incomplete_details: null,
   output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text',
-    text: JSON.stringify({ translations: [{ id: 'connection-test', text: 'Welcome to NexGrid.' }] }) }] }],
+    text: JSON.stringify({ translations: [{ id: 'connection-test', text: 'Welcome to Uvel.' }] }) }] }],
   usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 },
 });
 const saveBody = (rev = 0, seq = 0, op = 'operation-0001') => ({
@@ -29,7 +29,7 @@ const saveBody = (rev = 0, seq = 0, op = 'operation-0001') => ({
 const GEMINI_KEY = 'AQ.synthetic-gemini-key-that-must-never-escape';
 const geminiBody = (rev = 0, seq = 0, op = 'gemini-operation') => ({ ...saveBody(rev, seq, op),
   provider: 'gemini', model: AI_PROVIDERS.gemini.defaultModel, apiKey: GEMINI_KEY });
-const geminiSuccess = (id = 'connection-test', text = 'Welcome to NexGrid.') => Response.json({
+const geminiSuccess = (id = 'connection-test', text = 'Welcome to Uvel.') => Response.json({
   id: 'chatcmpl-test', choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
     content: JSON.stringify({ translations: [{ id, text }] }) } }],
   usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
@@ -46,7 +46,7 @@ const restore0019 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql')]);
 const restore0020 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection'),
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql'), ...mainstreamMigration()]);
-const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to NexGrid.') => {
+const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to Uvel.') => {
   const content = JSON.stringify({ translations: [{ id, text }] });
   if (AI_PROVIDERS[provider].protocol === 'responses' && provider !== 'zen') return Response.json({ status: 'completed', error: null, incomplete_details: null,
     output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: content }] }],
@@ -273,8 +273,10 @@ describe('mainstream provider migration and registry routes', () => {
     await configured(false);
     const before = await getAiConnection(env.DB), spec = AI_PROVIDERS[provider];
     const endpoint = provider === 'zen' ? 'https://opencode.ai/zen/v1/chat/completions' : spec.endpoint;
-    vi.mocked(fetch).mockImplementationOnce(async url => {
+    vi.mocked(fetch).mockImplementationOnce(async (url, init) => {
       expect(url).toBe(endpoint);
+      expect(String(init?.body)).toContain('Uvel');
+      expect(String(init?.body)).not.toContain('NexGrid');
       expect(await getAiConnection(env.DB)).toMatchObject({ provider: before.provider, model: before.model, key_ciphertext: before.key_ciphertext, credential_rev: before.credential_rev });
       return providerSuccess(provider);
     });

@@ -27,7 +27,7 @@ export default { async fetch(request) {
     const url = new URL(request.url), provider = url.pathname.slice(1);
     const target = url.searchParams.has('source') ? SOURCE_LOCALE : TRANSLATION_TARGET_LOCALES[0];
     const result = await requestTranslations('synthetic-runtime-fixture-key', AI_PROVIDERS[provider].defaultModel, target,
-      [{ id: 'runtime-test', source: '欢迎使用 NexGrid。', maxLength: 120 }], undefined, provider);
+      [{ id: 'runtime-test', source: '欢迎使用 Uvel。', maxLength: 120 }], undefined, provider);
     return Response.json({ ok: true, text: result.translations[0].text });
   } catch (error) {
     return Response.json({ ok: false, code: error.code ?? error.name });
@@ -76,14 +76,14 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
         status: 307, headers: { location: 'https://redirect.example/forbidden' },
       });
       if (provider === 'anthropic') return Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{
-        type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
+        type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }),
       }] });
       if (provider !== 'openai') return Response.json({ choices: [{ finish_reason: 'stop', message: {
-        role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }) + (provider === 'nvidia' ? '\n```' : ''),
+        role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }) + (provider === 'nvidia' ? '\n```' : ''),
       } }] });
       return Response.json({ status: 'completed', output: [{
         type: 'message', role: 'assistant', status: 'completed', content: [{
-          type: 'output_text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
+          type: 'output_text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }),
         }],
       }] });
     },
@@ -93,7 +93,7 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
       calls = 0;
       const response = await runtime.dispatchFetch('http://localhost/' + provider + (mode === 'source-locale' ? '?source' : ''));
       const result = await response.json();
-      const expected = mode === 'success' ? { ok: true, text: 'Welcome to NexGrid.' }
+      const expected = mode === 'success' ? { ok: true, text: 'Welcome to Uvel.' }
         : { ok: false, code: mode === 'redirect' ? 'provider-rejected' : mode === 'source-locale' ? 'invalid-input' : 'network-error' };
       assert.deepEqual(result, expected, mode);
       assert.equal(calls, mode === 'regression-error' || mode === 'source-locale' ? 0 : 1, mode + ': native outbound call count');

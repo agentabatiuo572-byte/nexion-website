@@ -26,7 +26,7 @@ const settings = z.object({
   expectedSettingsRev: revision, enabled: z.boolean().optional(),
   dailyCharacterLimit: z.number().int().min(1000).max(500000).optional(),
 }).strict().refine(v => v.enabled !== undefined || v.dailyCharacterLimit !== undefined);
-const TEST_FIELDS = [{ id: 'connection-test', source: '欢迎使用 NexGrid。', maxLength: 120 }];
+const TEST_FIELDS = [{ id: 'connection-test', source: '欢迎使用 Uvel。', maxLength: 120 }];
 const TEST_TARGET = TRANSLATION_TARGET_LOCALES[0];
 const TEST_CHARACTERS = validateTranslationInputs(TEST_TARGET, TEST_FIELDS);
 const translation = z.object({

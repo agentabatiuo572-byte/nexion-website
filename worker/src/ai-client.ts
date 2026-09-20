@@ -77,6 +77,7 @@ export function validateTranslationText(source: string, target: string, text: st
     /\{[^{}\r\n]+\}/g,
     /https?:\/\/[^\s<>"')\]]+/g,
     /\b\d+(?:[.,]\d+)*(?:%|\b)/g,
+    // NexGrid stays protected only because the registered entity remains NexGrid LTD.
     /\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g,
     /<\/?[A-Za-z][^>]*>/g,
     /\r?\n/g,
