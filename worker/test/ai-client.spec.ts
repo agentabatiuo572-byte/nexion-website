@@ -143,7 +143,7 @@ describe('seven fixed provider transports', () => {
       fetcher.mockResolvedValueOnce(Response.json(responseFor(provider, translations)));
       await expect(callProvider(provider)).rejects.toMatchObject({ code: 'invalid-result' });
     }
-    fetcher.mockResolvedValueOnce(Response.json(provider === 'zen' || provider === 'openai' ? geminiResult() : result()));
+    fetcher.mockResolvedValueOnce(Response.json(provider === 'openai' ? geminiResult() : result()));
     await expect(callProvider(provider)).rejects.toMatchObject({ code: 'invalid-result' });
     fetcher.mockClear(); fetcher.mockResolvedValueOnce(new Response(null, { status: 307, headers: { location: 'https://evil.example/key' } }));
     await expect(callProvider(provider)).rejects.toMatchObject({ code: 'provider-rejected' }); expect(fetcher).toHaveBeenCalledTimes(1);

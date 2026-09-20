@@ -45,7 +45,7 @@ const restore0019 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql')]);
 const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to NexGrid.') => {
   const content = JSON.stringify({ translations: [{ id, text }] });
-  if (AI_PROVIDERS[provider].protocol === 'responses') return Response.json({ status: 'completed', error: null, incomplete_details: null,
+  if (AI_PROVIDERS[provider].protocol === 'responses' && provider !== 'zen') return Response.json({ status: 'completed', error: null, incomplete_details: null,
     output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: content }] }],
     usage: { input_tokens: 10, output_tokens: 5, total_tokens: 15 } });
   if (AI_PROVIDERS[provider].protocol === 'messages') return Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn',
@@ -255,8 +255,9 @@ describe('mainstream provider migration and registry routes', () => {
   it.each(providers)('%s saves the registry model/key atomically, then previews with the saved provider', async provider => {
     await configured(false);
     const before = await getAiConnection(env.DB), spec = AI_PROVIDERS[provider];
+    const endpoint = provider === 'zen' ? 'https://opencode.ai/zen/v1/chat/completions' : spec.endpoint;
     vi.mocked(fetch).mockImplementationOnce(async url => {
-      expect(url).toBe(spec.endpoint);
+      expect(url).toBe(endpoint);
       expect(await getAiConnection(env.DB)).toMatchObject({ provider: before.provider, model: before.model, key_ciphertext: before.key_ciphertext, credential_rev: before.credential_rev });
       return providerSuccess(provider);
     });
@@ -266,7 +267,7 @@ describe('mainstream provider migration and registry routes', () => {
     const saved = await getAiConnection(env.DB);
     expect(await decryptApiKey(local(), saved)).toBe(KEY);
     for (const other of providers.filter(id => id !== provider)) await expect(decryptApiKey(local(), { ...saved, provider: other })).rejects.toMatchObject({ code: 'decryption-failed' });
-    vi.mocked(fetch).mockImplementationOnce(async url => { expect(url).toBe(spec.endpoint); return providerSuccess(provider, 'preview', 'Scroll down to explore.'); });
+    vi.mocked(fetch).mockImplementationOnce(async url => { expect(url).toBe(endpoint); return providerSuccess(provider, 'preview', 'Scroll down to explore.'); });
     expect(await (await request('/translate', 'POST', { source: '向下滚动以探索。', targetLocale: 'en' })).json()).toEqual({ text: 'Scroll down to explore.' });
     expect(await getAiConnection(env.DB)).toMatchObject({ provider, credential_rev: 2, call_count: 2, input_tokens: 20, output_tokens: 10, unknown_usage_count: 0 });
   });

@@ -8,7 +8,7 @@ const { Miniflare, Log, LogLevel, convertV4MiniflareOptions } = require('minifla
 const { build } = require('esbuild');
 const workerRoot = fileURLToPath(new URL('.', import.meta.url));
 const endpoints = {
-  zen: 'https://opencode.ai/zen/v1/responses',
+  zen: 'https://opencode.ai/zen/v1/chat/completions',
   gemini: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
   openai: 'https://api.openai.com/v1/responses',
   anthropic: 'https://api.anthropic.com/v1/messages',
@@ -76,7 +76,7 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
       if (provider === 'anthropic') return Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{
         type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
       }] });
-      if (provider !== 'zen' && provider !== 'openai') return Response.json({ choices: [{ finish_reason: 'stop', message: {
+      if (provider !== 'openai') return Response.json({ choices: [{ finish_reason: 'stop', message: {
         role: 'assistant', content: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to NexGrid.' }] }),
       } }] });
       return Response.json({ status: 'completed', output: [{

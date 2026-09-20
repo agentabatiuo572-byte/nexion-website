@@ -24,8 +24,8 @@ export const AI_ALLOWED_MODELS = ['gpt-5.4-mini', 'gpt-5.4-nano'] as const;
 const ZEN_FREE_MODEL = 'deepseek-v4-flash-free';
 const ZEN_CHAT_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions';
 export const AI_PROVIDERS = {
-  zen: { name: 'OpenCode Zen', protocol: 'responses', endpoint: AI_ENDPOINT, defaultModel: AI_DEFAULT_MODEL,
-    allowedModels: [...AI_ALLOWED_MODELS, ZEN_FREE_MODEL] },
+  zen: { name: 'OpenCode Zen', protocol: 'responses', endpoint: AI_ENDPOINT, defaultModel: ZEN_FREE_MODEL,
+    allowedModels: [ZEN_FREE_MODEL, ...AI_ALLOWED_MODELS] },
   gemini: { name: 'Google Gemini', protocol: 'chat', endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
     defaultModel: 'gemini-3.5-flash-lite', allowedModels: ['gemini-3.5-flash-lite', 'gemini-3.1-flash-lite'] },
   openai: { name: 'OpenAI', protocol: 'responses', endpoint: 'https://api.openai.com/v1/responses',
