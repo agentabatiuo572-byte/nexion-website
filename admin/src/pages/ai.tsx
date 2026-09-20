@@ -64,7 +64,7 @@ export default function AiPage() {
   };
 
   async function test(save: boolean) {
-    if (!connection || busy || !connection.encryptionReady || (save && (!selectedProvider || !selectedProvider.allowedModels.includes(selectedModel)))) return;
+    if (!connection || busy || !connection.encryptionReady || (save && (!apiKey.trim() || !selectedProvider || !selectedProvider.allowedModels.includes(selectedModel)))) return;
     const base = save ? candidateBase.current ?? { credential: connection.credentialRev, sequence: connection.operationSeq } : { credential: connection.credentialRev, sequence: connection.operationSeq };
     const operationId = crypto.randomUUID();
     const key = apiKey;
@@ -124,8 +124,8 @@ export default function AiPage() {
             captureCandidate(); setProvider(next.id); setModel(allowedModel(next, next.defaultModel)); setApiKey(''); setError(''); setMessage('');
           }}>{connection.providers.map(value => <option key={value.id} value={value.id}>{value.name}</option>)}</select></div>
           <div className="field-grid"><div className="field"><label htmlFor="ai-model">翻译模型</label><select id="ai-model" value={selectedModel} disabled={busy} onChange={(event) => { captureCandidate(); setModel(event.target.value); }}>{selectedProvider?.allowedModels.map((value) => <option key={value} value={value}>{value}</option>)}</select></div>
-            <div className="field"><label htmlFor="ai-key">{selectedProvider?.name ?? 'AI'} API Key</label><input id="ai-key" type="password" autoComplete="off" spellCheck={false} value={apiKey} disabled={busy} placeholder={connection.configured ? '输入新密钥以替换现有连接' : '输入 API Key'} onChange={(event) => { captureCandidate(); setApiKey(event.target.value); }} /></div></div>
-          <p className="kv">测试会发送一条固定短句，产生少量 API 用量。密钥提交后清空，不会回显。</p>
+            <div className="field"><label htmlFor="ai-key">{selectedProvider?.name ?? 'AI'} API Key</label><input id="ai-key" className="ai-key-field" type="password" autoComplete="off" spellCheck={false} value={apiKey} disabled={busy} aria-describedby="ai-key-help" placeholder={connection.configured && selectedProvider?.id === connection.provider ? '••••••••••••' : '输入 API Key'} onChange={(event) => { captureCandidate(); setApiKey(event.target.value); }} /></div></div>
+          <p className="kv" id="ai-key-help">圆点仅表示当前服务商已有密钥；真实密钥不会回显，输入新密钥后才会测试并替换。</p>
           <div className="row"><button type="submit" className="btn primary" disabled={busy || connection.busy || !connection.encryptionReady || !apiKey.trim() || !selectedProvider?.allowedModels.includes(selectedModel)}>{busy ? '处理中…' : '测试并保存'}</button>
             <button type="button" className="btn ghost" disabled={busy || connection.busy || !connection.configured || !connection.encryptionReady} onClick={() => void test(false)}>测试当前连接</button>
             <button type="button" className="btn ghost" disabled={busy || !connection.configured} onClick={() => setConfirmRemove(true)}>移除配置</button></div>

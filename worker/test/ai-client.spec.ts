@@ -69,11 +69,11 @@ const providers = [
   ['groq', 'https://api.groq.com/openai/v1/chat/completions', 'chat'],
   ['openrouter', 'https://openrouter.ai/api/v1/chat/completions', 'chat'],
 ] as const;
-const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }]) => {
+const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }], model: string = AI_PROVIDERS[provider].defaultModel) => {
   const text = JSON.stringify({ translations });
   if (provider === 'anthropic') return { id: 'msg_fixture', type: 'message', role: 'assistant', stop_reason: 'end_turn',
     content: [{ type: 'text', text }], usage: { input_tokens: 12, output_tokens: 18 } };
-  if (provider === 'zen' || provider === 'openai') return { ...result(), output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text }] }] };
+  if ((provider === 'zen' && model !== 'deepseek-v4-flash-free') || provider === 'openai') return { ...result(), output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text }] }] };
   return { ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: text } }] };
 };
 const callProvider = (provider: AiProvider, model: string = AI_PROVIDERS[provider].defaultModel) =>
@@ -95,10 +95,12 @@ describe('seven fixed provider transports', () => {
       response_format: { type: 'json_object' }, messages: [{ role: 'system' }, { role: 'user' }] });
     for (const key of ['input', 'text', 'store', 'reasoning', 'max_output_tokens', 'thinking']) expect(body[key]).toBeUndefined();
   });
-  it.each(providers.flatMap(([provider, endpoint, protocol]) => AI_PROVIDERS[provider].allowedModels.map(model => ({ provider, endpoint, protocol, model }))))(
+  it.each(providers.flatMap(([provider, endpoint, protocol]) => AI_PROVIDERS[provider].allowedModels.map(model => ({ provider, model,
+    endpoint: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'https://opencode.ai/zen/v1/chat/completions' : endpoint,
+    protocol: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'chat' : protocol }))))(
     '$provider / $model uses its fixed endpoint, credentials and protocol', async ({ provider, endpoint, protocol, model }) => {
       const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
-        new Request(url, init); return Response.json(responseFor(provider));
+        new Request(url, init); return Response.json(responseFor(provider, undefined, model));
       });
       expect(await callProvider(provider, model)).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download NexGrid 2.0\nfor {name}' }],
         usage: { inputTokens: 12, outputTokens: 18, totalTokens: 30 } });
@@ -119,10 +121,11 @@ describe('seven fixed provider transports', () => {
           expect(body.messages).toBeUndefined();
         } else {
           expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
-          if (provider === 'deepseek') {
+          if (provider === 'deepseek' || (provider === 'zen' && model === 'deepseek-v4-flash-free')) {
             expect(body.response_format).toEqual({ type: 'json_object' });
             expect(body.messages[0].content).toContain('JSON object'); expect(body.messages[0].content).toContain('"translations"');
-            expect(body.thinking).toEqual({ type: 'disabled' });
+            if (provider === 'deepseek') expect(body.thinking).toEqual({ type: 'disabled' });
+            else expect(body.thinking).toBeUndefined();
           } else expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true, schema: { additionalProperties: false } } });
           if (provider === 'groq') {
             expect(body).toMatchObject({ max_completion_tokens: 4096, include_reasoning: false, reasoning_effort: 'low' });

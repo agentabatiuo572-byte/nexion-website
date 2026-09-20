@@ -25,6 +25,7 @@ input,textarea,select { font:var(--text-body)/1.65 var(--font); color:var(--ink)
 input:hover,textarea:hover,select:hover { border-color:#9daea3; }
 input:focus,textarea:focus,select:focus { border-color:var(--brand-ink); }
 input::placeholder,textarea::placeholder { color:#79847e; }
+.ai-key-field::placeholder { color:var(--ink3); opacity:1; }
 input[type=checkbox],input[type=radio] { accent-color:var(--brand-ink); width:auto; min-height:0; flex:none; }
 input:disabled,textarea:disabled,select:disabled { background:var(--surface2); color:var(--ink3); }
 textarea { resize:vertical; line-height:1.8; }

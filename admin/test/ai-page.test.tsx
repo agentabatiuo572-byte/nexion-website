@@ -54,6 +54,9 @@ it('shows a non-secret mask for a saved key without treating it as replacement i
   const keyField = await screen.findByLabelText('OpenCode Zen API Key') as HTMLInputElement;
   expect(keyField.value).toBe('');
   expect(keyField.placeholder).toMatch(/^•{8,}$/u);
+  expect(keyField.classList.contains('ai-key-field')).toBe(true);
+  expect(keyField.getAttribute('aria-describedby')).toBe('ai-key-help');
+  expect(document.getElementById('ai-key-help')?.textContent).toContain('真实密钥不会回显');
   expect((screen.getByRole('button', { name: '测试并保存' }) as HTMLButtonElement).disabled).toBe(true);
   expect(screen.queryByDisplayValue(/^•+$/u)).toBeNull();
 });
@@ -97,6 +100,7 @@ it('clears keys across provider changes and saves only the selected provider and
   fireEvent.change(screen.getByLabelText('OpenCode Zen API Key'), { target: { value: 'synthetic-zen-key' } });
   fireEvent.change(screen.getByLabelText('AI 服务商'), { target: { value: 'gemini' } });
   expect((screen.getByLabelText('Google Gemini API Key') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('Google Gemini API Key') as HTMLInputElement).placeholder).toBe('输入 API Key');
   expect((screen.getByLabelText('翻译模型') as HTMLSelectElement).value).toBe('gemini-3.5-flash-lite');
   expect(screen.queryByRole('option', { name: 'gpt-5.4-mini' })).toBeNull();
   expect((screen.getByRole('button', { name: '测试并保存' }) as HTMLButtonElement).disabled).toBe(true);
@@ -110,6 +114,7 @@ it('clears keys across provider changes and saves only the selected provider and
   await screen.findByText('连接已测试并保存，可以使用输入框旁的 AI 翻译。');
   expect(screen.getByText('当前连接：Google Gemini · gemini-3.5-flash-lite')).toBeTruthy();
   expect((screen.getByLabelText('Google Gemini API Key') as HTMLInputElement).value).toBe('');
+  expect((screen.getByLabelText('Google Gemini API Key') as HTMLInputElement).placeholder).toMatch(/^•{8,}$/u);
 });
 
 it('keeps the existing saved provider visible after a failed Gemini replacement', async () => {
