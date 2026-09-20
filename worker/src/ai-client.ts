@@ -188,6 +188,8 @@ export async function requestTranslations(
       if (error.status === 'UNAUTHENTICATED' || reasons.some(r => r === 'API_KEY_INVALID' || r === 'API_KEY_EXPIRED')) throw new AiError('invalid-key');
       if (reasons.some(r => r === 'BILLING_DISABLED' || r === 'BILLING_NOT_ACTIVE')) throw new AiError('billing-required');
     }
+    if (provider === 'zen' && response.status === 400 && error.type === 'server_error' &&
+      typeof error.message === 'string' && error.message.toLowerCase().includes('model is unavailable')) throw new AiError('model-unavailable');
     if (provider === 'zen' && error.type === 'CreditsError') throw new AiError('billing-required');
     if (response.status === 401) throw new AiError('invalid-key');
     if (response.status === 402) throw new AiError('billing-required');
