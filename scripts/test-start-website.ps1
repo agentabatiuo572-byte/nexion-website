@@ -943,7 +943,7 @@ try {
         param([string]$BaseUri, [string]$Path, [string]$Method, $Body, [string]$Cookie, [string]$BearerToken, [int]$TimeoutSeconds)
         $script:AiHttpCalls++
         Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and -not $Cookie -and $null -eq $Body -and $BearerToken -ceq 'synthetic-ai-tick-token-32-characters') 'AI request destination, body or authentication is incorrect.'
-        if ($Path -ceq '/api/internal/translations/tick') { Assert-True ($Method -ceq 'POST' -and $TimeoutSeconds -eq 30) 'Tick must be a 30 second bounded empty POST.'; return @{ Status = 200; Json = @{ skipped = $true } } }
+        if ($Path -ceq '/api/internal/translations/tick') { Assert-True ($Method -ceq 'POST' -and $TimeoutSeconds -eq 55) 'Tick must leave the NVIDIA request enough time while remaining bounded.'; return @{ Status = 200; Json = @{ skipped = $true } } }
         Assert-True ($Path -ceq '/api/internal/translations/bootstrap' -and $Method -ceq 'GET' -and $TimeoutSeconds -eq 5) 'Bootstrap request is incorrect.'
         return @{ Status = 200; Json = @{ initialized = $false; hasCredential = $false; encryptionReady = $script:AiReadyValue } }
     }

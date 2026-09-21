@@ -145,7 +145,7 @@ function Complete-AiBootstrap([string]$Root, [string]$PrivateDirectory, $Configu
 
 function Invoke-AiTranslationTick([string]$Token) {
     Assert-AiApiOwnership
-    $reply = Invoke-LocalApi 'http://127.0.0.1:8787' '/api/internal/translations/tick' 'POST' $null '' $Token 30
+    $reply = Invoke-LocalApi 'http://127.0.0.1:8787' '/api/internal/translations/tick' 'POST' $null '' $Token 55
     if ($reply.Status -ne 200) { throw 'AI translation tick is unavailable; the website API remains running.' }
     return $reply.Json
 }

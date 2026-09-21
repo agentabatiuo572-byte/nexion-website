@@ -7,7 +7,8 @@ vi.mock('../src/api', () => ({ api: mocks.api, ApiError: class extends Error { c
 import { DefaultTranslationActions, TranslationProvider, TranslationTasks, type TranslationOverview } from '../src/lib/translations';
 import { TranslatedTextarea } from '../src/lib/translated-textarea';
 
-const fixture = (): TranslationOverview => ({ draftRev: 9, counts: { missing: 1, manualReview: 1 }, nextCursor: null, items: [], states: [{
+const fixture = (): TranslationOverview => ({ draftRev: 9, counts: { missing: 1, manualReview: 1 },
+  queue: { status: 'idle', lastActivityAt: null, nextAttemptAt: null }, nextCursor: null, items: [], states: [{
   fieldId: '/copy/hero.title', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.title', origin: 'manual', generation: 3,
   stale: false, reviewNeeded: true, missing: false, sourceHash: 'current-source-hash', targetValue: 'French text', required: true,
 }] });
@@ -83,6 +84,17 @@ it('names each language action and keeps an active language to one queued batch'
   const action = await screen.findByRole('button', { name: '法语：已入队，等待处理' });
   expect((action as HTMLButtonElement).disabled).toBe(true);
   expect(screen.getByText('待补 2 · 排队 1 · 处理中 0')).toBeTruthy();
+});
+
+it('shows that queued batches are paused instead of pretending they are advancing', async () => {
+  overview.enabledLocales = ['zh', 'fr']; overview.counts.pending = 1;
+  overview.queue = { status: 'paused', lastActivityAt: Date.now() - 60_000, nextAttemptAt: null };
+  overview.states = [{ fieldId: '/copy/hero.note', targetLocale: 'fr', draftFieldId: '/copy/fr/hero.note', origin: 'none', generation: 1,
+    stale: false, missing: true, sourceHash: 'fr-note', targetValue: '', required: true, jobStatus: 'pending' }];
+  render(wrap(<><DefaultTranslationActions /><TranslationTasks /></>));
+  expect(await screen.findByText('批次队列已暂停')).toBeTruthy();
+  expect(screen.getByText('自动补译已关闭，1 项已入队任务不会执行。开启上方开关后会从当前进度继续。')).toBeTruthy();
+  expect(screen.getByRole('button', { name: '法语：队列已暂停' })).toBeTruthy();
 });
 
 it('uses exact retry baseline and readable task errors', async () => {

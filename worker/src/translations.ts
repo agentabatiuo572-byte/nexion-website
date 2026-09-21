@@ -147,6 +147,25 @@ async function status(env: AiEnv, offset: number, limit: number) {
     pending: 0, running: 0, succeeded: 0, obsolete: 0, cancelled: 0, failed: 0 };
   const grouped = (await env.DB.prepare('SELECT status,COUNT(*) AS count FROM translation_jobs GROUP BY status').all<{status: string; count: number}>()).results;
   for (const g of grouped) if (JOB_STATUSES.includes(g.status as typeof JOB_STATUSES[number])) counts[g.status as typeof JOB_STATUSES[number]] = g.count;
+  const now = Date.now(), connection = await getAiConnection(env.DB);
+  const activity = await env.DB.prepare(`SELECT
+    MAX(updated_at) AS last_activity_at,
+    MIN(CASE WHEN status='pending' AND next_attempt_at>?1 THEN next_attempt_at END) AS next_attempt_at,
+    SUM(CASE WHEN status='pending' AND next_attempt_at<=?1 THEN 1 ELSE 0 END) AS ready_pending,
+    MAX(CASE WHEN status='running' THEN lease_until END) AS running_lease_until
+    FROM translation_jobs`).bind(now).first<{ last_activity_at: number | null; next_attempt_at: number | null;
+      ready_pending: number; running_lease_until: number | null }>();
+  const active = counts.pending + counts.running;
+  const usedToday = connection.usage_day === new Date(now).toISOString().slice(0, 10) ? connection.sent_characters : 0;
+  let queueStatus = 'idle';
+  if (active) {
+    if (!connection.enabled) queueStatus = 'paused';
+    else if (!aiConnectionUsable(connection) || !allowedAiModels(env, connection.provider).includes(connection.model)) queueStatus = 'unavailable';
+    else if (usedToday >= connection.daily_character_limit) queueStatus = 'daily-limit';
+    else if (counts.running && (activity?.running_lease_until ?? 0) > now) queueStatus = 'running';
+    else if (!(activity?.ready_pending ?? 0) && (activity?.next_attempt_at ?? 0) > now) queueStatus = 'waiting';
+    else queueStatus = now - (activity?.last_activity_at ?? now) > 150_000 ? 'stalled' : 'queued';
+  }
   const rows = (await env.DB.prepare('SELECT * FROM translation_jobs ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?').bind(limit + 1, offset).all<TranslationJobRow>()).results;
   const items = await Promise.all(rows.slice(0, limit).map(async j => {
     const f = ctx.byKey.get(jobKey(j));
@@ -156,7 +175,8 @@ async function status(env: AiEnv, offset: number, limit: number) {
       canRetry: !!f && !!f.source.trim() && ['failed', 'cancelled', 'obsolete'].includes(j.status) };
   }));
   return { draftRev: ctx.snapshot.draft_rev, enabledLocales: ctx.config.enabledLocales, batchLimit: TRANSLATION_ENQUEUE_BATCH_SIZE,
-    counts, states, items, nextCursor: rows.length > limit ? String(offset + limit) : null };
+    counts, queue: { status: queueStatus, lastActivityAt: activity?.last_activity_at ?? null,
+      nextAttemptAt: activity?.next_attempt_at ?? null }, states, items, nextCursor: rows.length > limit ? String(offset + limit) : null };
 }
 
 const fieldBaseline = { fieldId: z.string().min(1).max(512), targetLocale: z.custom<(typeof TRANSLATION_TARGET_LOCALES)[number]>(isTranslationTarget),
@@ -344,7 +364,7 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
     validateTranslationInputs(batch[0].field.targetLocale, fields);
     if (!await markAiCallSent(env, lease)) throw new AiError('cancelled');
     summary.requested = fields.length;
-    const response = await requestTranslations(lease.apiKey, lease.model, batch[0].field.targetLocale, fields, AbortSignal.timeout(Math.max(1, 25000 - (Date.now() - started))), lease.provider);
+    const response = await requestTranslations(lease.apiKey, lease.model, batch[0].field.targetLocale, fields, undefined, lease.provider);
     usage = response.usage;
     // Persist the whole validated response before any draft update, under this execution's ownership.
     await env.DB.batch(owned.map(j => env.DB.prepare(`UPDATE translation_jobs SET result=?,usage=?,updated_at=?

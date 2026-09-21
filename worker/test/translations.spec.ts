@@ -116,6 +116,22 @@ describe('persistent translation application', () => {
     expect(await drainTranslations(local())).toMatchObject({ applied: 0, requested: 0 });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
+  it('lets the NVIDIA client own its 45 second deadline instead of cancelling the queue at 25 seconds', async () => {
+    const field = await setupField(); await enqueue(field);
+    const encrypted = await encryptApiKey(local(), 'nvapi-synthetic-nvidia-translation-key', 'nvidia');
+    await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
+      .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant',
+        content: JSON.stringify({ translations: input.fields.map((f: { id: string }) => ({ id: f.id, text: '未来へようこそ。' })) }) } }],
+        usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
+    });
+    const timeout = vi.spyOn(AbortSignal, 'timeout');
+    expect(await drainTranslations(local())).toMatchObject({ status: 'processed', applied: 1, requested: 1 });
+    expect(timeout).toHaveBeenCalledTimes(1);
+    expect(timeout).toHaveBeenCalledWith(45_000);
+  });
   it('provider/model mismatch pauses queued work without spending or mutating the draft', async () => {
     const field = await setupField(); await enqueue(field);
     const before = await readDraftSnapshot(env.DB);
@@ -405,9 +421,20 @@ describe('persistent translation application', () => {
     const field = await setupField(); await enqueue(field);
     await env.DB.prepare('UPDATE ai_connection SET enabled=0').run();
     expect(await drainTranslations(local())).toMatchObject({ status: 'paused' });
+    expect(await (await request()).json()).toMatchObject({ queue: { status: 'paused', lastActivityAt: expect.any(Number), nextAttemptAt: null } });
     await env.DB.prepare('UPDATE ai_connection SET enabled=1,usage_day=?,sent_characters=daily_character_limit').bind(new Date().toISOString().slice(0,10)).run();
     expect(await drainTranslations(local())).toMatchObject({ status: 'daily-limit' });
+    expect(await (await request()).json()).toMatchObject({ queue: { status: 'daily-limit' } });
     expect((await jobs())[0]).toMatchObject({ status: 'pending', attempts: 0 });
+    await env.DB.prepare("UPDATE ai_connection SET sent_characters=0 WHERE id=1").run();
+    await env.DB.prepare("UPDATE translation_jobs SET updated_at=?,next_attempt_at=0 WHERE status='pending'").bind(Date.now() - 180_000).run();
+    expect(await (await request()).json()).toMatchObject({ queue: { status: 'stalled' } });
+    const retryAt = Date.now() + 60_000;
+    await env.DB.prepare("UPDATE translation_jobs SET next_attempt_at=? WHERE status='pending'").bind(retryAt).run();
+    expect(await (await request()).json()).toMatchObject({ queue: { status: 'waiting', nextAttemptAt: retryAt } });
+    await env.DB.prepare("UPDATE translation_jobs SET status='running',lease_until=?,updated_at=? WHERE status='pending'")
+      .bind(Date.now() + 60_000, Date.now()).run();
+    expect(await (await request()).json()).toMatchObject({ queue: { status: 'running' } });
     expect(fetch).not.toHaveBeenCalled();
   });
   it('a recovery racing a newer connection and job owner cannot erase the new owner or candidate', async () => {

@@ -16,6 +16,8 @@ export interface TranslationTaskView {
 }
 export interface TranslationOverview {
   draftRev: number; enabledLocales?: Locale[]; batchLimit?: number; counts: Record<string, number>;
+  queue: { status: 'idle' | 'paused' | 'unavailable' | 'daily-limit' | 'running' | 'waiting' | 'queued' | 'stalled';
+    lastActivityAt: number | null; nextAttemptAt: number | null };
   states: TranslationStateView[]; items: TranslationTaskView[]; nextCursor: string | null;
 }
 interface TranslationContextValue { data: TranslationOverview | null; error: string | null; refresh: () => Promise<void> }
@@ -29,6 +31,24 @@ const TASK_ERRORS: Record<string, string> = {
 };
 const TranslationContext = createContext<TranslationContextValue>({ data: null, error: null, refresh: async () => {} });
 export const useTranslations = () => useContext(TranslationContext);
+const ago = (at: number | null) => {
+  if (!at) return '暂无推进记录';
+  const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
+  return seconds < 10 ? '刚刚有推进' : seconds < 60 ? `${seconds} 秒前有推进` : `${Math.floor(seconds / 60)} 分钟前有推进`;
+};
+function queueCopy(data: TranslationOverview) {
+  const pending = data.counts.pending ?? 0, running = data.counts.running ?? 0;
+  switch (data.queue.status) {
+    case 'paused': return ['批次队列已暂停', `自动补译已关闭，${pending} 项已入队任务不会执行。开启上方开关后会从当前进度继续。`];
+    case 'unavailable': return ['AI 连接不可用', `${pending} 项任务已保留；连接恢复后会继续。`];
+    case 'daily-limit': return ['今日用量已到上限', `${pending} 项任务已保留，将在 UTC 次日额度恢复后继续。`];
+    case 'running': return ['正在处理批次', `${running} 项处理中，${pending} 项排队 · ${ago(data.queue.lastActivityAt)}`];
+    case 'waiting': return ['等待自动重试', `${pending} 项任务已保留 · ${data.queue.nextAttemptAt ? `约 ${new Date(data.queue.nextAttemptAt).toLocaleTimeString('zh-CN', { hour12: false })} 重试` : ago(data.queue.lastActivityAt)}`];
+    case 'queued': return ['队列正常，等待下一轮', `${pending} 项排队；后台每分钟取一批 · ${ago(data.queue.lastActivityAt)}`];
+    case 'stalled': return ['长时间没有推进', `${pending} 项仍在排队，后台超过 2 分钟未更新任务。刷新后仍无变化时请重启本地服务。`];
+    default: return ['当前没有待处理批次', '建立批次后会在这里显示实时状态。'];
+  }
+}
 export const translationError = (error: unknown) => error instanceof ApiError && typeof error.body.message === 'string'
   ? error.body.message : error instanceof ApiError && error.status === 409 ? '内容已变化，本次操作未应用；当前编辑已保留，请核对最新内容。' : '操作未完成，请刷新状态后重试。';
 
@@ -102,10 +122,11 @@ export function DefaultTranslationActions({ disabled = false, onChanged }: { dis
       : <p className="kv">正在读取各语种待办…</p> : <ul className="translation-batch-list">{localeRows.map(row => {
       const count = row.active ? 0 : Math.min(row.available, data.batchLimit ?? 50);
       const statusId = `translation-batch-status-${row.locale}`;
+      const paused = row.pending && data.queue.status === 'paused';
       const action = busyLocale === row.locale ? `正在建立${LOCALE_NAME[row.locale]}批次…` : row.running ? '处理中'
-        : row.pending ? '已入队 · 等待处理' : count ? `建立本批 · ${count} 项` : '已补齐';
+        : paused ? '队列已暂停' : row.pending ? '已入队 · 等待处理' : count ? `建立本批 · ${count} 项` : '已补齐';
       const actionLabel = busyLocale === row.locale ? `正在为${LOCALE_NAME[row.locale]}建立批次` : row.running ? `${LOCALE_NAME[row.locale]}：处理中`
-        : row.pending ? `${LOCALE_NAME[row.locale]}：已入队，等待处理` : count ? `为${LOCALE_NAME[row.locale]}建立本批，共 ${count} 项` : `${LOCALE_NAME[row.locale]}：已补齐`;
+        : paused ? `${LOCALE_NAME[row.locale]}：队列已暂停` : row.pending ? `${LOCALE_NAME[row.locale]}：已入队，等待处理` : count ? `为${LOCALE_NAME[row.locale]}建立本批，共 ${count} 项` : `${LOCALE_NAME[row.locale]}：已补齐`;
       return <li className="translation-batch-row" key={row.locale} aria-busy={busyLocale === row.locale}>
         <div><div className="row"><b>{LOCALE_NAME[row.locale]}</b>{!row.enabled && <span className="pill">未发布 · 可先补译</span>}</div>
           <p className="kv" id={statusId} aria-live="polite" aria-atomic="true">{busyLocale === row.locale && '正在建立批次 · '}待补 {row.needed} · 排队 {row.pending} · 处理中 {row.running}{row.failed ? ` · 失败 ${row.failed}` : ''}</p></div>
@@ -138,8 +159,12 @@ export function TranslationTasks() {
     catch (e) { setNotice(translationError(e)); }
     finally { setBusy(false); }
   }
+  const queue = data ? queueCopy(data) : null;
   return <section className="card"><div className="row"><h3>翻译任务</h3><span className="spacer" /><button type="button" className="btn ghost" disabled={busy} onClick={() => { setExtra([]); setCursor(null); void refresh(); }}>刷新任务</button></div>
     {(error || notice) && <p className="note bad" role="alert">{error ?? notice}</p>}
+    {data && queue && <div className="translation-queue-status" data-state={data.queue.status} role="status" aria-live="polite">
+      <span className="translation-queue-icon" aria-hidden="true" /><div><b>{queue[0]}</b><p>{queue[1]}</p></div>
+    </div>}
     <div className="row">{Object.entries(data?.counts ?? {}).map(([status, count]) => <span className="pill" key={status}>{statuses[status] ?? status} {count}</span>)}</div>
     {!data ? <p className="kv">正在读取翻译状态…</p> : !items.length ? <p className="kv">暂无翻译任务</p> : <div className="table-wrap"><table><thead><tr><th>字段</th><th>语言</th><th>状态</th><th>操作</th></tr></thead><tbody>{items.map((item) => {
       const field = data.states.find((entry) => entry.fieldId === item.fieldId && entry.targetLocale === item.targetLocale);

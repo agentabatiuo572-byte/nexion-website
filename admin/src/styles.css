@@ -285,6 +285,14 @@ details[open] > summary { margin-bottom:0.5rem; }
 .translation-batch-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; min-height:4rem; padding:0.75rem 0.875rem; border:1px solid var(--border); border-radius:0.625rem; background:var(--surface2); }
 .translation-batch-row > div { min-width:0; }
 .translation-batch-row .btn { flex:none; }
+.translation-queue-status { display:grid; grid-template-columns:1.75rem minmax(0,1fr); gap:0.75rem; align-items:center; margin:0 0 0.875rem; padding:0.875rem; border:1px solid var(--border); border-radius:0.625rem; background:var(--surface2); }
+.translation-queue-status b,.translation-queue-status p { display:block; margin:0; }
+.translation-queue-status p { margin-top:0.1875rem; color:var(--ink3); font-size:var(--text-sm); }
+.translation-queue-icon { width:1.25rem; height:1.25rem; border:2px solid var(--ink3); border-radius:50%; }
+.translation-queue-status[data-state='running'] .translation-queue-icon { border-color:var(--brand-ink); border-right-color:transparent; animation:publisher-spin .9s linear infinite; }
+.translation-queue-status[data-state='queued'] .translation-queue-icon { border:0; background:var(--brand); box-shadow:0 0 0 0.375rem var(--brand-soft); animation:publisher-pulse 1.5s ease-in-out infinite; }
+.translation-queue-status[data-state='paused'] .translation-queue-icon,.translation-queue-status[data-state='waiting'] .translation-queue-icon,.translation-queue-status[data-state='daily-limit'] .translation-queue-icon { border-color:var(--warn); }
+.translation-queue-status[data-state='stalled'] .translation-queue-icon,.translation-queue-status[data-state='unavailable'] .translation-queue-icon { border-color:var(--bad); }
 @media (min-width:1700px) { main.content { padding-inline:3rem; } }
 @media (min-width:761px) and (max-width:1100px) {
   .shell { grid-template-columns:15rem minmax(0,1fr); }
