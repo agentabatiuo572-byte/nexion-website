@@ -42,11 +42,17 @@ const migrationStatements = (name: string) => {
 };
 const mainstreamMigration = () => migrationStatements('0020_ai_mainstream_providers.sql');
 const nvidiaMigration = () => migrationStatements('0022_ai_nvidia_provider.sql');
+const nvidiaTranslationModelMigration = () => migrationStatements('0023_ai_nvidia_translation_model.sql');
 const restore0019 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection'),
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql')]);
 const restore0020 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection'),
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql'), ...mainstreamMigration()]);
-const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to Uvel.') => {
+const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to Uvel.', init?: RequestInit) => {
+  if (provider === 'nvidia') {
+    const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations[0].text as string;
+    const guard = input.match(/⟦UVEL_GUARD_\d+_\d+⟧/)?.[0];
+    if (guard) text = text.replace('Uvel', guard);
+  }
   const content = JSON.stringify({ translations: [{ id, text }] });
   if (AI_PROVIDERS[provider].protocol === 'responses' && provider !== 'zen') return Response.json({ status: 'completed', error: null, incomplete_details: null,
     output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text: content }] }],
@@ -198,6 +204,19 @@ describe('provider migration and Gemini credentials', () => {
 });
 
 describe('mainstream provider migration and registry routes', () => {
+  it('0023 migrates the stalled NVIDIA model and requeues its automatic failure', async () => {
+    await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model='mistralai/mistral-nemotron',execution_rev=4,call_lease_token='stale',call_lease_until=9999999999999,call_sent=1 WHERE id=1").run();
+    await env.DB.prepare("INSERT OR REPLACE INTO translation_state(field_id,target_locale,origin,source_hash,observed_source_hash,applied_value_hash,generation,updated_at) VALUES('/copy/migration','de','seed','source','source','target',1,1)").run();
+    await env.DB.prepare("INSERT OR REPLACE INTO translation_jobs(id,field_id,target_locale,generation,intent,source_text,context,source_hash,target_value,status,attempts,error_code,created_at,updated_at) VALUES('migration-model-job','/copy/migration','de',1,'auto','来源','copy','source','','failed',3,'invalid-result',1,1)").run();
+    await env.DB.batch(nvidiaTranslationModelMigration());
+    expect(await getAiConnection(env.DB)).toMatchObject({ provider: 'nvidia', model: AI_PROVIDERS.nvidia.defaultModel,
+      execution_rev: 5, call_lease_token: null, call_lease_until: null, call_sent: 0 });
+    expect(await env.DB.prepare("SELECT status,attempts,error_code FROM translation_jobs WHERE id='migration-model-job'").first())
+      .toEqual({ status: 'pending', attempts: 0, error_code: 'model-changed' });
+    await env.DB.prepare("DELETE FROM translation_jobs WHERE id='migration-model-job'").run();
+    await env.DB.prepare("DELETE FROM translation_state WHERE field_id='/copy/migration' AND target_locale='de'").run();
+  });
+
   it('0022 preserves the active connection while adding NVIDIA to the provider constraint', async () => {
     await restore0020(); await configured();
     const before = await getAiConnection(env.DB);
@@ -275,10 +294,10 @@ describe('mainstream provider migration and registry routes', () => {
     const endpoint = provider === 'zen' ? 'https://opencode.ai/zen/v1/chat/completions' : spec.endpoint;
     vi.mocked(fetch).mockImplementationOnce(async (url, init) => {
       expect(url).toBe(endpoint);
-      expect(String(init?.body)).toContain('Uvel');
+      expect(String(init?.body)).toContain(provider === 'nvidia' ? 'UVEL_GUARD' : 'Uvel');
       expect(String(init?.body)).not.toContain('NexGrid');
       expect(await getAiConnection(env.DB)).toMatchObject({ provider: before.provider, model: before.model, key_ciphertext: before.key_ciphertext, credential_rev: before.credential_rev });
-      return providerSuccess(provider);
+      return providerSuccess(provider, 'connection-test', 'Welcome to Uvel.', init);
     });
     const response = await request('/connection', 'PUT', { ...saveBody(1), provider, model: spec.defaultModel });
     expect(response.status).toBe(200);
@@ -286,7 +305,7 @@ describe('mainstream provider migration and registry routes', () => {
     const saved = await getAiConnection(env.DB);
     expect(await decryptApiKey(local(), saved)).toBe(KEY);
     for (const other of providers.filter(id => id !== provider)) await expect(decryptApiKey(local(), { ...saved, provider: other })).rejects.toMatchObject({ code: 'decryption-failed' });
-    vi.mocked(fetch).mockImplementationOnce(async url => { expect(url).toBe(endpoint); return providerSuccess(provider, 'preview', 'Scroll down to explore.'); });
+    vi.mocked(fetch).mockImplementationOnce(async (url, init) => { expect(url).toBe(endpoint); return providerSuccess(provider, 'preview', 'Scroll down to explore.', init); });
     expect(await (await request('/translate', 'POST', { source: '向下滚动以探索。', targetLocale: 'en' })).json()).toEqual({ text: 'Scroll down to explore.' });
     expect(await getAiConnection(env.DB)).toMatchObject({ provider, credential_rev: 2, call_count: 2, input_tokens: 20, output_tokens: 10, unknown_usage_count: 0 });
   });
@@ -302,7 +321,7 @@ describe('mainstream provider migration and registry routes', () => {
       credential_rev: before.credential_rev, connection_status: before.connection_status, enabled: before.enabled });
     await env.DB.prepare('UPDATE ai_connection SET next_test_at=0').run();
     await env.DB.prepare("CREATE TRIGGER provider_save_audit_fail BEFORE INSERT ON audit WHEN NEW.action='ai.connection.saved' BEGIN SELECT RAISE(ABORT,'synthetic-audit-failure'); END").run();
-    vi.mocked(fetch).mockResolvedValueOnce(providerSuccess(provider));
+    vi.mocked(fetch).mockImplementationOnce(async (_url, init) => providerSuccess(provider, 'connection-test', 'Welcome to Uvel.', init));
     try {
       const rejectedSave = await request('/connection', 'PUT', { ...candidate, expectedOperationSeq: 1, operationId: 'provider-audit-retry' });
       expect(rejectedSave.status).toBe(422);

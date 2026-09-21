@@ -70,7 +70,7 @@ function Read-LocalPassword([string]$Path) {
     finally { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($pointer); $secure.Dispose() }
 }
 
-function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method = 'GET', $Body = $null, [string]$Cookie = '', [string]$BearerToken = '', [ValidateRange(1, 30)][int]$TimeoutSeconds = 15) {
+function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method = 'GET', $Body = $null, [string]$Cookie = '', [string]$BearerToken = '', [ValidateRange(1, 60)][int]$TimeoutSeconds = 15) {
     $uri = [Uri]($BaseUri.TrimEnd('/') + $Path)
     if ($uri.Scheme -ne 'http' -or $uri.Host -notin @('127.0.0.1', 'localhost', '[::1]')) { throw 'Only loopback HTTP is allowed.' }
     Add-Type -AssemblyName System.Net.Http
