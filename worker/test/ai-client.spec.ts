@@ -77,6 +77,15 @@ const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields
   if ((provider === 'zen' && model !== 'deepseek-v4-flash-free') || provider === 'openai') return { ...result(), output: [{ type: 'message', role: 'assistant', status: 'completed', content: [{ type: 'output_text', text }] }] };
   return { ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: text } }] };
 };
+const nvidiaResponse = (init: RequestInit | undefined, spanish = false, fenced = false) => {
+  const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+  const source = String(input.translations[0].text), guards = source.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
+  expect(guards).toHaveLength(4);
+  const text = (spanish ? `Descarga ${guards[0]} ${guards[1]}${guards[2]}para ${guards[3]}` : `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}`);
+  const content = JSON.stringify({ translations: [{ id: fields[0].id, text }] });
+  return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
+    content: fenced ? '```json\n' + content + '\n```' : content } }] });
+};
 const callProvider = (provider: AiProvider, model: string = AI_PROVIDERS[provider].defaultModel) =>
   requestTranslations('synthetic-' + provider + '-key', model, 'en', fields, undefined, provider);
 describe('eight fixed provider transports', () => {
@@ -98,20 +107,63 @@ describe('eight fixed provider transports', () => {
     for (const key of ['input', 'text', 'store', 'reasoning', 'max_output_tokens', 'thinking']) expect(body[key]).toBeUndefined();
   });
   it('accepts NVIDIA JSON fences only after the chat envelope passes validation', async () => {
-    expect(AI_PROVIDERS.nvidia.defaultModel).toBe('mistralai/mistral-nemotron');
-    const fenced = '```json\n' + JSON.stringify({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] }) + '\n```';
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop',
-      message: { role: 'assistant', content: fenced } }] }));
+    expect(AI_PROVIDERS.nvidia.defaultModel).toBe('nvidia/riva-translate-4b-instruct-v2');
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => nvidiaResponse(init, false, true));
     await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] });
   });
-  it('allows the slower NVIDIA free endpoint more time without changing other providers', async () => {
+  it('accepts Riva plain-text output for its single protected field', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      const guards = input.translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g);
+      return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
+        content: `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}` } }] });
+    });
+    await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] });
+  });
+  it('routes non-English NVIDIA targets through the documented English pivot and combines usage', async () => {
+    const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body));
+      return nvidiaResponse(init, body.messages[0].content === 'en-es-us');
+    });
+    await expect(requestTranslations('synthetic-nvidia-key', AI_PROVIDERS.nvidia.defaultModel, 'es', fields, undefined, 'nvidia'))
+      .resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Descarga Uvel 2.0\npara {name}' }],
+        usage: { inputTokens: 24, outputTokens: 36, totalTokens: 60 } });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    const first = JSON.parse(String(fetcher.mock.calls[0][1]?.body)), second = JSON.parse(String(fetcher.mock.calls[1][1]?.body));
+    expect(first.messages[0].content).toBe('zh-cn-en');
+    expect(second.messages[0].content).toBe('en-es-us');
+    expect(JSON.parse(second.messages[1].content).translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
+  });
+  it('isolates NVIDIA fields and sends free-endpoint requests sequentially', async () => {
+    const batch = Array.from({ length: 8 }, (_, index) => ({ ...fields[0], id: `/copy/hero${index}` }));
+    let active = 0, peak = 0;
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
+      const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations;
+      expect(input).toHaveLength(1);
+      const guards = input[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
+      active++; peak = Math.max(peak, active);
+      await new Promise(resolve => setTimeout(resolve, 0));
+      active--;
+      return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
+        content: input[0].id.endsWith('3') ? 'invalid isolated output' : JSON.stringify({ translations: [{ id: input[0].id,
+          text: `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}` }] }) } }] });
+    });
+    await expect(requestTranslations('synthetic-nvidia-key', AI_PROVIDERS.nvidia.defaultModel, 'en', batch, undefined, 'nvidia'))
+      .resolves.toMatchObject({
+        translations: batch.filter(field => !field.id.endsWith('3')).map(field => ({ id: field.id, text: 'Download Uvel 2.0\nfor {name}' })),
+        failures: [{ id: '/copy/hero3', code: 'invalid-result', retryable: false, retryAfterMs: 0 }],
+      });
+    expect(fetch).toHaveBeenCalledTimes(8);
+    expect(peak).toBe(1);
+  });
+  it('bounds each NVIDIA translation stage so the local tick can finish', async () => {
     const timeout = vi.spyOn(AbortSignal, 'timeout');
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async url => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
       const provider: AiProvider = String(url).includes('nvidia.com') ? 'nvidia' : 'gemini';
-      return Response.json(responseFor(provider));
+      return provider === 'nvidia' ? nvidiaResponse(init) : Response.json(responseFor(provider));
     });
     await callProvider('nvidia');
-    expect(timeout).toHaveBeenLastCalledWith(45_000);
+    expect(timeout).toHaveBeenLastCalledWith(24_000);
     await callProvider('gemini');
     expect(timeout).toHaveBeenLastCalledWith(20_000);
   });
@@ -120,7 +172,7 @@ describe('eight fixed provider transports', () => {
     protocol: provider === 'zen' && model === 'deepseek-v4-flash-free' ? 'chat' : protocol }))))(
     '$provider / $model uses its fixed endpoint, credentials and protocol', async ({ provider, endpoint, protocol, model }) => {
       const fetcher = vi.spyOn(globalThis, 'fetch').mockImplementation(async (url, init) => {
-        new Request(url, init); return Response.json(responseFor(provider, undefined, model));
+        new Request(url, init); return provider === 'nvidia' ? nvidiaResponse(init) : Response.json(responseFor(provider, undefined, model));
       });
       expect(await callProvider(provider, model)).toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }],
         usage: { inputTokens: 12, outputTokens: 18, totalTokens: 30 } });
@@ -140,17 +192,23 @@ describe('eight fixed provider transports', () => {
           expect(body).toMatchObject({ store: false, max_output_tokens: 4096, text: { format: { type: 'json_schema', strict: true } } });
           expect(body.messages).toBeUndefined();
         } else {
-          expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
           if (provider === 'nvidia') {
             expect(body.response_format).toBeUndefined();
             expect(body.temperature).toBe(0);
-            expect(body.messages[0].content).toContain('JSON object'); expect(body.messages[0].content).toContain('"translations"');
+            expect(body.messages[0].content).toBe('zh-cn-en');
+            const transport = JSON.parse(body.messages[1].content).translations[0];
+            expect(transport.id).toBe(fields[0].id);
+            expect(transport.text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
           } else if (provider === 'deepseek' || (provider === 'zen' && model === 'deepseek-v4-flash-free')) {
+            expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
             expect(body.response_format).toEqual({ type: 'json_object' });
             expect(body.messages[0].content).toContain('JSON object'); expect(body.messages[0].content).toContain('"translations"');
             if (provider === 'deepseek') expect(body.thinking).toEqual({ type: 'disabled' });
             else expect(body.thinking).toBeUndefined();
-          } else expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true, schema: { additionalProperties: false } } });
+          } else {
+            expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
+            expect(body.response_format).toMatchObject({ type: 'json_schema', json_schema: { strict: true, schema: { additionalProperties: false } } });
+          }
           if (provider === 'groq') {
             expect(body).toMatchObject({ max_completion_tokens: 4096, include_reasoning: false, reasoning_effort: 'low' });
             expect(body.reasoning_format).toBeUndefined(); expect(body.max_tokens).toBeUndefined();

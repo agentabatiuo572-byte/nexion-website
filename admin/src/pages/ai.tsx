@@ -5,7 +5,7 @@ import { useShell, useUnsavedChanges } from '../shell';
 import { DefaultTranslationActions, TranslationTasks, translationError } from '../lib/translations';
 import { LOCALE_NAME } from '../lib/human-path';
 
-type AiProvider = 'zen' | 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'openrouter';
+type AiProvider = 'zen' | 'gemini' | 'openai' | 'anthropic' | 'deepseek' | 'groq' | 'openrouter' | 'nvidia';
 export interface AiConnectionView {
   provider: AiProvider; model: string; allowedModels: string[]; configured: boolean; encryptionReady: boolean;
   providers: { id: AiProvider; name: string; defaultModel: string; allowedModels: string[] }[];

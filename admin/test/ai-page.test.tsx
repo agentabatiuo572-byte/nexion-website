@@ -17,7 +17,7 @@ const fixture = (): AiConnectionView => ({ provider: 'zen', model: 'deepseek-v4-
     { id: 'deepseek', name: 'DeepSeek', defaultModel: 'deepseek-v4-flash', allowedModels: ['deepseek-v4-flash'] },
     { id: 'groq', name: 'Groq', defaultModel: 'openai/gpt-oss-20b', allowedModels: ['openai/gpt-oss-20b', 'openai/gpt-oss-120b'] },
     { id: 'openrouter', name: 'OpenRouter', defaultModel: 'openai/gpt-5.4-mini', allowedModels: ['openai/gpt-5.4-mini'] },
-    { id: 'nvidia', name: 'NVIDIA NIM', defaultModel: 'mistralai/mistral-nemotron', allowedModels: ['mistralai/mistral-nemotron'] },
+    { id: 'nvidia', name: 'NVIDIA NIM', defaultModel: 'nvidia/riva-translate-4b-instruct-v2', allowedModels: ['nvidia/riva-translate-4b-instruct-v2'] },
   ],
   encryptionReady: true, credentialRev: 4, activeRevision: 4, settingsRev: 6, executionRev: 6, enabled: false, status: 'available', ready: true,
   operationSeq: 7, operationId: null, operationStatus: 'idle', operationError: null, lastTestAt: null, busy: false, dailyCharacterLimit: 20000,

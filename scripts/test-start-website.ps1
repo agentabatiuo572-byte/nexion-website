@@ -991,7 +991,7 @@ server.listen(0, '127.0.0.1', () => fs.writeFileSync('port.txt', String(server.a
             Assert-True (Test-Path -LiteralPath $portPath) 'Isolated HTTP fixture did not start.'
             $baseUri = 'http://127.0.0.1:' + [IO.File]::ReadAllText($portPath)
             $actualHttp = $script:SavedFunctions['Invoke-LocalApi']
-            $reply = & $actualHttp $baseUri '/tick' 'POST' $null '' 'synthetic-ai-http-token' 30
+            $reply = & $actualHttp $baseUri '/tick' 'POST' $null '' 'synthetic-ai-http-token' 55
             Assert-True ($reply.Status -eq 200) 'Real empty POST failed.'
             $reply = & $actualHttp $baseUri '/redirect' 'POST' $null '' 'synthetic-ai-http-token' 30
             Assert-True ($reply.Status -eq 302) 'HTTP redirect was followed.'

@@ -62,8 +62,10 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
       assert.equal(request.method, 'POST');
       const body = await request.json();
       const instructions = body.instructions ?? body.system ?? body.messages?.[0]?.content;
-      assert.ok(instructions.includes('from zh into en'));
-      if (provider === 'nvidia') assert.equal(body.response_format, undefined);
+      if (provider === 'nvidia') {
+        assert.equal(instructions, 'zh-cn-en');
+        assert.equal(body.response_format, undefined);
+      } else assert.ok(instructions.includes('from zh into en'));
       if (provider === 'anthropic') {
         assert.equal(request.headers.get('x-api-key'), 'synthetic-runtime-fixture-key');
         assert.equal(request.headers.get('anthropic-version'), '2023-06-01');
@@ -78,9 +80,12 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
       if (provider === 'anthropic') return Response.json({ type: 'message', role: 'assistant', stop_reason: 'end_turn', content: [{
         type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }),
       }] });
-      if (provider !== 'openai') return Response.json({ choices: [{ finish_reason: 'stop', message: {
-        role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }) + (provider === 'nvidia' ? '\n```' : ''),
-      } }] });
+      if (provider !== 'openai') {
+        const text = provider === 'nvidia' ? `Welcome to ${JSON.parse(body.messages[1].content).translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/)[0]}.` : 'Welcome to Uvel.';
+        return Response.json({ choices: [{ finish_reason: 'stop', message: {
+          role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text }] }) + (provider === 'nvidia' ? '\n```' : ''),
+        } }] });
+      }
       return Response.json({ status: 'completed', output: [{
         type: 'message', role: 'assistant', status: 'completed', content: [{
           type: 'output_text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }),

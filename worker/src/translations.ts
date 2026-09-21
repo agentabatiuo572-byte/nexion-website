@@ -326,6 +326,7 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
     WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=?
     GROUP BY target_locale ORDER BY oldest,target_locale`).bind(MAX_ATTEMPTS, now).all<{ target_locale: string }>()).results;
   if (!locales.length) return summary;
+  const batchLimit = connection.provider === 'nvidia' ? 5 : 20;
   let batch: Array<{ job: TranslationJobRow; field: TranslationField }> = [], characters = 0, budgetBlocked = false;
   for (const locale of locales) {
     const pending = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=? AND target_locale=? ORDER BY created_at,id LIMIT 100")
@@ -338,7 +339,7 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
       if (count > 3000) { await updateOwned(env.DB, job, 'failed', 'too-long'); continue; }
       if (candidateCharacters + count > characterLimit) { budgetBlocked = true; continue; }
       candidate.push({ job, field }); candidateCharacters += count;
-      if (candidate.length >= 20) break;
+      if (candidate.length >= batchLimit) break;
     }
     if (candidate.length) { batch = candidate; characters = candidateCharacters; break; }
     if (Date.now() - started > 4000) return { ...summary, status: 'partial' };
@@ -366,16 +367,27 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
     summary.requested = fields.length;
     const response = await requestTranslations(lease.apiKey, lease.model, batch[0].field.targetLocale, fields, undefined, lease.provider);
     usage = response.usage;
+    const translated = new Map(response.translations.map(value => [value.id, value]));
+    const failed = new Map((response.failures ?? []).map(value => [value.id, value]));
     // Persist the whole validated response before any draft update, under this execution's ownership.
-    await env.DB.batch(owned.map(j => env.DB.prepare(`UPDATE translation_jobs SET result=?,usage=?,updated_at=?
+    const completed = owned.filter(job => translated.has(job.field_id));
+    if (completed.length) await env.DB.batch(completed.map(j => env.DB.prepare(`UPDATE translation_jobs SET result=?,usage=?,updated_at=?
       WHERE id=? AND status='running' AND lease_token=? AND lease_until>? AND ${stateGuard} AND ${connectionGuard}`)
-      .bind(JSON.stringify({ text: response.translations.find(t => t.id === j.field_id)!.text }), JSON.stringify(usage), Date.now(),
+      .bind(JSON.stringify({ text: translated.get(j.field_id)!.text }), JSON.stringify(usage), Date.now(),
         j.id, lease.token, Date.now(), lease.credentialRev, lease.executionRev)));
+    for (const job of owned) {
+      const failure = failed.get(job.field_id);
+      if (!failure) continue;
+      await updateOwned(env.DB, job, failure.retryable && job.attempts < MAX_ATTEMPTS ? 'pending' : 'failed', failure.code,
+        Date.now() + Math.max(failure.retryAfterMs, job.attempts <= 1 ? 30000 : 120000));
+    }
     for (const job of owned) {
       const saved = await env.DB.prepare("SELECT * FROM translation_jobs WHERE id=? AND status='running' AND lease_token=? AND result IS NOT NULL").bind(job.id, lease.token).first<TranslationJobRow>();
       if (saved && Date.now() - started < 24500 && await applyCandidate(env, saved)) summary.applied++;
     }
-    summary.status = 'processed';
+    summary.status = response.translations.length ? 'processed' : response.failures?.[0]?.code ?? 'invalid-result';
+    if (!response.translations.length && response.failures?.[0]) error = new AiError(response.failures[0].code,
+      response.failures[0].retryable, response.failures[0].retryAfterMs);
   } catch (e) {
     error = e instanceof AiError ? e : new AiError('storage-error');
     summary.status = error.code;

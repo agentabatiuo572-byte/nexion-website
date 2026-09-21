@@ -116,21 +116,23 @@ describe('persistent translation application', () => {
     expect(await drainTranslations(local())).toMatchObject({ applied: 0, requested: 0 });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it('lets the NVIDIA client own its 45 second deadline instead of cancelling the queue at 25 seconds', async () => {
+  it('lets the NVIDIA client complete its two bounded translation stages without a shorter outer deadline', async () => {
     const field = await setupField(); await enqueue(field);
     const encrypted = await encryptApiKey(local(), 'nvapi-synthetic-nvidia-translation-key', 'nvidia');
     await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
       .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
     vi.mocked(fetch).mockImplementation(async (_url, init) => {
       const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      const text = body.messages[0].content === 'zh-cn-en' ? 'Welcome to the future.' : '未来へようこそ。';
       return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant',
-        content: JSON.stringify({ translations: input.fields.map((f: { id: string }) => ({ id: f.id, text: '未来へようこそ。' })) }) } }],
+        content: JSON.stringify({ translations: input.translations.map((f: { id: string }) => ({ id: f.id, text })) }) } }],
         usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
     });
     const timeout = vi.spyOn(AbortSignal, 'timeout');
     expect(await drainTranslations(local())).toMatchObject({ status: 'processed', applied: 1, requested: 1 });
-    expect(timeout).toHaveBeenCalledTimes(1);
-    expect(timeout).toHaveBeenCalledWith(45_000);
+    expect(timeout).toHaveBeenCalledTimes(2);
+    expect(timeout).toHaveBeenNthCalledWith(1, 24_000);
+    expect(timeout).toHaveBeenNthCalledWith(2, 24_000);
   });
   it('provider/model mismatch pauses queued work without spending or mutating the draft', async () => {
     const field = await setupField(); await enqueue(field);
@@ -502,6 +504,53 @@ describe('persistent translation application', () => {
     expect((await jobs()).filter(j => j.status === 'pending')).toHaveLength(3);
     expect(await getAiConnection(env.DB)).toMatchObject({ call_count: 1, input_tokens: 20, output_tokens: 10 });
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+  it('caps a same-language NVIDIA queue batch at five isolated field translations', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const names = Object.keys(config.copy.zh).slice(0, 8);
+    for (const name of names) { config.copy.zh[name] = '欢迎来到未来。'; config.copy.ja[name] = ''; }
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    await enqueueMissingTranslations(local());
+    await env.DB.prepare("UPDATE translation_jobs SET status='cancelled' WHERE target_locale<>'ja' OR field_id NOT IN (SELECT value FROM json_each(?))")
+      .bind(JSON.stringify(names.map(name => '/copy/' + name))).run();
+    const encrypted = await encryptApiKey(local(), 'nvapi-synthetic-nvidia-translation-key', 'nvidia');
+    await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
+      .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      const text = body.messages[0].content === 'zh-cn-en' ? 'Welcome to the future.' : '未来へようこそ。';
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant',
+        content: JSON.stringify({ translations: input.translations.map((f: { id: string }) => ({ id: f.id, text })) }) } }],
+        usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
+    });
+    expect(await drainTranslations(local())).toMatchObject({ requested: 5, applied: 5 });
+    expect((await jobs()).filter(job => job.status === 'pending' && job.target_locale === 'ja')).toHaveLength(3);
+    expect(fetch).toHaveBeenCalledTimes(10);
+  });
+  it('keeps valid NVIDIA items when one isolated field fails validation', async () => {
+    const config = SiteConfigSchema.parse(seed);
+    const names = Object.keys(config.copy.zh).slice(0, 3);
+    for (const name of names) { config.copy.zh[name] = '欢迎来到未来。'; config.copy.en[name] = ''; }
+    config.copy.zh[names[1]] = '欢迎 2';
+    await env.DB.prepare('UPDATE config_draft SET payload=?').bind(JSON.stringify(config)).run();
+    await enqueueMissingTranslations(local());
+    await env.DB.prepare("UPDATE translation_jobs SET status='cancelled' WHERE target_locale<>'en' OR field_id NOT IN (SELECT value FROM json_each(?))")
+      .bind(JSON.stringify(names.map(name => '/copy/' + name))).run();
+    const encrypted = await encryptApiKey(local(), 'nvapi-synthetic-nvidia-translation-key', 'nvidia');
+    await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
+      .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
+    let call = 0;
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations;
+      call++;
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: call === 2 ? 'bad'
+        : JSON.stringify({ translations: [{ id: input[0].id, text: 'Welcome to the future.' }] }) } }],
+        usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
+    });
+    expect(await drainTranslations(local())).toMatchObject({ status: 'processed', requested: 3, applied: 2 });
+    const selected = (await jobs()).filter(job => names.includes(job.field_id.split('/').at(-1)!));
+    expect(selected.filter(job => job.status === 'succeeded')).toHaveLength(2);
+    expect(selected.filter(job => job.status === 'failed' && job.error_code === 'invalid-result')).toHaveLength(1);
   });
   it('uses the remaining daily character budget for a smaller language batch', async () => {
     const config = SiteConfigSchema.parse(seed);
