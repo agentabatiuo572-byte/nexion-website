@@ -23,7 +23,7 @@
 
 同样字数的宽字母、长单词、手动断行和模板替换结果可能占用不同空间。数字是带条件的编辑参考，不能保证任意输入都适合版面，也不自动分配同区域多个字段的共同配额。
 
-当前 621 条字段／产品／语言测量记录中，437 条提供带条件的数字建议，184 条仅给预览说明；消费者位置覆盖缺口 0。覆盖齐全不代表每项都能可靠换算，也不代表取得了全部字段的精确上限。“仅预览”需要区分：已观察到的前台绘制或遮挡例外，以及测量无法可靠换算的情况；两者都不应包装成数字通过。本轮保留既有前台设计，不把取消数字说成修好了版面。
+当前 621 条字段／产品／语言测量记录中，449 条提供带条件的数字建议，172 条仅给预览说明；消费者位置覆盖缺口 0。覆盖齐全不代表每项都能可靠换算，也不代表取得了全部字段的精确上限。“仅预览”需要区分：已观察到的前台绘制或遮挡例外，以及测量无法可靠换算的情况；两者都不应包装成数字通过。本轮保留既有前台设计，不把取消数字说成修好了版面。
 
 产品名称和简介按稳定 SKU id 分别取记录。共用名称只有在该产品全部九语均可测时才取九语最小建议；不会把其他产品的最小值套过来。
 
@@ -49,13 +49,13 @@
 
 ## 当前验收证据
 
-新表完成 2480 次默认输入检查，九语及全部集合都在人工样本之前验证，无默认误报；1164 个边界样本、9 次保存刷新、9 个换行参考检查通过。真实剪贴板状态：pass。浏览器错误 0，失败 0。
+新表完成 2480 次默认输入检查，九语及全部集合都在人工样本之前验证，无默认误报；1206 个边界样本、9 次保存刷新、9 个换行参考检查通过。真实剪贴板状态：pass。浏览器错误 0，失败 0。
 
-后台源码目录 SHA-256：`655b2274fcf267bdecd80a347095dd31228699b2dc63f0f228416e1c14677279`。构建目录 SHA-256：`39fed46ebf3d41a9f96d96cac43095fefc9dedb82dcb6c83f7a66926f218d153`。
+后台源码目录 SHA-256：`8a3d8e6058beb1ca9ec5e673a27094ad363f3413b4a0c68f01b9902d9a569eb3`。构建目录 SHA-256：`1824ec17bce3b97a81788ee49130fc4971258b4f74894192e4189ebea8c843f6`。
 
 完整本地证据位于 `.cache/copy-length-correction/admin-runtime/`，含 `report.json`、默认英文标题的桌面/手机截图及完整交互记录。
 
-另有[独立前台边界复验](../.cache/copy-length-correction/independent-final-budget/review.md)及[原始证据](../.cache/copy-length-correction/independent-final-budget/evidence.json)：直接检查真实 DOM 与截图，覆盖英语／越南语 `nav.how`、日语 `nav.download`、中文 `nex.getApp` 共 4 组、12 个默认及边界样本。它没有复用校准探针作判断，也不代表对全部 437 条数字逐条做了独立浏览器复验。
+另有[独立前台边界复验](../.cache/copy-length-correction/independent-final-budget/review.md)及[原始证据](../.cache/copy-length-correction/independent-final-budget/evidence.json)：直接检查真实 DOM 与截图，覆盖英语／越南语 `nav.how`、日语 `nav.download`、中文 `nex.getApp` 共 4 组、12 个默认及边界样本。它没有复用校准探针作判断，也不代表对全部 449 条数字逐条做了独立浏览器复验。
 
 ## 多字段同时修改的诊断
 
@@ -85,13 +85,13 @@
 | site.name | 搜索展示 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 首页默认 SEO 标题的站点名片段，不在正文渲染；页面 SEO 配置可覆盖。 |
 | site.tagline | 搜索展示 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 首页默认 SEO 标题的标语片段，不在正文渲染；页面 SEO 配置可覆盖。 |
 | site.description | 搜索展示 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 首页默认描述及社交分享描述，不占正文版面；页面 SEO 配置可覆盖。 |
-| nav.how | 排版建议 | 24 | 19 | 14 | 15 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 24 | 22 | all: .site-nav .links a[href$="#how"] |
-| nav.devices | 排版建议 | 19 | 13 | 13 | 14 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 21 | 20 | all: .site-nav .links a[href$="#devices"] |
-| nav.trust | 排版建议 | 17 | 12 | 10 | 11 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 21 | 20 | all: .site-nav .links a[href$="#trust"]；home: #trust .head .lab |
-| nav.learn | 排版建议 | 17 | 8 | 6 | 7 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 22 | 22 | all: .site-nav .links a[href$="/learn/"]；home: #learn-entry .head .lab |
-| nav.nex | 排版建议 | 15 | 8 | 4 | 5 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 22 | 21 | all: .site-nav .links a[href$="/nex/"] |
+| nav.how | 排版建议 | 27 | 22 | 17 | 18 | 16 | 18 | 预览〔P2〕 | 26 | 24 | all: .site-nav .links a[href$="#how"] |
+| nav.devices | 排版建议 | 22 | 16 | 16 | 17 | 11 | 7 | 预览〔P2〕 | 23 | 22 | all: .site-nav .links a[href$="#devices"] |
+| nav.trust | 排版建议 | 20 | 15 | 13 | 14 | 11 | 10 | 预览〔P2〕 | 23 | 22 | all: .site-nav .links a[href$="#trust"]；home: #trust .head .lab |
+| nav.learn | 排版建议 | 20 | 11 | 9 | 10 | 8 | 12 | 预览〔P2〕 | 24 | 24 | all: .site-nav .links a[href$="/learn/"]；home: #learn-entry .head .lab |
+| nav.nex | 排版建议 | 18 | 11 | 7 | 8 | 5 | 4 | 预览〔P2〕 | 24 | 23 | all: .site-nav .links a[href$="/nex/"] |
 | nav.launchH5 | 排版建议 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 预览〔P1〕 | 预览〔P1〕 | all: .site-nav .h5；home: .hero .dl > :nth-child(3)；home: .final .dl > :nth-child(3) |
-| nav.download | 排版建议 | 20 | 14 | 10 | 8 | 预览〔P1〕 | 预览〔P1〕 | 18 | 20 | 19 | all: .site-nav .dl-btn |
+| nav.download | 排版建议 | 23 | 17 | 13 | 11 | 13 | 9 | 18 | 20 | 19 | all: .site-nav .dl-btn |
 | nav.ariaMain | 辅助文字 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 主导航辅助技术名称，仅 aria-label，不渲染为文字。 |
 | nav.ariaMenu | 辅助文字 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 移动菜单按钮辅助技术名称，仅 aria-label。 |
 | nav.skip | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | all: .x-skip |
@@ -124,9 +124,9 @@
 | how.title | 排版建议 | 29 | 29 | 29 | 29 | 29 | 29 | 17 | 19 | 17 | home: #how .head .lab |
 | how.head1 | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .statements h2 |
 | how.head2 | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .statements p |
-| how.cat1 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 21 | 15 | home: #how .step:nth-child(1) .metarow span:last-child |
-| how.cat2 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 20 | 15 | home: #how .step:nth-child(2) .metarow span:last-child |
-| how.cat3 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 21 | 15 | home: #how .step:nth-child(3) .metarow span:last-child |
+| how.cat1 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 21 | 14 | home: #how .step:nth-child(1) .metarow span:last-child |
+| how.cat2 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 20 | 14 | home: #how .step:nth-child(2) .metarow span:last-child |
+| how.cat3 | 排版建议 | 32 | 32 | 32 | 32 | 32 | 32 | 19 | 21 | 14 | home: #how .step:nth-child(3) .metarow span:last-child |
 | how.step1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .step:nth-child(1) h3 |
 | how.step1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .step:nth-child(1) .body |
 | how.step2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .step:nth-child(2) h3 |
@@ -136,8 +136,8 @@
 | how.verifyLink | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #how .vlink |
 | devices.title | 排版建议 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P1〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | home: #devices .gutter .lab |
 | devices.subtitle | 排版建议 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P1〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | home: #devices .gutter .sub |
-| devices.free | 排版建议 | 约 10 | 约 11 | 约 11 | 约 11 | 约 11 | 约 11 | 约 6 | 约 7 | 约 6 | home: #devices .price |
-| devices.multiplierLabel | 排版建议 | 约 17 | 约 27 | 约 27 | 约 33 | 约 32 | 约 36 | 约 14 | 约 14 | 约 9 | home: #devices .mult |
+| devices.free | 排版建议 | 约 13 | 约 14 | 约 14 | 约 14 | 约 13 | 约 14 | 约 7 | 约 8 | 约 7 | home: #devices .price |
+| devices.multiplierLabel | 排版建议 | 66 | 52 | 71 | 74 | 67 | 77 | 33 | 31 | 33 | home: #devices .mult |
 | devices.classicBadge | 排版建议 | 19 | 19 | 19 | 19 | 20 | 19 | 11 | 13 | 11 | home: #devices .card:not(.coming) .chip |
 | devices.comingBadge | 排版建议 | 20 | 19 | 19 | 19 | 19 | 19 | 11 | 12 | 11 | home: #devices .card.coming .chip |
 | devices.cta | 排版建议 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 10 | 11 | 12 | home: #devices .gutter .cta |
@@ -270,7 +270,7 @@
 | nex.faq4Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(4) .q |
 | nex.faq4A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(4) > p |
 | nex.getApp | 排版建议 | 27 | 27 | 27 | 27 | 27 | 27 | 17 | 18 | 19 | nex: .nex-page .cta-row .xbtn.solid；learn: .learn .cta .xbtn；article: .article .cta .xbtn |
-| nex.whitepaper | 排版建议 | 33 | 33 | 33 | 33 | 34 | 33 | 预览〔P2〕 | 22 | 20 | home: #whitepaper .whitepaper-read；nex: .nex-page [data-whitepaper-read] |
+| nex.whitepaper | 排版建议 | 33 | 33 | 33 | 33 | 34 | 33 | 21 | 22 | 20 | home: #whitepaper .whitepaper-read；nex: .nex-page [data-whitepaper-read] |
 | learn.title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | learn: .learn .head h1 |
 | learn.subtitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | learn: .learn .head > p |
 | learn.homeTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .head h2 |
@@ -328,16 +328,16 @@
 | cloud-share | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|cloud-share\|语言 |
 | s1 | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|s1\|语言 |
 | pro | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|pro\|语言 |
-| pro-v2 | sku.name | 约 18 | 约 18 | 约 18 | 约 18 | 约 18 | 约 18 | 约 18 | 约 18 | 约 18 | sku.name\|pro-v2\|语言 |
+| pro-v2 | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|pro-v2\|语言 |
 | rack-p1 | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|rack-p1\|语言 |
 | rack-p2 | sku.name | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | 预览〔P2〕 | sku.name\|rack-p2\|语言 |
-| phone | sku.tagline | 约 49 | 约 47 | 约 52 | 约 52 | 约 62 | 约 59 | 约 20 | 约 25 | 约 16 | sku.tagline\|phone\|语言 |
-| cloud-share | sku.tagline | 约 48 | 约 58 | 约 55 | 约 64 | 约 53 | 约 60 | 预览〔P2〕 | 约 29 | 约 15 | sku.tagline\|cloud-share\|语言 |
-| s1 | sku.tagline | 约 28 | 约 28 | 约 34 | 约 33 | 约 28 | 约 36 | 约 11 | 约 12 | 约 11 | sku.tagline\|s1\|语言 |
-| pro | sku.tagline | 约 29 | 约 37 | 约 32 | 约 48 | 约 30 | 约 28 | 约 18 | 约 19 | 约 11 | sku.tagline\|pro\|语言 |
-| pro-v2 | sku.tagline | 约 34 | 约 25 | 约 37 | 约 29 | 约 40 | 约 42 | 约 13 | 约 12 | 约 8 | sku.tagline\|pro-v2\|语言 |
+| phone | sku.tagline | 约 49 | 约 47 | 约 52 | 约 52 | 约 62 | 约 59 | 约 20 | 约 24 | 约 16 | sku.tagline\|phone\|语言 |
+| cloud-share | sku.tagline | 约 48 | 约 58 | 约 54 | 约 64 | 约 51 | 约 59 | 预览〔P2〕 | 约 29 | 约 15 | sku.tagline\|cloud-share\|语言 |
+| s1 | sku.tagline | 约 28 | 约 28 | 约 34 | 约 33 | 约 28 | 约 34 | 约 11 | 约 11 | 约 11 | sku.tagline\|s1\|语言 |
+| pro | sku.tagline | 约 29 | 约 36 | 约 32 | 约 48 | 约 30 | 约 28 | 约 18 | 约 19 | 约 11 | sku.tagline\|pro\|语言 |
+| pro-v2 | sku.tagline | 约 34 | 约 25 | 约 37 | 约 29 | 约 40 | 约 42 | 约 13 | 约 12 | 约 10 | sku.tagline\|pro-v2\|语言 |
 | rack-p1 | sku.tagline | 约 34 | 约 38 | 约 42 | 约 42 | 约 47 | 约 45 | 约 14 | 约 18 | 约 13 | sku.tagline\|rack-p1\|语言 |
-| rack-p2 | sku.tagline | 约 33 | 约 37 | 约 37 | 约 34 | 约 39 | 约 45 | 约 16 | 约 15 | 约 11 | sku.tagline\|rack-p2\|语言 |
+| rack-p2 | sku.tagline | 约 33 | 约 36 | 约 37 | 约 34 | 约 39 | 约 45 | 约 16 | 约 15 | 约 11 | sku.tagline\|rack-p2\|语言 |
 
 ## 仅预览的原因
 

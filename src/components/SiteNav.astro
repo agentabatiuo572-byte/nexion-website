@@ -376,7 +376,7 @@ const H5_URL = DOWNLOAD_URLS.h5;
     }
   }
 
-  @media (max-width: 860px) {
+  @media (max-width: 880px) {
     nav {
       align-items: center;
       /* 同桌面的互锁式:上 14 = 胶囊上缘 6 + 内衬 8;下 4;总高 14+44+4 = 62 = 窄屏 --x-nav-h */
@@ -617,8 +617,9 @@ const H5_URL = DOWNLOAD_URLS.h5;
   addEventListener('click', (event) => {
     if (languagePicker?.open && !languagePicker.contains(event.target as Node)) languagePicker.open = false;
   });
-  // 菜单开着时视口跨过 860(平板旋转 / 拉宽窗口):汉堡消失但锁页态残留 → 整页冻结;跨断点即收口
-  const mq = matchMedia('(max-width: 860px)');
+  // 菜单开着时视口跨过 880(平板旋转 / 拉宽窗口):汉堡消失但锁页态残留 → 整页冻结;跨断点即收口
+  // 880 是九语实测后的最小安全桌面宽度:881 起法语、德语完整导航均留有边距。
+  const mq = matchMedia('(max-width: 880px)');
   mq.addEventListener('change', () => {
     if (!mq.matches && isOpen()) setOpen(false);
   });

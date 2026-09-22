@@ -132,13 +132,29 @@ export function routeMatches(route, family, home) {
 
 export async function setMobileMenu(page, open) {
   const toggle = page.locator('.site-nav .menu-toggle');
-  if (!await toggle.isVisible()) return;
+  if (!await toggle.isVisible()) {
+    await page.waitForFunction(() => {
+      const nav = document.querySelector('.site-nav');
+      const button = nav?.querySelector('.menu-toggle');
+      return button?.getAttribute('aria-expanded') === 'false'
+        && getComputedStyle(button).display === 'none'
+        && getComputedStyle(nav.querySelector('.menu')).display === 'flex'
+        && getComputedStyle(nav.querySelector('.logo-cell')).visibility === 'visible'
+        && !nav.classList.contains('menu-open') && !nav.classList.contains('menu-switch');
+    });
+    await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
+    return;
+  }
   if ((await toggle.getAttribute('aria-expanded') === 'true') !== open) await toggle.click();
   await page.waitForFunction((expected) => {
     const nav = document.querySelector('.site-nav');
+    const menu = nav.querySelector('.menu'), logo = nav.querySelector('.logo-cell');
     return nav.querySelector('.menu-toggle').getAttribute('aria-expanded') === String(expected)
-      && nav.classList.contains('menu-open') === expected && !nav.classList.contains('menu-switch');
+      && nav.classList.contains('menu-open') === expected && !nav.classList.contains('menu-switch')
+      && getComputedStyle(menu).display === (expected ? 'flex' : 'none')
+      && getComputedStyle(logo).visibility === (expected ? 'hidden' : 'visible');
   }, open);
+  await page.evaluate(() => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))));
 }
 
 // A reference is a positive control, not a post-hoc floor applied to an invalid budget.
