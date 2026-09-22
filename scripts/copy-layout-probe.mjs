@@ -242,7 +242,11 @@ export function measureSpecimen({ selector, boundary, constraint = 'inline', bas
       const bounds = box(card), ink = measured.geometry.ink;
       if (ink.left < bounds.left - 1 || ink.right > bounds.right + 1 || ink.top < bounds.top - 1 || ink.bottom > bounds.bottom + 1) return '设备文字超出卡片范围';
       const media = card.querySelector('.media');
-      if (media && box(media).height <= 1) return '设备图片区消失';
+      if (media) {
+        const mediaBounds = box(media);
+        if (mediaBounds.height <= 1) return '设备图片区消失';
+        if (mediaBounds.width / mediaBounds.height > 3) return '设备图片区过度压缩';
+      }
       const chip = card.querySelector('.chip'), serial = card.querySelector('.serial');
       if (chip && serial && shown(chip) && shown(serial) && overlap(box(chip), box(serial))) return '设备状态章与编号重叠';
     }
@@ -574,6 +578,12 @@ export async function selfTest() {
     result = await probe({ selector: '#devices h3', source: 'Hello', corpus: 'W', ceiling: 20 });
     assert.equal(result.observations[0].referenceFailure, null, 'A parked card outside x-frame is an intentional choreography state.');
     assert.equal(result.observations[0].reason, '设备文字超出卡片范围', 'Parked cards must still enforce their internal text boundary.');
+    await page.setContent('<section id="devices"><article class="card" style="width:300px"><div class="media" style="width:300px;height:80px"></div><p class="mult" style="font:20px/24px Arial">Hello</p></article></section>');
+    result = await probe({ selector: '#devices .mult', source: 'Hello', inspectOnly: true });
+    assert.equal(result.observations[0].referenceFailure, '设备图片区过度压缩', 'A visible image strip is still a broken product card.');
+    await page.locator('#devices .media').evaluate((element) => { element.style.height = '100px'; });
+    result = await probe({ selector: '#devices .mult', source: 'Hello', inspectOnly: true });
+    assert.equal(result.observations[0].referenceFailure, null, 'A 3:1 media area remains an acceptable compact deck state.');
     await page.setContent('<p style="transform:rotate(5deg)">Hello</p>');
     result = await probe({ selector: 'p', source: 'Hello', inspectOnly: true });
     assert.equal(result.observations[0].unresolved, true, 'Unknown geometry must remain an explicit measurement gap.');

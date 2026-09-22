@@ -52,7 +52,7 @@ const shareArt = contour(77, 12, 640, 400);
           <article class="card x-tile" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
             <div class="media">
               {PHOTO[s.id] ? (
-                <img src={PHOTO[s.id]} alt={s.name} loading="lazy" width="960" height="640" class:list={[{ contain: CONTAIN.has(s.id) }]} />
+                <img src={PHOTO[s.id]} alt="" loading="lazy" width="960" height="640" class:list={[{ contain: CONTAIN.has(s.id) }]} />
               ) : (
                 <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                   {shareArt.paths.map((d) => (
@@ -153,7 +153,6 @@ const shareArt = contour(77, 12, 640, 400);
      R48 换皮:x-paper 白卡 → x-tile 玻璃卡(墨色 token 回暗系,几何/编舞判据一个不动) */
   .card {
     width: min(calc(520 * var(--uc)), 100%);
-    aspect-ratio: 650 / 534;
     padding: calc(10 * var(--uc)) calc(10 * var(--uc)) calc(20 * var(--uc));
     display: flex;
     flex-direction: column;
@@ -171,8 +170,8 @@ const shareArt = contour(77, 12, 640, 400);
   }
   .media {
     position: relative;
-    flex: 1;
-    min-height: 0;
+    flex: 0 0 auto;
+    aspect-ratio: 3 / 2;
     background: var(--x-white);
     overflow: hidden;
   }
@@ -313,9 +312,15 @@ const shareArt = contour(77, 12, 640, 400);
     top: 16.63%;
     width: 45.14%;
     max-width: none; /* 同上:兜底档的 520 卡封顶只属于兜底档,编舞档 45.14% 必须原样落地 */
+    aspect-ratio: 650 / 534;
     z-index: calc(1 + var(--i));
     transform: translate3d(3000px, 0, 0); /* R42:画布内禁视口单位;停放位只需「足够远」,由 .x-frame 裁在屏缘 */
     will-change: transform;
+  }
+  .devices:global(.decked) .media {
+    flex: 1;
+    min-height: 0;
+    aspect-ratio: auto;
   }
 
   @media (max-width: 860px) {
@@ -325,6 +330,13 @@ const shareArt = contour(77, 12, 640, 400);
     }
     .stage {
       gap: clamp(40px, 9vw, calc(60 * var(--uc)));
+    }
+  }
+  @media (max-width: 360px) {
+    .cols {
+      flex-direction: column;
+      align-items: stretch;
+      gap: calc(12 * var(--uc));
     }
   }
 </style>

@@ -28,7 +28,7 @@ const inline = '单个控件不换行，受实际可用宽度限制；所属按�
 const navLabel = '桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。';
 const hero = '按默认断行/版式估算，区域可自动增高，超参考长度不代表截断；保留原文断行并结合实际预览检查。';
 const section = '桌面区块高度固定，需与同区文案共同检查；移动端高度为 auto，可自然增高，最小高度不是上限。';
-const card = '按默认图片与文字比例估算；设备卡可自然增高并重分配图片区，超参考长度不代表截断。';
+const card = '静态设备卡为产品图保留完整 3:2 区域并随文字自然增高；桌面叠卡会重分配图片区，超参考长度不代表截断。';
 
 export const COPY_LAYOUT_CATALOG = {
   'site.name': seo('首页默认 SEO 标题的站点名片段，不在正文渲染；页面 SEO 配置可覆盖。'),
@@ -95,7 +95,7 @@ export const COPY_LAYOUT_CATALOG = {
   'devices.title': bounded('仅桌面叠卡编舞时区头受固定 pin 高度约束；静态、移动、触摸及减少动态模式可自然增高。', home('#devices .gutter .lab', 'section', '#devices .pin')),
   'devices.subtitle': bounded('仅桌面叠卡编舞时与标题、CTA 共用固定 pin 空间；静态、移动、触摸及减少动态模式可自然增高。', home('#devices .gutter .sub', 'section', '#devices .pin')),
   'devices.free': reference(card, home('#devices .price', 'card', '.card')),
-  'devices.multiplierLabel': reference(`${card} 只有倍率数字禁止换行，说明文字可换行。`, home('#devices .mult', 'card', '.card')),
+  'devices.multiplierLabel': bounded(`${card} 只有倍率数字禁止换行，说明文字可换行。`, home('#devices .mult', 'card', '.card')),
   'devices.classicBadge': bounded('设备图右上角状态章不得压住左上编号或越过图片。', home('#devices .card:not(.coming) .chip', 'inline', '.media')),
   'devices.comingBadge': bounded('预告设备图右上角状态章不得压住左上编号或越过图片；仅预告状态显示。', home('#devices .card.coming .chip', 'inline', '.media')),
   'devices.cta': bounded(inline, home('#devices .gutter .cta', 'inline', '.gutter')),
@@ -275,7 +275,7 @@ export const COPY_LAYOUT_CATALOG = {
   'notfound.body': flowing('各语言 404 页仅渲染当前语言，说明自然增高，并供 SEO 描述。', at('404', '.nf .blk .body')),
   'notfound.home': bounded('各语言 404 页的返回按钮均为单行。', at('404', '.nf .blk .xbtn', 'inline', '.blk')),
 
-  'sku.name': reference(`${card} 商品名称为跨语言共用值，按实际名称字形检查，也用于商品图 alt。`, home('#devices .card .body > h3', 'card', '.card')),
+  'sku.name': reference(`${card} 商品名称为跨语言共用值，只按标题中的实际名称字形检查。`, home('#devices .card .body > h3', 'card', '.card')),
   'sku.tagline': reference(`${card} 简介可换行，右侧说明与左侧价格共用文字区。`, home('#devices .card .cols > .col:nth-child(2)', 'card', '.card')),
   'faq.q': flowing('所有现有及新增 FAQ 问题可换行，折叠行自然增高；同时输出 FAQ 结构化数据。', home('#faq .item .q')),
   'faq.a': flowing('所有现有及新增 FAQ 答案在展开后自然增高；同时输出 FAQ 结构化数据。', home('#faq .item > p')),

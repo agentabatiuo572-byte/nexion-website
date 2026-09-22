@@ -39,10 +39,14 @@ for (const key of ['hero.title', 'hero.subtitle', 'hero.subtitle2', 'hero.note',
   assert.ok(catalog[key].description.includes('默认断行/版式') && catalog[key].description.includes('可自动增高') && catalog[key].description.includes('不代表截断'), `${key}: explain the scope of the reference estimate`);
   assert.ok(catalog[key].consumers.every((consumer) => consumer.maxLines === undefined), `${key}: a default line count must not become a hard line cap`);
 }
-for (const key of ['sku.name', 'sku.tagline', 'devices.free', 'devices.multiplierLabel']) {
+for (const key of ['sku.name', 'sku.tagline', 'devices.free']) {
   assert.equal(catalog[key].basis, 'reference', `${key}: aspect-ratio alone is not a fixed card height`);
-  assert.ok(catalog[key].description.includes('可自然增高') && catalog[key].description.includes('不代表截断'));
+  assert.ok(catalog[key].description.includes('随文字自然增高') && catalog[key].description.includes('不代表截断'));
 }
+assert.equal(catalog['devices.multiplierLabel'].basis, undefined,
+  'The multiplier label must use physical card capacity instead of the current translation length');
+assert.equal(catalog['devices.multiplierLabel'].kind, 'bounded');
+assert.ok(catalog['devices.multiplierLabel'].description.includes('完整 3:2'));
 assert.equal(catalog['nav.skip'].kind, 'flowing', 'The skip link has no nowrap rule or fixed text height.');
 assert.equal(catalog['trust.openOriginal'].kind, 'flowing', 'The original-image link wraps while the dialog image can shrink.');
 console.log(`copy-layout-catalog: ${manifest.editable.length} editable keys + ${families.length} families; explicit classification and shared consumers pass`);

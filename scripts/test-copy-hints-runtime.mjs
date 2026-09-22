@@ -10,7 +10,7 @@ import { chromium } from 'playwright';
 import { startConsolePreview } from './console-preview.mjs';
 
 await import('../worker/register-ts-ext.mjs');
-const { LOCALES } = await import('../schema/src/locales.ts');
+const { LOCALES, SOURCE_LOCALE } = await import('../schema/src/locales.ts');
 const { applyDraftPatch, enumerateDraftFields } = await import('../schema/src/draft-fields.ts');
 const { validateConfig, sensitivePaths } = await import('../schema/src/validators.ts');
 const { diffPaths } = await import('../schema/src/diff.ts');
@@ -488,7 +488,7 @@ try {
     await selectLocale(locale);
     assert.equal(await input(id).inputValue(), value, 'Switching languages must preserve over-limit input');
     assert.equal(revision, beforeSwitch, 'Language switching must not save implicitly');
-    if (locale !== 'en') {
+    if (locale !== SOURCE_LOCALE) {
       aiText = 'i'.repeat((row.limit ?? 64) + 2);
       await input(id).locator('..').getByRole('button', { name: 'AI 翻译', exact: true }).click();
       await page.waitForFunction(({ id, expected }) => document.getElementById(id)?.value === expected, { id, expected: aiText });
@@ -597,10 +597,14 @@ try {
   await page.getByRole('button', { name: '检查并发布', exact: true }).waitFor();
   assert(await page.getByRole('button', { name: '检查并发布', exact: true }).isEnabled(), 'Existing preflight must permit the soft-only copy edits');
   await page.getByRole('button', { name: '检查并发布', exact: true }).click();
+  const confirmPublish = page.getByRole('button', { name: '确认', exact: true });
+  await confirmPublish.waitFor();
   if (await input('publish-reason').count()) await input('publish-reason').fill('隔离浏览器文案提示测试');
-  const published = page.waitForResponse((response) => new URL(response.url()).pathname === '/api/publish' && response.request().method() === 'POST');
-  await page.getByRole('button', { name: '确认', exact: true }).click();
-  assert.equal((await published).status(), 200);
+  const [published] = await Promise.all([
+    page.waitForResponse((response) => new URL(response.url()).pathname === '/api/publish' && response.request().method() === 'POST'),
+    confirmPublish.click(),
+  ]);
+  assert.equal(published.status(), 200);
   assert.equal(publishCalls, 1);
   report.checks.push('soft-hints-preserve-existing-preflight-and-publish-request');
   assert.deepEqual(validateConfig(draft, manifest).errors, [], 'Soft edits must remain valid under existing validators');
