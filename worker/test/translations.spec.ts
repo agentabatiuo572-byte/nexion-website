@@ -122,10 +122,10 @@ describe('persistent translation application', () => {
     await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
       .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
     vi.mocked(fetch).mockImplementation(async (_url, init) => {
-      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      const body = JSON.parse(String(init?.body));
       const text = body.messages[0].content === 'zh-cn-en' ? 'Welcome to the future.' : '未来へようこそ。';
       return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant',
-        content: JSON.stringify({ translations: input.translations.map((f: { id: string }) => ({ id: f.id, text })) }) } }],
+        content: text } }],
         usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
     });
     const timeout = vi.spyOn(AbortSignal, 'timeout');
@@ -505,7 +505,7 @@ describe('persistent translation application', () => {
     expect(await getAiConnection(env.DB)).toMatchObject({ call_count: 1, input_tokens: 20, output_tokens: 10 });
     expect(fetch).toHaveBeenCalledTimes(1);
   });
-  it('caps a same-language NVIDIA queue batch at five isolated field translations', async () => {
+  it('claims one NVIDIA field per tick so every attempt fits the lease', async () => {
     const config = SiteConfigSchema.parse(seed);
     const names = Object.keys(config.copy.zh).slice(0, 8);
     for (const name of names) { config.copy.zh[name] = '欢迎来到未来。'; config.copy.ja[name] = ''; }
@@ -517,15 +517,17 @@ describe('persistent translation application', () => {
     await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
       .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
     vi.mocked(fetch).mockImplementation(async (_url, init) => {
-      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
+      const body = JSON.parse(String(init?.body));
       const text = body.messages[0].content === 'zh-cn-en' ? 'Welcome to the future.' : '未来へようこそ。';
       return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant',
-        content: JSON.stringify({ translations: input.translations.map((f: { id: string }) => ({ id: f.id, text })) }) } }],
+        content: text } }],
         usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
     });
-    expect(await drainTranslations(local())).toMatchObject({ requested: 5, applied: 5 });
-    expect((await jobs()).filter(job => job.status === 'pending' && job.target_locale === 'ja')).toHaveLength(3);
-    expect(fetch).toHaveBeenCalledTimes(10);
+    expect(await drainTranslations(local())).toMatchObject({ requested: 1, applied: 1 });
+    const remaining = (await jobs()).filter(job => job.status === 'pending' && job.target_locale === 'ja');
+    expect(remaining).toHaveLength(7);
+    expect(remaining.every(job => job.attempts === 0)).toBe(true);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
   it('keeps valid NVIDIA items when one isolated field fails validation', async () => {
     const config = SiteConfigSchema.parse(seed);
@@ -539,15 +541,16 @@ describe('persistent translation application', () => {
     const encrypted = await encryptApiKey(local(), 'nvapi-synthetic-nvidia-translation-key', 'nvidia');
     await env.DB.prepare("UPDATE ai_connection SET provider='nvidia',model=?,key_ciphertext=?,key_iv=? WHERE id=1")
       .bind(AI_PROVIDERS.nvidia.defaultModel, encrypted.ciphertext, encrypted.iv).run();
-    let call = 0;
     vi.mocked(fetch).mockImplementation(async (_url, init) => {
-      const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations;
-      call++;
-      return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: call === 2 ? 'bad'
-        : JSON.stringify({ translations: [{ id: input[0].id, text: 'Welcome to the future.' }] }) } }],
+      const input = JSON.parse(String(init?.body)).messages[1].content as string;
+      return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: input.includes('⟦UVEL_GUARD_') ? 'bad'
+        : 'Welcome to the future.' } }],
         usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 } });
     });
-    expect(await drainTranslations(local())).toMatchObject({ status: 'processed', requested: 3, applied: 2 });
+    const results = [await drainTranslations(local()), await drainTranslations(local()), await drainTranslations(local())];
+    expect(results.map(result => result.requested)).toEqual([1, 1, 1]);
+    expect(results.reduce((sum, result) => sum + result.applied, 0)).toBe(2);
+    expect(results.map(result => result.status).sort()).toEqual(['invalid-result', 'processed', 'processed']);
     const selected = (await jobs()).filter(job => names.includes(job.field_id.split('/').at(-1)!));
     expect(selected.filter(job => job.status === 'succeeded')).toHaveLength(2);
     expect(selected.filter(job => job.status === 'failed' && job.error_code === 'invalid-result')).toHaveLength(1);

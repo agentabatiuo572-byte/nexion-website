@@ -326,7 +326,8 @@ export async function drainTranslations(env: AiEnv): Promise<TranslationDrainRes
     WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=?
     GROUP BY target_locale ORDER BY oldest,target_locale`).bind(MAX_ATTEMPTS, now).all<{ target_locale: string }>()).results;
   if (!locales.length) return summary;
-  const batchLimit = connection.provider === 'nvidia' ? 5 : 20;
+  // Riva may need two 24 s calls per field; claim only what one 90 s lease can cover.
+  const batchLimit = connection.provider === 'nvidia' ? 1 : 20;
   let batch: Array<{ job: TranslationJobRow; field: TranslationField }> = [], characters = 0, budgetBlocked = false;
   for (const locale of locales) {
     const pending = (await env.DB.prepare("SELECT * FROM translation_jobs WHERE status='pending' AND result IS NULL AND attempts<? AND next_attempt_at<=? AND target_locale=? ORDER BY created_at,id LIMIT 100")

@@ -81,9 +81,9 @@ for (const mode of ['success', 'redirect', 'regression-error', 'source-locale'])
         type: 'text', text: JSON.stringify({ translations: [{ id: 'runtime-test', text: 'Welcome to Uvel.' }] }),
       }] });
       if (provider !== 'openai') {
-        const text = provider === 'nvidia' ? `Welcome to ${JSON.parse(body.messages[1].content).translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/)[0]}.` : 'Welcome to Uvel.';
+        const text = provider === 'nvidia' ? `Welcome to ${body.messages[1].content.match(/⟦UVEL_GUARD_\d+_\d+⟧/)[0]}.` : 'Welcome to Uvel.';
         return Response.json({ choices: [{ finish_reason: 'stop', message: {
-          role: 'assistant', content: (provider === 'nvidia' ? '```json\n' : '') + JSON.stringify({ translations: [{ id: 'runtime-test', text }] }) + (provider === 'nvidia' ? '\n```' : ''),
+          role: 'assistant', content: provider === 'nvidia' ? text : JSON.stringify({ translations: [{ id: 'runtime-test', text }] }),
         } }] });
       }
       return Response.json({ status: 'completed', output: [{
