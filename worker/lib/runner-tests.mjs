@@ -819,8 +819,13 @@ test('local and production gate chains check backend first, stop on its first fa
       for (const rel of ['publisher-ran', 'verified-mode']) await assert.rejects(readFile(path.join(root, rel)), { code: 'ENOENT' });
     }
     else {
-      const result = await runGates(root, mode);
+      const verifyCommands = [];
+      const result = await runGates(root, mode, { onCommand: event => {
+        if (event.phase === 'start' && event.args.includes(mode === 'local' ? 'verify' : 'verify:prod')) verifyCommands.push(event);
+      } });
       assert.equal(result.ok, true, result.tail);
+      assert.equal(verifyCommands.length, 1);
+      assert.equal(verifyCommands[0].timeoutMs, mode === 'local' ? 60 * 60_000 : 30 * 60_000);
       assert.deepEqual(result.artifact, directoryDigest(path.join(root, 'dist')));
       assert.equal(await readFile(path.join(root, 'verified-mode'), 'utf8'), mode);
       if (mode === 'local') {
@@ -1435,8 +1440,8 @@ test('real runner bounds permanent progress failure despite healthy heartbeats a
   assert.match(evidence.error, /publish\/step HTTP 503/);
 });
 
-test('real runner keeps a healthy gate through an eleven-second API outage or hung first request and promotes exactly once after confirmation', async (t) => {
-  for (const outage of ['disconnect', 'hung-first-request']) await t.test(outage, async (t) => {
+test('real runner keeps a healthy gate through an API outage or hung first request and promotes exactly once after confirmation', async (t) => {
+  for (const outage of ['disconnect', 'mixed-recovery', 'hung-first-request']) await t.test(outage, async (t) => {
   const fixture = await runnerFixture(t);
   const completed = path.join(fixture.root, 'gate-completed');
   let outageStarted;
@@ -1447,7 +1452,12 @@ test('real runner keeps a healthy gate through an eleven-second API outage or hu
       outageStarted = Date.now();
       if (outage === 'hung-first-request') { await delay(9500); return; }
     }
-    if (outage === 'disconnect' && outageStarted && Date.now() - outageStarted < 11000) { response.destroy(); return; }
+    if (outage === 'disconnect' && outageStarted && Date.now() - outageStarted < 35000) { response.destroy(); return; }
+    if (outage === 'mixed-recovery' && outageStarted) {
+      const elapsed = Date.now() - outageStarted;
+      if (elapsed < 16000) { response.destroy(); return; }
+      if (elapsed < 32000) { response.writeHead(503, { 'content-type': 'application/json' }); response.end('{}'); return; }
+    }
     if (outageStarted && progress?.output.includes('gate-final-frame')) {
       recoveredOutput = progress.output;
       assert.equal(await readFile(completed, 'utf8'), 'done', 'gate work finishes while reporting is unavailable');
@@ -1468,7 +1478,7 @@ test('real runner keeps a healthy gate through an eleven-second API outage or hu
     export async function runNpm(_args,options){for(const rel of ['admin/dist','dist/admin']){await mkdir(path.join(options.cwd,rel),{recursive:true});await writeFile(path.join(options.cwd,rel,'index.html'),'new-console');}return{code:0,output:''};}
   `);
   const result = await runCommand(process.execPath, ['--import', './worker/register-ts-ext.mjs', 'worker/runner.mjs', '--once'], {
-    cwd: fixture.root, timeoutMs: 30000, env: { ...process.env, PUBLISH_MODE: 'local', PUBLISH_RUNNER_TOKEN: token, PUBLISH_API_URL: api.url },
+    cwd: fixture.root, timeoutMs: 60000, env: { ...process.env, PUBLISH_MODE: 'local', PUBLISH_RUNNER_TOKEN: token, PUBLISH_API_URL: api.url },
   });
   assert.equal(result.code, 0, result.output);
   assert.equal(result.timedOut, false);
