@@ -88,7 +88,7 @@ beforeEach(async () => {
   await env.DB.prepare('DELETE FROM translation_state').run();
   await env.DB.prepare('DELETE FROM publish_runner').run();
   await env.DB.prepare('DELETE FROM publish_dispatch').run();
-  for (const table of ['audit','sessions','login_throttle','auth_account','config_versions','config_draft','publish_lock','publish_steps']) await env.DB.prepare(`DELETE FROM ${table}`).run();
+  for (const table of ['audit','sessions','login_throttle','auth_account','config_versions','config_draft','publish_lock','publish_steps','publish_checks']) await env.DB.prepare(`DELETE FROM ${table}`).run();
   await app.request('/api/auth/setup', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({ token: env.SETUP_TOKEN, password: 'test-executor-password!' }) }, env);
   const r = await app.request('/api/auth/login', { method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({password:'test-executor-password!'}) }, env);
   cookie = (r.headers.get('set-cookie') ?? '').split(';')[0]!;
@@ -174,6 +174,86 @@ describe('automatic publishing service boundary', () => {
     const status = await app.request('/api/publish/status',{headers:{cookie}},served);
     expect(status.status).toBe(200);
     expect(await status.json()).toMatchObject({activeVersion:null,drift:null,versions:expect.arrayContaining([expect.objectContaining({id:versionId,status:'live'})])});
+  });
+  it('closes a restarted swap check before closing the version and does not duplicate it on replay', async () => {
+    const job = await swapJob();
+    const running = {...job,step:'swap',title:'切换新版并核验',status:'running'};
+    expect((await request('/check',running)).status).toBe(200);
+    expect((await request('/check',{...running,status:'ok'})).status).toBe(200);
+    expect((await request('/check',running)).status).toBe(200);
+    const started = await env.DB.prepare("SELECT started_at FROM publish_checks WHERE version_id=?1 AND step='swap' AND status='running' ORDER BY seq DESC LIMIT 1").bind(job.versionId).first<{started_at:number}>();
+    expect((await request('/check',{...running,title:'部署文件校验',status:'ok'})).status).toBe(200);
+    const snapshot = await snapshotFor(job);
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify(snapshot.stamp)) : new Response(snapshot.html)}} as unknown as Env;
+    expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(200);
+    const checks = (await env.DB.prepare('SELECT seq,step,title,status,started_at,ended_at FROM publish_checks WHERE version_id=?1 ORDER BY seq').bind(job.versionId).all()).results;
+    expect(checks).toHaveLength(5);
+    expect(checks[4]).toMatchObject({seq:5,step:'swap',title:'切换新版并核验',status:'ok',started_at:started!.started_at,ended_at:expect.any(Number)});
+    expect((checks[4] as {ended_at:number}).ended_at).toBeGreaterThanOrEqual(started!.started_at);
+    expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(200);
+    expect((await request('/check',{...running,status:'ok'},served)).status).toBe(409);
+    expect((await env.DB.prepare('SELECT seq,step,title,status,started_at,ended_at FROM publish_checks WHERE version_id=?1 ORDER BY seq').bind(job.versionId).all()).results).toEqual(checks);
+    const poll = await app.request('/api/publish/status',{headers:{cookie}},served);
+    expect(await poll.json()).toMatchObject({checks:expect.arrayContaining([expect.objectContaining({seq:5,title:'切换新版并核验',status:'ok'})])});
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE target=?1 AND action='config.publish.live'").bind(`v${job.versionId}`).first()).toEqual({n:1});
+    expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toEqual({n:0});
+  });
+  it('does not end the swap check before a running check reported during live verification', async () => {
+    const job = await swapJob();
+    const snapshot = await snapshotFor(job);
+    const startedAt = Date.now();
+    const clock = vi.spyOn(Date,'now').mockReturnValue(startedAt);
+    let reported = false;
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>{
+      if (!reported) {
+        reported = true;
+        clock.mockReturnValue(startedAt+1000);
+        expect((await request('/check',{...job,step:'swap',title:'切换新版并核验',status:'running'})).status).toBe(200);
+      }
+      return new URL(req.url).pathname==='/.publish-stamp.json'
+        ? new Response(JSON.stringify(snapshot.stamp)) : new Response(snapshot.html);
+    }}} as unknown as Env;
+    try {
+      expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(200);
+    } finally {
+      clock.mockRestore();
+    }
+    const checks = (await env.DB.prepare("SELECT status,started_at,ended_at FROM publish_checks WHERE version_id=?1 AND step='swap' ORDER BY seq").bind(job.versionId).all()).results;
+    expect(checks).toEqual([
+      {status:'running',started_at:startedAt+1000,ended_at:null},
+      {status:'ok',started_at:startedAt+1000,ended_at:startedAt+1000},
+    ]);
+  });
+  it('does not write a swap success check when live verification fails', async () => {
+    const job = await swapJob();
+    const snapshot = await snapshotFor(job);
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify({...snapshot.stamp,configSha:'wrong'})) : new Response(snapshot.html)}} as unknown as Env;
+    expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(409);
+    expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(job.versionId).first()).toEqual({status:'failed'});
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM publish_checks WHERE version_id=?1 AND step='swap' AND status='ok'").bind(job.versionId).first()).toEqual({n:0});
+  });
+  it('rolls back the swap, version, audit and lock if the success check cannot be written', async () => {
+    const job = await swapJob();
+    const previousLive = await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first();
+    const snapshot = await snapshotFor(job);
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify(snapshot.stamp)) : new Response(snapshot.html)}} as unknown as Env;
+    await env.DB.prepare("CREATE TRIGGER fail_swap_check BEFORE INSERT ON publish_checks WHEN NEW.step='swap' AND NEW.status='ok' BEGIN SELECT RAISE(ABORT, 'injected-swap-check-failure'); END").run();
+    try {
+      vi.spyOn(console,'error').mockImplementation(()=>{});
+      expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(500);
+      expect(await env.DB.prepare("SELECT status FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(job.versionId).first()).toEqual({status:'running'});
+      expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(job.versionId).first()).toEqual({status:'publishing'});
+      expect(await env.DB.prepare("SELECT id FROM config_versions WHERE status='live'").first()).toEqual(previousLive);
+      expect(await env.DB.prepare('SELECT version_id FROM publish_lock WHERE id=1').first()).toEqual({version_id:job.versionId});
+      expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE target=?1 AND action='config.publish.live'").bind(`v${job.versionId}`).first()).toEqual({n:0});
+    } finally {
+      await env.DB.prepare('DROP TRIGGER fail_swap_check').run();
+    }
+    expect((await request('/step',{...job,step:'swap',status:'ok'},served)).status).toBe(200);
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM publish_checks WHERE version_id=?1 AND step='swap' AND status='ok'").bind(job.versionId).first()).toEqual({n:1});
   });
   it('machine bearer can heartbeat without a browser session', async () => {
     const r = await request('/heartbeat', {runnerId:'test-runner'});
@@ -545,6 +625,7 @@ describe('automatic publishing service boundary', () => {
     const result = await (await request('/runner-fail',job,racing)).json() as {live?:boolean};
     expect(await env.DB.prepare('SELECT status FROM config_versions WHERE id=?1').bind(job.versionId).first()).toMatchObject({status:'failed'});
     expect(await env.DB.prepare("SELECT status,detail FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(job.versionId).first()).toMatchObject({status:'failed',detail:'concurrent failure'});
+    expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM publish_checks WHERE version_id=?1 AND step='swap' AND status='ok'").bind(job.versionId).first()).toEqual({n:0});
     expect(result.live).not.toBe(true);
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM audit WHERE target=?1 AND action IN ('config.publish.live','config.publish.failed')").bind(`v${job.versionId}`).first()).toMatchObject({n:0});
   });
@@ -589,8 +670,12 @@ describe('automatic publishing service boundary', () => {
     expect(stampReads).toBe(1);
     expect(await env.DB.prepare("SELECT status FROM publish_steps WHERE version_id=?1 AND step='swap'").bind(job.versionId).first()).toMatchObject({status:'ok'});
     expect(await env.DB.prepare("SELECT COUNT(*) AS n FROM config_versions WHERE status='live'").first()).toMatchObject({n:1});
+    const checks = (await env.DB.prepare('SELECT seq,title,status,started_at,ended_at FROM publish_checks WHERE version_id=?1 ORDER BY seq').bind(job.versionId).all()).results;
+    expect(checks).toEqual([{seq:1,title:'切换新版并核验',status:'ok',started_at:expect.any(Number),ended_at:expect.any(Number)}]);
+    expect((checks[0] as {started_at:number;ended_at:number}).started_at).toBe((checks[0] as {started_at:number;ended_at:number}).ended_at);
     await maintainPublishing(served);
     expect(stampReads).toBe(1);
+    expect((await env.DB.prepare('SELECT seq,title,status,started_at,ended_at FROM publish_checks WHERE version_id=?1 ORDER BY seq').bind(job.versionId).all()).results).toEqual(checks);
     expect(await env.DB.prepare("SELECT actor,COUNT(*) AS n FROM audit WHERE target=?1 AND action='config.publish.live'").bind(`v${job.versionId}`).first()).toEqual({actor:'system',n:1});
     expect(await env.DB.prepare('SELECT COUNT(*) AS n FROM publish_lock').first()).toMatchObject({n:0});
   });

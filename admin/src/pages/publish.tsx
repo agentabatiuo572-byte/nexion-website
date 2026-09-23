@@ -362,16 +362,26 @@ export default function PublishPage() {
   const failedChecks = checkGroups.flatMap((group) => group.items.filter((item) => item.status === 'failed'));
   /* 进度按收口后计数：groupPublishChecks 已按 (step,title) 留最新 seq，running+ok 双行不虚高。 */
   const coalescedChecks = checkGroups.flatMap((group) => group.items);
-  // 旧任务可能在记录终态前中断；只修正显示，不改检查结果或完成数。
+  // 旧版已上线且 swap 步骤成功，唯独同名检查漏了终态回报：只在界面计为步骤核验，不改原始检查。
+  const inferredSwapCheck = (item: PublishCheck) => item.status === 'running' && item.step === 'swap'
+    && item.title === STEP_LABEL.swap && active !== item.version_id
+    && st.checksOfVersion === item.version_id && st.stepsOfVersion === item.version_id
+    && st.steps.some((step) => step.step === 'swap' && step.status === 'ok')
+    && st.versions.some((version) => version.id === item.version_id && ['live', 'archived'].includes(version.status));
+  // 其他旧任务可能在记录终态前中断；只修正显示，不改检查结果或完成数。
   const stoppedCheck = (item: PublishCheck) => item.status === 'running'
     && ((st.stepsOfVersion === item.version_id && st.steps.some((step) => step.step === item.step
       && ['ok', 'failed', 'skipped', 'cancelled', 'unknown'].includes(step.status)))
       || st.versions.some((version) => version.id === item.version_id
         && (version.status === 'unknown' || (active !== item.version_id
           && ['live', 'archived', 'failed', 'cancelled'].includes(version.status)))));
+  const checkState = (item: PublishCheck) => inferredSwapCheck(item) ? 'ok' : stoppedCheck(item) ? 'unknown' : item.status;
+  const checkLabel = (item: PublishCheck) => inferredSwapCheck(item) ? '上线时已核验（检查回报缺失）'
+    : stoppedCheck(item) ? '已停止/待核实' : CHECK_STATUS_LABEL[item.status] ?? '未知';
   const passedChecks = coalescedChecks.filter((item) => item.status === 'ok').length;
+  const inferredChecks = coalescedChecks.filter(inferredSwapCheck).length;
   const skippedChecks = coalescedChecks.filter((item) => item.status === 'skipped').length;
-  const completedChecks = passedChecks + skippedChecks + failedChecks.length;
+  const completedChecks = passedChecks + inferredChecks + skippedChecks + failedChecks.length;
   const activeElapsed = activeStarts.length && !activeUnknown ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
   const phaseNames = st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap'];
   const consoleVersion = active ?? st.checksOfVersion ?? st.stepsOfVersion ?? liveVersion?.id ?? null;
@@ -437,7 +447,7 @@ export default function PublishPage() {
           <div className="publisher-progress-copy">
             <div>
               <span>{coalescedChecks.length ? '真实检查进度' : '发布阶段进度'}</span>
-              <b>{coalescedChecks.length ? `已完成 ${completedChecks} / ${coalescedChecks.length} 项 · ${passedChecks} 通过${skippedChecks ? ` · ${skippedChecks} 跳过` : ''}${failedChecks.length ? ` · ${failedChecks.length} 失败` : ''}`
+              <b>{coalescedChecks.length ? `已完成 ${completedChecks} / ${coalescedChecks.length} 项 · ${passedChecks} ${inferredChecks ? '检查回报通过' : '通过'}${inferredChecks ? ` · ${inferredChecks} 据上线步骤核验` : ''}${skippedChecks ? ` · ${skippedChecks} 跳过` : ''}${failedChecks.length ? ` · ${failedChecks.length} 失败` : ''}`
                 : `已完成 ${completedPhaseCount} / ${phaseNames.length} 个步骤`}</b>
             </div>
             {activeElapsed > 2 && <time>本次已用 {activeElapsed < 60 ? `${activeElapsed} 秒` : `${Math.floor(activeElapsed / 60)} 分 ${activeElapsed % 60} 秒`}</time>}
@@ -451,13 +461,13 @@ export default function PublishPage() {
           </div>
 
           <div className="publisher-check-window" role="region" aria-label="当前检查窗口" aria-live="polite">
-            {visibleChecks.map((item) => <div className="publisher-check-row" data-publish-check-row="" data-state={stoppedCheck(item) ? 'unknown' : item.status} key={item.seq}>
-              <PublishStateIcon status={stoppedCheck(item) ? 'unknown' : item.status} />
+            {visibleChecks.map((item) => <div className="publisher-check-row" data-publish-check-row="" data-state={checkState(item)} key={item.seq}>
+              <PublishStateIcon status={checkState(item)} />
               <span className="publisher-check-copy">
                 <span className="publisher-check-title"><span>{String(Math.max(1, coalescedChecks.indexOf(item) + 1)).padStart(2, '0')}</span>{normalizeCheckTitle(item.title)}</span>
                 <small>{STEP_LABEL[item.step] ?? item.step}</small>
               </span>
-              <span className="publisher-check-state">{stoppedCheck(item) ? '已停止/待核实' : CHECK_STATUS_LABEL[item.status] ?? '未知'}</span>
+              <span className="publisher-check-state">{checkLabel(item)}</span>
             </div>)}
             {!coalescedChecks.length && legacyWindow.map((name) => {
               const step = displayedStep(name);
@@ -491,10 +501,10 @@ export default function PublishPage() {
             <summary>查看全部 {coalescedChecks.length} 项检查</summary>
             <div className="publisher-all-checks-list">
               {checkGroups.map((group) => <section key={group.step} aria-label={STEP_LABEL[group.step] ?? group.step}>
-                <h4>{STEP_LABEL[group.step] ?? group.step} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} 通过</h4>
-                {group.items.map((item) => <div className="publisher-all-check-row" data-state={stoppedCheck(item) ? 'unknown' : item.status} key={item.seq}>
-                  <PublishStateIcon status={stoppedCheck(item) ? 'unknown' : item.status} />
-                  <div><b>{normalizeCheckTitle(item.title)}</b><small>{stoppedCheck(item) ? '已停止/待核实' : CHECK_STATUS_LABEL[item.status] ?? '未知'}</small>
+                <h4>{STEP_LABEL[group.step] ?? group.step} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} {group.items.some(inferredSwapCheck) ? '检查回报通过 · 1 据上线步骤核验' : '通过'}</h4>
+                {group.items.map((item) => <div className="publisher-all-check-row" data-state={checkState(item)} key={item.seq}>
+                  <PublishStateIcon status={checkState(item)} />
+                  <div><b>{normalizeCheckTitle(item.title)}</b><small>{checkLabel(item)}</small>
                     {item.status === 'failed' && item.output && <details>
                       <summary>查看失败原文</summary>
                       <pre className="mono">{item.output}</pre>
