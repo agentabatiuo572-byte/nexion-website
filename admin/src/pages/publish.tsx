@@ -38,6 +38,52 @@ interface Status {
   executor: {mode:string;ready:boolean;reason:string;lastSeenAt:number|null};
 }
 
+const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value);
+const isNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value);
+const isNumberOrNull = (value: unknown): value is number | null => value === null || isNumber(value);
+const isStringArray = (value: unknown): value is string[] => Array.isArray(value) && value.every(item => typeof item === 'string');
+const isFinding = (value: unknown): value is Finding => isRecord(value)
+  && typeof value.path === 'string' && typeof value.rule === 'string' && typeof value.message === 'string';
+
+function assertPreflight(value: unknown): asserts value is Preflight {
+  if (!isRecord(value) || typeof value.ready !== 'boolean' || !isNumber(value.changed) || !isNumber(value.draftRev)
+    || typeof value.reasonRequired !== 'boolean' || !isStringArray(value.changedPaths) || !isStringArray(value.sensitiveChanged)
+    || !Array.isArray(value.errors) || !value.errors.every(isFinding)
+    || !Array.isArray(value.warnings) || !value.warnings.every(isFinding)
+    || (value.message !== undefined && typeof value.message !== 'string')) throw new Error('发布预检响应不完整');
+}
+
+function assertPublishStatus(value: unknown): asserts value is Status {
+  if (!isRecord(value) || !isNumberOrNull(value.activeVersion) || !isNumberOrNull(value.stepsOfVersion)
+    || !isStringArray(value.stepNames) || !Array.isArray(value.versions)
+    || !value.versions.every(v => isRecord(v) && isNumber(v.id) && typeof v.status === 'string'
+      && typeof v.created_by === 'string' && isNumber(v.created_at) && isNumberOrNull(v.published_at)
+      && (v.reason === null || typeof v.reason === 'string')
+      && (v.fail_reason === null || typeof v.fail_reason === 'string')
+      && (v.changed === undefined || isNumber(v.changed)))
+    || !Array.isArray(value.steps) || !value.steps.every(s => isRecord(s) && typeof s.step === 'string'
+      && typeof s.status === 'string' && (s.detail === null || typeof s.detail === 'string')
+      && isNumber(s.started_at) && isNumberOrNull(s.ended_at))
+    || !isRecord(value.executor) || typeof value.executor.ready !== 'boolean'
+    || typeof value.executor.reason !== 'string' || typeof value.executor.mode !== 'string'
+    || !isNumberOrNull(value.executor.lastSeenAt)
+    || !(value.drift === null || (isRecord(value.drift) && isNumber(value.drift.dbLive)
+      && isNumberOrNull(value.drift.snapshot)
+      && (value.drift.tampered === undefined || isStringArray(value.drift.tampered))))
+    || (value.checksOfVersion !== undefined && !isNumberOrNull(value.checksOfVersion))
+    || (value.checks !== undefined && (!Array.isArray(value.checks) || !value.checks.every(c => isRecord(c)
+      && isNumber(c.version_id) && typeof c.step === 'string' && isNumber(c.seq)
+      && typeof c.title === 'string' && typeof c.status === 'string'
+      && (c.output === null || typeof c.output === 'string')
+      && isNumber(c.started_at) && isNumberOrNull(c.ended_at))))
+    || (value.versionsTruncated !== undefined && typeof value.versionsTruncated !== 'boolean')
+    || (value.silentMs !== undefined && !isNumber(value.silentMs))
+    || (value.cancelable !== undefined && (typeof value.cancelable !== 'string'
+      || !['none', 'yes', 'force', 'no'].includes(value.cancelable)))) {
+    throw new Error('发布状态响应不完整');
+  }
+}
+
 const STEP_LABEL: Record<string, string> = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' };
 /** 检查明细状态徽中文；未知状态兜底显“未知”，不直出英文枚举。 */
 const CHECK_STATUS_LABEL: Record<string, string> = { running: '进行中', ok: '通过', failed: '失败', skipped: '跳过', unknown: '未知' };
@@ -143,7 +189,9 @@ export default function PublishPage() {
     setRefreshing(true);
     setConfirm(null);
     try {
-      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
+      const [p, s] = await Promise.all([api<unknown>('/api/publish/preflight'), api<unknown>('/api/publish/status')]);
+      assertPreflight(p);
+      assertPublishStatus(s);
       if (!requests.current.isCurrent(ticket)) return null;
       setPre(p); setSt(s); setFailed(false); setPollFailed(false); setLoadError('');
       return { p, s, ticket };
@@ -175,7 +223,8 @@ export default function PublishPage() {
         const retry = () => { if (!stopped) timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000); };
         if (requests.current.pending()) { retry(); return; }
         const ticket = requests.current.current();
-        api<Status>('/api/publish/status').then((s) => {
+        api<unknown>('/api/publish/status').then((s) => {
+          assertPublishStatus(s);
           if (stopped) return;
           if (!requests.current.isCurrent(ticket)) { retry(); return; }
           setPollFailed(false);

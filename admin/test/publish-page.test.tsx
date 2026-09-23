@@ -12,7 +12,7 @@ import { TranslationProvider } from '../src/lib/translations';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); });
 
-it('refreshes current command progress and does not claim execution continues while polling fails', async () => {
+it('keeps the last valid progress when a poll returns an incomplete success body', async () => {
   vi.useFakeTimers();
   let detail = '正在检查官网配置';
   let disconnected = false;
@@ -20,7 +20,7 @@ it('refreshes current command progress and does not claim execution continues wh
     if (path.endsWith('/preflight')) return {
       ready: false, errors: [], warnings: [], changedPaths: [], changed: 0, sensitiveChanged: [], reasonRequired: false, draftRev: 1,
     };
-    if (disconnected) throw new Error('network disconnected');
+    if (disconnected) return { versions: [], steps: [], executor: { ready: true } };
     return {
       activeVersion: 2, stepsOfVersion: 2,
       steps: [{ step: 'gates', status: 'running', detail, started_at: Date.now() - 5000, ended_at: null }],
@@ -45,6 +45,26 @@ it('refreshes current command progress and does not claim execution continues wh
   expect(screen.getByText(detail)).toBeTruthy();
   expect(screen.queryByText(/暂时无法刷新发布状态/)).toBeNull();
   expect(screen.getByText(/服务持续报告运行状态/)).toBeTruthy();
+});
+
+it('keeps the last valid preflight when refresh receives a partial success body', async () => {
+  let incomplete = false;
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight')
+    ? incomplete ? { errors: [], warnings: [] } : preflight()
+    : status());
+  await act(async () => { render(<MemoryRouter><PublishPage /></MemoryRouter>); });
+  expect(screen.getByText('查看 1 个模块的改动摘要')).toBeTruthy();
+
+  incomplete = true;
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重新检查' })); });
+  expect(screen.getByText(/发布检查信息暂时无法刷新/)).toBeTruthy();
+  expect(screen.getByText('查看 1 个模块的改动摘要')).toBeTruthy();
+  expect((screen.getByRole('button', { name: '检查并发布' }) as HTMLButtonElement).disabled).toBe(true);
+
+  incomplete = false;
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '重试' })); });
+  expect(screen.queryByText(/发布检查信息暂时无法刷新/)).toBeNull();
+  expect((screen.getByRole('button', { name: '检查并发布' }) as HTMLButtonElement).disabled).toBe(false);
 });
 
 it('uses this job heartbeat for stale progress, refresh and recovery without writing or guessing cancellation', async () => {

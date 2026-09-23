@@ -70,4 +70,9 @@ describe('API authentication lifecycle', () => {
     expect(apiErrorHint(new TypeError('Failed to fetch'), '网络失败')).toBe('网络失败');
     expect(apiErrorHint(new ApiError(409, { hint: '稍后重试' }), '网络失败')).toBe('稍后重试');
   });
+
+  it('rejects an empty successful response instead of treating it as valid data', async () => {
+    globalThis.fetch = vi.fn(async () => new Response('', { status: 200 }));
+    await expect(api('/api/publish/status')).rejects.toMatchObject({ status: 502, body: { error: 'invalid-response' } });
+  });
 });
