@@ -307,7 +307,7 @@ async function ensureTerminalEffect(
     return { ok: false, error: 'live-verification-failed', why };
   }
 
-  // D1 batch 是事务。前三步使用同一资格条件，最后才改变目标版本状态；
+  // D1 batch 是事务。上线前的写入使用同一资格条件，最后才改变目标版本状态；
   // 因而并发请求若已收口目标版本，步骤、旧 live 和锁都会一起保持原状。
   const observedAt = recoveryTime(recoveryClaim);
   const eligible = `EXISTS(SELECT 1 FROM config_versions target WHERE target.id=?1 AND target.claim_nonce=?2
@@ -319,6 +319,12 @@ async function ensureTerminalEffect(
   const committed = await env.DB.batch([
     env.DB.prepare(`UPDATE publish_steps SET status='ok',ended_at=?3 WHERE version_id=?1 AND step='swap' AND ${eligible}`).bind(...args),
     env.DB.prepare(`UPDATE config_versions SET status='archived' WHERE status='live' AND id<?1 AND ${eligible} RETURNING id`).bind(...args),
+    // 同名旧 ok 之后可能又有 running；终态总追加最新 ok，重放由版本状态拦住。
+    env.DB.prepare(`INSERT INTO publish_checks (version_id,step,seq,title,status,started_at,ended_at)
+      SELECT ?1,'swap',(SELECT COALESCE(MAX(seq),0)+1 FROM publish_checks WHERE version_id=?1),
+        '切换新版并核验','ok',latest.started_at,MAX(?3,latest.started_at)
+      FROM (SELECT COALESCE((SELECT started_at FROM publish_checks WHERE version_id=?1 AND step='swap' AND title='切换新版并核验' AND status='running' ORDER BY seq DESC LIMIT 1),?3) AS started_at) latest
+      WHERE ${eligible}`).bind(...args),
     env.DB.prepare(`UPDATE config_versions SET status='live',published_at=?3,fail_reason=NULL WHERE id=?1 AND ${eligible}`).bind(...args),
     prepareAuditAfterPreviousChange(env.DB, {
       actor: auditActor,
@@ -328,7 +334,7 @@ async function ensureTerminalEffect(
     }),
     env.DB.prepare('DELETE FROM publish_lock WHERE version_id=?1 AND changes()>0').bind(versionId),
   ]);
-  const applied = (committed[2]?.meta.changes ?? 0)>0;
+  const applied = (committed[3]?.meta.changes ?? 0)>0;
   if (!applied && recovering) {
     await markPublishUnknown(env, versionId, target.claim_nonce, recoveryClaim);
   }

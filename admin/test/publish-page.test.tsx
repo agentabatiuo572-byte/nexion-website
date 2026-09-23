@@ -402,6 +402,82 @@ it('shows interrupted historical checks as stopped without counting them as comp
   expect(allPublisher?.textContent).toContain('已停止/待核实');
 });
 
+it.each(['live', 'archived'])('counts only the missing swap check report as step-verified for a %s version', async (versionStatus) => {
+  const st = status(); st.stepsOfVersion = 34;
+  st.steps = st.stepNames.map((step, index) => ({ step, status: 'ok', detail: null, started_at: index + 1, ended_at: index + 2 }));
+  st.versions = [{ ...st.versions[1], id: 34, status: versionStatus, created_at: 34, published_at: 34 }];
+  const checks = [
+    ...Array.from({ length: 52 }, (_, index) => ({ version_id: 34, step: 'gates', seq: index + 1,
+      title: `检查 ${index + 1}`, status: 'ok', output: null, started_at: 1, ended_at: 2 })),
+    { version_id: 34, step: 'swap', seq: 53, title: '切换新版并核验', status: 'running', output: null, started_at: 2, ended_at: null },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 34, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  const progress = await screen.findByRole('progressbar', { name: '检查完成进度' });
+  expect(progress.getAttribute('aria-valuenow')).toBe('53');
+  expect(progress.getAttribute('aria-valuemax')).toBe('53');
+  expect(progress.querySelector('span')?.getAttribute('style')).toContain('width: 100%');
+  expect(screen.getByText('已完成 53 / 53 项 · 52 检查回报通过 · 1 据上线步骤核验')).toBeTruthy();
+  const current = screen.getByRole('region', { name: '当前检查窗口' });
+  const swap = [...current.querySelectorAll('[data-publish-check-row]')].find(row => row.textContent?.includes('切换新版并核验'));
+  expect(swap?.getAttribute('data-state')).toBe('ok');
+  expect(swap?.textContent).toContain('上线时已核验（检查回报缺失）');
+  fireEvent.click(screen.getByText('查看全部 53 项检查'));
+  const swapGroup = document.querySelector('section[aria-label="切换新版并核验"]');
+  expect(swapGroup?.querySelector('h4')?.textContent).toBe('切换新版并核验 · 0/1 检查回报通过 · 1 据上线步骤核验');
+  expect(swapGroup?.querySelector('.publisher-all-check-row')?.textContent).toContain('上线时已核验（检查回报缺失）');
+  expect(checks[52].status).toBe('running');
+  expect(mocks.api.mock.calls.every(call => !call[1]?.method)).toBe(true);
+});
+
+it.each([
+  { name: 'swap step still running', stepStatus: 'running', versionStatus: 'live', checkTitle: '切换新版并核验' },
+  { name: 'version still publishing', stepStatus: 'ok', versionStatus: 'publishing', checkTitle: '切换新版并核验' },
+  { name: 'version failed', stepStatus: 'ok', versionStatus: 'failed', checkTitle: '切换新版并核验' },
+  { name: 'version unknown', stepStatus: 'ok', versionStatus: 'unknown', checkTitle: '切换新版并核验' },
+  { name: 'different check title', stepStatus: 'ok', versionStatus: 'live', checkTitle: '校验线上资源' },
+])('does not infer a finished check when $name', async ({ stepStatus, versionStatus, checkTitle }) => {
+  const st = status(); st.stepsOfVersion = 34;
+  st.steps = [{ step: 'swap', status: stepStatus, detail: null, started_at: 1, ended_at: stepStatus === 'ok' ? 2 : null }];
+  st.versions = [{ ...st.versions[1], id: 34, status: versionStatus, created_at: 34, published_at: 34 }];
+  const checks = [{ version_id: 34, step: 'swap', seq: 1, title: checkTitle, status: 'running',
+    output: null, started_at: 1, ended_at: null }];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 34, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  const progress = await screen.findByRole('progressbar', { name: '检查完成进度' });
+  expect(progress.getAttribute('aria-valuenow')).toBe('0');
+  expect(screen.getByText('已完成 0 / 1 项 · 0 通过')).toBeTruthy();
+  const row = screen.getByRole('region', { name: '当前检查窗口' }).querySelector('[data-publish-check-row]');
+  expect(row?.textContent).not.toContain('上线时已核验');
+  fireEvent.click(screen.getByText('查看全部 1 项检查'));
+  expect(document.querySelector('section[aria-label="切换新版并核验"] h4')?.textContent).toBe('切换新版并核验 · 0/1 通过');
+});
+
+it('uses the latest coalesced report and rejects a check from another version', async () => {
+  const st = status(); st.stepsOfVersion = 34;
+  st.steps = [{ step: 'swap', status: 'ok', detail: null, started_at: 1, ended_at: 2 }];
+  st.versions = [{ ...st.versions[1], id: 34, status: 'archived', created_at: 34, published_at: 34 },
+    { ...st.versions[1], id: 35, status: 'live', created_at: 35, published_at: 35 }];
+  const checks = [
+    { version_id: 34, step: 'swap', seq: 1, title: '切换新版并核验', status: 'running', output: null, started_at: 1, ended_at: null },
+    { version_id: 34, step: 'swap', seq: 2, title: '切换新版并核验', status: 'ok', output: null, started_at: 1, ended_at: 2 },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 34, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+  expect(await screen.findByText('已完成 1 / 1 项 · 1 通过')).toBeTruthy();
+  expect(screen.getByRole('region', { name: '当前检查窗口' }).textContent).not.toContain('检查回报缺失');
+
+  checks[1] = { ...checks[1], version_id: 35, status: 'running', ended_at: null };
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '刷新发布状态' })); });
+  expect(screen.getByText('已完成 0 / 1 项 · 0 通过')).toBeTruthy();
+  expect(screen.getByRole('region', { name: '当前检查窗口' }).textContent).not.toContain('上线时已核验');
+});
+
 it('keeps matching checks running while their publication is live', async () => {
   const st = status(); st.activeVersion = 33; st.stepsOfVersion = 33;
   st.steps = [{ step: 'gates', status: 'running', detail: null, started_at: 1, ended_at: null }];

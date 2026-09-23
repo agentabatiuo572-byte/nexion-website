@@ -3,7 +3,7 @@
  * 此处只把 vars 字面量放宽为 string(ENVIRONMENT 要与 'preview'|'production' 比较——CON12-E4),
  * 并声明可选的部署期调节阀。
  */
-export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_SALT' | 'BYPASS_SECRET'> & {
+export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_SALT' | 'BYPASS_SECRET' | 'AI_CREDENTIAL_ENCRYPTION_KEY'> & {
   ENVIRONMENT: string;
   SETUP_TOKEN: string;
   /** 访客去重哈希盐(随日期轮换的一半;另一半=日期本身)。生产走 secret */
