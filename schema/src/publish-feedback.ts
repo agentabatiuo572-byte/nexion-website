@@ -81,6 +81,8 @@ export function publishFailureAdvice(raw: string) {
       '发布任务的身份或执行权限失效', '等待发布服务恢复并核实旧任务结果，再重新检查并发布。'],
     ['network', /ECONN|ENOTFOUND|fetch failed|HTTP\s*5\d{2}\b|network|网络|连接中断|连接失败/i,
       '发布服务连接中断', '等待连接恢复并核实执行结果；结果明确后再重新检查并发布。'],
+    ['layout-calibration', /^\s*AssertionError(?: \[ERR_ASSERTION\])?: Layout\/probe changed; recalibrate\s*$/im,
+      '页面布局校准记录已过期', '维护人员需重新校准页面布局检查并通过自检，再重新检查并发布；无需修改草稿文案。'],
     ['typecheck', /TS\d{4}|typecheck|类型检查|类型错误/i,
       '代码类型检查未通过', '维护人员需根据原始日志修复代码或依赖，再重新检查并发布；修改草稿不能解决代码错误。'],
     ['layout', /render-fit|canvas-geometry|deck-clearance|布局|溢出|行压行/i,

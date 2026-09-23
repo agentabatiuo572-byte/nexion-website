@@ -66,6 +66,24 @@ it('separates progress and successful command records from terminal diagnostics'
   expect(publishFailureAdvice(encodePublishProgress('检查布局', 'network', at)).kind).toBe('unknown');
 });
 
+it('uses the actual calibration assertion ahead of an echoed future typecheck command', () => {
+  const raw = '> npm run test:copy-layout && npm run typecheck && npm test && vite build\n' +
+    '> node ../scripts/calibrate-copy-layout.mjs --check\n' +
+    'AssertionError [ERR_ASSERTION]: Layout/probe changed; recalibrate\n' +
+    '    at validate (file:///site/scripts/calibrate-copy-layout.mjs:206:10)';
+  const advice = publishFailureAdvice(raw);
+  expect(advice.kind).toBe('layout-calibration');
+  expect(advice.reason).toBe('页面布局校准记录已过期');
+  expect(advice.raw).toBe(raw);
+});
+
+it('keeps a real TypeScript error as typecheck when calibration is only an echoed command', () => {
+  const raw = '> node ../scripts/calibrate-copy-layout.mjs --check\n' +
+    '> npm run typecheck\n' +
+    'src/example.ts(1,1): error TS2345: Argument not assignable';
+  expect(publishFailureAdvice(raw).kind).toBe('typecheck');
+});
+
 it.each(['执行器中断后恢复；原发布单不自动重跑', '执行器无响应'])('explains legacy interruption without assuming the live snapshot outcome: %s', raw => {
   const advice = publishFailureAdvice(raw);
   expect(advice.kind).toBe('interrupted');
