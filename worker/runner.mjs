@@ -139,7 +139,8 @@ async function main() {
     if (!Number.isSafeInteger(job.versionId) || job.versionId <= 0 || typeof job.stamp !== 'string' || !job.stamp || !job.config) throw new Error('领取响应缺少合法版本、配置或归属口令');
     const evidenceFile = `v${job.versionId}-${randomUUID()}.json`;
     save({ versionId: job.versionId, stamp: job.stamp, runnerId, step: 'materialize', childPid: null, phase: 'claimed', evidenceFile });
-    const lease = startLease((signal) => api('/api/publish/heartbeat', { runnerId, versionId: job.versionId, stamp: job.stamp }, signal));
+    // The local API can restart during the long nine-locale browser gate; its lock lasts 15 minutes.
+    const lease = startLease((signal) => api('/api/publish/heartbeat', { runnerId, versionId: job.versionId, stamp: job.stamp }, signal), { graceMs: 120000 });
     const evidenceAbort = new AbortController();
     const signal = AbortSignal.any([STOP.signal, lease.signal, evidenceAbort.signal]);
     let workspace;
@@ -165,10 +166,11 @@ async function main() {
       Object.assign(evidence, changes);
       storeEvidence(evidenceFile, evidence, job.stamp);
     };
-    const confirmWithinLease = async (action) => {
+    const confirmWithinLease = async (action, transientTimeoutMs = 30000) => {
       // A healthy heartbeat cannot make a permanently broken /step wait forever.
-      const retrySignal = AbortSignal.any([signal, AbortSignal.timeout(30000)]);
+      const retrySignal = AbortSignal.any([signal, AbortSignal.timeout(transientTimeoutMs)]);
       let firstFailure;
+      let firstServerFailureAt;
       for (;;) {
         try {
           retrySignal.throwIfAborted();
@@ -179,6 +181,10 @@ async function main() {
           if (retrySignal.aborted) throw signal.aborted ? signal.reason : firstFailure ?? error;
           if (!(error instanceof TypeError) && error.name !== 'TimeoutError' && !(error.status >= 500 && error.status <= 599)) throw error;
           firstFailure ??= error;
+          if (error.status >= 500) {
+            firstServerFailureAt ??= Date.now();
+            if (Date.now() - firstServerFailureAt >= 16000) throw error;
+          } else firstServerFailureAt = undefined;
           try { await delay(250, undefined, { signal: retrySignal }); }
           catch { throw signal.aborted ? signal.reason : firstFailure; }
         }
@@ -200,7 +206,7 @@ async function main() {
             const current = pendingProgress;
             await report(current.step, 'running', { detail: current.detail }, retrySignal);
             if (pendingProgress === current) pendingProgress = undefined;
-          });
+          }, 90000);
         }
       }).catch(error => {
         // Once switching starts, a transient progress outage must not replace final verification.

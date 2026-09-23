@@ -185,7 +185,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   // 源码缓存不证明线上快照通过当前门；每次发布都对本次产物全站实测。
   await rm(path.join(site, '.verify-exit.code'), { force: true });
   const verifyArgs = ['run', mode === 'production' ? 'verify:prod' : 'verify', '--', '--built-dist-sha', artifact.sha256, '--fail-fast'];
-  const verified = await runNpm(verifyArgs, { ...commandOptions, cwd: site });
+  const verified = await runNpm(verifyArgs, { ...commandOptions, cwd: site, timeoutMs: mode === 'local' ? 60 * 60_000 : commandOptions.timeoutMs });
   const verdict = await verifyExit(site, verified);
   if (!verdict.ok) return verdict;
   assertDigest(path.join(site, 'dist'), artifact.sha256);
