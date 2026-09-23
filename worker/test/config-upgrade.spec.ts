@@ -144,7 +144,12 @@ describe('旧配置升级：保留人工内容且只写一次', () => {
     }
     expect(JSON.parse(saved.payload)).toEqual(expected);
     expect(saved.draft_rev).toBe(8);
-    expect(validateConfig(expected, manifest).errors).toEqual([]);
+    // The archived draft keeps its authored values; publication flags target
+    // placeholders absent from its intentionally blank Chinese source.
+    expect(validateConfig(expected, manifest).errors).toEqual([
+      expect.objectContaining({ path: 'copy.en.trust.whitepaper.details', rule: 'placeholder' }),
+      expect.objectContaining({ path: 'copy.vi.trust.whitepaper.details', rule: 'placeholder' }),
+    ]);
     expect(JSON.stringify(input)).toBe(original);
     expect(await env.DB.prepare('SELECT * FROM config_draft_upgrades WHERE upgrade_key=?1').bind(oldKey).first()).toEqual(oldBackup);
     expect(await env.DB.prepare('SELECT original_payload,original_rev,upgraded_rev FROM config_draft_upgrades WHERE upgrade_key=?1').bind(CONFIG_UPGRADE_KEY).first()).toEqual({ original_payload: original, original_rev: 7, upgraded_rev: 8 });

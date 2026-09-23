@@ -49,9 +49,11 @@ const restore0020 = () => env.DB.batch([env.DB.prepare('DROP TABLE ai_connection
   ...migrationStatements('0018_ai_connection.sql'), ...migrationStatements('0019_ai_providers.sql'), ...mainstreamMigration()]);
 const providerSuccess = (provider: AiProvider, id = 'connection-test', text = 'Welcome to Uvel.', init?: RequestInit) => {
   if (provider === 'nvidia') {
-    const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations[0].text as string;
+    const input = JSON.parse(String(init?.body)).messages[1].content as string;
     const guard = input.match(/⟦UVEL_GUARD_\d+_\d+⟧/)?.[0];
     if (guard) text = text.replace('Uvel', guard);
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { role: 'assistant', content: text } }],
+      usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 } });
   }
   const content = JSON.stringify({ translations: [{ id, text }] });
   if (AI_PROVIDERS[provider].protocol === 'responses' && provider !== 'zen') return Response.json({ status: 'completed', error: null, incomplete_details: null,

@@ -78,13 +78,13 @@ const responseFor = (provider: AiProvider, translations: unknown = [{ id: fields
   return { ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant', content: text } }] };
 };
 const nvidiaResponse = (init: RequestInit | undefined, spanish = false, fenced = false) => {
-  const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
-  const source = String(input.translations[0].text), guards = source.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
+  const body = JSON.parse(String(init?.body));
+  const source = String(body.messages[1].content), guards = source.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
   expect(guards).toHaveLength(4);
   const text = (spanish ? `Descarga ${guards[0]} ${guards[1]}${guards[2]}para ${guards[3]}` : `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}`);
-  const content = JSON.stringify({ translations: [{ id: fields[0].id, text }] });
+  const content = fenced ? '```json\n' + JSON.stringify({ translations: [{ id: fields[0].id, text }] }) + '\n```' : text;
   return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
-    content: fenced ? '```json\n' + content + '\n```' : content } }] });
+    content } }] });
 };
 const callProvider = (provider: AiProvider, model: string = AI_PROVIDERS[provider].defaultModel) =>
   requestTranslations('synthetic-' + provider + '-key', model, 'en', fields, undefined, provider);
@@ -106,15 +106,15 @@ describe('eight fixed provider transports', () => {
       response_format: { type: 'json_object' }, messages: [{ role: 'system' }, { role: 'user' }] });
     for (const key of ['input', 'text', 'store', 'reasoning', 'max_output_tokens', 'thinking']) expect(body[key]).toBeUndefined();
   });
-  it('accepts NVIDIA JSON fences only after the chat envelope passes validation', async () => {
+  it('rejects NVIDIA JSON fences instead of publishing the protocol as copy', async () => {
     expect(AI_PROVIDERS.nvidia.defaultModel).toBe('nvidia/riva-translate-4b-instruct-v2');
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => nvidiaResponse(init, false, true));
-    await expect(callProvider('nvidia')).resolves.toMatchObject({ translations: [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}' }] });
+    await expect(callProvider('nvidia')).rejects.toMatchObject({ code: 'invalid-result' });
   });
   it('accepts Riva plain-text output for its single protected field', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
-      const body = JSON.parse(String(init?.body)), input = JSON.parse(body.messages[1].content);
-      const guards = input.translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g);
+      const body = JSON.parse(String(init?.body));
+      const guards = body.messages[1].content.match(/⟦UVEL_GUARD_\d+_\d+⟧/g);
       return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
         content: `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}` } }] });
     });
@@ -132,21 +132,20 @@ describe('eight fixed provider transports', () => {
     const first = JSON.parse(String(fetcher.mock.calls[0][1]?.body)), second = JSON.parse(String(fetcher.mock.calls[1][1]?.body));
     expect(first.messages[0].content).toBe('zh-cn-en');
     expect(second.messages[0].content).toBe('en-es-us');
-    expect(JSON.parse(second.messages[1].content).translations[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
+    expect(second.messages[1].content.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
   });
   it('isolates NVIDIA fields and sends free-endpoint requests sequentially', async () => {
     const batch = Array.from({ length: 8 }, (_, index) => ({ ...fields[0], id: `/copy/hero${index}` }));
-    let active = 0, peak = 0;
+    let active = 0, peak = 0, call = 0;
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (_url, init) => {
-      const input = JSON.parse(JSON.parse(String(init?.body)).messages[1].content).translations;
-      expect(input).toHaveLength(1);
-      const guards = input[0].text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
+      const input = JSON.parse(String(init?.body)).messages[1].content as string;
+      const index = call++;
+      const guards = input.match(/⟦UVEL_GUARD_\d+_\d+⟧/g) ?? [];
       active++; peak = Math.max(peak, active);
       await new Promise(resolve => setTimeout(resolve, 0));
       active--;
       return Response.json({ ...geminiResult(), choices: [{ index: 0, finish_reason: 'stop', message: { role: 'assistant',
-        content: input[0].id.endsWith('3') ? 'invalid isolated output' : JSON.stringify({ translations: [{ id: input[0].id,
-          text: `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}` }] }) } }] });
+        content: index === 3 ? 'invalid isolated output' : `Download ${guards[0]} ${guards[1]}${guards[2]}for ${guards[3]}` } }] });
     });
     await expect(requestTranslations('synthetic-nvidia-key', AI_PROVIDERS.nvidia.defaultModel, 'en', batch, undefined, 'nvidia'))
       .resolves.toMatchObject({
@@ -196,9 +195,8 @@ describe('eight fixed provider transports', () => {
             expect(body.response_format).toBeUndefined();
             expect(body.temperature).toBe(0);
             expect(body.messages[0].content).toBe('zh-cn-en');
-            const transport = JSON.parse(body.messages[1].content).translations[0];
-            expect(transport.id).toBe(fields[0].id);
-            expect(transport.text.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
+            expect(body.messages[1].content).not.toContain('translations');
+            expect(body.messages[1].content.match(/⟦UVEL_GUARD_\d+_\d+⟧/g)).toHaveLength(4);
           } else if (provider === 'deepseek' || (provider === 'zen' && model === 'deepseek-v4-flash-free')) {
             expect(body.messages[1].content).toBe(JSON.stringify({ targetLocale: 'en', fields }));
             expect(body.response_format).toEqual({ type: 'json_object' });
@@ -217,7 +215,7 @@ describe('eight fixed provider transports', () => {
         }
       }
     });
-  it.each(providers)('%s cannot bypass field validation, follow redirects or accept another protocol', async provider => {
+  it.each(providers.filter(([provider]) => provider !== 'nvidia'))('%s cannot bypass field validation, follow redirects or accept another protocol', async provider => {
     const fetcher = vi.spyOn(globalThis, 'fetch');
     for (const translations of [[], [{ id: 'foreign', text: '下载' }], [{ id: fields[0].id, text: '下载 Uvel 9.0\n适用于 {name}' }],
       [{ id: fields[0].id, text: 'Download Uvel 2.0\nfor {name}', extra: 'unwanted' }]]) {
@@ -461,6 +459,11 @@ describe('OpenCode Zen raw Responses boundary', () => {
   it('allows translated marker contents and reordered complete annotations', () => {
     expect(validateTranslationValue({ source: '[[GPU cloud]] and __fast computing__ ^2^', maxLength: 200 },
       '__高速計算__ と [[GPU クラウド]] ^2^')).toBeNull();
+  });
+  it('rejects a model envelope and an obsolete brand at the shared field boundary', () => {
+    const field = { source: 'Uvel\n让算力流动', maxLength: 200 };
+    expect(validateTranslationValue(field, '{«translations»:[{«text»:«Uvel\nFlow»}]}')).toBe('translation-envelope');
+    expect(validateTranslationValue(field, 'NexGrid\nLet compute flow')).toBe('stale-brand');
   });
   it('shared markup validation preserves every existing nonempty approved seed translation', () => {
     const rejected = enumerateTranslationFields(SiteConfigSchema.parse(seed), DRAFT_MANIFEST)

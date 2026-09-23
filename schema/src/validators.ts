@@ -4,6 +4,7 @@ import { scanForbidden as scanForbiddenShared } from '../../scripts/forbidden-pa
 import type { CopyManifest } from './manifest.js';
 import { MOCK_STAT_ANCHORS, SENSITIVE_COPY_PREFIXES, SiteConfigSchema, type SiteConfig, LOCALES } from './site-config.js';
 import { SOURCE_LOCALE } from './locales.js';
+import { enumerateTranslationFields, validateTranslationValue } from './draft-fields.js';
 
 /* 校验器(CON04/05/06/07/08/09 各 E 条的发布级判据汇总,单源:控制台保存、发布前置校验、
    物化脚本三处同 import)。errors = 发布阻断;warnings = 软警告(可存草稿可发布,面上提示)。 */
@@ -77,6 +78,16 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
       const ctx = text.slice(Math.max(0, i - 8), i + 8);
       errors.push({ path, rule: 'encoding-damage', message: `文本含编码损坏字符(位置 ${i} 附近:「${ctx}」)——多半是复制粘贴或传输时编码出错,请重新输入这段文字` });
     }
+  }
+
+  // Shared field guard also checks persisted/manual translations, not only fresh model output.
+  for (const field of enumerateTranslationFields(c, manifest)) {
+    if (!c.enabledLocales.includes(field.targetLocale) || !field.target.trim()) continue;
+    const rule = validateTranslationValue(field, field.target);
+    if (rule) errors.push({ path: field.draftFieldId.slice(1).replaceAll('/', '.'), rule,
+      message: rule === 'translation-envelope' ? '译文含 AI 返回格式，请只填写译文正文'
+        : rule === 'stale-brand' ? '译文仍含旧品牌名 NexGrid，请按当前原文更新'
+          : '译文格式与原文不符或超过字段限制' });
   }
 
   // 3) 占位符守恒 + 换行结构软警(CON04-E2):以撰写源语言为基准

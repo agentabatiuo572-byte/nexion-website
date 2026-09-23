@@ -146,6 +146,18 @@ describe('Nine content languages and published selection', () => {
     expect(validateConfig(config, manifest).errors).toEqual([]);
   });
 
+  it('blocks stored protocol output and an old brand in enabled translations', () => {
+    const config = current(); config.enabledLocales = ['en', 'fr'];
+    config.copy.zh['hero.title'] = 'Uvel\n让算力流动';
+    config.copy.en['hero.title'] = 'NexGrid\nLet compute flow';
+    config.copy.fr['hero.title'] = '{«translations»:[{«id»:«/copy/hero.title»,«text»:«Uvel\nFaites circuler la puissance»}]}';
+    const issues = validateConfig(config, manifest).errors;
+    expect(issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({ path: 'copy.en.hero.title', rule: 'stale-brand' }),
+      expect.objectContaining({ path: 'copy.fr.hero.title', rule: 'translation-envelope' }),
+    ]));
+  });
+
   it('every locale retains the same sensitive-copy reason requirement for real emitted diff paths', () => {
     const original = current();
     for (const locale of LOCALES) for (const prefix of SENSITIVE_COPY_PREFIXES) {
