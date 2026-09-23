@@ -61,8 +61,11 @@ export async function api<T>(path: string, init?: RequestInit, options: { redire
     }
     throw new ApiError(401, { error: 'unauthorized' });
   }
-  const body = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  if (!res.ok) throw new ApiError(res.status, body);
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null;
+  if (res.ok && (!body || typeof body !== 'object' || Array.isArray(body))) {
+    throw new ApiError(502, { error: 'invalid-response', message: '服务返回的数据不完整，请稍后重试' });
+  }
+  if (!res.ok) throw new ApiError(res.status, body ?? {});
   return body as T;
 }
 

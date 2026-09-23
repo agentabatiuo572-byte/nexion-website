@@ -12,7 +12,7 @@ import { TranslationProvider } from '../src/lib/translations';
 
 afterEach(() => { cleanup(); vi.useRealTimers(); vi.clearAllMocks(); });
 
-it('refreshes current command progress and does not claim execution continues while polling fails', async () => {
+it('keeps the last valid progress when a poll returns an incomplete success body', async () => {
   vi.useFakeTimers();
   let detail = '正在检查官网配置';
   let disconnected = false;
@@ -20,7 +20,7 @@ it('refreshes current command progress and does not claim execution continues wh
     if (path.endsWith('/preflight')) return {
       ready: false, errors: [], warnings: [], changedPaths: [], changed: 0, sensitiveChanged: [], reasonRequired: false, draftRev: 1,
     };
-    if (disconnected) throw new Error('network disconnected');
+    if (disconnected) return {};
     return {
       activeVersion: 2, stepsOfVersion: 2,
       steps: [{ step: 'gates', status: 'running', detail, started_at: Date.now() - 5000, ended_at: null }],

@@ -38,6 +38,12 @@ interface Status {
   executor: {mode:string;ready:boolean;reason:string;lastSeenAt:number|null};
 }
 
+function assertPublishStatus(status: Status): void {
+  if (!Array.isArray(status?.versions) || !Array.isArray(status?.steps) || typeof status?.executor?.ready !== 'boolean') {
+    throw new Error('发布状态响应不完整');
+  }
+}
+
 const STEP_LABEL: Record<string, string> = { materialize: '准备文案与站点配置', gates: '构建并检查官网', build: '构建后台并组装发布包', swap: '切换新版并核验' };
 /** 检查明细状态徽中文；未知状态兜底显“未知”，不直出英文枚举。 */
 const CHECK_STATUS_LABEL: Record<string, string> = { running: '进行中', ok: '通过', failed: '失败', skipped: '跳过', unknown: '未知' };
@@ -144,6 +150,8 @@ export default function PublishPage() {
     setConfirm(null);
     try {
       const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
+      if (!Array.isArray(p?.errors) || !Array.isArray(p?.warnings)) throw new Error('发布预检响应不完整');
+      assertPublishStatus(s);
       if (!requests.current.isCurrent(ticket)) return null;
       setPre(p); setSt(s); setFailed(false); setPollFailed(false); setLoadError('');
       return { p, s, ticket };
@@ -176,6 +184,7 @@ export default function PublishPage() {
         if (requests.current.pending()) { retry(); return; }
         const ticket = requests.current.current();
         api<Status>('/api/publish/status').then((s) => {
+          assertPublishStatus(s);
           if (stopped) return;
           if (!requests.current.isCurrent(ticket)) { retry(); return; }
           setPollFailed(false);
