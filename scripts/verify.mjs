@@ -37,7 +37,7 @@ export function recordGate(name, pass, detail = []) {
   return entry;
 }
 export async function runGate(name, command, args, options = {}) {
-  // 发布遇到阻断就结束；手动 verify 仍汇总全部问题，不拿未执行的门冒充通过。
+  // 发布遇到阻断就结束；手动 verify 汇总独立检查，过期校准等前置条件除外。
   if (process.argv.includes('--fail-fast')) {
     const failed = results.find((result) => !result.pass);
     if (failed) {
@@ -79,6 +79,11 @@ if (routesIndex >= 0 && !ROUTE_SCOPE) console.log('[verify] 空路由范围：�
 const gitOut = (...a) => { const r = spawnSync('git', ['-C', ROOT, ...a], { encoding: 'utf8' }); return r.status === 0 ? (r.stdout || '').trim() : ''; };
 const treeFingerprint = () => createHash('sha1').update([gitOut('rev-parse', 'HEAD'), gitOut('status', '--porcelain'), gitOut('diff', '--stat')].join('\n')).digest('hex');
 const startFingerprint = treeFingerprint();
+// 开跑即撤销上一次绿证据；中途失败或中断不得留下可推送的旧结论。
+mkdirSync(join(ROOT, '.verify-cache'), { recursive: true });
+writeFileSync(join(ROOT, '.verify-cache', 'last-run.json'), JSON.stringify({
+  mode: routesIndex >= 0 ? 'scoped' : 'full', verdict: 'fail', at: new Date().toISOString(),
+}) + '\n');
 
 // 所有正式产物门读同一份 dist；发布执行器用完整摘要声明其已构建，独立 verify 则先构建。
 let artifact;
@@ -357,6 +362,17 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   const re = regexEscapeGate(ROOT, rel);
   results.push(re);
   console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: re.gate, status: re.pass ? 'ok' : 'failed' }));
+}
+
+// 校准过期是静态事实；先拦下，避免浏览器门跑完才发现记录不能用于后台提示。
+{
+  const r = await runGate('文案长度校准记录', process.execPath,
+    [join(ROOT, 'scripts', 'calibrate-copy-layout.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8' });
+  if (r.status !== 0) {
+    console.error('[verify] ✗ copy-layout-calibration：校准检查失败；若记录过期，请运行 node scripts/calibrate-copy-layout.mjs --write 后重试。');
+    process.exit(2);
+  }
+  results.push({ gate: 'copy-layout-calibration(静态)', pass: true, detail: [] });
 }
 
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
