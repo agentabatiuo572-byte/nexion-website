@@ -204,6 +204,9 @@ if (process.argv.includes('--self-test')) {
   say(checkAuditLabels().length === 0, 'self-test:真实的动作码与人话表全对得上');
   const failureSource = (text) => [{ file: 'failure.tsx', text }];
   say(checkFailReasonConsumers(failureSource('<div>{v.fail_reason}</div>')).length === 1, 'self-test:失败原因直接渲染 → 被抓');
+  say(checkFailReasonConsumers(failureSource("      && (v.fail_reason === null || typeof v.fail_reason === 'string')")).length === 0, 'self-test:失败原因类型校验不是渲染 → 不误报');
+  say(checkFailReasonConsumers(failureSource("<div>{typeof v.fail_reason === 'string' ? v.fail_reason : ''}</div>")).length === 1, 'self-test:JSX 内类型判断后直出仍被抓');
+  say(checkFailReasonConsumers(failureSource("setError(typeof v.fail_reason === 'string' ? v.fail_reason : '')")).length === 1, 'self-test:类型判断后传给界面的原文仍被抓');
   say(checkFailReasonConsumers(failureSource('<div>{failReasonLine(v.fail_reason)}</div>')).length === 0, 'self-test:失败原因经过单行译名 → 不误报');
   say(checkFailReasonConsumers(failureSource('{v.fail_reason ? (() => {\nconst f = splitFailReason(v.fail_reason);\nreturn <div>{f.human}</div>;\n})() : null}')).length === 0, 'self-test:失败原因经过分层译名 → 不误报');
   say(checkFailReasonConsumers(failureSource("const advice = publishFailureAdvice([v.fail_reason, step.detail].filter(Boolean).join('\\n'));\n<p>{advice.reason}</p>\n<details><summary>技术详情</summary><pre>{advice.raw}</pre></details>")).length === 0, 'self-test:失败原因经过发布建议译名并折叠原文 → 不误报');
@@ -359,6 +362,7 @@ function checkFailReasonConsumers(sources) {
       if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*') || t.startsWith('{/*')) return;
       if (!/fail_reason|lastPublishFailed\.reason/.test(line)) return;
       if (/interface |: string \| null|type /.test(line)) return; // 类型声明不是渲染点
+      if (/^\s*&&\s*\(v\.fail_reason === null \|\| typeof v\.fail_reason === 'string'\)\s*$/.test(line)) return; // 仅跳过这条纯布尔形状校验
       /* 窗口 ±3 行:`{v.fail_reason ? (() => {` 这种条件判断会把取值与译名调用分到两行,
          判据卡在同一行就会对**正确写法**报红(本文件判据② 栽过两次的同一个坑)。 */
       const near = lines.slice(Math.max(0, i - 3), i + 4).join('\n');
