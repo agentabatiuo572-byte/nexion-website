@@ -89,9 +89,11 @@ const RULE_LABEL: Record<string, string> = {
   'all-hidden': '设备板块全隐藏', 'min-visible': 'FAQ 可见不足 3 条', 'dup-id': 'FAQ id 重复', window: '公告时间窗',
   structure: '数据结构', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
   'translation-stale': '译文待更新', 'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符',
+  'too-long': '译文超长', 'translation-envelope': 'AI 格式包装', 'stale-brand': '旧品牌名',
+  link: '译文链接不一致', markup: '译文标记结构不一致',
   'growth-noop': '自动增长没配增量', 'growth-future': '自动增长起算日在未来', 'growth-too-fast': '自动增长过快',
 };
-// 本表必须与 schema/src/validators.ts 的规则集**双向**相等 —— 由 gate-config-consistency 断言。
+// 本表必须与发布预检实际产出的规则集**双向**相等 —— 由 gate-config-consistency 断言。
 // (曾出现凭空多一个 'all-hidden-sku':校验器从不产出,纯死键;真正的键叫 'all-hidden'。)
 /** 红项 → 该去哪个页面修 */
 
