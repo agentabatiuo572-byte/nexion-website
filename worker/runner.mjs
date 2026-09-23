@@ -288,8 +288,8 @@ async function main() {
         if (failed) firstCommandFailure ??= new Error(`命令失败（${path.basename(command.command)}，exit ${command.code}）：${redact(commandTail).slice(-5000)}`);
         writeEvidence({ command, output: commandTail, ...(firstCommandFailure ? { error: firstCommandFailure.message } : {}) });
         log(`v${job.versionId} ${command.phase === 'start' ? '开始' : command.terminationUnconfirmed ? '停止处理中' : '结束'}：${path.basename(command.command)} ${command.args.join(' ')}${command.phase === 'end' ? ` (${Math.round(command.durationMs / 1000)} 秒，exit ${command.code})` : ''}`);
-        if (failed) evidenceAbort.abort(firstCommandFailure);
-        else if (command.phase === 'end' && !signal.aborted) void flushProgress();
+        // The child has exited. Keep reporting alive until runJob writes its failed check.
+        if (command.phase === 'end' && !failed && !signal.aborted) void flushProgress();
       },
       onOutput: (value) => {
         commandTail = (commandTail + value).slice(-32000);

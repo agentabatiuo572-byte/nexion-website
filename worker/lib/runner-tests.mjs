@@ -1054,7 +1054,8 @@ test('publish verify stops at the first blocking gate while manual verify still 
       const stdout=new PassThrough(),stderr=new PassThrough();
       queueMicrotask(()=>{
         const failed=args.some(arg=>arg.endsWith('gate-site-behavior.mjs'));
-        if(!failed)writeFileSync('later-gate-ran','yes');
+        if(args.some(arg=>arg.endsWith('calibrate-copy-layout.mjs')))writeFileSync('early-gate-ran','yes');
+        if(args.some(arg=>arg.endsWith('gate-css-shadowed.mjs')))writeFileSync('later-gate-ran','yes');
         const text=failed?'INJECTED_BEHAVIOR_FAILURE':'1 pass';
         stdout.end(text);stderr.end();callback(failed?{code:2}:null,text,'');
       });
@@ -1068,6 +1069,7 @@ test('publish verify stops at the first blocking gate while manual verify still 
   assert.match(fast.output, /INJECTED_BEHAVIOR_FAILURE/);
   assert.match(fast.output, /后续检查未执行/);
   assert.equal((await readFile(path.join(workspace.site, '.verify-exit.code'), 'utf8')).trim(), '2');
+  assert.equal(await readFile(path.join(workspace.site, 'early-gate-ran'), 'utf8'), 'yes');
   await assert.rejects(readFile(path.join(workspace.site, 'later-gate-ran')));
   const full = await runCommand(process.execPath, args, { cwd: workspace.site });
   assert.equal(full.code, 2, full.output);

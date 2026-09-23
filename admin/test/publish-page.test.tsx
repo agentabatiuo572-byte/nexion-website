@@ -373,6 +373,114 @@ it('renders grouped check details with Chinese badges and collapsible failure ou
   expect(screen.getByRole('button', { name: '重新发布' })).toBeTruthy();
 });
 
+it('shows interrupted historical checks as stopped without counting them as complete', async () => {
+  const st = status();
+  st.stepsOfVersion = 33;
+  st.steps = [{ step: 'gates', status: 'failed', detail: '执行器中断', started_at: 1, ended_at: 2 }];
+  st.versions = [{ ...st.versions[0], id: 33, status: 'failed', fail_reason: '执行器中断', created_at: 33 }];
+  const checks = [
+    ...Array.from({ length: 17 }, (_, index) => ({ version_id: 33, step: 'gates', seq: index + 1,
+      title: `检查 ${index + 1}`, status: 'ok', output: null, started_at: 1, ended_at: 2 })),
+    { version_id: 33, step: 'gates', seq: 18, title: 'worker-types', status: 'running', output: null, started_at: 2, ended_at: null },
+    { version_id: 33, step: 'gates', seq: 19, title: 'publisher-故障回归', status: 'running', output: null, started_at: 2, ended_at: null },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 33, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  const progress = await screen.findByRole('progressbar', { name: '检查完成进度' });
+  expect(progress.getAttribute('aria-valuenow')).toBe('17');
+  expect(screen.getByText('已完成 17 / 19 项 · 17 通过')).toBeTruthy();
+  const window = screen.getByRole('region', { name: '当前检查窗口' });
+  const publisher = [...window.querySelectorAll('[data-publish-check-row]')].find(row => row.textContent?.includes('发布器回归检查'));
+  expect(publisher?.getAttribute('data-state')).toBe('unknown');
+  expect(publisher?.textContent).toContain('已停止/待核实');
+  expect(window.textContent).not.toContain('进行中');
+  fireEvent.click(screen.getByText('查看全部 19 项检查'));
+  const allPublisher = [...document.querySelectorAll('.publisher-all-check-row')].find(row => row.textContent?.includes('发布器回归检查'));
+  expect(allPublisher?.getAttribute('data-state')).toBe('unknown');
+  expect(allPublisher?.textContent).toContain('已停止/待核实');
+});
+
+it('keeps matching checks running while their publication is live', async () => {
+  const st = status(); st.activeVersion = 33; st.stepsOfVersion = 33;
+  st.steps = [{ step: 'gates', status: 'running', detail: null, started_at: 1, ended_at: null }];
+  st.versions = [{ ...st.versions[0], id: 33, status: 'publishing', fail_reason: null, created_at: 33 }];
+  const checks = [{ version_id: 33, step: 'gates', seq: 1, title: 'publisher-故障回归', status: 'running',
+    output: null, started_at: 1, ended_at: null }];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 33, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  const window = await screen.findByRole('region', { name: '当前检查窗口' });
+  const publisher = window.querySelector('[data-publish-check-row]');
+  expect(publisher?.getAttribute('data-state')).toBe('running');
+  expect(publisher?.textContent).toContain('进行中');
+  expect(screen.queryByText('已停止/待核实')).toBeNull();
+  expect(screen.getByRole('progressbar', { name: '检查完成进度' }).getAttribute('aria-valuenow')).toBe('0');
+});
+
+it('treats an unknown version as uncertain while its same-version lock and swap rows remain running', async () => {
+  const st = status(); st.activeVersion = 33; st.stepsOfVersion = 33;
+  st.steps = [{ step: 'swap', status: 'running', detail: null, started_at: 1, ended_at: null }];
+  st.versions = [{ ...st.versions[0], id: 33, status: 'unknown', fail_reason: null, created_at: 33 }];
+  let checks = [{ version_id: 33, step: 'swap', seq: 1, title: 'publisher-故障回归', status: 'running',
+    output: null, started_at: 1, ended_at: null }];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 33, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  expect(await screen.findByRole('heading', { name: '发布状态待核实 v33' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: '正在发布 v33' })).toBeNull();
+  expect(screen.getByText('结果待核实')).toBeTruthy();
+  expect(screen.queryByText(/服务持续报告运行状态/)).toBeNull();
+  expect(screen.queryByRole('button', { name: '中止本次发布' })).toBeNull();
+  expect(document.querySelector('[aria-label="切换新版并核验：待核实"]')?.getAttribute('data-state')).toBe('unknown');
+  const row = screen.getByRole('region', { name: '当前检查窗口' }).querySelector('[data-publish-check-row]');
+  expect(row?.getAttribute('data-state')).toBe('unknown');
+  expect(row?.textContent).toContain('已停止/待核实');
+  expect(screen.getByRole('progressbar', { name: '检查完成进度' }).getAttribute('aria-valuenow')).toBe('0');
+  fireEvent.click(screen.getByText('查看全部 1 项检查'));
+  expect(document.querySelector('.publisher-all-check-row')?.textContent).toContain('已停止/待核实');
+
+  checks = [];
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '刷新发布状态' })); });
+  const legacy = [...screen.getByRole('region', { name: '当前检查窗口' }).querySelectorAll('[data-publish-check-row]')]
+    .find(row => row.textContent?.includes('切换新版并核验'));
+  expect(legacy?.getAttribute('data-state')).toBe('unknown');
+  expect(legacy?.textContent).toContain('待核实');
+  expect(screen.queryByText(/检查明细稍后出现/)).toBeNull();
+
+  st.activeVersion = null;
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: '刷新发布状态' })); });
+  expect(document.querySelector('[aria-label="切换新版并核验：待核实"]')?.getAttribute('data-state')).toBe('unknown');
+  expect(screen.getByRole('region', { name: '当前检查窗口' }).textContent).toContain('待核实');
+  expect(screen.queryByRole('heading', { name: '正在发布 v33' })).toBeNull();
+});
+
+it('stops an unfinished check from a completed step while the next step runs', async () => {
+  const st = status(); st.activeVersion = 33; st.stepsOfVersion = 33;
+  st.steps = [
+    { step: 'gates', status: 'ok', detail: null, started_at: 1, ended_at: 2 },
+    { step: 'build', status: 'running', detail: null, started_at: 2, ended_at: null },
+  ];
+  st.versions = [{ ...st.versions[0], id: 33, status: 'publishing', fail_reason: null, created_at: 33 }];
+  const checks = [
+    { version_id: 33, step: 'gates', seq: 1, title: 'publisher-故障回归', status: 'running', output: null, started_at: 1, ended_at: null },
+    { version_id: 33, step: 'build', seq: 2, title: 'site-build', status: 'running', output: null, started_at: 2, ended_at: null },
+  ];
+  mocks.api.mockImplementation(async (path: string) => path.endsWith('/preflight') ? preflight() :
+    { ...st, checksOfVersion: 33, checks });
+  render(<MemoryRouter><PublishPage /></MemoryRouter>);
+
+  const window = await screen.findByRole('region', { name: '当前检查窗口' });
+  const [finishedStepCheck, liveStepCheck] = window.querySelectorAll('[data-publish-check-row]');
+  expect(finishedStepCheck.getAttribute('data-state')).toBe('unknown');
+  expect(finishedStepCheck.textContent).toContain('已停止/待核实');
+  expect(liveStepCheck.getAttribute('data-state')).toBe('running');
+  expect(liveStepCheck.textContent).toContain('进行中');
+});
+
 it('keeps the legacy step window when checks are empty and shows a retry placeholder', async () => {
   const st = status(); st.activeVersion = 2; st.versions = [];
   (st as unknown as Record<string, unknown>).checksOfVersion = 2;

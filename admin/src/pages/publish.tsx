@@ -331,6 +331,8 @@ export default function PublishPage() {
   // 当前任务心跳与输出更新时间不同；安静的长检查仍会续租。
   const taskDisconnected = !!active && !pollFailed && st.stepsOfVersion === active && st.steps.length > 0
     && typeof st.silentMs === 'number' && Number.isFinite(st.silentMs) && st.silentMs >= 60_000;
+  const activeUnknown = active !== null && st.versions.some((v) => v.id === active && v.status === 'unknown');
+  const activeUncertain = activeUnknown || taskDisconnected || pollFailed;
   const lastFailed = st.versions.find((v) => v.status === 'failed');
   const unknown = st.versions.some((v) => v.status === 'unknown');
   const showFailure = !active && lastFailed && lastFailed.id > (st.versions.find(v => v.status === 'live')?.id ?? 0);
@@ -360,12 +362,21 @@ export default function PublishPage() {
   const failedChecks = checkGroups.flatMap((group) => group.items.filter((item) => item.status === 'failed'));
   /* 进度按收口后计数：groupPublishChecks 已按 (step,title) 留最新 seq，running+ok 双行不虚高。 */
   const coalescedChecks = checkGroups.flatMap((group) => group.items);
+  // 旧任务可能在记录终态前中断；只修正显示，不改检查结果或完成数。
+  const stoppedCheck = (item: PublishCheck) => item.status === 'running'
+    && ((st.stepsOfVersion === item.version_id && st.steps.some((step) => step.step === item.step
+      && ['ok', 'failed', 'skipped', 'cancelled', 'unknown'].includes(step.status)))
+      || st.versions.some((version) => version.id === item.version_id
+        && (version.status === 'unknown' || (active !== item.version_id
+          && ['live', 'archived', 'failed', 'cancelled'].includes(version.status)))));
   const passedChecks = coalescedChecks.filter((item) => item.status === 'ok').length;
   const skippedChecks = coalescedChecks.filter((item) => item.status === 'skipped').length;
   const completedChecks = passedChecks + skippedChecks + failedChecks.length;
-  const activeElapsed = activeStarts.length ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
+  const activeElapsed = activeStarts.length && !activeUnknown ? Math.max(0, Math.round((Date.now() - Math.min(...activeStarts)) / 1000)) : 0;
   const phaseNames = st.stepNames.length ? st.stepNames : ['materialize', 'gates', 'build', 'swap'];
   const consoleVersion = active ?? st.checksOfVersion ?? st.stepsOfVersion ?? liveVersion?.id ?? null;
+  const consoleUnknown = consoleVersion !== null && st.versions.some((v) => v.id === consoleVersion && v.status === 'unknown');
+  const consoleUncertain = activeUncertain || consoleUnknown;
   const phaseStep = (name: string) => st.stepsOfVersion === consoleVersion ? st.steps.find((step) => step.step === name) : undefined;
   const displayedStep = (name: string) => active ? stepDone(name) : phaseStep(name);
   const visibleChecks = coalescedChecks.slice(-3);
@@ -380,15 +391,15 @@ export default function PublishPage() {
   const historicalFailed = hasHistoricalSteps && phaseNames.some(name => displayedStep(name)?.status === 'failed');
   const historicalComplete = hasHistoricalSteps && phaseNames.every(name => displayedStep(name)?.status === 'ok');
   const consoleHeading = active
-    ? taskDisconnected || pollFailed ? `发布状态待核实 v${active}` : `正在发布 v${active}`
+    ? consoleUncertain ? `发布状态待核实 v${active}` : `正在发布 v${active}`
     : consoleVersion && coalescedChecks.length ? `最近一次检查 · v${consoleVersion}`
     : hasHistoricalSteps ? `${historicalFailed ? '最近一次执行失败' : '最近一次执行'} · v${consoleVersion}` : '发布器待命';
   const consoleDescription = active
-    ? '完成项自动向上移出，当前窗口只保留最近三项真实检查。'
+    ? activeUnknown ? '切换结果尚未确认；这里保留最后收到的检查记录。' : '完成项自动向上移出，当前窗口只保留最近三项真实检查。'
     : coalescedChecks.length ? '显示最近一次真实检查记录；新发布开始后会自动切换到实时进度。' : '发起发布后，这里会显示真实检查进度、失败位置和最终核验结果。';
-  const consoleState = active ? taskDisconnected || pollFailed ? 'unknown' : 'running'
+  const consoleState = active ? consoleUncertain ? 'unknown' : 'running'
     : unknown ? 'unknown' : historicalFailed ? 'failed' : historicalComplete ? 'ok' : 'idle';
-  const consoleStateText = active ? taskDisconnected || pollFailed ? '结果待核实' : '执行中'
+  const consoleStateText = active ? consoleUncertain ? '结果待核实' : '执行中'
     : unknown ? '结果待核实' : historicalFailed ? '执行失败' : historicalComplete ? '执行完成' : hasHistoricalSteps ? '最近记录' : '等待任务';
   return (
     <section className="editor-page">
@@ -411,7 +422,8 @@ export default function PublishPage() {
           {phaseNames.map((name, i) => {
             const step = phaseStep(name);
             const state = step?.status === 'ok' ? 'done' : step?.status === 'failed' ? 'failed'
-              : step?.status === 'running' ? taskDisconnected || pollFailed ? 'unknown' : 'doing' : active ? 'todo' : 'idle';
+              : step?.status === 'unknown' ? 'unknown'
+                : step?.status === 'running' ? consoleUncertain ? 'unknown' : 'doing' : active ? 'todo' : 'idle';
             const stateWord = state === 'done' ? '完成' : state === 'failed' ? '失败' : state === 'doing' ? '进行中'
               : state === 'unknown' ? '待核实' : state === 'todo' ? '未开始' : '待命';
             return <li key={name} data-state={state} aria-label={`${STEP_LABEL[name] ?? name}：${stateWord}`}>
@@ -439,20 +451,21 @@ export default function PublishPage() {
           </div>
 
           <div className="publisher-check-window" role="region" aria-label="当前检查窗口" aria-live="polite">
-            {visibleChecks.map((item) => <div className="publisher-check-row" data-publish-check-row="" data-state={item.status} key={item.seq}>
-              <PublishStateIcon status={item.status} />
+            {visibleChecks.map((item) => <div className="publisher-check-row" data-publish-check-row="" data-state={stoppedCheck(item) ? 'unknown' : item.status} key={item.seq}>
+              <PublishStateIcon status={stoppedCheck(item) ? 'unknown' : item.status} />
               <span className="publisher-check-copy">
                 <span className="publisher-check-title"><span>{String(Math.max(1, coalescedChecks.indexOf(item) + 1)).padStart(2, '0')}</span>{normalizeCheckTitle(item.title)}</span>
                 <small>{STEP_LABEL[item.step] ?? item.step}</small>
               </span>
-              <span className="publisher-check-state">{CHECK_STATUS_LABEL[item.status] ?? '未知'}</span>
+              <span className="publisher-check-state">{stoppedCheck(item) ? '已停止/待核实' : CHECK_STATUS_LABEL[item.status] ?? '未知'}</span>
             </div>)}
             {!coalescedChecks.length && legacyWindow.map((name) => {
               const step = displayedStep(name);
               const progress = decodePublishProgress(step?.detail);
               const status = step?.status === 'ok' ? 'ok' : step?.status === 'failed' ? 'failed'
-                : step?.status === 'running' ? taskDisconnected || pollFailed ? 'unknown' : 'running' : 'unknown';
-              const secs = step?.started_at ? Math.round(((step.ended_at ?? Date.now()) - step.started_at) / 1000) : 0;
+                : step?.status === 'running' ? consoleUncertain ? 'unknown' : 'running' : 'unknown';
+              const secs = step?.started_at && !(consoleUnknown && step.status === 'running')
+                ? Math.round(((step.ended_at ?? Date.now()) - step.started_at) / 1000) : 0;
               return <div className="publisher-check-row legacy" data-publish-check-row="" data-state={status} key={name}>
                 <PublishStateIcon status={status} />
                 <span className="publisher-check-copy">
@@ -464,7 +477,9 @@ export default function PublishPage() {
                   </>}
                 </span>
                 <span className="publisher-check-state">
-                  {step?.status === 'ok' ? '完成' : step?.status === 'failed' ? '失败' : step?.status === 'running' ? taskDisconnected || pollFailed ? '待核实' : '进行中' : '等待'}
+                  {step?.status === 'ok' ? '完成' : step?.status === 'failed' ? '失败'
+                    : step?.status === 'unknown' || (step?.status === 'running' && consoleUncertain) ? '待核实'
+                      : step?.status === 'running' ? '进行中' : '等待'}
                   {step && secs > 2 && <small>{secs < 60 ? `${secs} 秒` : `${Math.floor(secs / 60)} 分 ${secs % 60} 秒`}</small>}
                 </span>
               </div>;
@@ -477,9 +492,9 @@ export default function PublishPage() {
             <div className="publisher-all-checks-list">
               {checkGroups.map((group) => <section key={group.step} aria-label={STEP_LABEL[group.step] ?? group.step}>
                 <h4>{STEP_LABEL[group.step] ?? group.step} · {group.items.filter((item) => item.status === 'ok').length}/{group.items.length} 通过</h4>
-                {group.items.map((item) => <div className="publisher-all-check-row" data-state={item.status} key={item.seq}>
-                  <PublishStateIcon status={item.status} />
-                  <div><b>{normalizeCheckTitle(item.title)}</b><small>{CHECK_STATUS_LABEL[item.status] ?? '未知'}</small>
+                {group.items.map((item) => <div className="publisher-all-check-row" data-state={stoppedCheck(item) ? 'unknown' : item.status} key={item.seq}>
+                  <PublishStateIcon status={stoppedCheck(item) ? 'unknown' : item.status} />
+                  <div><b>{normalizeCheckTitle(item.title)}</b><small>{stoppedCheck(item) ? '已停止/待核实' : CHECK_STATUS_LABEL[item.status] ?? '未知'}</small>
                     {item.status === 'failed' && item.output && <details>
                       <summary>查看失败原文</summary>
                       <pre className="mono">{item.output}</pre>
@@ -489,11 +504,11 @@ export default function PublishPage() {
               </section>)}
             </div>
           </details>}
-          {!coalescedChecks.length && active && st.steps.length > 0 && <div className="publisher-console-notice" role="status">
+          {!coalescedChecks.length && active && !activeUnknown && st.steps.length > 0 && <div className="publisher-console-notice" role="status">
             检查明细稍后出现。门级检查开始后，这里会按分组列出每一项结果。
             <button className="publisher-console-link" onClick={load}>重新加载明细</button>
           </div>}
-          {failedChecks.length > 0 && active && <div className="publisher-console-result failed">
+          {failedChecks.length > 0 && active && !activeUnknown && <div className="publisher-console-result failed">
             <span>有 {failedChecks.length} 项检查未通过，本次任务停止后可重新发布。</span>
             <button className="publisher-console-link" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新发布</button>
           </div>}
@@ -527,18 +542,18 @@ export default function PublishPage() {
 
       {active && taskDisconnected && <div className="note warn" role="status">
         <p>本次执行器已超过 1 分钟未报告心跳，发布结果待核实。</p>
-        <p>系统会继续刷新状态。请等待确认停止后再重新检查并发布，最后收到的检查内容已保留。</p>
+        <p>系统会继续刷新状态。请等待系统核实结果后再重新检查并发布，最后收到的检查内容已保留。</p>
         <button className="btn ghost sm" onClick={load}>刷新状态</button>
       </div>}
-      {active && st.steps.length === 0 && <div className="note warn">
+      {active && !activeUnknown && st.steps.length === 0 && <div className="note warn">
         已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。
         <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
       </div>}
-      {active && st.steps.length > 0 && !forcing && <div className="note">
+      {active && !activeUnknown && st.steps.length > 0 && !forcing && <div className="note">
         执行器没反应了?<button className="btn ghost sm" onClick={cancel}>中止本次发布</button>
-        {!pollFailed && !taskDisconnected && <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>}
+        {!activeUncertain && <span className="kv">服务持续报告运行状态；检查可能需要数分钟。</span>}
       </div>}
-      {active && forcing && <div className="note bad">
+      {active && !activeUnknown && forcing && <div className="note bad">
         <b>强制中止 v{active}</b>
         <div className="kv">执行器已失联。中止后这一版记为<b>已取消</b>、线上保持不变,可以重新发起。理由会记进审计。</div>
         <div className="kv">中止后系统会撤销本次执行权限；发布服务确认权限失效后停止操作。</div>

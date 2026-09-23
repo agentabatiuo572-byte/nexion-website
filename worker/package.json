@@ -8,7 +8,7 @@
     "dev": "wrangler d1 migrations apply nexgrid_site --local && wrangler dev",
     "pretest": "node --no-maglev test-ai-runtime.mjs",
     "test": "vitest run",
-    "test:publisher": "node --test lib/runner-tests.mjs runner-tests/production-config.test.mjs runner-tests/publish-readiness.test.mjs runner-tests/publish-actions.test.mjs",
+    "test:publisher": "node --test lib/runner-tests.mjs lib/runner-checks.test.mjs runner-tests/production-config.test.mjs runner-tests/publish-readiness.test.mjs runner-tests/publish-actions.test.mjs",
     "test:red-d1": "vitest run --config vitest.red-d1.config.ts",
     "typecheck": "tsc --noEmit",
     "postinstall": "wrangler types",
