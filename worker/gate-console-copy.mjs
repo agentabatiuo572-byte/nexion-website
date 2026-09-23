@@ -90,18 +90,17 @@ function scan(files) {
            再补一个真正该翻译的枚举,门看不见。
            改法:逐个渲染点看它**自己**前面紧挨着的是不是映射表下标 —— 判据问的是
            「这个点过没过映射」,不是「这一行里出现过映射吗」。 */
-        const asFormValue = /value=\{\s*[A-Za-z_$][\w.$]*\.(status|action|state|kind|type)\s*\}/.test(line);
-        if (!asFormValue) {
-          for (const m of line.matchAll(/\{\s*([A-Za-z_$][\w.$]*)\.(status|action|state|kind|type)\s*\}/g)) {
-            // 该渲染点之前 24 字符内出现 `TABLE[` 才算过了映射(`{LABEL[r.action] ?? r.action}` 的兜底半边同理豁免)
-            const before = line.slice(Math.max(0, m.index - 24), m.index);
-            if (/\[[^\]]*$/.test(before) || /\?\?\s*$/.test(before)) continue;
-            /* 模板字符串的插值 `${x}` 不是 JSX 渲染点:`\`状态未知(${s.status})\`` 是
-               **缺映射时的正确兜底写法**(人话包着原值),按渲染点判会把它误报成裸枚举。
-               判据看紧邻的那个字符,不是维护一张例外清单。 */
-            if (before.endsWith('$')) continue;
-            out.push({ file, line: i + 1, why: `机器枚举值 {${m[1]}.${m[2]}} 直接渲染给人看;先过映射表(缺映射时也要说「状态未知」而不是吐原词)`, code: t.slice(0, 110) });
-          }
+        for (const m of line.matchAll(/\{\s*([A-Za-z_$][\w.$]*)\.(status|action|state|kind|type)\s*\}/g)) {
+          // 该渲染点之前 24 字符内出现 `TABLE[` 才算过了映射(`{LABEL[r.action] ?? r.action}` 的兜底半边同理豁免)
+          const before = line.slice(Math.max(0, m.index - 24), m.index);
+          const attr = /([A-Za-z][\w:-]*)=\s*$/.exec(before)?.[1];
+          if (attr && !/^(?:title|aria-label|placeholder|alt)$/.test(attr)) continue;
+          if (/\[[^\]]*$/.test(before) || /\?\?\s*$/.test(before)) continue;
+          /* 模板字符串的插值 `${x}` 不是 JSX 渲染点:`\`状态未知(${s.status})\`` 是
+             **缺映射时的正确兜底写法**(人话包着原值),按渲染点判会把它误报成裸枚举。
+             判据看紧邻的那个字符,不是维护一张例外清单。 */
+          if (before.endsWith('$')) continue;
+          out.push({ file, line: i + 1, why: `机器枚举值 {${m[1]}.${m[2]}} 直接渲染给人看;先过映射表(缺映射时也要说「状态未知」而不是吐原词)`, code: t.slice(0, 110) });
         }
         // 形态②:三元的两个分支,一边人话一边机器词 —— 作者在写文案,漏翻了一半
         for (const m of line.matchAll(/\?\s*'([^']+)'\s*:\s*'([^']+)'/g)) {
@@ -114,13 +113,12 @@ function scan(files) {
       // 形态①:`const x = … ? '机器词' : '机器词'`,而 x 后来被直接渲染成 `{x}`
       const decl = line.match(/(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=[^;]*\?\s*'([a-z][a-z0-9-]*)'\s*:\s*'([a-z][a-z0-9-]*)'/);
       if (decl && !exempt) {
-        // 🔴 `{x}` 写在 `data-*` 属性里不算渲染(2026-09-15 staging 实锤误报):
-        // data-* 是给 CSS/JS 读的状态钩子(R49-F2 要求它们有消费方),不是印给人看的文本。
-        // publish.tsx 的 `data-state={state}` 因此被误报,连带恒红整条发布链。
-        // 只豁免 data-*:title/aria-label/placeholder 等仍是渲染点,照抓。
+        // 🔴 `{x}` 写在状态、图标或样式属性里不算渲染;这些值给 CSS/JS 读,不是印给人看的文本。
+        // 机器值传给属性或模板插值不算正文;title/aria-label/placeholder/alt 仍给人看。
         const uses = [...text.matchAll(new RegExp(`\\{\\s*${decl[1]}\\s*\\}`, 'g'))].filter((m) => {
           const before = text.slice(Math.max(0, m.index - 32), m.index);
-          return !/data-[\w-]*=\s*$/.test(before);
+          const attr = /([A-Za-z][\w:-]*)=\s*$/.exec(before)?.[1];
+          return !before.endsWith('$') && (!attr || /^(?:title|aria-label|placeholder|alt)$/.test(attr));
         });
         if (uses.length) out.push({ file, line: i + 1, why: `变量 ${decl[1]} 存的是机器词('${decl[2]}'/'${decl[3]}'),却被直接渲染成 {${decl[1]}};存人话或过映射表`, code: t.slice(0, 110) });
       }
@@ -167,6 +165,9 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: '<td>{r.status}</td>' }]).length === 1, 'self-test:裸枚举 {r.status} → 被抓');
   say(scan([{ file: 'f.tsx', text: '<td>{LABEL[r.status] ?? r.status}</td>' }]).length === 0, 'self-test:过了映射表的写法 → 不误报');
   say(scan([{ file: 'f.tsx', text: '<select value={s.status}>' }]).length === 0, 'self-test:表单 value → 不误报');
+  say(scan([{ file: 'f.tsx', text: '<div data-state={r.status} title={s.status}><b>{row.status}</b></div>' }]).length === 2, 'self-test:同一行属性传值跳过，title 与正文仍报红');
+  say(scan([{ file: 'f.tsx', text: '<Icon status={r.status}/><div className={r.status} />' }]).length === 0, 'self-test:组件和样式属性传值 → 不误报');
+  say(scan([{ file: 'f.tsx', text: '<input value={r.status}/><b>{row.status}</b>' }]).length === 1, 'self-test:表单值不掩盖同行正文泄漏');
   say(scan([{ file: 'f.tsx', text: '<td>{r.status}</td> {/* enum-ok:这列就要看原值 */}' }]).length === 0, 'self-test:逃生阀 enum-ok → 放行');
   /* 判据② 的豁免范围:整行豁免会让「同行映射 + 同行裸枚举」隐形(第十轮 P1-6),
      而那个形状在仓里天天被走 —— 所以豁免必须按渲染点判。 */
@@ -183,6 +184,7 @@ if (process.argv.includes('--self-test')) {
   say(scan([{ file: 'f.tsx', text: "const L = { 'forbidden-word': '合规禁用词', 'dup-id': 'FAQ id 重复' };" }]).length === 0, 'self-test:映射表的键(正确写法本身)→ 不误报');
   say(scan([{ file: 'f.tsx', text: "const state = ok ? 'done' : 'todo';\n<li data-state={state} aria-label=\"ok\">x</li>" }]).length === 0, 'self-test:data-* 属性里的 {state} 是状态钩子 → 不误报');
   say(scan([{ file: 'f.tsx', text: "const state = ok ? 'done' : 'todo';\n<li data-state={state} title={state}>x</li>" }]).length === 1, 'self-test:同行 data-* 合法但 title 直出 → 仍被抓');
+  say(scan([{ file: 'f.tsx', text: "const state = ok ? 'running' : 'failed';\n<Icon status={state} /><div className={\`publish-${state}\`}>运行</div>" }]).length === 0, 'self-test:机器词只作图标和样式属性 → 不误报');
   say(scan([{ file: 'f.tsx', text: "const win = a.enabled ? 'live' : 'disabled';\napi(win);" }]).length === 0, 'self-test:同样的变量只传给接口、不渲染 → 不误报');
   // 判据③:带了参数没人读 → 被抓;有人读 → 不误报
   const orphan = [{ file: 'a.tsx', text: 'to={`/x?focus=${p}`}' }];
@@ -218,7 +220,7 @@ if (process.argv.includes('--self-test')) {
      肉眼看「✗ 0」会以为全过(2026-09-01 实测:一个 ReferenceError 让断言从 33 掉到 28,
      而输出里一个 ✗ 都没有)。少于下限即判门坏 —— 这是「先证起点」在自检自身上的应用。
      加断言时把这个数一起提上去。 */
-  const MIN_ASSERTS = 47;
+  const MIN_ASSERTS = 51;
   if (asserts < MIN_ASSERTS) {
     console.error(`✗ 自检只跑了 ${asserts} 条断言(下限 ${MIN_ASSERTS})—— 多半是中途崩了;失败 0 不等于全过`);
     process.exit(3);
