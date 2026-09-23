@@ -19,6 +19,8 @@ import { parseJsonc } from './lib/read-jsonc.mjs';
 
 const ASTRO_TEXT = read('../astro.config.mjs');
 const VALIDATOR_TEXT = read('../schema/src/validators.ts');
+const DRAFT_FIELDS_TEXT = read('../schema/src/draft-fields.ts');
+const TRANSLATION_STATE_TEXT = read('src/translation-state.ts');
 const LABEL_TEXT = read('../admin/src/pages/publish.tsx');
 
 let fails = 0;
@@ -27,7 +29,7 @@ const say = (ok, msg) => {
   if (!ok) fails++;
 };
 
-function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText = VALIDATOR_TEXT, labelText = LABEL_TEXT) {
+function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText = VALIDATOR_TEXT, labelText = LABEL_TEXT, draftFieldsText = DRAFT_FIELDS_TEXT, translationStateText = TRANSLATION_STATE_TEXT) {
   // 读不动就明说读不动在哪一处,别只抛一段栈(第四轮 P2-12);parseJsonc 会带出出错位置附近的原文
   let cfg;
   try {
@@ -75,10 +77,14 @@ function check(cfgText, srcText, migFiles, astroText = ASTRO_TEXT, validatorText
      缺映射 → 用户看到机器规则名;多映射 → 死键(曾凭空多出一个校验器从不产出的 'all-hidden-sku')。 */
   /* 规则名允许数字:此前 [a-z-]+ 让 'h1-count' / 'seo-length2' 这类命名对本门**完全隐形**——
      不是判错,是根本没看见,而没看见的东西不会让任何断言变红(第四轮 P2-10 提出、第五轮 P1-3 证明未落地)。 */
-  const rules = [...new Set([...validatorText.matchAll(/rule:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]))];
+  const sharedBlock = /export function validateTranslationValue[\s\S]*?^}/m.exec(draftFieldsText)?.[0] ?? '';
+  const sharedRules = [...sharedBlock.matchAll(/return\s+'([a-z0-9-]+)'/g)].map((m) => m[1]).filter((r) => r !== 'empty');
+  const literalRules = [validatorText, translationStateText].flatMap((source) => [...source.matchAll(/rule:\s*'([a-z0-9-]+)'/g)].map((m) => m[1]));
+  const rules = [...new Set(literalRules.concat(sharedRules))];
   const labelBlock = /const RULE_LABEL[\s\S]*?\n};/.exec(labelText)?.[0] ?? '';
   const labels = [...new Set([...labelBlock.matchAll(/(?:^|[{,]\s*)'?([a-z][a-z0-9-]*)'?\s*:/gm)].map((m) => m[1]))].filter((k) => k !== 'RULE_LABEL');
   out.push([rules.length > 5, `校验器里解析到 ${rules.length} 条规则`]);
+  out.push([sharedBlock.length > 0, '共用译文校验规则可解析']);
   for (const r of rules) out.push([labels.includes(r), `校验规则 "${r}" 在失败面有大白话映射`]);
   for (const l of labels) out.push([rules.includes(l), `失败面映射的 "${l}" 是校验器真会产出的规则(非死键)`]);
   return out;
@@ -125,6 +131,12 @@ if (process.argv.includes('--self-test')) {
   // 校验器新增规则但失败面没跟上
   const newRule = VALIDATOR_TEXT.replace(/rule: 'structure'/, "rule: 'brand-new-rule'");
   say(check(cfgText, srcText, migFiles, ASTRO_TEXT, newRule).some(([ok]) => !ok), 'self-test:校验器新增规则而失败面缺映射 → 变红');
+  const newSharedRule = DRAFT_FIELDS_TEXT.replace("return 'stale-brand'", "return 'stale-brand'; if (false) return 'h1-shared-rule'");
+  say(
+    check(cfgText, srcText, migFiles, ASTRO_TEXT, VALIDATOR_TEXT, LABEL_TEXT, newSharedRule)
+      .some(([ok, msg]) => !ok && String(msg).includes('h1-shared-rule')),
+    'self-test:共用译文校验新增规则而失败面缺映射 → 点名变红',
+  );
   /* 🔴 这条自检 2026-09-01 换了判据。上一版断言的是**缺陷行为本身**:
      「配置里有行尾注释 → 门要给人话诊断」——那是在门读不懂行尾注释的前提下的将就。
      换成字符串感知的读取器后行尾注释根本读得动,于是这条自检开始为**正确行为**报红。
