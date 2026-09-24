@@ -426,6 +426,11 @@ try {
             $script:FakeListeners = @([pscustomobject]@{ LocalPort = $definition.Port; LocalAddress = '127.0.0.1'; OwningProcess = 60001 })
             Assert-True (@(Get-OwnedListener $definition).Count -eq 1) 'Known node option hid its owned entry script.'
         }
+        Invoke-Test ($name + ': no-maglev node option keeps owned entry verifiable') {
+            $script:FakeCommands = @{ 60001 = ('node.exe --no-maglev "' + $definition.Marker + 'test-service.js"') }
+            $script:FakeListeners = @([pscustomobject]@{ LocalPort = $definition.Port; LocalAddress = '127.0.0.1'; OwningProcess = 60001 })
+            Assert-True (@(Get-OwnedListener $definition).Count -eq 1) 'Admin runtime option hid its owned entry script.'
+        }
         Invoke-Test ($name + ': node eval mode cannot claim ownership through a trailing script path') {
             $script:FakeCommands = @{ 60001 = ('node.exe -e "void 0" "' + $definition.Marker + 'test-service.js"') }
             $script:FakeListeners = @([pscustomobject]@{ LocalPort = $definition.Port; LocalAddress = '127.0.0.1'; OwningProcess = 60001 })

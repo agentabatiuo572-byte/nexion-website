@@ -195,7 +195,7 @@ function Test-ServiceCommandPath([string]$CommandLine, [string]$Marker) {
             if ($option -eq '--') { $index++; break }
             if ($option -in @('-r', '--require', '--import', '--loader', '--experimental-loader')) { $index += 2; continue }
             if ($option -match '^--(?:require|import|loader|experimental-loader|max-old-space-size|max-semi-space-size)=.+$' -or
-                $option -match '^--(?:no-warnings|no-deprecation|trace-warnings|trace-deprecation|enable-source-maps|experimental-strip-types)$' -or
+                $option -match '^--(?:no-maglev|no-warnings|no-deprecation|trace-warnings|trace-deprecation|enable-source-maps|experimental-strip-types)$' -or
                 $option -match '^--inspect(?:-brk|-wait)?(?:=.+)?$') { $index++; continue }
             # Eval/print and unknown option arities cannot establish a script path.
             if ($option.StartsWith('-')) { return $false }
@@ -260,6 +260,17 @@ function Invoke-Npm([string]$Directory, [string[]]$Arguments) {
     try {
         & (Get-Command npm.cmd -ErrorAction Stop).Source @Arguments
         if ($LASTEXITCODE -ne 0) { throw "npm failed in $Directory (exit $LASTEXITCODE)." }
+    } finally { Restore-AiProcessEnvironment $aiEnvironment; Pop-Location }
+}
+
+function Invoke-AdminDev($Definition) {
+    Push-Location -LiteralPath $Definition.Dir
+    $aiEnvironment = Remove-AiProcessEnvironment
+    try {
+        $entry = Join-Path $Definition.Dir 'node_modules/vite/bin/vite.js'
+        $extra = @($Definition.Arguments | Select-Object -Skip 3)
+        & (Get-Command node.exe -ErrorAction Stop).Source '--no-maglev' $entry '--port' $Definition.Port @extra
+        if ($LASTEXITCODE -ne 0) { throw "Admin dev failed (exit $LASTEXITCODE)." }
     } finally { Restore-AiProcessEnvironment $aiEnvironment; Pop-Location }
 }
 
@@ -340,6 +351,7 @@ if ($MyInvocation.InvocationName -ne '.') {
                 # Production builds retain the configured /admin/ asset base.
                 if ($Service -eq 'api') { Invoke-ApiSupervisor }
                 # localhost can resolve to an IPv6 loopback that Windows blocks.
+                elseif ($Service -eq 'admin') { Invoke-AdminDev $definition }
                 else { Invoke-Npm $definition.Dir $definition.Arguments }
             }
         } else {
