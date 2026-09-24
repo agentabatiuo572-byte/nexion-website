@@ -679,12 +679,13 @@ test('a cold isolated site builds current content and supplies private assets to
       if (entry.phase === 'end') commands.push({ args: entry.args, code: entry.code, aborted: entry.aborted, timedOut: entry.timedOut });
     } });
     assert.equal(result.gate, 'verify-process', result.tail + '\n' + JSON.stringify(commands));
+    assert.ok(commands.some((entry) => entry.args[0] === '--no-maglev' && entry.args[1] === 'node_modules/vitest/vitest.mjs'), 'Worker test gate must disable Maglev');
     assert.match(result.tail, /CURRENT_BUILD_PRECEDES_VERIFY/);
     assert.equal(result.ok, false, 'the intentionally failed verification must still block publication');
     assert.equal(await readFile(path.join(workspace.site, 'dist-live/index.html'), 'utf8'), await readFile(path.join(workspace.site, 'dist/index.html'), 'utf8'));
     await rm(path.join(workspace.site, 'dist-live'), { recursive: true });
     const worker = path.join(workspace.site, 'worker');
-    const staticArgs = ['node_modules/vitest/vitest.mjs', 'run', 'test/static.spec.ts'];
+    const staticArgs = ['--no-maglev', 'node_modules/vitest/vitest.mjs', 'run', 'test/static.spec.ts'];
     const missingAssets = await runCommand(process.execPath, staticArgs, { cwd: worker });
     assert.notEqual(missingAssets.code, 0, 'cold ASSETS must reproduce the original missing-live failure');
     assert.match(missingAssets.output, /2 failed/);

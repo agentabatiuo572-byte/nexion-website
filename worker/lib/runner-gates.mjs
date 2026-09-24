@@ -153,7 +153,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
     ['console-copy', ['gate-console-copy.mjs'], worker],
     ['beacon-size', ['gate-beacon-size.mjs'], worker],
     ['worker-AI-runtime', ['--no-maglev', 'test-ai-runtime.mjs'], worker],
-    ['worker-单测', ['node_modules/vitest/vitest.mjs', 'run'], worker],
+    ['worker-单测', ['--no-maglev', 'node_modules/vitest/vitest.mjs', 'run'], worker],
   ];
   for (const [gate, args, cwd] of suites) {
     if (incremental && SOURCE_STATIC_SUITES.has(gate)) {
