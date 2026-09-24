@@ -40,7 +40,7 @@ describe('SEO save race', () => {
     let finishSave!: (ok: boolean) => void;
     mocks.save.mockReturnValueOnce(new Promise((resolve) => { finishSave = resolve; }));
     render(<MemoryRouter><SeoPage /></MemoryRouter>);
-    const email = screen.getByPlaceholderText('例:ops@nexgrid.ai') as HTMLInputElement;
+    const email = screen.getByPlaceholderText('例:contact@example.com') as HTMLInputElement;
 
     fireEvent.change(email, { target: { value: 'first@example.com' } });
     fireEvent.click(screen.getByRole('button', { name: '保存草稿' }));

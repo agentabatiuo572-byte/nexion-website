@@ -250,7 +250,7 @@ export default function Shell() {
           ))}
           </nav>
           <div style={{ flex: 1 }} />
-          <div className="sidebar-account"><span className="account-avatar">N</span><span className="lbl"><b>管理员</b><small>官网运营</small></span><button className="icon-button" title="退出登录" aria-label={loggingOut ? '退出中…' : '退出'} disabled={loggingOut} onClick={logout}><Icon name="logout" size={18} /></button></div>
+          <div className="sidebar-account"><span className="account-avatar">U</span><span className="lbl"><b>管理员</b><small>官网运营</small></span><button className="icon-button" title="退出登录" aria-label={loggingOut ? '退出中…' : '退出'} disabled={loggingOut} onClick={logout}><Icon name="logout" size={18} /></button></div>
         </aside>
         <main className="content" id="workspace" tabIndex={-1} onFocusCapture={onEditorFocus} onInputCapture={onEditorFocus}>
           <header className="workspace-header"><div className="breadcrumb"><span>官网后台</span><Icon name="chevron-right" size={14} /><b>{currentPage?.label ?? '页面'}</b></div><a href={publishedSiteUrl()} target="_blank" rel="noreferrer" className="btn ghost sm">查看官网 <Icon name="arrow-up-right" size={16} /></a></header>

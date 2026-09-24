@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "NexGrid 官网后台 worker:静态伺服 + 区域屏蔽 + 采集 + 配置 API。规格:PLAN/PRD/NexGrid_官网后台PRD_v1.0.md",
+  "description": "Uvel 官网后台 worker:静态伺服 + 区域屏蔽 + 采集 + 配置 API。规格:PLAN/PRD/NexGrid_官网后台PRD_v1.0.md",
   "scripts": {
     "dev": "wrangler d1 migrations apply nexgrid_site --local && wrangler dev",
     "pretest": "node --no-maglev test-ai-runtime.mjs",

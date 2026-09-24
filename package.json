@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "NexGrid official marketing site — Astro 7 + Tailwind 4, zero-framework JS. Spec: PLAN/PRD/NexGrid_官网PRD_v1.0.md",
+  "description": "Uvel official marketing site — Astro 7 + Tailwind 4, zero-framework JS. Spec: PLAN/PRD/NexGrid_官网PRD_v1.0.md",
   "engines": {
     "node": ">=24.0.0"
   },
