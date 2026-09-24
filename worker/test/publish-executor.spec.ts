@@ -258,8 +258,11 @@ describe('automatic publishing service boundary', () => {
   it('machine bearer can heartbeat without a browser session', async () => {
     const r = await request('/heartbeat', {runnerId:'test-runner'});
     expect(r.status).toBe(200);
-    const state = await app.request('/api/publish/runner-state?runnerId=test-runner', {headers:{authorization:`Bearer ${secret}`}}, local());
-    expect(await state.json()).toMatchObject({environment:'dev', executor:{ready:true,mode:'local'}});
+    const served = {...local(),ASSETS:{fetch:async(req:Request)=>new URL(req.url).pathname==='/.publish-stamp.json'
+      ? new Response(JSON.stringify({versionId:42})) : new Response('',{status:404})}} as unknown as Env;
+    const state = await app.request('/api/publish/runner-state?runnerId=test-runner', {headers:{authorization:`Bearer ${secret}`}}, served);
+    expect(await state.json()).toMatchObject({environment:'dev',snapshot:42,executor:{ready:true,mode:'local'}});
+    expect((await app.request('/api/publish/status',{headers:{authorization:`Bearer ${secret}`}},served)).status).toBe(401);
   });
   it('browser cookie cannot claim or report execution; bearer cannot publish or edit', async () => {
     for (const p of ['/next','/heartbeat','/step','/runner-fail']) {

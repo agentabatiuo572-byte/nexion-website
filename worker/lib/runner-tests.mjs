@@ -1046,8 +1046,7 @@ async function apiFixture(t, onNext, failureResult = { ok: true, status: 'failed
     await onRequest?.({ url: req.url, body, response: res });
     if (res.writableEnded || res.destroyed) return;
     let response = { ok: true };
-    if (req.url.startsWith('/api/publish/runner-state')) response = { environment: 'dev', activeVersion };
-    if (req.url === '/api/publish/status') response = { drift: { snapshot: activeVersion } };
+    if (req.url.startsWith('/api/publish/runner-state')) response = { environment: 'dev', activeVersion, snapshot: activeVersion };
     if (req.url === '/api/publish/next') { activeVersion = 41; response = onNext ? await onNext() : { job: { versionId: 41, stamp: 'job-secret', config: { fixture: true } } }; }
     if (req.url === '/api/publish/runner-fail') { activeVersion = null; response = typeof failureResult === 'function' ? await failureResult() : failureResult; }
     res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(response));

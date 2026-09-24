@@ -399,8 +399,9 @@ async function main() {
         const deadline = Date.now() + 30000;
         for (;;) {
           signal.throwIfAborted();
-          const status = await confirmWithinLease(retrySignal => api('/api/publish/status', undefined, retrySignal));
-          if (status.drift?.snapshot === job.versionId) break;
+          const state = await confirmWithinLease(retrySignal => machineState(retrySignal));
+          if (state.activeVersion !== job.versionId) throw new Error('服务端已不再确认本次任务归属，禁止确认切换');
+          if (state.snapshot === job.versionId) break;
           if (Date.now() >= deadline) throw new Error('Worker 仍读不到本次上线印记，拒绝确认切换');
           await delay(500, undefined, { signal });
         }

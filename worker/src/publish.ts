@@ -505,7 +505,7 @@ publishRoutes.get('/runner-state', async (c) => {
   const lock = RUNNER_ID.test(runnerId)
     ? await c.env.DB.prepare('SELECT version_id,expires_at FROM publish_lock WHERE claimed_by=?1 AND expires_at>?2').bind(runnerId,Date.now()).first<{version_id:number;expires_at:number}>()
     : null;
-  return c.json({activeVersion:lock?.version_id ?? null, expiresAt:lock?.expires_at ?? null, environment:c.env.ENVIRONMENT, executor:await executorState(c.env)});
+  return c.json({activeVersion:lock?.version_id ?? null, expiresAt:lock?.expires_at ?? null, snapshot:(await readLiveStamp(c.env))?.versionId ?? null, environment:c.env.ENVIRONMENT, executor:await executorState(c.env)});
 });
 
 publishRoutes.post('/heartbeat', async (c) => {
