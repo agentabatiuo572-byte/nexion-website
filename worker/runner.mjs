@@ -393,6 +393,18 @@ async function main() {
         const deployed = await runCommand(process.execPath, [path.join(site, 'worker/node_modules/wrangler/bin/wrangler.js'), 'deploy', '--config', deployment.outputFile, '--assets', path.join(site, 'dist-live')], { ...commandOptions, cwd: path.join(site, 'worker') });
         if (deployed.code !== 0 || deployed.aborted) throw new Error(`公网部署未被证明成功：${deployed.output}`);
       }
+      if (options.mode === 'local') {
+        // Wrangler may index an overwritten stamp after the file copy returns. Keep the lease
+        // while waiting so a transient asset refresh cannot turn a real swap into a failed job.
+        const deadline = Date.now() + 30000;
+        for (;;) {
+          signal.throwIfAborted();
+          const status = await confirmWithinLease(retrySignal => api('/api/publish/status', undefined, retrySignal));
+          if (status.drift?.snapshot === job.versionId) break;
+          if (Date.now() >= deadline) throw new Error('Worker 仍读不到本次上线印记，拒绝确认切换');
+          await delay(500, undefined, { signal });
+        }
+      }
       // 切换期间 API 可短暂重启。只重放终态汇报，不重做部署。
       clearTimeout(outputTimer); outputTimer = undefined;
       await progressReports;

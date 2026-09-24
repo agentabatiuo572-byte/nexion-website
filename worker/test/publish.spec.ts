@@ -720,7 +720,7 @@ describe('CON13 发布流水线', () => {
     }
     await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'running' });
     const res = await postAs(flaky, cookie, '/api/publish/step', { versionId: r.versionId, stamp: job.stamp, step: 'swap', status: 'ok' });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(503);
     const body = (await res.json()) as { error?: string; why?: string };
     expect(body.error, '读不到 ≠ 被改过').toBe('live-check-unavailable');
     expect(body.why).toContain('稍后重试');

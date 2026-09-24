@@ -105,14 +105,18 @@ function dropStamp(dir) {
   rmSync(path.join(dir, STAMP), { force: true });
 }
 
+function invalidateStamp(dir) {
+  // Wrangler dev can miss a deleted/recreated dotfile on Windows. Keep its path indexed.
+  writeFileSync(path.join(dir, STAMP), '{"versionId":0}\n');
+}
+
 function syncInPlace() {
-  dropStamp(LIVE); // 修改之前先撤掉旧凭证，绝不让混排内容带着旧上线印记。
+  invalidateStamp(LIVE); // 混排时先废掉旧凭证，最后在同一路径写入新印记。
   const want = new Set(listFiles(SRC));
   for (const rel of listFiles(LIVE)) {
-    if (!want.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
+    if (rel !== STAMP && !want.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
   }
   cpSync(SRC, LIVE, { recursive: true, force: true });
-  dropStamp(LIVE); // 内容已换 → 旧印记一定不再有效
 }
 
 /* 上线印记:服务端标 live 前会读它核实「线上快照确实是这一版」。见文件头注。
@@ -175,7 +179,7 @@ let staged = false;
 const restorePrevious = () => {
   if (!existsSync(OLD)) return;
   if (!existsSync(LIVE)) { renameSync(OLD, LIVE); return; }
-  dropStamp(LIVE);
+  invalidateStamp(LIVE);
   const previous = new Set(listFiles(OLD));
   for (const rel of listFiles(LIVE)) if (!previous.has(rel)) rmSync(path.join(LIVE, rel), { force: true });
   cpSync(OLD, LIVE, { recursive: true, force: true });
@@ -201,7 +205,7 @@ try {
   if (existsSync(LIVE) && !existsSync(OLD)) cpSync(LIVE, OLD, { recursive: true });
   try {
     syncInPlace();
-    writeStamp(LIVE);
+    if (writeStamp(LIVE) === null) dropStamp(LIVE);
   } catch (failure) {
     restorePrevious();
     throw failure;

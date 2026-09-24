@@ -770,6 +770,32 @@ test('promotion consumes isolated materialized files and writes verifiable conte
   assert.equal(result.output.includes('fixture-stamp'), false);
 });
 
+test('busy live directory keeps the stamp path while replacing its contents', async (t) => {
+  const root = await scratch(t);
+  const site = path.join(root, 'isolated');
+  const live = path.join(root, 'target', 'dist-live');
+  await mkdir(path.join(site, 'dist/admin'), { recursive: true });
+  await mkdir(live, { recursive: true });
+  await writeFile(path.join(site, 'dist/index.html'), 'new-version');
+  await writeFile(path.join(site, 'dist/admin/index.html'), 'console');
+  await writeFile(path.join(live, 'index.html'), 'old-version');
+  await writeFile(path.join(live, '.publish-stamp.json'), '{"versionId":30}\n');
+  for (const rel of MATERIALIZED_FILES) {
+    await mkdir(path.dirname(path.join(site, rel)), { recursive: true });
+    await writeFile(path.join(site, rel), '{}\n');
+  }
+  await writeFile(path.join(root, 'preload.mjs'), `import fs from 'node:fs'; import {syncBuiltinESMExports} from 'node:module';
+    const rename = fs.renameSync, rm = fs.rmSync;
+    fs.renameSync = (from, to) => { if (String(from) === ${JSON.stringify(live)}) throw Object.assign(new Error('busy'), {code:'EBUSY'}); return rename(from, to); };
+    fs.rmSync = (file, ...args) => { if (String(file).endsWith('.publish-stamp.json')) throw new Error('stamp path removed'); return rm(file, ...args); };
+    syncBuiltinESMExports();`);
+  const result = await runCommand(process.execPath, ['--import', './preload.mjs', fileURLToPath(new URL('../promote.mjs', import.meta.url)), '--source', path.join(site, 'dist'), '--live', live, '--materialized-root', site, '--version', '31'], { cwd: root, env: { ...process.env, PUBLISH_STAMP: 'fixture-stamp' } });
+  assert.equal(result.code, 0, result.output);
+  assert.match(result.output, /EBUSY/);
+  assert.equal(await readFile(path.join(live, 'index.html'), 'utf8'), 'new-version');
+  assert.equal(JSON.parse(await readFile(path.join(live, '.publish-stamp.json'), 'utf8')).versionId, 31);
+});
+
 test('published language gate rejects a missing enabled homepage and any disabled language asset directory', async (t) => {
   const root = await scratch(t);
   await mkdir(path.join(root, 'src/config'), { recursive: true });
@@ -1020,6 +1046,7 @@ async function apiFixture(t, onNext, failureResult = { ok: true, status: 'failed
     if (res.writableEnded || res.destroyed) return;
     let response = { ok: true };
     if (req.url.startsWith('/api/publish/runner-state')) response = { environment: 'dev', activeVersion };
+    if (req.url === '/api/publish/status') response = { drift: { snapshot: activeVersion } };
     if (req.url === '/api/publish/next') { activeVersion = 41; response = onNext ? await onNext() : { job: { versionId: 41, stamp: 'job-secret', config: { fixture: true } } }; }
     if (req.url === '/api/publish/runner-fail') { activeVersion = null; response = typeof failureResult === 'function' ? await failureResult() : failureResult; }
     res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(response));

@@ -736,7 +736,7 @@ publishRoutes.post('/step', async (c) => {
       return updated.meta.changes ? c.json({ ok: true, idempotent: true }) : c.json({ error: 'not-current-job' }, 409);
     }
     const eff = await ensureTerminalEffect(c.env, b.versionId, b.step, b.status as 'ok' | 'failed', b.gate, detail, now);
-    return eff.ok ? c.json({ ok: true, idempotent: true, effectEnsured: eff.applied }) : c.json({ error: eff.error, why: eff.why }, 409);
+    return eff.ok ? c.json({ ok: true, idempotent: true, effectEnsured: eff.applied }) : c.json({ error: eff.error, why: eff.why }, eff.error === 'live-check-unavailable' ? 503 : 409);
   }
   if (recorded === 'ok' || recorded === 'failed') {
     // 已收口的步骤不许改口(ok→failed / failed→ok / 终态→running 都在这里)
@@ -795,7 +795,7 @@ publishRoutes.post('/step', async (c) => {
   // 终态的步骤与版本必须共用条件事务，不能先把步骤写好再异步核验资产。
   if (b.status === 'failed' || b.step === 'swap') {
     const eff = await ensureTerminalEffect(c.env,b.versionId,b.step,b.status as 'ok'|'failed',b.gate,detail,now);
-    if (!eff.ok) return c.json({error:eff.error,why:eff.why},409);
+    if (!eff.ok) return c.json({error:eff.error,why:eff.why},eff.error === 'live-check-unavailable' ? 503 : 409);
     return c.json({ok:true,...(b.status==='failed' ? {failed:true,reason:eff.reason} : {})});
   }
   // ③ 非终态成功也不能改写已经被并发请求收口的版本。
