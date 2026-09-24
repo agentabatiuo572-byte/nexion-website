@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-/* NexGrid website verify 门骨架(T1 先立门后写页)。
+/* Uvel website verify 门骨架(T1 先立门后写页)。
    门源:官网 PRD §1.4(合规红线)+ §6(验收标准)。
    用法:node scripts/verify.mjs [--prod] [--built-dist-sha <sha256>]
    --prod = 部署门升为阻断(PENDING 标记/Legal 缺失 exit 2);默认仅告警。
@@ -132,6 +132,28 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   const siteConfig = JSON.parse(readFileSync(join(SRC, 'config', 'site.json'), 'utf8'));
   const detail = i18nParity(dictionaries, siteConfig.enabledLocales);
   recordGate('i18n-parity', detail.length === 0, detail);
+}
+
+/* 公开文案和产物中只允许历史法定名及尚未确认替换的域名沿用 NexGrid。 */
+{
+  const staleBrand = /nexgrid(?!\s*ltd\b|\.[a-z]{2,}\b)/i;
+  const files = [
+    ...LOCALES.map((locale) => join(SRC, 'i18n', `${locale}.json`)),
+    join(SRC, 'config', 'site.json'),
+    join(ROOT, 'worker', 'seed', 'site-config.seed.json'),
+    ...walk(join(SRC, 'content', 'learn'), ['.md']),
+    ...walk(join(ROOT, 'dist'), ['.html']),
+  ];
+  const detail = [];
+  if (!staleBrand.test('NexGridBox') || staleBrand.test('NexGrid LTD') || staleBrand.test('nexgrid.ai')) {
+    detail.push('旧品牌判据的阳性或豁免自检失败');
+  }
+  for (const file of files) {
+    readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+      if (staleBrand.test(line)) detail.push(`${rel(file)}:${index + 1}`);
+    });
+  }
+  recordGate('brand-name', detail.length === 0, detail);
 }
 
 /* ── 门 3:部署门(PRD §6-4:PENDING 标记 / Legal 缺失禁生产)── */

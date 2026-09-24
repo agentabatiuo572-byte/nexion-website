@@ -27,6 +27,7 @@ export type PublishStep = (typeof PUBLISH_STEPS)[number];
 export const GATE_REASONS: Record<string, string> = {
   'forbidden-words': '文案里有合规禁用词',
   'i18n-parity': '各语言文案对不齐(有缺译或多余的键)',
+  'brand-name': '公开文案或页面里还有旧品牌名称',
   'deploy-gate': '还有未填充的信任资料占位标记',
   'launch-assets': '上线必备资产缺失(统计数字仍是演示值 / 缺联系方式 / 禁用的下载键没有说明)',
   'state-hook-consumer': '页面上有没人消费的状态钩子',

@@ -51,7 +51,7 @@ export default function SeoPage() {
       <div className="card" style={{ marginBottom: 12 }} data-field="footer.contactEmail">
         <h3><label htmlFor="contact-email">对外联系邮箱</label></h3>
         <div className="field" style={{ margin: 0, maxWidth: '23.75rem' }}>
-          <input id="contact-email" aria-describedby="contact-email-length" type="email" placeholder="例:ops@nexgrid.ai" value={mail} onChange={(ev) => setEmail(ev.target.value.trim())} />
+          <input id="contact-email" aria-describedby="contact-email-length" type="email" placeholder="例:contact@example.com" value={mail} onChange={(ev) => setEmail(ev.target.value.trim())} />
           <TextLimitHint id="contact-email-length" fieldId="/footer/contactEmail" locale={language.target} value={mail} />
         </div>
         <p className="kv" style={{ marginTop: 6 }}>
