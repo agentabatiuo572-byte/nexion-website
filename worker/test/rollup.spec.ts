@@ -111,21 +111,22 @@ describe('CON03/§5.3 日汇总口径', () => {
       prepare: env.DB.prepare.bind(env.DB),
       batch: async (statements: D1PreparedStatement[]) => {
         statementCount = statements.length;
-        if (statements.length > 29) throw new Error(`D1 statement limit exceeded: ${statements.length}`);
+        if (statements.length > 31) throw new Error(`D1 statement limit exceeded: ${statements.length}`);
         return env.DB.batch(statements);
       },
     } as D1Database;
 
     const result = await runDailyRollup(boundedDb, DAY, { action: 'admin.rollup', target: DAY });
 
-    expect(statementCount).toBe(29);
+    // 固定上界:2 前置 + 14 DELETE + 14 INSERT…SELECT(含 daily_gate)+ 1 条可选审计 = 31/30。
+    expect(statementCount).toBe(31);
     expect(result).toEqual({ scannedEvents: keyCount, processedEvents: keyCount, rejectedEvents: 0 });
     expect(
       await env.DB.prepare('SELECT COUNT(*) AS n, SUM(hits) AS hits FROM daily_notfound WHERE date=?1').bind(DAY).first(),
     ).toMatchObject({ n: keyCount, hits: keyCount });
 
     await runDailyRollup(boundedDb, DAY);
-    expect(statementCount).toBe(28);
+    expect(statementCount).toBe(30);
   });
 
   it('损坏 JSON 按 raw_event_id 幂等隔离，合法事件仍汇总且重跑可追踪', async () => {

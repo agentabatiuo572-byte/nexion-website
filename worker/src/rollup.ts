@@ -8,10 +8,15 @@ import {
   METRIC_FAQ_ID_PREFIX,
   METRIC_SECTION_IDS,
   METRIC_TEXT_BYTES,
+  GATE_ASN_MAX,
+  GATE_EVENT_TYPE,
+  GATE_LIST_VERSION_MAX,
+  GATE_REASONS,
+  GATE_VERDICTS,
 } from '../../schema/src/event-contract';
 
 /* 日汇总引擎(PRD CON03-③ 口径字典 + §5.3)。幂等:同一 D1 batch 内先删该日再写。
-   聚合键的基数没有业务上界，因此每张汇总表只发一条 INSERT…SELECT；整批最多 29 条 SQL，
+   聚合键的基数没有业务上界，因此每张汇总表只发一条 INSERT…SELECT；整批最多 31 条 SQL，
    不再按聚合键生成语句。损坏/非对象/字段形状非法的事件按 raw_event_id 幂等写入隔离表，合法事件继续汇总。 */
 
 const SESSION_GAP_MS = 30 * 60_000;
@@ -32,10 +37,11 @@ const DAILY_TABLES = [
   'daily_bot',
   'daily_page',
   'daily_notfound',
+  'daily_gate',
 ] as const;
 
-/** 2 个固定前置语句 + 13 DELETE + 13 INSERT…SELECT + 1 条可选人工审计。 */
-export const ROLLUP_BATCH_STATEMENT_LIMIT = 29;
+/** 2 个固定前置语句 + 14 DELETE + 14 INSERT…SELECT + 1 条可选人工审计。 */
+export const ROLLUP_BATCH_STATEMENT_LIMIT = 31;
 
 export interface RollupResult {
   scannedEvents: number;
@@ -171,6 +177,16 @@ const EVENT_SHAPE_SQL = `CASE type
     AND ${textField('path', 1, METRIC_TEXT_BYTES.path)}
     AND (${BOT_FIELD_SHAPE_PREDICATE})
   ) THEN 1 ELSE 0 END
+  WHEN 'gate' THEN CASE WHEN (
+    ${eventTag('gate')}
+    AND ${enumField('v', GATE_VERDICTS)}
+    AND ${enumField('r', GATE_REASONS)}
+    AND ${textField('ua', 0, METRIC_TEXT_BYTES.short)}
+    AND (${jsonType('asn')} = 'null' OR (${jsonType('asn')} IN ('integer', 'real') AND ${jsonValue('asn')} BETWEEN 0 AND ${GATE_ASN_MAX}))
+    AND ${textField('p', 1, METRIC_TEXT_BYTES.blockedPathClass)}
+    AND ${numberField('lv', 1, GATE_LIST_VERSION_MAX)}
+    AND ${numberField('e', 0, 1)}
+  ) THEN 1 ELSE 0 END
   ELSE 0
 END`;
 
@@ -181,7 +197,7 @@ const EVENT_PAYLOAD_PREDICATE = `CASE
 END = 1`;
 
 const BEACON_EVENT_TYPES = ['pv', 'sec', 'cta', 'faq', 'vit', 'err'] as const;
-const SERVER_EVENT_TYPES = ['blocked', 'e404'] as const;
+const SERVER_EVENT_TYPES = ['blocked', 'e404', GATE_EVENT_TYPE] as const;
 const UID_SHAPE_PREDICATE = `
   typeof(source.uid) = 'text'
   AND length(CAST(source.uid AS BLOB)) = 16
@@ -544,6 +560,22 @@ FROM bot_counts
 WHERE bot_pv + human_pv > 0
 `;
 
+const GATE_SQL = DAY_EVENTS_CTE + `
+, gate_counts AS (
+  SELECT
+    CAST(json_extract(payload, '$.v') AS TEXT) AS verdict,
+    CAST(json_extract(payload, '$.r') AS TEXT) AS reason,
+    COUNT(*) AS hits,
+    SUM(CASE WHEN CAST(json_extract(payload, '$.e') AS INTEGER) = 1 THEN 1 ELSE 0 END) AS enforced_hits
+  FROM events
+  WHERE type = ${sqlText(GATE_EVENT_TYPE)}
+  GROUP BY 1, 2
+)
+INSERT INTO daily_gate (date, verdict, reason, hits, enforced_hits)
+SELECT ?1, verdict, reason, hits, enforced_hits
+FROM gate_counts
+`;
+
 /**
  * 汇总、坏行隔离和可选人工审计在同一个 D1 batch 事务中提交。
  * 返回值来自隔离后的 summary 前置语句，手动 API 可据此如实报告部分隔离。
@@ -629,6 +661,7 @@ export async function runDailyRollup(db: D1Database, day: string, audit?: AuditE
     aggregate(ERRORS_SQL),
     aggregate(BLOCKED_SQL),
     aggregate(BOT_SQL),
+    aggregate(GATE_SQL),
   ];
   if (audit) statements.push(prepareAudit(db, audit));
 

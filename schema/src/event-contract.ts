@@ -52,3 +52,21 @@ export function metricFaqId(index: number): string {
   if (!Number.isSafeInteger(index) || index < 1) throw new RangeError('FAQ index must be a positive integer');
   return `q${index}`;
 }
+
+/** AI 反爬闸事件(规格 FEAT-ANTIBOT01 §3.5):server 侧写 raw_events(type='gate'),rollup 汇总进 daily_gate。 */
+export const GATE_EVENT_TYPE = 'gate';
+export const GATE_VERDICTS = ['pass', 'challenge', 'block'] as const;
+export const GATE_REASONS = [
+  'bypass_internal',
+  'cookie_valid',
+  'whitelist_social',
+  'ai_bot_ua',
+  'search_engine_ua',
+  'challenge_issued',
+  'turnstile_failed',
+  'rate_limited',
+  'gate_degraded',
+] as const;
+/** 名单版本号上限与 ASN 值域(rollup 形状校验用)。 */
+export const GATE_LIST_VERSION_MAX = 1_000_000;
+export const GATE_ASN_MAX = 4_294_967_295;

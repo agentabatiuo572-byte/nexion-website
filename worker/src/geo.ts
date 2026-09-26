@@ -153,14 +153,14 @@ async function verifyToken(secret: string | null, scope: string, token: string |
   return { ok: true, sig, exp, jti: isV2 ? `v2:${jti}` : `legacy:${sig}`, format: isV2 ? 'v2' : 'legacy' };
 }
 
-async function hasValidBypass(c: Context<{ Bindings: Env }>): Promise<boolean> {
+export async function hasValidBypass(c: Context<{ Bindings: Env }>): Promise<boolean> {
   const r = await verifyToken(bypassSecret(c.env), 'bp', getCookie(c, BYPASS_COOKIE), BYPASS_COOKIE_TTL_MS);
   return r.ok;
 }
 
 // ---------- 拦截页与统计 ----------
 
-function pathClass(p: string): string {
+export function pathClass(p: string): string {
   if (p === '/' || p === '') return 'home';
   const encodedSegment = p.split('/').filter(Boolean)[0] ?? 'other';
   let segment = encodedSegment;

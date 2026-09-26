@@ -11,6 +11,7 @@ import { execFile, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { canvasUnitGate } from './gate-canvas-unit.mjs';
 import { regexEscapeGate } from './gate-regex-escape.mjs';
+import { robotsGate } from './gate-robots.mjs';
 import { scanForbidden } from './forbidden-patterns.mjs';
 import { i18nParity } from './gate-i18n-parity.mjs';
 import { LOCALES } from '../schema/src/locales.ts';
@@ -384,6 +385,12 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   const re = regexEscapeGate(ROOT, rel);
   results.push(re);
   console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: re.gate, status: re.pass ? 'ok' : 'failed' }));
+  const robotsPath = join(ROOT, 'public', 'robots.txt');
+  const rb = existsSync(robotsPath)
+    ? robotsGate(readFileSync(robotsPath, 'utf8'))
+    : { gate: 'ai-antibbot-robots(FEAT-ANTIBOT01)', pass: false, detail: ['public/robots.txt 缺失'] };
+  results.push(rb);
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: rb.gate, status: rb.pass ? 'ok' : 'failed' }));
 }
 
 // 校准过期是静态事实；先拦下，避免浏览器门跑完才发现记录不能用于后台提示。
@@ -508,6 +515,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     ['hash-navigation', ['scripts/test-hash-navigation.mjs']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
     ['regex-escape', ['scripts/test-regex-escape.mjs']],
+    ['ai-antibbot-robots', ['scripts/gate-robots.mjs', '--self-test']],
     ['site-behavior', ['--import', './worker/register-ts-ext.mjs', 'scripts/gate-site-behavior.mjs', '--self-test']],
     // git 层两道门的红测(2026-09-03 Tier 1-⑧,node --test 体例,成功行是「# pass N」):pre-push full 门 / pre-commit S 级门
     ['githooks-pre-push', ['.githooks/verify-before-push.test.mjs']],
