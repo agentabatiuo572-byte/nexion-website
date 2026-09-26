@@ -8,6 +8,7 @@ import { translationsRoutes, drainTranslations } from './translations';
 import { configRoutes, probeDownloads } from './config';
 import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
+import { gateMiddleware, gateRoutes } from './gate-middleware';
 import { ingestRoutes } from './ingest';
 import { publishRoutes, maintainPublishing } from './publish';
 import { requirePublishIdentity } from './publish-executor';
@@ -33,10 +34,15 @@ app.use('*', async (c, next) => {
 });
 // 🔴 区域屏蔽中间件(/admin 与 /api 前缀在中间件内豁免——自锁保护)
 app.use('*', geoMiddleware);
+// 🔴 挑战闸中间件(FEAT-ANTIBOT01):豁免路径直通;monitor 只记不拦,enforce 下 block/challenge
+app.use('*', gateMiddleware);
 
 app.get('/api/health', (c) =>
   c.json({ ok: true, service: 'nexgrid-site-worker', environment: c.env.ENVIRONMENT }),
 );
+
+// 挑战闸通行证校验(公开;token 由挑战页获取,siteverify 通过后签发 cookie)
+app.route('/__gate', gateRoutes);
 
 // 认证(CON01):/api/auth/setup · /login · /logout
 app.route('/api/auth', authRoutes);

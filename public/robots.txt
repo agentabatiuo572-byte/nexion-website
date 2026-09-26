@@ -1,4 +1,17 @@
+# AI 反爬声明层(规格 FEAT-ANTIBOT01;决策 Q1:不保留搜索收录)
+# 默认全禁;仅社交预览放行(分享卡片需要)。robots.txt 自身不进闸。
 User-agent: *
-Allow: /
+Disallow: /
 
-Sitemap: https://nexgrid.ai/sitemap-index.xml
+User-agent: TelegramBot
+User-agent: Twitterbot
+User-agent: facebookexternalhit
+User-agent: WhatsApp
+User-agent: Slackbot
+User-agent: Discordbot
+User-agent: LinkedInBot
+User-agent: Pinterest
+User-agent: Embedly
+User-agent: SkypeUriPreview
+User-agent: Iframely
+Allow: /

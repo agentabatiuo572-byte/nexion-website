@@ -39,6 +39,11 @@
     // 仅 dev 值;生产用 `wrangler secret put SETUP_TOKEN` / `... BEACON_SALT`(Phase C)
     "SETUP_TOKEN": "dev-setup-token",
     "BEACON_SALT": "dev-beacon-salt",
-    "BYPASS_SECRET": "dev-bypass-secret"
+    "BYPASS_SECRET": "dev-bypass-secret",
+    // 挑战闸(FEAT-ANTIBOT01):生产用 `wrangler secret put GATE_SECRET` / `... TURNSTILE_SECRET`;
+    // TURNSTILE_SITE_KEY 为公开站点密钥,生产在 Cloudflare 后台建 widget 后替换。以下为官方测试密钥(永远通过)。
+    "GATE_SECRET": "dev-gate-secret",
+    "TURNSTILE_SITE_KEY": "1x00000000000000000000AA",
+    "TURNSTILE_SECRET": "1x0000000000000000000000000000000AA"
   }
 }

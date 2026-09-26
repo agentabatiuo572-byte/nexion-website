@@ -10,6 +10,12 @@ export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_S
   BEACON_SALT: string;
   /** 区域屏蔽直通令牌/cookie 的 HMAC 密钥(CON12-E1)。生产走 secret */
   BYPASS_SECRET: string;
+  /** 挑战闸通行证 HMAC 密钥(FEAT-ANTIBOT01)。生产走 secret;未轮换的 dev 默认值视为降级 */
+  GATE_SECRET: string;
+  /** Turnstile 服务端密钥;缺省/未轮换 → 闸降级(failMode 决定放行或 503) */
+  TURNSTILE_SECRET?: string;
+  /** Turnstile 站点密钥(公开,可下发到挑战页) */
+  TURNSTILE_SITE_KEY?: string;
   /** PBKDF2 迭代覆盖(默认 600k;Workers 免费档 CPU 上限的部署期调节阀 + 测试提速) */
   KDF_ITER?: string;
   PUBLISH_RUNNER_TOKEN?: string;
