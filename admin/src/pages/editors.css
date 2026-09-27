@@ -1,3 +1,4 @@
+.sku-thumbnail { width: 7.5rem; height: 5rem; flex: none; object-fit: contain; border: 1px solid var(--border); border-radius: .5rem; background: #fff; }
 .auth-page { min-height: 100dvh; display: grid; grid-template-columns: minmax(0, 46%) minmax(0, 1fr); background: var(--bg); }
 .auth-intro { position: relative; isolation: isolate; display: flex; flex-direction: column; padding: 2.375rem 9%; color: #f5f7f2; overflow: hidden; background: #141b16; }
 .auth-intro::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(ellipse at 15% 85%, #9edc1d12, transparent 60%), linear-gradient(110deg, transparent 50%, #ffffff03 50%); }
