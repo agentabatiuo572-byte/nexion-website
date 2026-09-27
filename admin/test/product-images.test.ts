@@ -1,7 +1,11 @@
+// @vitest-environment node
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
+import { createServer as createViteServer } from 'vite';
 import { describe, expect, it } from 'vitest';
 import { PRODUCT_IMAGES } from '../../src/lib/product-images';
+import adminViteConfig from '../vite.config';
 
 // Approved 2026-09-27 final/manifest.json: these originals must not be re-encoded or swapped.
 const APPROVED = {
@@ -14,6 +18,43 @@ const APPROVED = {
 };
 
 describe('approved product artwork', () => {
+  it('serves all real thumbnail bytes through the local Admin proxy', async () => {
+    const paths = Object.values(PRODUCT_IMAGES);
+    const upstream = createHttpServer((request, response) => {
+      const path = request.url ?? '';
+      if (!paths.includes(path)) { response.writeHead(404).end(); return; }
+      response.writeHead(200, { 'Content-Type': path.endsWith('.webp') ? 'image/webp' : 'image/png' });
+      response.end(readFileSync(new URL('../../public' + path, import.meta.url)));
+    });
+    await new Promise<void>(resolve => upstream.listen(0, '127.0.0.1', resolve));
+    const address = upstream.address();
+    if (!address || typeof address === 'string') throw new Error('No test upstream port');
+    const target = `http://127.0.0.1:${address.port}`;
+    const proxy = Object.fromEntries(Object.entries(adminViteConfig.server?.proxy ?? {}).map(([path, options]) =>
+      [path, typeof options === 'string' ? target : { ...options, target }]));
+    let server: Awaited<ReturnType<typeof createViteServer>> | undefined;
+    let localServer: ReturnType<typeof createHttpServer> | undefined;
+    try {
+      server = await createViteServer({ configFile: false, plugins: [], base: adminViteConfig.base,
+        optimizeDeps: { noDiscovery: true },
+        server: { ...adminViteConfig.server, middlewareMode: true, hmr: false, proxy } });
+      localServer = createHttpServer(server.middlewares);
+      await new Promise<void>(resolve => localServer!.listen(0, '127.0.0.1', resolve));
+      const local = localServer.address();
+      if (!local || typeof local === 'string') throw new Error('No test Admin port');
+      for (const path of paths) {
+        const response = await fetch(`http://127.0.0.1:${local.port}${path}`);
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).toBe(path.endsWith('.webp') ? 'image/webp' : 'image/png');
+        expect(Buffer.from(await response.arrayBuffer())).toEqual(readFileSync(new URL('../../public' + path, import.meta.url)));
+      }
+    } finally {
+      if (localServer) await new Promise<void>((resolve, reject) => localServer!.close(error => error ? reject(error) : resolve()));
+      await server?.close();
+      await new Promise<void>((resolve, reject) => upstream.close(error => error ? reject(error) : resolve()));
+    }
+  }, 15000);
+
   it.each(Object.entries(APPROVED))('preserves the final %s pixels and square dimensions', (id, hash) => {
     const asset = PRODUCT_IMAGES[id];
     expect(asset).toBeDefined();
