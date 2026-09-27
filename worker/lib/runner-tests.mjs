@@ -879,8 +879,10 @@ test('actual verify entry builds before inspecting dist, reuses an explicit dige
   const root = await scratch(t);
   const source = fileURLToPath(new URL('../..', import.meta.url));
   for (const rel of ['src', 'scripts', 'schema/src']) await cp(path.join(source, rel), path.join(root, rel), { recursive: true });
-  await mkdir(path.join(root, 'worker/lib'), { recursive: true });
-  await copyFile(path.join(source, 'worker/lib/runner-artifacts.mjs'), path.join(root, 'worker/lib/runner-artifacts.mjs'));
+  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
+    await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
+    await copyFile(path.join(source, rel), path.join(root, rel));
+  }
   await writeFile(path.join(root, 'package.json'), '{"type":"module"}');
   // Child gate bodies are fixtures here; this test executes verify's real ordering and artifact contract.
   await writeFile(path.join(root, 'preload.mjs'), `
@@ -1061,7 +1063,7 @@ test('publish verify stops at the first blocking gate while manual verify still 
   const source = fileURLToPath(new URL('../..', import.meta.url));
   // Verify orchestration needs source files, not Git; publication snapshots have no .git.
   for (const rel of ['src', 'scripts', 'schema/src']) await cp(path.join(source, rel), path.join(workspace.site, rel), { recursive: true });
-  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs']) {
+  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
     await mkdir(path.dirname(path.join(workspace.site, rel)), { recursive: true });
     await copyFile(path.join(source, rel), path.join(workspace.site, rel));
   }
