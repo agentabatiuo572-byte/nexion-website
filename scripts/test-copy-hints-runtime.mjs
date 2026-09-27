@@ -10,8 +10,8 @@ import { chromium } from 'playwright';
 import { startConsolePreview } from './console-preview.mjs';
 
 await import('../worker/register-ts-ext.mjs');
-const { PRODUCT_IMAGES } = await import('../src/lib/product-images.ts');
-const productArtPaths = new Set(Object.values(PRODUCT_IMAGES));
+const { PRODUCT_IMAGES, PRODUCT_WIDE_IMAGES } = await import('../src/lib/product-images.ts');
+const productArtPaths = new Set([...Object.values(PRODUCT_IMAGES), ...Object.values(PRODUCT_WIDE_IMAGES)]);
 const { LOCALES, SOURCE_LOCALE } = await import('../schema/src/locales.ts');
 const { applyDraftPatch, enumerateDraftFields } = await import('../schema/src/draft-fields.ts');
 const { validateConfig, sensitivePaths } = await import('../schema/src/validators.ts');

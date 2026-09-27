@@ -58,12 +58,12 @@ describe('collection sort buttons', () => {
     const view = render(<SkusPage />);
     const expected: Record<string, string> = {
       phone: '/devices/phone.webp',
-      'cloud-share': '/devices/uvel-20260927/cloud-share.png',
-      s1: '/devices/uvel-20260927/stellarbox-s1.png',
-      pro: '/devices/uvel-20260927/stellarbox-pro.png',
-      'pro-v2': '/devices/uvel-20260927/stellarbox-pro-v2.png',
-      'rack-p1': '/devices/uvel-20260927/stellarrack-p1.png',
-      'rack-p2': '/devices/uvel-20260927/stellarrack-p2.png',
+      'cloud-share': '/devices/uvel-20260927-web/cloud-share.png',
+      s1: '/devices/uvel-20260927-web/stellarbox-s1.png',
+      pro: '/devices/uvel-20260927-web/stellarbox-pro.png',
+      'pro-v2': '/devices/uvel-20260927-web/stellarbox-pro-v2.png',
+      'rack-p1': '/devices/uvel-20260927-web/stellarrack-p1.png',
+      'rack-p2': '/devices/uvel-20260927-web/stellarrack-p2.png',
     };
     expect(view.container.querySelectorAll('img.sku-thumbnail')).toHaveLength(7);
     for (const [id, path] of Object.entries(expected)) {

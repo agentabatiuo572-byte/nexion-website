@@ -750,6 +750,56 @@ try {
   );
   await pauseContext.close();
 
+  // Keep crop resize/scroll checks separate from the motion lifecycle assertions below.
+  for (const javaScriptEnabled of [true, false]) {
+    const cropContext = await browser.newContext({ javaScriptEnabled });
+    const cropPage = await cropContext.newPage();
+    await cropPage.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
+    const productCrops = JSON.parse(readFileSync(new URL('./fixtures/product-banner-crops.json', import.meta.url), 'utf8'));
+    for (const [width, motion] of [[390, 'reduce'], [861, 'no-preference'], [1024, 'no-preference'],
+      [1279, 'no-preference'], [1280, 'no-preference'], [1440, 'no-preference'], [1024, 'reduce']]) {
+      await cropPage.setViewportSize({ width, height: 900 });
+      await cropPage.emulateMedia({ reducedMotion: motion });
+      const decked = javaScriptEnabled && motion === 'no-preference';
+      await cropPage.waitForFunction(expected => document.querySelector('#devices').classList.contains('decked') === expected, decked);
+      const images = cropPage.locator('#devices .media img');
+      check('商品图片清单完整', await images.count() === 7);
+      if (decked) await cropPage.locator('#devices').scrollIntoViewIfNeeded();
+      for (const image of await images.all()) {
+        if (!decked) await image.scrollIntoViewIfNeeded();
+        await cropPage.waitForFunction(img => {
+          const source = [...img.parentElement.querySelectorAll('source')].find(s => matchMedia(s.media).matches);
+          const expected = new URL(source?.srcset || img.getAttribute('src'), location.href).href;
+          return img.complete && img.naturalWidth > 0 && img.currentSrc === expected;
+        }, await image.elementHandle());
+        const row = await image.evaluate(img => ({ file: new URL(img.currentSrc).pathname.split('/').pop(),
+          width: img.clientWidth, height: img.clientHeight, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight,
+          fit: getComputedStyle(img).objectFit, position: getComputedStyle(img).objectPosition,
+          labels: [...img.closest('.media').querySelectorAll('.chip,.serial')].map(el => {
+            const r = el.getBoundingClientRect(), frame = img.getBoundingClientRect(), unit = img.clientWidth / frame.width;
+            return { left: (r.left-frame.left)*unit, top: (r.top-frame.top)*unit, right: (r.right-frame.left)*unit, bottom: (r.bottom-frame.top)*unit };
+          }) }));
+        if (row.file === 'phone.webp') { check('Phone保持完整显示', row.fit === 'contain'); continue; }
+        const crop = productCrops.find(entry => entry.file === row.file);
+        check('商品必须使用已核对的横幅裁剪', Boolean(crop), row.file);
+        if (!crop) continue;
+        const expectedVariant = decked ? 'wide' : 'standard';
+        const scale = Math.max(row.width / row.naturalWidth, row.height / row.naturalHeight);
+        const x = (row.width - row.naturalWidth * scale) / 2, y = (row.height - row.naturalHeight * scale) / 2;
+        const box = crop.subject;
+        for (const label of row.labels) check('商品不被徽章或序号遮挡',
+          label.right <= x + box.left*scale || label.left >= x + (box.left+box.width)*scale
+            || label.bottom <= y + box.top*scale || label.top >= y + (box.top+box.height)*scale,
+          `${row.file} @${width} js=${javaScriptEnabled}`);
+        check('商品铺满且机身不被裁断', crop.variant === expectedVariant && row.fit === 'cover' && row.position === '50% 50%'
+          && x + box.left * scale >= -1 && y + box.top * scale >= -1
+          && x + (box.left + box.width) * scale <= row.width + 1 && y + (box.top + box.height) * scale <= row.height + 1,
+        `${row.file} @${width} ${motion} js=${javaScriptEnabled}`);
+      }
+    }
+    await cropContext.close();
+  }
+
   /* M15 另开全新 context，避免用脚本伪造 M14 按钮的内部状态后得到假绿。 */
   const motionContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const motionPage = await motionContext.newPage();

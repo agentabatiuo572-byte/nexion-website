@@ -1458,6 +1458,7 @@ function initPile() {
   const sec = document.querySelector<HTMLElement>('[data-deck]');
   const pin = sec?.querySelector<HTMLElement>('[data-deck-pin]') ?? null;
   const cards = sec ? [...sec.querySelectorAll<HTMLElement>('[data-deck-card]')] : [];
+  const artSources = sec ? [...sec.querySelectorAll<HTMLSourceElement>('[data-deck-source]')] : [];
   const band = document.querySelector<HTMLElement>('.band-deep');
   if (!sec || !pin || !cards.length) return;
   const engaged = () => !reduced && !coarse && !matchMedia('(max-width: 860px)').matches;
@@ -1481,6 +1482,7 @@ function initPile() {
   };
   const clear = () => {
     sec.classList.remove('decked');
+    for (const source of artSources) source.media = 'not all';
     band?.classList.remove('curtain');
     sec.style.height = '';
     pin.style.opacity = '';
@@ -1520,6 +1522,7 @@ function initPile() {
     if (want && !active) {
       active = true;
       sec.classList.add('decked');
+      for (const source of artSources) source.media = 'all';
       band?.classList.add('curtain');
       /* R45:停放在屏外的卡被 .x-frame 的裁切框挡住 lazy 预取,滑入时整张白框;桌面编舞在离叠卡区一屏半时预取(不在首载就拉 1MB) */
       const imgs = [...sec.querySelectorAll<HTMLImageElement>('img')];

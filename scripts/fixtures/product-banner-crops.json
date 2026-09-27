@@ -1,0 +1,230 @@
+[
+  {
+    "id": "stellarbox-s1",
+    "variant": "standard",
+    "file": "stellarbox-s1.png",
+    "crop": {
+      "left": 370,
+      "top": 152,
+      "width": 810,
+      "height": 540
+    },
+    "subject": {
+      "left": 196,
+      "top": 138,
+      "width": 410,
+      "height": 378
+    },
+    "sha256": "93258a58d91e6e3f5e7d25cda3441f6ad4b2db2ba10c896a2d2b4cb4f3a0ca56",
+    "sourceSha256": "dc2125526c28f1f105db42bedfd0bed067632d4d21dcac3188b4c11042ee7a25"
+  },
+  {
+    "id": "stellarbox-s1",
+    "variant": "wide",
+    "file": "stellarbox-s1-wide.png",
+    "crop": {
+      "left": 165,
+      "top": 172,
+      "width": 1320,
+      "height": 528
+    },
+    "subject": {
+      "left": 401,
+      "top": 118,
+      "width": 410,
+      "height": 378
+    },
+    "sha256": "41d05a234a9abac8ab4eff8ff45da6dd0af7207b1d07a47ee293dda6f25f09a9",
+    "sourceSha256": "dc2125526c28f1f105db42bedfd0bed067632d4d21dcac3188b4c11042ee7a25"
+  },
+  {
+    "id": "stellarbox-pro",
+    "variant": "standard",
+    "file": "stellarbox-pro.png",
+    "crop": {
+      "left": 320,
+      "top": 119,
+      "width": 900,
+      "height": 600
+    },
+    "subject": {
+      "left": 205,
+      "top": 153,
+      "width": 490,
+      "height": 420
+    },
+    "sha256": "33035104d854e2c9ed0e8adf5f5be0b16f3a1a2627ae6c343d8f9821293287b2",
+    "sourceSha256": "9a6efe7ba967973218199684d9b6afc4599ff50fde25659c81e101499e8c0f87"
+  },
+  {
+    "id": "stellarbox-pro",
+    "variant": "wide",
+    "file": "stellarbox-pro-wide.png",
+    "crop": {
+      "left": 46,
+      "top": 132,
+      "width": 1490,
+      "height": 596
+    },
+    "subject": {
+      "left": 479,
+      "top": 140,
+      "width": 490,
+      "height": 420
+    },
+    "sha256": "a061b7220516e678515d6abda02606a1d96ea8d2c44a99ae756943ad8ec4ba62",
+    "sourceSha256": "9a6efe7ba967973218199684d9b6afc4599ff50fde25659c81e101499e8c0f87"
+  },
+  {
+    "id": "stellarbox-pro-v2",
+    "variant": "standard",
+    "file": "stellarbox-pro-v2.png",
+    "crop": {
+      "left": 375,
+      "top": 160,
+      "width": 789,
+      "height": 526
+    },
+    "subject": {
+      "left": 138,
+      "top": 134,
+      "width": 505,
+      "height": 385
+    },
+    "sha256": "16d5a754c94061630d1cb295638bb63835f5f13d76803b92de5052213a8bf41d",
+    "sourceSha256": "ec53719ddad988241f9afed12aeb691d184b4f10b54576115a6a4ff461829f84"
+  },
+  {
+    "id": "stellarbox-pro-v2",
+    "variant": "wide",
+    "file": "stellarbox-pro-v2-wide.png",
+    "crop": {
+      "left": 139,
+      "top": 237,
+      "width": 1250,
+      "height": 500
+    },
+    "subject": {
+      "left": 374,
+      "top": 57,
+      "width": 505,
+      "height": 385
+    },
+    "sha256": "3674a18f380ee79915463f740e803cb15108f2bfff0affd9a2e719780e5993df",
+    "sourceSha256": "ec53719ddad988241f9afed12aeb691d184b4f10b54576115a6a4ff461829f84"
+  },
+  {
+    "id": "stellarrack-p1",
+    "variant": "standard",
+    "file": "stellarrack-p1.png",
+    "crop": {
+      "left": 348,
+      "top": 217,
+      "width": 864,
+      "height": 576
+    },
+    "subject": {
+      "left": 60,
+      "top": 147,
+      "width": 745,
+      "height": 300
+    },
+    "sha256": "dc9bfd557677c51aa456667692e37d11c81007dd3d8d47e6ab4c1376ba77de5d",
+    "sourceSha256": "a2fcbd4a82c1f695fe5f98943287779bfff32a676dd12a3cf62df7de89ce3121"
+  },
+  {
+    "id": "stellarrack-p1",
+    "variant": "wide",
+    "file": "stellarrack-p1-wide.png",
+    "crop": {
+      "left": 176,
+      "top": 234,
+      "width": 1160,
+      "height": 464
+    },
+    "subject": {
+      "left": 232,
+      "top": 130,
+      "width": 745,
+      "height": 300
+    },
+    "sha256": "08442441ba62fc66da83f0416c5750b48d8ddb618ad6b3effebd67605693c461",
+    "sourceSha256": "a2fcbd4a82c1f695fe5f98943287779bfff32a676dd12a3cf62df7de89ce3121"
+  },
+  {
+    "id": "stellarrack-p2",
+    "variant": "standard",
+    "file": "stellarrack-p2.png",
+    "crop": {
+      "left": 262,
+      "top": 107,
+      "width": 1020,
+      "height": 680
+    },
+    "subject": {
+      "left": 75,
+      "top": 173,
+      "width": 871,
+      "height": 414
+    },
+    "sha256": "5c735cb006fb7eb8e9b8101769bb81088c64779610e2ba79a709d8e041498b71",
+    "sourceSha256": "b2dd25907d18080b99d27bcb95d1c9c95b3c90e968d7ebcf1076c3aa8a556ba1"
+  },
+  {
+    "id": "stellarrack-p2",
+    "variant": "wide",
+    "file": "stellarrack-p2-wide.png",
+    "crop": {
+      "left": 18,
+      "top": 127,
+      "width": 1510,
+      "height": 604
+    },
+    "subject": {
+      "left": 319,
+      "top": 153,
+      "width": 871,
+      "height": 414
+    },
+    "sha256": "f2a375874d7205c78e39eb3926bd28c0cc95908edd7bc409d59c1bd356245028",
+    "sourceSha256": "b2dd25907d18080b99d27bcb95d1c9c95b3c90e968d7ebcf1076c3aa8a556ba1"
+  },
+  {
+    "id": "cloud-share",
+    "variant": "standard",
+    "file": "cloud-share.png",
+    "crop": {
+      "left": 317,
+      "top": 142,
+      "width": 900,
+      "height": 600
+    },
+    "subject": {
+      "left": 66,
+      "top": 153,
+      "width": 772,
+      "height": 377
+    },
+    "sha256": "8f4ce012868bc13df77a42fba3c1b00c1b7e0ba63c86bd63a7e3e498a0813217",
+    "sourceSha256": "01e459557aa3d1bc543febe0521156141413bb1c800003a3198f0b8081f98f7f"
+  },
+  {
+    "id": "cloud-share",
+    "variant": "wide",
+    "file": "cloud-share-wide.png",
+    "crop": {
+      "left": 74,
+      "top": 202,
+      "width": 1285,
+      "height": 514
+    },
+    "subject": {
+      "left": 309,
+      "top": 93,
+      "width": 772,
+      "height": 377
+    },
+    "sha256": "b3a3579609817700bcf6b4ae4c1dfd121c24ef701d2a93f46534a3aa42e2ba42",
+    "sourceSha256": "01e459557aa3d1bc543febe0521156141413bb1c800003a3198f0b8081f98f7f"
+  }
+]
