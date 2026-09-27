@@ -10,7 +10,7 @@
 import { useT, type Locale } from '../i18n';
 import { SKUS, fmtPrice, fmtMultiplier } from '../lib/skus';
 import { contour } from '../lib/contour';
-import { PRODUCT_IMAGES } from '../lib/product-images';
+import { PRODUCT_IMAGES, PRODUCT_WIDE_IMAGES } from '../lib/product-images';
 
 interface Props {
   locale: Locale;
@@ -18,7 +18,7 @@ interface Props {
 const { locale } = Astro.props;
 const t = useT(locale);
 
-/* Preserve the complete approved square artwork inside the existing 3:2 media area. */
+/* Crop the existing banners to fill the media area while retaining each complete device. */
 const shareArt = contour(77, 12, 640, 400);
 ---
 
@@ -40,7 +40,12 @@ const shareArt = contour(77, 12, 640, 400);
           <article class="card x-tile" class:list={[{ coming: s.status === 'coming' }]} data-deck-card style={`--i:${i}`}>
             <div class="media">
               {PRODUCT_IMAGES[s.id] ? (
-                <img src={PRODUCT_IMAGES[s.id]} alt="" loading="lazy" width="960" height="640" class="contain" />
+                <picture>
+                  {PRODUCT_WIDE_IMAGES[s.id] && <source
+                    data-deck-source media="not all"
+                    srcset={PRODUCT_WIDE_IMAGES[s.id]} />}
+                  <img src={PRODUCT_IMAGES[s.id]} alt="" loading="lazy" width="960" height="640" class:list={{ contain: s.id === 'phone' }} />
+                </picture>
               ) : (
                 <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
                   {shareArt.paths.map((d) => (

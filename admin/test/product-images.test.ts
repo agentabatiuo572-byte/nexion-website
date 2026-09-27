@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import { createServer as createHttpServer } from 'node:http';
 import { createServer as createViteServer } from 'vite';
 import { describe, expect, it } from 'vitest';
-import { PRODUCT_IMAGES } from '../../src/lib/product-images';
+import { PRODUCT_IMAGES, PRODUCT_WIDE_IMAGES } from '../../src/lib/product-images';
+import crops from '../../scripts/fixtures/product-banner-crops.json';
 import adminViteConfig from '../vite.config';
 
 // Approved 2026-09-27 final/manifest.json: these originals must not be re-encoded or swapped.
@@ -19,7 +20,7 @@ const APPROVED = {
 
 describe('approved product artwork', () => {
   it('serves all real thumbnail bytes through the local Admin proxy', async () => {
-    const paths = Object.values(PRODUCT_IMAGES);
+    const paths = [...Object.values(PRODUCT_IMAGES), ...Object.values(PRODUCT_WIDE_IMAGES)];
     const upstream = createHttpServer((request, response) => {
       const path = request.url ?? '';
       if (!paths.includes(path)) { response.writeHead(404).end(); return; }
@@ -46,7 +47,7 @@ describe('approved product artwork', () => {
         const response = await fetch(`http://127.0.0.1:${local.port}${path}`);
         expect(response.status).toBe(200);
         expect(response.headers.get('content-type')).toBe(path.endsWith('.webp') ? 'image/webp' : 'image/png');
-        expect(Buffer.from(await response.arrayBuffer())).toEqual(readFileSync(new URL('../../public' + path, import.meta.url)));
+        expect(Buffer.from(await response.arrayBuffer()).equals(readFileSync(new URL('../../public' + path, import.meta.url))), path).toBe(true);
       }
     } finally {
       if (localServer) await new Promise<void>((resolve, reject) => localServer!.close(error => error ? reject(error) : resolve()));
@@ -55,13 +56,23 @@ describe('approved product artwork', () => {
     }
   }, 15000);
 
-  it.each(Object.entries(APPROVED))('preserves the final %s pixels and square dimensions', (id, hash) => {
+  it.each(Object.entries(APPROVED))('retains the original %s separately from website crops', (id, hash) => {
     const asset = PRODUCT_IMAGES[id];
     expect(asset).toBeDefined();
-    const bytes = readFileSync(new URL('../../public' + asset, import.meta.url));
+    const bytes = readFileSync(new URL('../../public' + asset!.replace('uvel-20260927-web', 'uvel-20260927'), import.meta.url));
     expect(createHash('sha256').update(bytes).digest('hex')).toBe(hash);
     expect(bytes.subarray(1, 4).toString()).toBe('PNG');
     expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([1254, 1254]);
+  });
+
+  it.each(crops)('serves the verified $file crop without square letterboxing', crop => {
+    const path = '/devices/uvel-20260927-web/' + crop.file;
+    const map = crop.variant === 'wide' ? PRODUCT_WIDE_IMAGES : PRODUCT_IMAGES;
+    expect(Object.values(map)).toContain(path);
+    const bytes = readFileSync(new URL('../../public' + path, import.meta.url));
+    expect(createHash('sha256').update(bytes).digest('hex')).toBe(crop.sha256);
+    expect([bytes.readUInt32BE(16), bytes.readUInt32BE(20)]).toEqual([crop.crop.width, crop.crop.height]);
+    expect(crop.crop.width / crop.crop.height).toBe(crop.variant === 'wide' ? 2.5 : 1.5);
   });
 
   it('retains Phone and does not introduce a Genesis product slot', () => {
