@@ -11,6 +11,8 @@ import { pointer, useDraft, type SiteConfigView, type Tri } from '../lib/use-dra
 import { useFocusField } from '../lib/use-focus-field';
 import { LOCALE_NAME } from '../lib/human-path';
 import { LOCALES, LocalePair, LocaleToolbar, SOURCE_LOCALE, useLocaleWorkspace } from '../lib/locale-editor';
+import { PRODUCT_IMAGES } from '../../../src/lib/product-images';
+import { publishedSiteUrl } from '../lib/published-site';
 
 const scan = scanForbidden as (t: string) => Array<{ label: string; match: string }>;
 /** 机器枚举 → 人话。缺映射时显示「状态未知(原值)」,不静默、也不吐裸枚举 */
@@ -105,6 +107,7 @@ export default function SkusPage() {
           >
             <div className="row">
               <span className="kv mono" style={{ cursor: 'grab' }} title="拖拽排序">⠿</span>
+              {PRODUCT_IMAGES[id] && <img className="sku-thumbnail" src={publishedSiteUrl(PRODUCT_IMAGES[id])} alt="" width="120" height="80" loading="lazy" draggable={false} />}
               <b>{s.name}</b>
               <span className={`pill ${s.status === 'active' ? 'brand' : ''}`}>{SKU_STATUS[s.status] ?? `状态未知(${s.status})`}</span>
               <span className="mono kv">${parseNumericInput(s.priceUSD)?.toLocaleString('en-US') ?? s.priceUSD} · {s.multiplier}×</span>

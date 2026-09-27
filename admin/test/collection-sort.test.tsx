@@ -50,6 +50,32 @@ beforeEach(() => {
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 describe('collection sort buttons', () => {
+  it('shows the approved product artwork without creating draft edits', () => {
+    const skus = structuredClone(seed.skus) as SiteConfigView['skus'];
+    mocks.overview.draft.payload.skus = skus;
+    mocks.overview.live.payload.skus = structuredClone(skus);
+    const before = structuredClone(mocks.overview);
+    const view = render(<SkusPage />);
+    const expected: Record<string, string> = {
+      phone: '/devices/phone.webp',
+      'cloud-share': '/devices/uvel-20260927/cloud-share.png',
+      s1: '/devices/uvel-20260927/stellarbox-s1.png',
+      pro: '/devices/uvel-20260927/stellarbox-pro.png',
+      'pro-v2': '/devices/uvel-20260927/stellarbox-pro-v2.png',
+      'rack-p1': '/devices/uvel-20260927/stellarrack-p1.png',
+      'rack-p2': '/devices/uvel-20260927/stellarrack-p2.png',
+    };
+    expect(view.container.querySelectorAll('img.sku-thumbnail')).toHaveLength(7);
+    for (const [id, path] of Object.entries(expected)) {
+      const image = view.container.querySelector(`[data-field="skus.${id}"] img`) as HTMLImageElement;
+      expect(new URL(image.src).pathname).toBe(path);
+      expect(image.draggable).toBe(false);
+    }
+    expect((screen.getByRole('button', { name: '保存草稿' }) as HTMLButtonElement).disabled).toBe(true);
+    expect(mocks.api).not.toHaveBeenCalled();
+    expect(mocks.overview).toEqual(before);
+  });
+
   it('moves product cards in both directions, retains same-card focus at boundaries and saves the visible order', async () => {
     let view = render(<SkusPage />);
     const moveUp = screen.getByRole('button', { name: '上移 Product 3' });

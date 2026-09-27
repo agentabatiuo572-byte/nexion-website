@@ -10,6 +10,8 @@ import { chromium } from 'playwright';
 import { startConsolePreview } from './console-preview.mjs';
 
 await import('../worker/register-ts-ext.mjs');
+const { PRODUCT_IMAGES } = await import('../src/lib/product-images.ts');
+const productArtPaths = new Set(Object.values(PRODUCT_IMAGES));
 const { LOCALES, SOURCE_LOCALE } = await import('../schema/src/locales.ts');
 const { applyDraftPatch, enumerateDraftFields } = await import('../schema/src/draft-fields.ts');
 const { validateConfig, sensitivePaths } = await import('../schema/src/validators.ts');
@@ -340,6 +342,11 @@ try {
     const respond = (body, status = 200) => route.fulfill({ status, json: body });
     try {
       assert.equal(url.origin, report.origin, 'Unexpected external request');
+      // Serve the approved bytes for real thumbnail requests; only API state is simulated.
+      if (method === 'GET' && productArtPaths.has(url.pathname)) return route.fulfill({
+        status: 200, contentType: url.pathname.endsWith('.webp') ? 'image/webp' : 'image/png',
+        body: await readFile(resolve(root, 'public', url.pathname.slice(1))),
+      });
       if (method === 'GET' && url.pathname === '/api/me') return respond({ username: 'isolated-browser-fixture' });
       if (method === 'GET' && url.pathname === '/api/config') return respond(overview());
       if (method === 'GET' && url.pathname === '/api/translations') return respond({ draftRev: revision, counts: {}, states: [], items: [], nextCursor: null });
