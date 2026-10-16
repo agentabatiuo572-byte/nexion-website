@@ -1,11 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, cp, rename } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, readFile, readdir, rm, symlink, cp, rename, chmod, lstat, link } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { artifactManifest, affectedRoutes, digest, validManifest, qualificationMatches, readQualification,
   checkQualifiedSource, reusableArtifact, saveArtifact, cachedWebsite, atomicJson, runtimeIdentity,
-  qualificationArtifactsValid, replaceQualifiedStage } from './runner-incremental.mjs';
+  qualificationArtifactsValid, replaceQualifiedStage, copyWorkingArtifact } from './runner-incremental.mjs';
 import { directoryDigest } from './runner-artifacts.mjs';
 import { runGates } from './runner-gates.mjs';
 import { sampleCoverageFailures } from '../../scripts/check-ui-layout.mjs';
@@ -13,6 +15,73 @@ import { sampleCoverageFailures } from '../../scripts/check-ui-layout.mjs';
 const scratch = async t => { const root = await mkdtemp(path.join(tmpdir(), 'uvel-incremental-')); t.after(() => rm(root, { recursive: true, force: true })); return root; };
 const manifest = entries => { const list = Object.entries(entries).sort(([a],[b]) => a.localeCompare(b, 'en')).map(([p,s]) => ({ path: p, bytes: Buffer.byteLength(s), sha256: digest(s) })); return { manifest: list, files: list.length, sha256: digest(list) }; };
 const before = manifest({ 'index.html': 'home', 'learn/index.html': 'learn', 'vi/index.html': 'vi', 'site.css': 'old-css' });
+async function treeMode(root, directoryMode, fileMode) {
+  await chmod(root, directoryMode);
+  for (const entry of await readdir(root, { withFileTypes: true })) {
+    const file = path.join(root, entry.name);
+    if (entry.isDirectory()) await treeMode(file, directoryMode, fileMode);
+    else await chmod(file, fileMode);
+  }
+}
+test('readonly artifact copies support admin assembly, real promotion stamps and cleanup without changing source', async t => {
+  const { root, dist, state, q } = await artifacts(t), job = path.join(root, 'job');
+  await mkdir(path.join(dist, 'admin/assets'));
+  await writeFile(path.join(dist, 'admin/assets/index.js'), 'admin-script');
+  q.artifactSha = directoryDigest(dist).sha256; q.adminSha = directoryDigest(path.join(dist, 'admin')).sha256;
+  await mkdir(path.join(job, 'admin'), { recursive: true });
+  await treeMode(dist, 0o555, 0o444);
+  const control = path.join(root, 'old-copy');
+  try {
+    if (process.platform === 'linux' && process.getuid() !== 0) {
+      t.diagnostic(`permission regression executed as Linux uid ${process.getuid()}`);
+      await cp(dist, control, { recursive: true });
+      await assert.rejects(cp(path.join(dist, 'admin'), path.join(control, 'admin'), { recursive: true }), { code: 'EACCES' });
+      await treeMode(control, 0o755, 0o644); await rm(control, { recursive: true });
+    } else t.diagnostic('POSIX denial control requires the separate Linux non-root runtime check');
+    await copyWorkingArtifact(dist, path.join(job, 'dist'), q.artifactSha, job);
+    for (const target of ['admin/dist', 'dist/admin', 'dist/admin']) {
+      await copyWorkingArtifact(path.join(dist, 'admin'), path.join(job, target), q.adminSha, job);
+    }
+    assert.equal(directoryDigest(path.join(job, 'dist')).sha256, q.artifactSha);
+    const { MATERIALIZED_FILES } = await import('../../schema/src/locales.ts');
+    for (const rel of MATERIALIZED_FILES) {
+      await mkdir(path.dirname(path.join(job, rel)), { recursive: true });
+      await writeFile(path.join(job, rel), '{}');
+    }
+    execFileSync(process.execPath, ['--no-maglev', '--import', new URL('../register-ts-ext.mjs', import.meta.url).href,
+      fileURLToPath(new URL('../promote.mjs', import.meta.url)), '--source', path.join(job, 'dist'),
+      '--live', path.join(job, 'dist-live'), '--materialized-root', job, '--version', '7', '--expected-sha', q.artifactSha],
+    { env: { ...process.env, PUBLISH_STAMP: 'test-only-stamp' }, encoding: 'utf8' });
+    assert.equal(JSON.parse(await readFile(path.join(job, 'dist-live/.publish-stamp.json'), 'utf8')).versionId, 7);
+    assert.equal(directoryDigest(path.join(job, 'dist-live')).sha256, q.artifactSha);
+    await saveArtifact(state, q, q.configSha, path.join(job, 'dist'));
+    const cached = await reusableArtifact(state, q, q.configSha); assert.ok(cached);
+    await copyWorkingArtifact(cached.root, path.join(job, 'cached-copy'), q.artifactSha, job);
+    assert.equal(directoryDigest(dist).sha256, q.artifactSha);
+    if (process.platform !== 'win32') {
+      assert.equal((await lstat(dist)).mode & 0o777, 0o555);
+      assert.equal((await lstat(path.join(dist, 'admin/assets/index.js'))).mode & 0o777, 0o444);
+    }
+    await rm(job, { recursive: true });
+    await assert.rejects(lstat(job), { code: 'ENOENT' });
+  } finally {
+    await treeMode(dist, 0o755, 0o644);
+    try { await treeMode(control, 0o755, 0o644); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  }
+});
+test('working artifact rejects wrong bytes, cancellation, source aliases and linked destinations', async t => {
+  const { root, dist, q } = await artifacts(t), job = path.join(root, 'job'); await mkdir(job);
+  await assert.rejects(copyWorkingArtifact(dist, path.join(job, 'bad'), digest('wrong'), job), /产物内容已变化/);
+  await assert.rejects(copyWorkingArtifact(dist, path.join(job, 'aborted'), q.artifactSha, job, AbortSignal.abort()), /abort/i);
+  await assert.rejects(copyWorkingArtifact(dist, dist, q.artifactSha, root), /escaped/);
+  await symlink(dist, path.join(job, 'linked'), process.platform === 'win32' ? 'junction' : 'dir');
+  await assert.rejects(copyWorkingArtifact(dist, path.join(job, 'linked'), q.artifactSha, job), /实体目录/);
+  await cp(dist, path.join(job, 'hardlinked'), { recursive: true });
+  await rm(path.join(job, 'hardlinked/index.html'));
+  await link(path.join(dist, 'index.html'), path.join(job, 'hardlinked/index.html'));
+  await assert.rejects(copyWorkingArtifact(dist, path.join(job, 'hardlinked'), q.artifactSha, job), /cannot contain links/);
+  assert.equal(directoryDigest(dist).sha256, q.artifactSha);
+});
 test('scoped layout coverage requires selected page components and still rejects missing expected samples', () => {
   const home = { route: '/', home: true }, product = { route: '/vi/nex/', home: false };
   const observed = { hero: 10, grid: 0, menu: 4, how: 15, trust: 18 }; // Actual v3 failed-run observations.

@@ -4,7 +4,7 @@
    密钥只从 PUBLISH_RUNNER_TOKEN 读取，不接受 cookie，也没有任意 shell 指令开关。 */
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, realpathSync, readFileSync, writeFileSync, renameSync, rmSync } from 'node:fs';
-import { readFile, mkdir, writeFile, cp } from 'node:fs/promises';
+import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,7 +12,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { acquireLock, parseOptions, createApi, startLease, runCommand, createWorkspace, childEnvironment, runnerSourceFingerprint, processAlive, processIdentity } from './lib/runner-core.mjs';
 import { parseJsonc } from './lib/read-jsonc.mjs';
 import { directoryDigest, assertDigest, redactEvidence } from './lib/runner-artifacts.mjs';
-import { readQualification, runtimeIdentity, cachedWebsite, reusableArtifact, saveArtifact, atomicJson } from './lib/runner-incremental.mjs';
+import { readQualification, runtimeIdentity, cachedWebsite, reusableArtifact, saveArtifact, atomicJson, copyWorkingArtifact } from './lib/runner-incremental.mjs';
 import { encodePublishProgress } from '../schema/src/publish-feedback.ts';
 
 function renameStateFile(source, destination) {
@@ -366,7 +366,7 @@ async function main() {
       const reusable = qualification && await reusableArtifact(stateDir, qualification, configSha);
       let gates;
       if (reusable) {
-        await cp(reusable.root, path.join(site, 'dist'), { recursive: true, dereference: false, filter: () => { signal.throwIfAborted(); return true; } });
+        await copyWorkingArtifact(reusable.root, path.join(site, 'dist'), reusable.artifact.sha256, site, signal);
         assertDigest(path.join(site, 'dist'), reusable.artifact.sha256);
         gates = { ok: true, artifact: directoryDigest(path.join(site, 'dist'), { exclude: ['admin', '.publish-stamp.json'] }), website: reusable.website,
           skipped: ['已验证的相同内容构建与页面检查'], impact: { reused: true, routes: [] } };
@@ -390,7 +390,7 @@ async function main() {
         const adminSource = path.join(qualification.root, 'artifact', 'admin');
         assertDigest(adminSource, qualification.adminSha);
         for (const destination of [path.join(site, 'admin/dist'), path.join(site, 'dist/admin')]) {
-          await cp(adminSource, destination, { recursive: true, dereference: false, filter: () => { signal.throwIfAborted(); return true; } });
+          await copyWorkingArtifact(adminSource, destination, qualification.adminSha, site, signal);
           assertDigest(destination, qualification.adminSha);
         }
         await flushCheck({ step: 'build', title: '复用已验证的后台程序', status: 'ok' });

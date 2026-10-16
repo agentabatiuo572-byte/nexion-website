@@ -2,7 +2,7 @@
    Content never chooses a command, cache path, qualification or verification scope. */
 import { createHash, randomUUID } from 'node:crypto';
 import { constants, accessSync, lstatSync, readFileSync, readdirSync, realpathSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
-import { cp, mkdir, readFile, readdir, rename, lstat } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rename, lstat, chmod } from 'node:fs/promises';
 import path from 'node:path';
 import { fileManifest, directoryDigest, assertDigest } from './runner-artifacts.mjs';
 
@@ -92,6 +92,39 @@ export function qualificationArtifactsValid(root, q) {
     if (!readFileSync(path.join(artifact, 'admin/index.html'), 'utf8').trim()) return false;
     return artifactManifest(artifact).sha256 === q.website.sha256;
   } catch { return false; }
+}
+
+// Qualification stays immutable. Only this job's private copy may be assembled,
+// stamped and removed; fs.cp otherwise preserves the source's 0555/0444 modes.
+export async function copyWorkingArtifact(source, destination, expectedSha, workspace, signal) {
+  signal?.throwIfAborted();
+  source = path.resolve(source); destination = path.resolve(destination); workspace = path.resolve(workspace);
+  if (realpathSync(workspace) !== workspace || !destination.startsWith(`${workspace}${path.sep}`)
+    || realpathSync(path.dirname(destination)) !== path.dirname(destination)
+    || realpathSync(source) !== source || destination === source
+    || destination.startsWith(`${source}${path.sep}`) || source.startsWith(`${destination}${path.sep}`)) {
+    throw new Error('Working artifact escaped its private workspace');
+  }
+  assertDigest(source, expectedSha);
+  let exists = false;
+  try { await lstat(destination); exists = true; } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  // The complete reused artifact already contains the same admin build. Never
+  // merge unrelated leftovers or overwrite an unverified existing destination.
+  if (exists) assertDigest(destination, expectedSha);
+  else await cp(source, destination, { recursive: true, dereference: false, force: false, errorOnExist: true,
+    filter: () => { signal?.throwIfAborted(); return true; } });
+  const makeWritable = async target => {
+    signal?.throwIfAborted();
+    const info = await lstat(target);
+    if (info.isDirectory()) {
+      await chmod(target, 0o755);
+      for (const name of await readdir(target)) await makeWritable(path.join(target, name));
+    } else if (info.isFile() && info.nlink === 1) await chmod(target, 0o644);
+    else throw new Error('Working artifact cannot contain links or special files');
+  };
+  await makeWritable(destination);
+  assertDigest(destination, expectedSha);
+  signal?.throwIfAborted();
 }
 
 // Replace a verified stage as a whole. Retry must never merge old extra files.
