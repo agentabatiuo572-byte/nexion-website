@@ -67,6 +67,21 @@ describe('audit filter requests', () => {
     expect(screen.queryByText('config.save')).toBeNull();
   });
 
+  it('names initialization, publish state and indexed language changes', async () => {
+    mocks.api.mockResolvedValue({ items: [
+      { ...result('auth.setup', 11).items[0], target: 'admin' },
+      { ...result('config.publish', 12).items[0], target: 'v2', before_summary: 'live=v1', after_summary: '1 处改动' },
+      { ...result('config.publish.unknown', 13).items[0], target: 'v2', before_summary: 'validating/publishing', after_summary: '结果待核实' },
+      { ...result('config.save', 14).items[0], target: 'draft', after_summary: '1 处改动:enabledLocales[2]' },
+    ], nextBefore: null });
+    render(<AuditPage />);
+    expect(await screen.findByText('管理员账户')).toBeTruthy();
+    expect(screen.getByText(/线上版本 v1 → 1 处改动/)).toBeTruthy();
+    expect(screen.getByText(/检查或发布进行中 → 结果待核实/)).toBeTruthy();
+    expect(screen.getByText(/前台语言设置 · 第 3 项/)).toBeTruthy();
+    expect(screen.queryByText(/live=v1|validating\/publishing|enabledLocales/)).toBeNull();
+  });
+
   it('ignores an older filter response that arrives after the current filter response', async () => {
     let resolveContent!: (value: ReturnType<typeof result>) => void;
     let resolveSession!: (value: ReturnType<typeof result>) => void;

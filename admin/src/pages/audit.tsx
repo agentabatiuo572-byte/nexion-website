@@ -33,6 +33,9 @@ const FILTERS = [
 function targetLabel(target: string | null): string {
   if (!target || target === 'unknown') return '来源不详';
   if (target === 'draft') return '网站草稿';
+  if (target === 'admin') return '管理员账户';
+  if (target === 'ai-connection') return 'AI 服务连接';
+  if (target.startsWith('geo:rules#')) return '区域屏蔽规则';
   if (/^v\d+$/.test(target)) return `版本 ${target}`;
   if (target.startsWith('draft-upgrade:')) return '网站草稿格式升级';
   return humanPath(target);
@@ -40,8 +43,11 @@ function targetLabel(target: string | null): string {
 
 function summaryLabel(summary: string | null): string {
   if (!summary) return '';
+  if (summary === 'validating/publishing') return '检查或发布进行中';
+  if (summary === 'none' || summary === 'live=none') return '暂无线上版本';
   return summary.replace(/\br(\d+)\b/g, '草稿修订 $1')
-    .replace(/\b(?:copy|downloads|stats|skus|faq|announcement|seo|footer|legal)(?:\[[^\]]+\])?(?:\.[\w-]+(?:\[[^\]]+\])?)+\b|\benabledLocales\b/g, humanPath);
+    .replace(/\blive=(v\d+)\b/g, '线上版本 $1')
+    .replace(/\benabledLocales(?:\[\d+\])?|\b(?:copy|downloads|stats|skus|faq|announcement|seo|footer|legal)(?:\[[^\]]+\])?(?:\.[\w-]+(?:\[[^\]]+\])?)+/g, humanPath);
 }
 
 export default function AuditPage() {
