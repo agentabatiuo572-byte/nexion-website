@@ -657,6 +657,12 @@ test('a cold isolated site builds current content and supplies private assets to
   const workerPkg = JSON.parse(await readFile(path.join(origin, 'worker/package.json'), 'utf8'));
   workerPkg.scripts['test:publisher'] = 'node -e "process.exit(0)"';
   await writeFile(path.join(origin, 'worker/package.json'), JSON.stringify(workerPkg));
+  // This test owns the cold ASSETS integration, not a second execution of every
+  // authentication/publish/API unit test. Keep the real static red/green suite.
+  const vitestConfig = path.join(origin, 'worker/vitest.config.ts');
+  const vitestText = await readFile(vitestConfig, 'utf8');
+  assert.ok(vitestText.includes("include: ['test/**/*.spec.ts']"));
+  await writeFile(vitestConfig, vitestText.replace("include: ['test/**/*.spec.ts']", "include: ['test/static.spec.ts']"));
   // No trailing slash: the fixture uses dependency symlinks on Linux, not directories.
   await writeFile(path.join(origin, '.gitignore'), 'node_modules\ndist/\ndist-live/\n.astro/\nworker/worker-configuration.d.ts\n');
   for (const rel of ['node_modules', 'worker/node_modules', 'admin/node_modules']) await symlink(path.join(sourceRoot, rel), path.join(origin, rel), process.platform === 'win32' ? 'junction' : 'dir');
@@ -813,7 +819,7 @@ test('published language gate rejects a missing enabled homepage and any disable
 });
 
 test('local and production gate chains check backend first, stop on its first failure, and bind one build to verify', async (t) => {
-  for (const mode of ['local', 'production', 'tamper', 'console-self-test-failure', 'ai-runtime-failure']) {
+  for (const mode of ['local', 'production', 'tamper', 'console-self-test-failure', 'ai-runtime-failure', 'publisher-failure']) {
     const root = await scratch(t);
     for (const rel of ['src/config', 'worker/lib', 'worker/node_modules/vitest', 'admin']) await mkdir(path.join(root, rel), { recursive: true });
     await writeFile(path.join(root, 'src/config/site.json'), JSON.stringify({ enabledLocales: ['en'] }));
@@ -822,7 +828,7 @@ test('local and production gate chains check backend first, stop on its first fa
     await writeFile(path.join(root, 'verify.mjs'), `import assert from 'node:assert/strict';import{writeFileSync,readFileSync}from'node:fs';import{assertDigest}from ${JSON.stringify(new URL('./runner-artifacts.mjs', import.meta.url).href)};assert.equal(process.argv[3],'--built-dist-sha');assert.equal(process.argv.includes('--routes'),false,'published artifacts always need full-site browser gates');assertDigest('dist',process.argv[4]);assert.equal(readFileSync('build-count','utf8'),'1');writeFileSync('verified-mode',process.argv[2]);writeFileSync('.verify-exit.code','0');${mode === 'tamper' ? "writeFileSync('dist/index.html','modified');" : ''}`);
     await writeFile(path.join(root, 'worker/package.json'), JSON.stringify({ scripts: { types: 'node types.cjs', typecheck: 'node -e "process.exit(0)"', 'test:publisher': 'node publisher-order.cjs' } }));
     await writeFile(path.join(root, 'worker/types.cjs'), "require('node:fs').writeFileSync('worker-configuration.d.ts','generated')");
-    await writeFile(path.join(root, 'worker/publisher-order.cjs'), "const fs=require('node:fs');require('node:assert/strict').equal(fs.readFileSync('early-checks','utf8').trim().split('\\n').length,9);fs.writeFileSync('../publisher-ran','yes');");
+    await writeFile(path.join(root, 'worker/publisher-order.cjs'), "const fs=require('node:fs');require('node:assert/strict').equal(fs.readFileSync('early-checks','utf8').trim().split('\\n').length,9);fs.writeFileSync('../publisher-ran','yes');" + (mode === 'publisher-failure' ? 'process.exit(7);' : ''));
     // No Admin typecheck or duplicate CSS/render self-test fixture exists: reintroducing either fails this chain.
     for (const rel of ['lib/test-read-jsonc.mjs', 'lib/test-exit-skips-finally.mjs', 'gate-config-consistency.mjs', 'gate-console-copy.mjs', 'gate-beacon-size.mjs', 'node_modules/vitest/vitest.mjs']) {
       await writeFile(path.join(root, 'worker', rel), `import{appendFileSync}from'node:fs';appendFileSync('early-checks',${JSON.stringify(rel)}+' '+process.argv.slice(2).join(' ')+'\\n');${mode === 'console-self-test-failure' && rel === 'gate-console-copy.mjs' ? "if(process.argv.includes('--self-test')){console.error('injected console self-test failure');process.exit(7);}" : ''}console.log('1 pass');`);
@@ -845,12 +851,21 @@ test('local and production gate chains check backend first, stop on its first fa
       assert.equal((await readFile(path.join(root, 'worker/early-checks'), 'utf8')).trim().split('\n').length, 8);
       for (const rel of ['publisher-ran', 'verified-mode']) await assert.rejects(readFile(path.join(root, rel)), { code: 'ENOENT' });
     }
+    else if (mode === 'publisher-failure') {
+      let qualified = false;
+      const result = await runGates(root, 'local', {}, { onCodeQualified: () => { qualified = true; } });
+      assert.equal(result.ok, false); assert.equal(result.gate, 'publisher-故障回归');
+      assert.equal(qualified, false, 'a failed code stage must never issue qualification');
+      await assert.rejects(readFile(path.join(root, 'verified-mode')));
+    }
     else {
       const verifyCommands = [];
+      let qualified = false;
       const result = await runGates(root, mode, { onCommand: event => {
         if (event.phase === 'start' && event.args.includes(mode === 'local' ? 'verify' : 'verify:prod')) verifyCommands.push(event);
-      } });
+      } }, { onCodeQualified: async () => { assert.equal(await readFile(path.join(root, 'publisher-ran'), 'utf8'), 'yes'); qualified = true; } });
       assert.equal(result.ok, true, result.tail);
+      assert.equal(qualified, true);
       assert.equal(verifyCommands.length, 1);
       assert.equal(verifyCommands[0].timeoutMs, mode === 'local' ? 60 * 60_000 : 30 * 60_000);
       assert.deepEqual(result.artifact, directoryDigest(path.join(root, 'dist')));
@@ -879,7 +894,7 @@ test('actual verify entry builds before inspecting dist, reuses an explicit dige
   const root = await scratch(t);
   const source = fileURLToPath(new URL('../..', import.meta.url));
   for (const rel of ['src', 'scripts', 'schema/src']) await cp(path.join(source, rel), path.join(root, rel), { recursive: true });
-  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
+  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/lib/runner-incremental.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
     await mkdir(path.dirname(path.join(root, rel)), { recursive: true });
     await copyFile(path.join(source, rel), path.join(root, rel));
   }
@@ -891,7 +906,7 @@ test('actual verify entry builds before inspecting dist, reuses an explicit dige
     cp.spawnSync=(cmd,args)=>{
       if(cmd==='git')return {status:0,stdout:'',stderr:''};
       assert.equal(cmd,'npm');assert.deepEqual(args,['run','build']);
-      fs.mkdirSync('dist',{recursive:true});fs.writeFileSync('dist/index.html','<a href="mailto:hello@example.test">contact</a>');
+      fs.mkdirSync('dist/vi',{recursive:true});fs.writeFileSync('dist/index.html','<html lang="en"><a href="mailto:hello@example.test">contact</a></html>');fs.writeFileSync('dist/vi/index.html','<html lang="vi">fixture</html>');
       fs.appendFileSync('build-count','1');return {status:0,stdout:'',stderr:''};
     };
     cp.execFile=(cmd,args,options,callback)=>{
@@ -928,6 +943,8 @@ test('actual verify entry builds before inspecting dist, reuses an explicit dige
     assert.deepEqual((await readFile(path.join(root, 'geometry-scopes'), 'utf8')).trim().split('\n').map(JSON.parse), Array(3).fill(routes || null));
     if (!routes) assert.match(scoped.output, /空路由范围.*全量.*scoped/);
   }
+  const unknown = await runCommand(process.execPath, [...command, '--built-dist-sha', artifact.sha256, '--routes', '/missing/'], { cwd: root });
+  assert.equal(unknown.code, 2); assert.match(unknown.output, /不存在的页面/);
   for (const args of [['--routes'], ['--routes', '--fail-fast']]) {
     await rm(cachePath);
     const invalid = await runCommand(process.execPath, [...command, ...args], { cwd: root });
@@ -1009,7 +1026,7 @@ test('promotion refuses missing materialized evidence and preserves previous liv
 async function runnerFixture(t) {
   const root = await scratch(t);
   const source = fileURLToPath(new URL('..', import.meta.url));
-  for (const rel of ['runner.mjs', 'register-ts-ext.mjs', 'ts-ext-resolver.mjs', 'lib/runner-core.mjs', 'lib/runner-gates.mjs', 'lib/runner-artifacts.mjs', 'lib/runner-child.mjs', 'lib/read-jsonc.mjs']) {
+  for (const rel of ['runner.mjs', 'register-ts-ext.mjs', 'ts-ext-resolver.mjs', 'lib/runner-core.mjs', 'lib/runner-gates.mjs', 'lib/runner-incremental.mjs', 'lib/runner-artifacts.mjs', 'lib/runner-child.mjs', 'lib/read-jsonc.mjs']) {
     const dest = path.join(root, 'worker', rel);
     await mkdir(path.dirname(dest), { recursive: true });
     await copyFile(path.join(source, rel), dest);
@@ -1063,7 +1080,7 @@ test('publish verify stops at the first blocking gate while manual verify still 
   const source = fileURLToPath(new URL('../..', import.meta.url));
   // Verify orchestration needs source files, not Git; publication snapshots have no .git.
   for (const rel of ['src', 'scripts', 'schema/src']) await cp(path.join(source, rel), path.join(workspace.site, rel), { recursive: true });
-  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
+  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/lib/runner-incremental.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
     await mkdir(path.dirname(path.join(workspace.site, rel)), { recursive: true });
     await copyFile(path.join(source, rel), path.join(workspace.site, rel));
   }

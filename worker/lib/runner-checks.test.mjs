@@ -124,7 +124,7 @@ test('runner reports a failed gate check after a nonzero command exit', async (t
   const source = fileURLToPath(new URL('../..', import.meta.url));
   for (const rel of [
     'worker/runner.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs',
-    'worker/lib/runner-core.mjs', 'worker/lib/runner-artifacts.mjs',
+    'worker/lib/runner-core.mjs', 'worker/lib/runner-artifacts.mjs', 'worker/lib/runner-incremental.mjs',
     'worker/lib/runner-child.mjs', 'worker/lib/read-jsonc.mjs',
     'schema/src/locales.ts', 'schema/src/publish-feedback.ts',
   ]) {

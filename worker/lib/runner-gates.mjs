@@ -4,6 +4,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { runCommand, verifyExit } from './runner-core.mjs';
 import { directoryDigest, assertDigest } from './runner-artifacts.mjs';
+import { artifactManifest, affectedRoutes } from './runner-incremental.mjs';
 import { LOCALES, isLocale } from '../../schema/src/locales.ts';
 
 export async function assertPublishedHomepages(site) {
@@ -120,18 +121,24 @@ const INCREMENTAL_SKIPPED_PUBLISHER_TEST = 'publisher-故障回归';
    options.changeTier='content-only' 且 options.sourceUnchanged 时走增量:跳过源码静态门,
    返回的 skipped 如实记录跳过的门(审计/证据可查,不冒充通过)。缺省全量。 */
 export async function runGates(site, mode, commandOptions = {}, options = {}) {
-  const incremental = options.changeTier === 'content-only' && options.sourceUnchanged === true;
+  const qualified = !!options.qualification || options.codeAlreadyQualified === true;
+  const incremental = qualified || (options.changeTier === 'content-only' && options.sourceUnchanged === true);
   const skipped = [];
   const worker = path.join(site, 'worker');
-  await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'running' });
-  const bindings = await generateWorkerTypes(site, commandOptions);
-  if (!bindings.ok) return bindings;
-  await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'ok' });
+  if (qualified) {
+    skipped.push('worker-types');
+    await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'skipped' });
+  } else {
+    await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'running' });
+    const bindings = await generateWorkerTypes(site, commandOptions);
+    if (!bindings.ok) return bindings;
+    await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'ok' });
+  }
   // Admin build 自带 typecheck + test；相同输入只检查一次。
   // worker 类型只与 worker 源码有关,增量时源码未变可跳；官网侧保留(物化 i18n 落进 src)。
   for (const cwd of [site, worker]) {
     const gate = `typecheck:${path.basename(cwd)}`;
-    if (incremental && cwd === worker) { skipped.push(gate); await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' }); continue; }
+    if (qualified || (incremental && cwd === worker)) { skipped.push(gate); await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' }); continue; }
     await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'running' });
     const result = await runNpm(['run', 'typecheck'], { ...commandOptions, cwd });
     if (result.code !== 0 || result.aborted) return { ok: false, gate, tail: result.output };
@@ -143,7 +150,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   await commandOptions.onCheck?.({ step: 'gates', title: 'site-build', status: 'ok' });
   const artifact = directoryDigest(path.join(site, 'dist'));
   // 先检查后台与执行器，确定性错误不必等九语浏览器检查结束才暴露。
-  await prepareWorkerTestAssets(site, commandOptions);
+  if (!qualified) await prepareWorkerTestAssets(site, commandOptions);
   const suites = [
     ['jsonc-reader-红测', ['lib/test-read-jsonc.mjs'], worker],
     ['exit-finally-红测', ['lib/test-exit-skips-finally.mjs'], worker],
@@ -158,7 +165,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   for (const [gate, args, cwd] of suites) {
     if (incremental && SOURCE_STATIC_SUITES.has(gate)) {
       skipped.push(gate);
-      await commandOptions.onProgress?.(`跳过检查:${gate}(文案改动且源码未变,复用上次全量结论)`);
+      await commandOptions.onProgress?.(`跳过检查:${gate}(程序输入未变,复用已通过的检查)`);
       await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' });
       continue;
     }
@@ -182,12 +189,18 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
     await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'ok' });
   }
   assertDigest(path.join(site, 'dist'), artifact.sha256);
-  // 源码缓存不证明线上快照通过当前门；每次发布都对本次产物全站实测。
+  if (!incremental) await options.onCodeQualified?.();
+  // Reused code checks never replace checks of the current content artifact.
   await rm(path.join(site, '.verify-exit.code'), { force: true });
   const verifyArgs = ['run', ['production', 'aws'].includes(mode) ? 'verify:prod' : 'verify', '--', '--built-dist-sha', artifact.sha256, '--fail-fast'];
+  const website = artifactManifest(path.join(site, 'dist'));
+  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website) : null;
+  if (impact && !impact.full) verifyArgs.push('--routes', impact.routes.join(','));
+  if (options.qualification) verifyArgs.push('--qualified-code', options.qualification.root);
+  if (impact) await commandOptions.onProgress?.(`${impact.reason}：${impact.routes.length} 个页面`);
   const verified = await runNpm(verifyArgs, { ...commandOptions, cwd: site, timeoutMs: mode === 'local' ? 60 * 60_000 : commandOptions.timeoutMs });
   const verdict = await verifyExit(site, verified);
   if (!verdict.ok) return verdict;
   assertDigest(path.join(site, 'dist'), artifact.sha256);
-  return { ok: true, gate: null, tail: incremental ? `发布门已通过(增量:跳过 ${skipped.length} 项源码静态门,版面门全量实测)` : '所有发布门已通过', artifact, skipped };
+  return { ok: true, gate: null, tail: impact ? `发布门已通过，检查 ${impact.routes.length} 个受影响页面` : incremental ? `发布门已通过(增量:跳过 ${skipped.length} 项源码静态门,版面门全量实测)` : '所有发布门已通过', artifact, skipped, website, impact };
 }

@@ -254,7 +254,7 @@ export default function PublishPage() {
     setBusy(true);
     try {
       await api('/api/publish', { method: 'POST', body: JSON.stringify(publishRequestBody(confirm)) });
-      toast(confirm.rebuild ? '版本重建已发起，将执行全部发布检查' : confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
+      toast(confirm.rebuild ? '版本重新发布已发起，将核对当前程序与内容' : confirm.rollbackFrom ? '回滚已发起，将验证历史内容并确认上线结果' : '发布已发起');
       setConfirm(null);
       load();
     } catch (e) {
@@ -556,7 +556,7 @@ export default function PublishPage() {
         <button className="btn ghost sm" onClick={load}>刷新状态</button>
       </div>}
       {active && !activeUnknown && st.steps.length === 0 && <div className="note warn">
-        已提交，系统正在自动安排发布。接单后会依次执行全部检查；关闭本页不会中断发布。
+        已提交，系统正在自动安排发布。接单后会检查修改及受影响部分；关闭本页不会中断发布。
         <button className="btn ghost sm" onClick={cancel}>取消本次发布</button>
       </div>}
       {active && !activeUnknown && st.steps.length > 0 && !forcing && <div className="note">
@@ -599,7 +599,7 @@ export default function PublishPage() {
             <button className="btn" disabled={unavailable} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
               重新发布 v{st.drift.dbLive} 以对齐
             </button>
-            <span className="kv">会走完整门链,门红则线上保持现状。</span>
+            <span className="kv">会核对内容与上线结果，检查失败则保留线上现状。</span>
           </div>
         </div>
       )}
@@ -666,7 +666,7 @@ export default function PublishPage() {
           </div>
           {pre.changed === 0 && liveVersion && <div className="note info" style={{ marginTop: 12 }}>
             <p>代码升级不会计入草稿改动。可使用当前发布器代码重新构建 v{liveVersion.id}，同时更新官网和后台静态页面。</p>
-            <p className="kv">内容取自确认的版本，不覆盖草稿；仍须经过全部检查、切换和核验。不会更新正在运行的发布器进程。</p>
+            <p className="kv">内容取自确认的版本，不覆盖草稿；系统会核对当前程序、检查受影响部分并确认上线结果。</p>
             <button className="btn" disabled={unavailable || !!rebuildBlocked} onClick={() => void recheckAndConfirm('rebuild')}>重新构建 v{liveVersion.id}（使用当前代码）</button>
             {rebuildBlocked && <p className="kv">{rebuildBlocked}</p>}
           </div>}
@@ -679,10 +679,10 @@ export default function PublishPage() {
           <h3 id="publish-confirm-title" ref={confirmHeading} tabIndex={-1}>{confirm.rebuild ? `确认使用当前代码重新构建 v${confirm.rollbackFrom}?` : confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
           <p className="kv">
             {confirm.rebuild
-              ? '本次使用所确认版本的内容和执行器当前代码重新构建，仍执行全部发布检查。草稿不会覆盖该版本内容，也不会被重建操作改写。确认的是具体版本，不会自动改成稍后出现的其他版本。成功后生成新版本号。'
+              ? '本次使用所确认版本的内容和当前程序重新发布。系统会复用仍然有效的检查结果，检查变化及受影响部分。草稿保持不变，成功后生成新版本号。'
               : confirm.rollbackFrom
-              ? '回滚会按当前网站结构恢复该版内容，并发起一次新发布、执行全部检查。旧版格式会自动转换；已修改内容存在兼容冲突时会停止并提示。成功后生成新版本号。'
-              : '确认后系统锁定本次草稿，构建官网并执行全部检查，再组装后台、切换和核验。检查失败时保留旧版。'}
+              ? '回滚会恢复该版内容。内容与当前程序兼容且已验证时，直接复用对应产物；否则重新构建并检查。存在兼容冲突时会停止并提示。成功后生成新版本号。'
+              : '确认后系统锁定本次草稿，检查修改及受影响部分，完成后切换上线并核验。有效的程序检查结果会自动复用，检查失败时保留旧版。'}
           </p>
           {(pre.reasonRequired || confirm.rollbackFrom) && (
             <div className="field"><label htmlFor="publish-reason">理由（必填，至少 8 字）</label>
@@ -698,7 +698,7 @@ export default function PublishPage() {
       {/* 版本历史 */}
       <div className="card">
         <h3>版本历史</h3>
-        <p className="kv">版本记录只增不删。回滚会重新执行全部发布检查，成功后生成一个新版本。</p>
+        <p className="kv">版本记录只增不删。回滚会验证历史内容与当前程序的兼容性，成功后生成一个新版本。</p>
         {/* 号会跳空:并发发布拿不到锁时,那个刚建的号会被撤销(不留半个版本行,
             也就不会造出清不掉的假红条)。但从运营那边看,一张写着「只增不删」的表里
             少了个号而界面一句话不说,只会让人以为丢了东西(第十轮 P2-17)。 */}

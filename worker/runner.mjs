@@ -4,7 +4,7 @@
    密钥只从 PUBLISH_RUNNER_TOKEN 读取，不接受 cookie，也没有任意 shell 指令开关。 */
 import { createHash, randomUUID } from 'node:crypto';
 import { existsSync, lstatSync, realpathSync, readFileSync, writeFileSync, renameSync, rmSync } from 'node:fs';
-import { readFile, mkdir, writeFile } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, cp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -12,6 +12,7 @@ import { setTimeout as delay } from 'node:timers/promises';
 import { acquireLock, parseOptions, createApi, startLease, runCommand, createWorkspace, childEnvironment, runnerSourceFingerprint, processAlive, processIdentity } from './lib/runner-core.mjs';
 import { parseJsonc } from './lib/read-jsonc.mjs';
 import { directoryDigest, assertDigest, redactEvidence } from './lib/runner-artifacts.mjs';
+import { readQualification, runtimeIdentity, cachedWebsite, reusableArtifact, saveArtifact, atomicJson } from './lib/runner-incremental.mjs';
 import { encodePublishProgress } from '../schema/src/publish-feedback.ts';
 
 function renameStateFile(source, destination) {
@@ -323,6 +324,9 @@ async function main() {
       save({ workspace: workspace.root });
       writeEvidence({ source: workspace.sourceSnapshot });
       const site = workspace.site;
+      const runtimeKey = options.mode === 'aws' ? runtimeIdentity(SITE) : null;
+      const qualification = options.mode === 'aws' ? readQualification('/qualification', workspace.sourceSnapshot.sha256, runtimeKey) : null;
+      writeEvidence({ qualification: qualification ? { sourceSha: qualification.sourceSha, runtimeKey } : null });
       // 领取与复制期间发生更新时，不能用进程内旧门检查磁盘上的新源码。
       if (await runnerSourceFingerprint(site) !== sourceFingerprint || await runnerSourceFingerprint(SITE) !== sourceFingerprint) {
         throw new Error('发布器代码已更新，本次任务停止，请在执行器重载后重新发布');
@@ -347,33 +351,60 @@ async function main() {
       await flushCheck({ step: 'materialize', title: 'publish-materialization', status: 'ok' });
       const { MATERIALIZED_FILES } = await import(pathToFileURL(path.join(site, 'schema/src/locales.ts')).href);
       const parts = await Promise.all(MATERIALIZED_FILES.map(async (rel) => `${rel}\0${await readFile(path.join(site, rel), 'utf8')}`));
-      writeEvidence({ materializedConfigSha: createHash('sha256').update(parts.join('\0')).digest('hex') });
+      const configSha = createHash('sha256').update(parts.join('\0')).digest('hex');
+      writeEvidence({ materializedConfigSha: configSha });
       await passed('materialize');
       await begin('gates');
       // 完整复制摘要覆盖业务源码、门脚本和静态资产；执行器重载指纹不能证明这些输入未变。
       const gateCachePath = path.join(stateDir, 'last-full-gates.json');
       const sourceSha = workspace.sourceSnapshot.sha256;
       let sourceUnchanged = false;
-      try { sourceUnchanged = JSON.parse(readFileSync(gateCachePath, 'utf8'))?.sourceSha === sourceSha; }
+      try { sourceUnchanged = options.mode !== 'aws' && JSON.parse(readFileSync(gateCachePath, 'utf8'))?.sourceSha === sourceSha; }
       catch { sourceUnchanged = false; }
       const changeTier = job.changeTier === 'content-only' ? 'content-only' : 'config-shape';
       log(`v${job.versionId} 正在隔离副本执行${changeTier === 'content-only' && sourceUnchanged ? '增量(文案改动)' : '完整'}发布门`);
-      const gates = await runGates(site, options.mode, commandOptions, { changeTier, sourceUnchanged });
+      const reusable = qualification && await reusableArtifact(stateDir, qualification, configSha);
+      let gates;
+      if (reusable) {
+        await cp(reusable.root, path.join(site, 'dist'), { recursive: true, dereference: false, filter: () => { signal.throwIfAborted(); return true; } });
+        assertDigest(path.join(site, 'dist'), reusable.artifact.sha256);
+        gates = { ok: true, artifact: directoryDigest(path.join(site, 'dist'), { exclude: ['admin', '.publish-stamp.json'] }), website: reusable.website,
+          skipped: ['已验证的相同内容构建与页面检查'], impact: { reused: true, routes: [] } };
+        await flushCheck({ step: 'gates', title: '复用已验证的相同内容', status: 'ok' });
+      } else {
+        gates = await runGates(site, options.mode, commandOptions, { changeTier, sourceUnchanged, qualification,
+          previousWebsite: qualification ? cachedWebsite(stateDir, qualification) : null });
+      }
       if (!gates.ok) { await flushCheck({ step: 'gates', title: gates.gate ?? '发布门', status: 'failed', output: redact(gates.tail ?? '').slice(-4000) }); throw new Error(`门未通过(${gates.gate})：${redact(gates.tail).slice(-5000)}`); }
-      assertDigest(path.join(site, 'dist'), gates.artifact?.sha256);
-      writeEvidence({ websiteArtifact: gates.artifact, changeTier, gateSkipped: gates.skipped ?? [] });
+      assertDigest(path.join(site, 'dist'), gates.artifact?.sha256, { exclude: ['admin', '.publish-stamp.json'] });
+      writeEvidence({ websiteArtifact: gates.artifact, changeTier, gateSkipped: gates.skipped ?? [], impact: gates.impact ?? null });
+      if (qualification && gates.website) atomicJson(path.join(stateDir, 'verified-website.json'), { sourceSha, runtimeKey, website: gates.website });
       if ((gates.skipped ?? []).length === 0) {
         try { writeFileSync(gateCachePath, JSON.stringify({ sourceSha, versionId: job.versionId, at: new Date().toISOString() })); }
         catch { /* 指纹落盘失败不影响本次发布,下次自动回全量 */ }
       }
       await passed('gates');
       await begin('build');
-      const built = await runNpm(['run', 'build:console'], { ...commandOptions, cwd: site });
+      let built;
+      if (qualification) {
+        const adminSource = path.join(qualification.root, 'artifact', 'admin');
+        assertDigest(adminSource, qualification.adminSha);
+        for (const destination of [path.join(site, 'admin/dist'), path.join(site, 'dist/admin')]) {
+          await cp(adminSource, destination, { recursive: true, dereference: false, filter: () => { signal.throwIfAborted(); return true; } });
+          assertDigest(destination, qualification.adminSha);
+        }
+        await flushCheck({ step: 'build', title: '复用已验证的后台程序', status: 'ok' });
+        built = { code: 0, output: '后台源码与程序版本未变，产物摘要一致' };
+      } else built = await runNpm(['run', 'build:console'], { ...commandOptions, cwd: site });
       if (built.code !== 0 || built.aborted) throw new Error(`控制台构建失败：${redact(built.output).slice(-5000)}`);
       assertDigest(path.join(site, 'dist'), gates.artifact.sha256, { exclude: ['admin', '.publish-stamp.json'] });
       assertDigest(path.join(site, 'dist/admin'), directoryDigest(path.join(site, 'admin/dist')).sha256);
       const finalArtifact = directoryDigest(path.join(site, 'dist'));
       writeEvidence({ finalArtifact });
+      if (qualification && !reusable) {
+        try { await saveArtifact(stateDir, qualification, configSha, path.join(site, 'dist'), signal); }
+        catch (error) { signal.throwIfAborted(); log(`验证产物缓存未写入，下次将重新检查：${error.message}`); }
+      }
       await passed('build');
       let deployment;
       if (options.mode === 'production') {

@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { preview } from 'vite';
-import { readBuiltPages } from './gate-built-routes.mjs';
+import { readBuiltPages, scopeRoutes, parseRoutesArg } from './gate-built-routes.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const dist = resolve(process.argv[2] || resolve(root, 'dist'));
@@ -74,7 +74,7 @@ async function record(page, route, width, phase = 'rest') {
 }
 
 try {
-  const pages = [...readBuiltPages(dist), { route: '/404.html', home: false }];
+  const pages = [...scopeRoutes(readBuiltPages(dist), parseRoutesArg(process.argv)).pages, { route: '/404.html', home: false }];
   for (const width of [390, 1440, 1920]) {
     const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: 'reduce' });
     // Static preview has no telemetry Worker; this probe does not validate analytics.

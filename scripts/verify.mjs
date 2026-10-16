@@ -17,6 +17,8 @@ import { i18nParity } from './gate-i18n-parity.mjs';
 import { LOCALES } from '../schema/src/locales.ts';
 import { resolveEnabledLocales, localizedPath } from '../src/lib/locale-policy.ts';
 import { directoryDigest, assertDigest } from '../worker/lib/runner-artifacts.mjs';
+import { readQualification, runtimeIdentity, checkQualifiedSource } from '../worker/lib/runner-incremental.mjs';
+import { readBuiltPages, parseRoutesArg } from './gate-built-routes.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
@@ -68,6 +70,20 @@ async function verify() {
 // 置红的正主是 npm script 里先跑的 verify-preamble.mjs(独立进程,门模块语法错也拦得住);
 // 这里再写一次,给「直接 node scripts/verify.mjs」的调用方兜底
 writeFileSync(join(ROOT, '.verify-exit.code'), '2');
+const qualificationIndex = process.argv.indexOf('--qualified-code');
+let qualification = null;
+if (qualificationIndex >= 0) {
+  const directory = process.argv[qualificationIndex + 1];
+  const candidate = JSON.parse(readFileSync(join(directory || '', 'qualification.json'), 'utf8'));
+  qualification = readQualification(directory, candidate.sourceSha, runtimeIdentity(ROOT));
+  if (!qualification) throw new Error('Missing, stale or writable program qualification');
+  await checkQualifiedSource(qualification, ROOT);
+}
+const evidenceMode = qualification ? 'qualified-content' : routesIndex >= 0 ? 'scoped' : 'full';
+const reuse = name => {
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: 'skipped' }));
+  results.push({ gate: name, pass: true, reused: true, detail: ['复用同一程序与运行环境的真实成功检查'] });
+};
 if (routesIndex >= 0 && (routesArgument === undefined || routesArgument.startsWith('--'))) {
   console.error('[verify] --routes 缺少路由参数；如需全量检查，请省略 --routes。');
   process.exit(2);
@@ -83,7 +99,7 @@ const startFingerprint = treeFingerprint();
 // 开跑即撤销上一次绿证据；中途失败或中断不得留下可推送的旧结论。
 mkdirSync(join(ROOT, '.verify-cache'), { recursive: true });
 writeFileSync(join(ROOT, '.verify-cache', 'last-run.json'), JSON.stringify({
-  mode: routesIndex >= 0 ? 'scoped' : 'full', verdict: 'fail', at: new Date().toISOString(),
+  mode: evidenceMode, verdict: 'fail', at: new Date().toISOString(),
 }) + '\n');
 
 // 所有正式产物门读同一份 dist；发布执行器用完整摘要声明其已构建，独立 verify 则先构建。
@@ -97,6 +113,10 @@ try {
     artifact = directoryDigest(join(ROOT, 'dist'));
   }
   console.log(`[verify] 正式官网产物 SHA-256 ${artifact.sha256}`);
+  if (ROUTE_SCOPE) {
+    const routes = new Set(readBuiltPages(join(ROOT, 'dist')).map(page => page.route));
+    if (parseRoutesArg(process.argv).some(route => !routes.has(route))) throw new Error('检查范围包含不存在的页面，禁止空覆盖');
+  }
 } catch (error) {
   console.error(`[verify] ✗ site-build: ${error.message}`);
   process.exit(2);
@@ -406,7 +426,9 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
    这里覆盖静态文本门看不见的公告/SEO/footer/Legal/FAQ 与跨日、动态偏好、焦点、history。 */
-{
+if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.stringify(JSON.parse(readFileSync(join(SRC, 'config/site.json'), 'utf8')).enabledLocales)) {
+  reuse('网站内容与交互');
+} else {
   const r = await runGate('网站内容与交互',
     process.execPath,
     [
@@ -492,7 +514,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 
 // Button contrast is checked on every built route, including the old-token red controls.
 {
-  const r = await runGate('按钮轮廓与状态回归', process.execPath, [join(ROOT, 'scripts', 'gate-xbtn.mjs')], { cwd: ROOT, encoding: 'utf8' });
+  const r = await runGate('按钮轮廓与状态回归', process.execPath, scopedArgs([join(ROOT, 'scripts', 'gate-xbtn.mjs'), join(ROOT, 'dist')]), { cwd: ROOT, encoding: 'utf8' });
   results.push({ gate: 'xbtn(运行时边框/状态)', pass: r.status === 0, detail: r.status === 0 ? [] : [(r.stderr || r.stdout || 'NOT-RUN').trim()] });
 }
 
@@ -501,7 +523,9 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
    但此前**没有任何东西保证那些红测还过得了**——它们只在人想起来手跑时才执行,等于文档不是门。
    一道判据被悄悄改松(如 canvas-hazard 的字身正则曾漏判全部负值)时,门本体照样报绿,
    只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
-{
+if (qualification) {
+  reuse('检查程序自测');
+} else {
   const SUITES = [
     ['uvel-identity', ['--experimental-transform-types', '--import', './worker/register-ts-ext.mjs', 'scripts/test-uvel-identity.mjs']],
     ['built-routes', ['scripts/test-built-routes.mjs']],
@@ -576,10 +600,10 @@ writeFileSync(join(ROOT, '.verify-exit.code'), String(code));
 try {
   mkdirSync(join(ROOT, '.verify-cache'), { recursive: true });
   writeFileSync(join(ROOT, '.verify-cache', 'last-run.json'), JSON.stringify({
-    mode: routesIndex >= 0 ? 'scoped' : 'full', routes: ROUTE_SCOPE?.split(',') ?? null,
+    mode: evidenceMode, routes: ROUTE_SCOPE?.split(',') ?? null,
     verdict: code === 0 && notRun === 0 ? 'pass' : 'fail', at: new Date().toISOString(),
     headTree: gitOut('rev-parse', 'HEAD^{tree}'), dirty: gitOut('status', '--porcelain') !== '', treeMoved: treeFingerprint() !== startFingerprint,
-    gates: results.length, failed, notRun, artifact,
+    gates: results.length, reused: results.filter(r => r.reused).map(r => r.gate), failed, notRun, artifact,
   }, null, 2) + '\n');
 } catch { /* 写不了缓存不影响门结论,只是推主线时要重跑 */ }
 process.exit(code);
