@@ -2,7 +2,7 @@
 
 ## 1. Scope and operator
 
-NexGrid LTD is responsible for the personal information described in this policy. This policy covers the NexGrid App and its H5 web application, including account services, device services, wallet functions and support. The marketing website has a separate [Website Privacy Policy](/legal/privacy/).
+UVEL AI LTD is responsible for the personal information described in this policy. This policy covers the NexGrid App and its H5 web application, including account services, device services, wallet functions and support. The marketing website has a separate [Website Privacy Policy](/legal/privacy/).
 
 ## 2. Account and profile information
 
@@ -80,4 +80,4 @@ The service is intended for people aged 18 or older. If personal information has
 
 ## 12. Contact
 
-For NexGrid App privacy and data requests, contact NexGrid LTD at [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai). Include the nature of the request and an account contact or identifier sufficient to locate the account; do not include account secrets.
+For NexGrid App privacy and data requests, contact UVEL AI LTD at [service@uvel.ai](mailto:service@uvel.ai). Include the nature of the request and an account contact or identifier sufficient to locate the account; do not include account secrets.

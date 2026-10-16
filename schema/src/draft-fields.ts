@@ -177,7 +177,7 @@ export function validateTranslationValue(field: Pick<TranslationField, 'source' 
   if (!value.trim()) return 'empty';
   if (value.length > field.maxLength) return 'too-long';
   if (/^\s*(?:```|\{\s*["“«]?translations["”»]?\s*:)/iu.test(value)) return 'translation-envelope';
-  if (/\bUvel\b/u.test(field.source) && !/\bNexGrid\b/u.test(field.source) && /\bNexGrid\b/u.test(value)) return 'stale-brand';
+  if (/\bUvel\b/iu.test(field.source) && !/\bNexGrid\b/iu.test(field.source) && /\bNexGrid\b/iu.test(value)) return 'stale-brand';
   const matches = (text: string, pattern: RegExp) => JSON.stringify((text.match(pattern) ?? []).sort());
   if (matches(field.source, /\{[a-zA-Z][a-zA-Z0-9_]*\}/g) !== matches(value, /\{[a-zA-Z][a-zA-Z0-9_]*\}/g)) return 'placeholder';
   if (matches(field.source, /https?:\/\/[^\s)<>]+/g) !== matches(value, /https?:\/\/[^\s)<>]+/g)) return 'link';

@@ -27,7 +27,7 @@ const ZEN_FREE_MODEL = 'deepseek-v4-flash-free';
 const ZEN_CHAT_ENDPOINT = 'https://opencode.ai/zen/v1/chat/completions';
 export const NVIDIA_TRANSLATION_MODEL = 'nvidia/riva-translate-4b-instruct-v2';
 const RIVA_LOCALES: Record<Locale, string> = { zh: 'zh-cn', en: 'en', vi: 'vi', es: 'es-us', pt: 'pt-br', fr: 'fr', de: 'de', ja: 'ja', ko: 'ko' };
-const RIVA_PROTECTED = /\{[^{}\r\n]+\}|https?:\/\/[^\s<>"')\]]+|\b\d+(?:[.,]\d+)*(?:%|\b)|\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b|<\/?[A-Za-z][^>]*>|\r?\n|\]\([^)]+\)/g;
+const RIVA_PROTECTED = /\{[^{}\r\n]+\}|https?:\/\/[^\s<>"')\]]+|\b\d+(?:[.,]\d+)*(?:%|\b)|\b(?:NexGrid|UVEL AI LTD|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b|<\/?[A-Za-z][^>]*>|\r?\n|\]\([^)]+\)/g;
 function protectRivaSource(source: string, fieldIndex: number) {
   let prefix = `UVEL_GUARD_${fieldIndex}_`;
   while (source.includes('⟦' + prefix)) prefix += 'X';
@@ -98,13 +98,13 @@ export function validateTranslationText(source: string, target: string, text: st
     /\{[^{}\r\n]+\}/g,
     /https?:\/\/[^\s<>"')\]]+/g,
     /\b\d+(?:[.,]\d+)*(?:%|\b)/g,
-    // NexGrid stays protected only because the registered entity remains NexGrid LTD.
-    /\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g,
+    // Preserve the complete current legal name; legacy inputs remain guarded during translation.
+    /\b(?:NexGrid|UVEL AI LTD|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g,
     /<\/?[A-Za-z][^>]*>/g,
     /\r?\n/g,
     /\]\([^)]+\)/g,
   ]) if (!same(matches(source, re), matches(text, re))) throw new AiError('invalid-result');
-  const prose = (value: string) => value.replace(/\{[^{}]*\}|https?:\/\/\S+|<\/?[A-Za-z][^>]*>|\b(?:NexGrid|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g, '');
+  const prose = (value: string) => value.replace(/\{[^{}]*\}|https?:\/\/\S+|<\/?[A-Za-z][^>]*>|\b(?:NexGrid|UVEL AI LTD|Uvel|Nexion|NEX|USDT|USDC|FinCEN)\b/g, '');
   const sourceProse = prose(source), targetProse = prose(text);
   const hanSource = /\p{Script=Han}/u.test(sourceProse);
   const words = sourceProse.match(/[a-z]{2,}/gi) ?? [];

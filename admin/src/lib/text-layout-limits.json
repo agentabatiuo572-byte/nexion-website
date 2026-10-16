@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "sourceHash": "ef4eb45fd291a9ae510c24b7f6ddba7ffa518aaa0244276a36303a5958bf59fe",
-  "portableLayoutHash": "d5af8aae1939afc00735d1b518fdd78332fc9bd217359a60a8762d958a6b8d26",
+  "sourceHash": "68f26aa0ea44ba3027fa000a8467b256261c63528911bc5afc99625f390319bd",
+  "portableLayoutHash": "528e1871408dcd441d97f04869790024d13080d6f6a7de694aa1f4c3504be095",
   "locales": [
     "en",
     "vi",
@@ -1062,11 +1062,11 @@
         "zh": "查看大图"
       },
       "limits": {
-        "en": 193,
+        "en": 176,
         "vi": 157,
-        "es": 170,
-        "pt": 174,
-        "fr": 186,
+        "es": 161,
+        "pt": 165,
+        "fr": 169,
         "de": 160,
         "ja": 99,
         "ko": 98,
@@ -2618,5 +2618,5 @@
       "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
     }
   },
-  "evidenceSha256": "fba54cb0a0b94519e50b257537bb2d7f418d12953dd618a5f83dbc12b400183c"
+  "evidenceSha256": "950a063b79618761a2cacce56e5cc78cab78e98a33b1a2e66358f89d26ed06f7"
 }

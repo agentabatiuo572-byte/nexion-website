@@ -135,9 +135,9 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   recordGate('i18n-parity', detail.length === 0, detail);
 }
 
-/* 公开文案和产物中只允许历史法定名及尚未确认替换的域名沿用 NexGrid。 */
+/* 公开文案和产物禁止旧品牌、旧主体及旧域名。 */
 {
-  const staleBrand = /nexgrid(?!\s*ltd\b|\.[a-z]{2,}\b)/i;
+  const staleBrand = /nexgrid|20221592644|31000329265856|coloradosos\.gov|1670 Bwayroad/i;
   const files = [
     ...LOCALES.map((locale) => join(SRC, 'i18n', `${locale}.json`)),
     join(SRC, 'config', 'site.json'),
@@ -146,7 +146,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     ...walk(join(ROOT, 'dist'), ['.html']),
   ];
   const detail = [];
-  if (!staleBrand.test('NexGridBox') || staleBrand.test('NexGrid LTD') || staleBrand.test('nexgrid.ai')) {
+  if (!staleBrand.test('NexGridBox') || !staleBrand.test('NexGrid LTD') || !staleBrand.test('31000329265856') || staleBrand.test('UVEL AI LTD') || !staleBrand.test('nexgrid.ai')) {
     detail.push('旧品牌判据的阳性或豁免自检失败');
   }
   for (const file of files) {
@@ -503,6 +503,7 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
    只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
 {
   const SUITES = [
+    ['uvel-identity', ['--experimental-transform-types', '--import', './worker/register-ts-ext.mjs', 'scripts/test-uvel-identity.mjs']],
     ['built-routes', ['scripts/test-built-routes.mjs']],
     ['forbidden-locales', ['scripts/test-forbidden-locales.mjs']],
     ['i18n-parity', ['scripts/test-i18n-parity.mjs']],

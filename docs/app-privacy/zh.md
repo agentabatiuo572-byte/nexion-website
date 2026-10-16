@@ -2,7 +2,7 @@
 
 ## 1. 适用范围与运营主体
 
-NexGrid LTD 负责本政策所述个人信息处理。本政策适用于 NexGrid App 及其 H5 网页应用，覆盖账号服务、设备服务、钱包功能与客服。营销官网适用单独的[官网隐私政策](/zh/legal/privacy/)。
+UVEL AI LTD 负责本政策所述个人信息处理。本政策适用于 NexGrid App 及其 H5 网页应用，覆盖账号服务、设备服务、钱包功能与客服。营销官网适用单独的[官网隐私政策](/zh/legal/privacy/)。
 
 ## 2. 账号与个人资料
 
@@ -80,4 +80,4 @@ App 使用本地存储及会话机制保存登录状态、偏好、设备标识�
 
 ## 12. 联系方式
 
-有关 NexGrid App 隐私及数据请求，请通过 [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai) 联系 NexGrid LTD。请说明请求事项，并提供足以定位账号的联系信息或账号标识，不要附上账号机密。
+有关 NexGrid App 隐私及数据请求，请通过 [service@uvel.ai](mailto:service@uvel.ai) 联系 UVEL AI LTD。请说明请求事项，并提供足以定位账号的联系信息或账号标识，不要附上账号机密。

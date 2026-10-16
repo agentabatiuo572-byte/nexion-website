@@ -513,9 +513,9 @@ try {
     check(`H04 ${locale} 十一条不截断`, elevenFaq.labels.length === 11 && elevenFaq.json?.mainEntity?.length === 11, `DOM=${elevenFaq.labels.length}`);
   }
 
-  const whitepaperUrl = '/documents/uvel-whitepaper-v1.2-en.pdf';
+  const whitepaperUrl = '/documents/uvel-whitepaper-v1.3-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === 'e8c1d128cc1362b36e33ac50875311acba9530790148afb54bd6cace2734ce4e');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '9272376b29acb61d0d0bd8c074282a7d5f9fd941950dffb8c91e06219ec5453f');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
@@ -530,10 +530,10 @@ try {
       && await whitepaper.locator('a').count() === 1);
     const title = (await whitepaper.locator('h3').innerText()).trim();
     const details = (await whitepaper.locator('.whitepaper-details').textContent()).trim();
-    const expectedDetails = (core.copy[locale]['trust.whitepaper.details'] || '').replace('{version}', '1.2');
+    const expectedDetails = (core.copy[locale]['trust.whitepaper.details'] || '').replace('{version}', '1.3');
     check(`白皮书 ${locale} 标题与英文版本说明`, title.length > 0
       && title === core.copy[locale]['trust.whitepaper.title']
-      && details.length > 0 && details === expectedDetails && details.includes('1.2')
+      && details.length > 0 && details === expectedDetails && details.includes('1.3')
       && !(await whitepaper.innerText()).includes('trust.whitepaper.'));
     const read = whitepaper.locator('a.whitepaper-read');
     check(`白皮书 ${locale} 阅读入口`, await read.isVisible()

@@ -1,6 +1,6 @@
 ---
 /* [FEAT-WEB12] Terms of Service — en 权威文本(初稿供主人审;上线前建议法务过目)。
-   管辖条款已按 O2 资料包填充(Colorado, USA)。
+   公司主体及所在地按 copinfo 资料包更新(New York, USA)。
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题)、meta 行挂 .x-mono、小标题行高 1.1;英文正文标 lang=en。 */
 import { useT, type Locale } from '../../i18n';
 import { SOURCE_LOCALE } from '../../../schema/src/locales';
@@ -30,7 +30,7 @@ const headings = [
 {hasConfigured ? <LegalDocument locale={locale} document="terms" fallbackTitle="Terms of Service" /> : <main class="legal" lang="en">
   {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">Terms of Service</h1>
-  <p class="updated x-mono">Last updated: 2026-08-20</p>
+  <p class="updated x-mono">Last updated: 2026-10-16</p>
 
   <LegalToc locale={locale} headings={headings} />
   <div class="sheet x-copy x-tile x-tile-calm">
@@ -73,7 +73,7 @@ const headings = [
   <p>We may update these terms; the "Last updated" date reflects the current version.</p>
 
   <h2 id={headings[7].id}>{headings[7].text}</h2>
-  <p>These terms are governed by the laws of the State of Colorado, United States. The Site is operated by NexGrid LTD, 1670 Bwayroad, Denver, CO 80202, United States.</p>
+  <p>These terms are governed by the laws of the State of New York, United States. The Site is operated by UVEL AI LTD, 667 Madison Ave, New York, NY 10065, United States.</p>
   </div>
 </main>}
 

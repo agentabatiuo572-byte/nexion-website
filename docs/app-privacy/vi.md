@@ -2,7 +2,7 @@
 
 ## 1. Phạm vi và đơn vị vận hành
 
-NexGrid LTD chịu trách nhiệm xử lý thông tin cá nhân được mô tả trong chính sách này. Chính sách áp dụng cho ứng dụng NexGrid và ứng dụng web H5, bao gồm tài khoản, dịch vụ thiết bị, ví và hỗ trợ. Trang web giới thiệu có [Chính sách quyền riêng tư riêng](/vi/legal/privacy/).
+UVEL AI LTD chịu trách nhiệm xử lý thông tin cá nhân được mô tả trong chính sách này. Chính sách áp dụng cho ứng dụng NexGrid và ứng dụng web H5, bao gồm tài khoản, dịch vụ thiết bị, ví và hỗ trợ. Trang web giới thiệu có [Chính sách quyền riêng tư riêng](/vi/legal/privacy/).
 
 ## 2. Tài khoản và hồ sơ
 
@@ -80,4 +80,4 @@ Dịch vụ dành cho người từ 18 tuổi. Nếu trẻ em đã cung cấp th
 
 ## 12. Liên hệ
 
-Đối với quyền riêng tư và yêu cầu dữ liệu trong ứng dụng NexGrid, liên hệ NexGrid LTD qua [compliance@nexgrid.ai](mailto:compliance@nexgrid.ai). Hãy nêu yêu cầu cùng thông tin liên hệ hoặc mã đủ để tìm tài khoản; không gửi bí mật tài khoản.
+Đối với quyền riêng tư và yêu cầu dữ liệu trong ứng dụng NexGrid, liên hệ UVEL AI LTD qua [service@uvel.ai](mailto:service@uvel.ai). Hãy nêu yêu cầu cùng thông tin liên hệ hoặc mã đủ để tìm tài khoản; không gửi bí mật tài khoản.

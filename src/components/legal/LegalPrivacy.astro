@@ -9,7 +9,7 @@
         访客本地存储仅 `x-bg-paused`(关闭背景动画的偏好,无障碍开关,不上传)。
      §6 区域可用性 —— `worker/src/geo.ts`:按连接来源国家拒绝访问,被拒请求只记国家与页面大类、无任何标识。
    ⚠️ 起草人不是律师:内容只描述已有行为,仍建议法务复核。
-   实体信息按 O2 资料包填充(NexGrid LTD / Denver, CO)。vi/zh 页由壳挂「以英文版为准」说明后渲染本组件。
+   实体信息按 copinfo 资料包更新(UVEL AI LTD / New York, NY)。非英文页由壳挂「以英文版为准」说明后渲染本组件。
    R45 B7:标题挂全站 display 尺(88 档=内页「名称型」标题,与 /learn 同档)、meta 行挂 .x-mono、小标题行高 1.1;
    英文正文标 lang=en(vi/zh 路由的 html lang 是本语)。 */
 import { useT, type Locale } from '../../i18n';
@@ -40,7 +40,7 @@ const headings = [
 {hasConfigured ? <LegalDocument locale={locale} document="privacy" fallbackTitle="Privacy Policy" /> : <main class="legal" lang="en">
   {locale !== 'en' && <p class="prevails x-mono" lang={locale}>{t('legal.enPrevails')}</p>}
   <h1 class="x-display">Privacy Policy</h1>
-  <p class="updated x-mono">Last updated: 2026-09-01</p>
+  <p class="updated x-mono">Last updated: 2026-10-16</p>
 
   <LegalToc locale={locale} headings={headings} />
   <div class="sheet x-copy x-tile x-tile-calm">
@@ -114,7 +114,7 @@ const headings = [
   <p>We may update this policy from time to time. The "Last updated" date above reflects the current version.</p>
 
   <h2 id={headings[7].id}>{headings[7].text}</h2>
-  <p>The Site is operated by NexGrid LTD, a Colorado corporation. Registered address: 1670 Bwayroad, Denver, CO 80202, United States.</p>
+  <p>The Site is operated by UVEL AI LTD, a New York corporation. Address: 667 Madison Ave, New York, NY 10065, United States.</p>
   </div>
 </main>}
 

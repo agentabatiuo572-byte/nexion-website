@@ -12,8 +12,8 @@ export const DOWNLOAD_URLS = {
 
 /* 官网使用与最新中文稿同版的英文白皮书，随静态站点发布。 */
 export const WHITEPAPER = {
-  url: '/documents/uvel-whitepaper-v1.2-en.pdf',
-  version: '1.2',
+  url: '/documents/uvel-whitepaper-v1.3-en.pdf',
+  version: '1.3',
   pages: 21,
   language: 'en',
 } as const;

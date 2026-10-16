@@ -12,10 +12,10 @@ const siteFile = process.env.NEXGRID_SITE_FIXTURE_DIR
   : new URL('./src/config/site.json', import.meta.url);
 const activeLocales = resolveEnabledLocales(JSON.parse(readFileSync(siteFile, 'utf8')).enabledLocales);
 
-// PRD §2.4 O1: 域名待主人确认,占位 nexgrid.ai;上线前(T13)核定
+// 官网域名由主人于 2026-10-16 确认为 uvel.ai。
 // 2026-08-20 axiom 重做:React 岛全部移除(cobe 地球 → vanilla 洛伦兹 canvas),站内零框架 JS
 export default defineConfig({
-  site: 'https://nexgrid.ai',
+  site: 'https://uvel.ai',
   output: 'static',
   integrations: [{
     name: 'localized-not-found',

@@ -32,7 +32,7 @@ interface Props {
   noindex?: boolean;
 }
 const { locale, title, description, path = '/', noindex = false } = Astro.props;
-const site = Astro.site ?? new URL('https://nexgrid.ai');
+const site = Astro.site ?? new URL('https://uvel.ai');
 /* 与 @astrojs/sitemap 的目录型 URL 同形(此前无尾斜杠,同一页两种 URL 送给爬虫) */
 const withSlash = (p: string) => (p.endsWith('/') ? p : `${p}/`);
 const urlFor = (l: Locale) => new URL(localizedPath(l, path), site).href;
@@ -90,7 +90,15 @@ const fullTitle = resolvedTitle.includes('Uvel') ? resolvedTitle : `${resolvedTi
         '@context': 'https://schema.org',
         '@type': 'Organization',
         name: 'Uvel',
-        legalName: 'NexGrid LTD' /* R49-B4:尽调/搜索场景的法定名锚点;address 待主人核册(B5)后补 */,
+        legalName: 'UVEL AI LTD',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '667 Madison Ave',
+          addressLocality: 'New York',
+          addressRegion: 'NY',
+          postalCode: '10065',
+          addressCountry: 'US',
+        },
         url: site.href,
         logo: new URL('/icon-512.png', site).href,
       })}
