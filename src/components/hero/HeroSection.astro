@@ -37,7 +37,17 @@ const t = useT(locale);
         <p class="sub2 x-mono">{t('hero.note2')}</p>
       </div>
       <div class="dl-wrap" id="download">
-        <DownloadButtons locale={locale} />
+        <div id="download-options">
+          <p class="download-title">{t('nav.download')}</p>
+          <DownloadButtons locale={locale} compact />
+        </div>
+        <button class="download-toggle xbtn solid" type="button" aria-controls="download-options" aria-expanded="false" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+            <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
+          </svg>
+          {t('nav.download')}
+          <span class="download-chevron" aria-hidden="true">⌃</span>
+        </button>
       </div>
     </div>
   </div>
@@ -213,19 +223,52 @@ const t = useT(locale);
   .dl-wrap :global(.dl) {
     justify-content: flex-end;
   }
+  .download-toggle[hidden],
+  #download-options[hidden],
+  .download-title {
+    display: none;
+  }
+  .download-toggle {
+    gap: 8px;
+    min-height: 44px;
+    padding-inline: 14px;
+    text-transform: none;
+  }
+  .download-toggle svg {
+    width: 18px;
+    height: 18px;
+  }
+  .download-chevron {
+    font-size: 18px;
+    line-height: 1;
+  }
 
   /* 窄屏共有的版式(与视口高无关):列改竖排、簇满宽、副题不定宽、滚动提示收起。
      🔴 与视口高有关的四个属性(.hero 高/上下内衬、h1 两档字号)**不写在这里** ——
      它们下面按高分档,两边抢同一个属性时若都靠 max-width 与 max-height 相交决胜,
      答案就藏在「谁写在后面」里,读单独一块永远看不出来。见下一块。 */
   @media (max-width: 860px) {
+    .hero {
+      z-index: 30; /* The fixed conversion controls stay above the following sections, below navigation. */
+    }
+    .spacer {
+      display: none;
+    }
     .foot {
       flex-direction: column;
       align-items: flex-start;
+      gap: 32px;
     }
     .cluster {
       width: 100% !important; /* 覆盖桌面按语言定宽 */
       align-items: flex-start;
+      order: -1;
+    }
+    .left {
+      width: 100%;
+      gap: 12px;
+      padding-top: 24px;
+      border-top: 1px solid var(--x-line);
     }
     .subs {
       align-items: flex-start;
@@ -242,6 +285,76 @@ const t = useT(locale);
     .scroll-hint {
       display: none;
     }
+    .dl-wrap.floating {
+      position: fixed;
+      right: max(16px, env(safe-area-inset-right));
+      bottom: max(16px, env(safe-area-inset-bottom));
+      z-index: 30;
+      width: min(176px, calc(100% - 32px));
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 12px;
+    }
+    :global(html.x-boot) .dl-wrap.floating {
+      animation: none;
+    }
+    .dl-wrap.floating #download-options {
+      width: 170px;
+      padding: 5px; /* Keep the 2.05px outline + offset inside the scrolling box. */
+      max-height: calc(100dvh - var(--x-chrome-h) - 32px);
+      overflow-y: auto;
+      overscroll-behavior: contain;
+    }
+    .floating .download-title {
+      display: block;
+      width: fit-content;
+      margin: 0 0 8px auto;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--x-bg);
+      color: var(--x-ink-dim);
+      font-family: var(--x-font-mono);
+      font-size: 11px;
+      font-weight: 400;
+      line-height: 1.5;
+    }
+    .dl-wrap.floating :global(.dl) {
+      flex-direction: row;
+      flex-wrap: nowrap;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .dl-wrap.floating :global(.xbtn) {
+      justify-content: center;
+      max-width: 100%;
+    }
+    .dl-wrap.floating :global(.dl .xbtn) {
+      width: 48px;
+      height: 48px;
+      min-height: 48px;
+      flex: 0 0 48px;
+      padding: 0;
+      border-radius: 14px;
+      background: var(--x-bg);
+    }
+    .dl-wrap.floating :global(.dl .xbtn.solid) {
+      background: var(--x-accent);
+    }
+    /* Reserve the first viewport for the brand and conversion. Service facts start
+       below it instead of competing with the heading and floating controls. */
+    .hero:has(.floating) .cluster {
+      min-height: calc(100svh - var(--x-chrome-h) - 40px);
+      padding-bottom: 104px;
+    }
+    :global(html.mobile-download) :global(.site-footer) {
+      padding-bottom: 88px;
+    }
+  }
+  @media (max-width: 520px) and (max-height: 520px) {
+    .hero:has(.floating) h1 {
+      min-height: calc(100svh - var(--x-chrome-h) - 24px);
+    }
   }
   /* 竖屏手机档。与下面的矮视口块**互斥**(521 / 520 是同一条边界的两侧),不靠源序决胜 ——
      把「谁在这个视口赢」写进条件本身,读一块就知道它管哪片,挪动块的位置也不会改变行为。
@@ -249,11 +362,14 @@ const t = useT(locale);
      一旦有人为了别的原因调整块序,横屏分支会整片静默失效(R45 前身就是这么坏的,而且没有任何反馈)。
      🔴 改 520 必须同步改这里的 521。 */
   @media (max-width: 860px) and (min-height: 521px) {
+    .cluster {
+      gap: clamp(12px, calc((100svh - 520px) / 12), 24px);
+    }
     .hero {
       height: auto;
-      min-height: 92svh;
-      padding-top: calc(80 * var(--uc));
-      padding-bottom: 10svh;
+      min-height: 100svh;
+      padding-top: calc(var(--x-chrome-h) + clamp(16px, calc((100svh - 520px) / 8), 40px));
+      padding-bottom: 40px;
     }
     /* 上限 = 断点另一侧的实算值取整下调,不是另挑一个好看的数:
        861 宽走桌面档 max(44px, 100.8·--u),--u = 0.0694444vw → 60.27px(zh 走 115.2·--u → 68.88px)。

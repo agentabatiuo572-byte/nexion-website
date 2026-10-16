@@ -116,6 +116,8 @@ try {
         assert.equal(focused.border, resting.border);
         const disabled = page.locator('.hero .xbtn.disabled');
         if (await disabled.count()) {
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await disabled.first().waitFor({ state: 'visible' });
           const url = page.url();
           await disabled.first().focus(); await page.keyboard.press('Enter'); await page.keyboard.press('Space');
           assert.equal(page.url(), url);
@@ -127,6 +129,10 @@ try {
         if (out && width !== 1920) await page.locator('.cert-zoom-close').screenshot({ path: resolve(out, `${route === '/' ? 'en' : route.split('/')[1]}-${width}-dialog.png`) });
         await page.locator('.cert-zoom .xbtn').click();
         assert(!(await page.locator('.cert-zoom').isVisible()), 'Real close action');
+        // The narrow-screen hero controls collapse while scrolled; return to their
+        // default display state before applying the existing border red controls.
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.locator('.hero .dl').waitFor({ state: 'visible' });
         // Execute the same measurement against the actual old token-based declarations.
         const old = await page.addStyleTag({ content: '.xbtn:not(.solid) { border-color:var(--x-line) !important } .xbtn.disabled { border-color:var(--x-line-soft) !important }' });
         await page.waitForFunction(() => getComputedStyle(document.querySelector('#nex .xbtn')).borderTopColor === 'rgba(255, 255, 255, 0.16)');

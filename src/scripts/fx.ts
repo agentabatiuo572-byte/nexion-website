@@ -1064,7 +1064,8 @@ function initHashNavigation() {
        两者在 >=1440 分家 16px —— 点击站内链接后目标标题被导航条压住(实测净空 -16.1px)。
        改为实测导航条高度,单位天然一致。 */
     const navBottom = document.querySelector('.site-nav')?.getBoundingClientRect().bottom ?? 0;
-    const top = el.getBoundingClientRect().top + window.scrollY - navBottom - 10;
+    const top = id === 'download' && el.classList.contains('floating')
+      ? 0 : el.getBoundingClientRect().top + window.scrollY - navBottom - 10;
     if (lenisInst && !reduced) {
       // details 刚展开时自动尺寸观察尚未刷新；不能按旧文档高度截断本次跳转。
       lenisInst.resize();
@@ -1079,6 +1080,73 @@ function initHashNavigation() {
     if (!el.hasAttribute('tabindex')) el.tabIndex = -1;
     el.focus({ preventScroll: true });
   });
+}
+
+/* Mobile conversion controls: one set of real links, also used by the desktop
+   hero. A small scroll threshold avoids collapsing on touch/bounce jitter. */
+function initMobileDownloads() {
+  const dock = document.querySelector<HTMLElement>('.hero .dl-wrap');
+  const options = document.getElementById('download-options');
+  const toggle = dock?.querySelector<HTMLButtonElement>('.download-toggle');
+  if (!dock || !options || !toggle) return;
+  const narrow = matchMedia('(max-width: 860px)');
+  let compact = window.scrollY > 48;
+  let expanded = false;
+  let pending = false;
+  const render = () => {
+    const mobile = narrow.matches;
+    dock.classList.toggle('floating', mobile);
+    document.documentElement.classList.toggle('mobile-download', mobile);
+    options.toggleAttribute('data-lenis-prevent', mobile);
+    const hideOptions = mobile && compact && !expanded;
+    const hideToggle = !mobile || !compact || expanded;
+    // Never leave keyboard focus in a control we are about to hide.
+    if (hideOptions && options.contains(document.activeElement)) {
+      toggle.hidden = false;
+      toggle.focus({ preventScroll: true });
+    }
+    if (hideToggle && document.activeElement === toggle) {
+      options.hidden = false;
+      options.querySelector<HTMLElement>('a, button')?.focus({ preventScroll: true });
+    }
+    options.hidden = hideOptions;
+    toggle.hidden = hideToggle;
+    toggle.setAttribute('aria-expanded', String(!hideOptions));
+  };
+  const syncScroll = () => {
+    pending = false;
+    const next = compact ? window.scrollY > 8 : window.scrollY > 48;
+    if (next === compact) return;
+    compact = next;
+    expanded = false;
+    render();
+  };
+  toggle.addEventListener('click', (event) => {
+    expanded = !expanded;
+    render();
+    if (expanded && event.detail === 0) options.querySelector<HTMLElement>('a, button')?.focus({ preventScroll: true });
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape' || !expanded) return;
+    expanded = false;
+    render();
+    toggle.focus({ preventScroll: true });
+  });
+  document.addEventListener('click', (event) => {
+    if (!expanded || dock.contains(event.target as Node)) return;
+    expanded = false;
+    render();
+  });
+  window.addEventListener('scroll', () => {
+    if (!pending) { pending = true; requestAnimationFrame(syncScroll); }
+  }, { passive: true });
+  narrow.addEventListener('change', () => {
+    compact = window.scrollY > 48;
+    expanded = false;
+    render();
+  });
+  window.addEventListener('pageshow', syncScroll);
+  render();
 }
 
 /* ---------- ⑨ 证书放大(R44 · R45 锁滚) ----------
@@ -1719,6 +1787,7 @@ const boot = () => {
   }
   initLenis();
   initHashNavigation();
+  initMobileDownloads();
   initLineReveal();
   initCertZoom();
   initType();

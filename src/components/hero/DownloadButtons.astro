@@ -10,10 +10,12 @@ import { DOWNLOAD_URLS } from '../../lib/downloads';
 
 interface Props {
   locale: Locale;
+  /** Hero controls can switch to compact platform icons on narrow screens. */
+  compact?: boolean;
   /** 反白区块内使用时置 true(边框/文字换深色) */
   onLight?: boolean;
 }
-const { locale, onLight = false } = Astro.props;
+const { locale, onLight = false, compact = false } = Astro.props;
 const t = useT(locale);
 const IOS = DOWNLOAD_URLS.ios;
 const ANDROID = DOWNLOAD_URLS.android;
@@ -55,7 +57,14 @@ const btns = [
               <circle cx="14.6" cy="12.3" r="0.9" fill="currentColor" />
             </svg>
           )}
-          {b.label} <span class="arr">{b.arr}</span>
+          {compact && b.icon === 'h5' && (
+            <svg class="ic web-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <circle cx="12" cy="12" r="9" />
+              <ellipse cx="12" cy="12" rx="4" ry="9" />
+              <path d="M3 12h18M5 6.5h14M5 17.5h14" />
+            </svg>
+          )}
+          <span class="dl-label">{b.label}</span> <span class="arr">{b.arr}</span>
         </>
       );
       /* 未配 URL 的档走 aria-disabled 而不是原生 disabled —— 按 APG,禁用态的键**仍要可聚焦**:
@@ -63,7 +72,7 @@ const btns = [
          独立可用性评审实测:390 档 Tab 序从汉堡键直接跳到页尾 CTA,三颗主键整段被跳过。 */
       return b.url ? (
         // data-m:埋点标识(官网后台 PRD CON15;hero+收尾 CTA 共用本单源,禁用态不计转化)
-        <a class:list={['xbtn', { solid: b.solid }, lightCls]} data-m={`cta:${b.id}`} href={b.url} target="_blank" rel="noopener">
+        <a class:list={['xbtn', { solid: b.solid }, lightCls]} aria-label={compact ? b.label : undefined} title={compact ? b.label : undefined} data-m={`cta:${b.id}`} href={b.url} target="_blank" rel="noopener">
           <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
           <span class="xbtn-a">{inner}</span>
           <span class="xbtn-b" aria-hidden="true">{inner}</span>
@@ -72,7 +81,7 @@ const btns = [
         // 原生 button 而不是 span[role=button]:后者按空格会滚页(独立评审实测 scrollY 0 → 738),
         // 空格正是这类件的标准激活键,按下去既无反馈又把人甩下大半屏。原生按钮不滚页。
         // 仍用 aria-disabled 而非原生 disabled —— 原生 disabled 会连焦点一起拿掉。
-        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-disabled="true">
+        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-label={compact ? b.label : undefined} title={compact ? b.label : undefined} aria-disabled="true">
           <span class="static">{inner}</span>
         </button>
       );
@@ -100,6 +109,22 @@ const btns = [
     display: inline-flex;
     align-items: center;
     gap: calc(8 * var(--uc));
+  }
+  .web-icon {
+    display: none;
+  }
+  @media (max-width: 860px) {
+    :global(.floating) .dl-label,
+    :global(.floating) .arr {
+      display: none;
+    }
+    :global(.floating) .ic {
+      width: 24px;
+      height: 24px;
+    }
+    :global(.floating) .web-icon {
+      display: block;
+    }
   }
   @media (max-width: 520px) {
     .dl {
