@@ -66,6 +66,18 @@ try {
       const geometry = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth, title: document.querySelector('main h2')?.textContent, fields: document.querySelectorAll('main input, main select, main textarea').length }));
       report.routes.push({ route, width, ...geometry });
       assert(geometry.scroll <= width + 1, `${route || 'dashboard'} overflows at ${width}: ${geometry.scroll}`);
+      const noteButtons = await page.locator('.note > .btn').evaluateAll((buttons) => buttons.filter((button) => button.getClientRects().length).map((button) => {
+        const box = button.getBoundingClientRect(), parent = button.parentElement, bounds = parent.getBoundingClientRect(), css = getComputedStyle(parent);
+        const ownCss = getComputedStyle(button), walker = document.createTreeWalker(button, NodeFilter.SHOW_TEXT), text = [];
+        while (walker.nextNode()) {
+          if (!walker.currentNode.textContent?.trim()) continue;
+          const range = document.createRange(); range.selectNodeContents(walker.currentNode);
+          text.push(...[...range.getClientRects()].map((rect) => ({ left: rect.left, right: rect.right })));
+        }
+        return { label: button.textContent?.trim(), left: box.left, right: box.right, contentLeft: bounds.left + parseFloat(css.borderLeftWidth) + parseFloat(css.paddingLeft), contentRight: bounds.right - parseFloat(css.borderRightWidth) - parseFloat(css.paddingRight), text, textLeft: box.left + parseFloat(ownCss.borderLeftWidth) + parseFloat(ownCss.paddingLeft), textRight: box.right - parseFloat(ownCss.borderRightWidth) - parseFloat(ownCss.paddingRight) };
+      }));
+      assert(noteButtons.every((button) => button.left >= button.contentLeft - 1 && button.right <= button.contentRight + 1), `${route}: note action escapes its content box at ${width}: ${JSON.stringify(noteButtons)}`);
+      assert(noteButtons.every((button) => button.text.every((rect) => rect.left >= button.textLeft - 1 && rect.right <= button.textRight + 1)), `${route}: note action text consumes its padding at ${width}: ${JSON.stringify(noteButtons)}`);
       for (const choice of await page.locator('input[type=checkbox], input[type=radio]').all()) {
         if (!await choice.isVisible()) continue;
         const box = await choice.boundingBox();

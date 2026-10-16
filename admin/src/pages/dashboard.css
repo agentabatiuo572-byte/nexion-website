@@ -71,7 +71,7 @@
 .dash-chart-point[data-active="true"] { width: 0.625rem; height: 0.625rem; }
 .dash-chart-hit { position: absolute; inset: -0.375rem; cursor: crosshair; }
 .dash-chart-date { display: flex; align-items: center; gap: 0.75rem; margin-top: 1rem; color: var(--dash-green-muted); font-size: var(--text-body); }
-.dash-chart-date select { width: auto; min-height: 2.75rem; color: #f7fbf5; background: var(--dash-green); border-color: #b9cec270; }
+.dash-chart-date select { --select-arrow:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m5 7.5 5 5 5-5' fill='none' stroke='%23f7fbf5' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); width: auto; min-height: 2.75rem; color: #f7fbf5; background-color: var(--dash-green); border-color: #b9cec270; }
 .dash-chart-date select:focus-visible { outline-color: var(--brand); }
 .dash-chart-readout { min-height: 1.875rem; display: flex; gap: 1rem; flex-wrap: wrap; align-items: center; color: #bdd1c2; font-size: var(--text-sm); margin-top: 0.5625rem; }
 .dash-chart-readout b { color: #f7fbf5; font-weight: 600; margin-left: 3px; font-variant-numeric: tabular-nums; }
