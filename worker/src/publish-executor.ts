@@ -10,7 +10,7 @@ const MACHINE_ROUTES: Record<string, true> = { next: true, step: true, check: tr
 
 /** Execution credentials never authorize editing, publishing or administrator operations. */
 export const requirePublishIdentity: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
-  const route = new URL(c.req.url).pathname.replace(/\/$/, '').split('/').at(-1)!;
+  const route = decodeURI(new URL(c.req.url).pathname).replace(/\/$/, '').split('/').at(-1)!;
   const requireStorage = async () => {
     if (needsPublishStorage(route, c.req.method) && !(await publishStorageReady(c.env.DB))) {
       c.res = c.json({ error: 'publish-schema-upgrade-required', message: PUBLISH_STORAGE_MESSAGE }, 503);
@@ -40,7 +40,7 @@ async function executionAvailability(env: Env, now = Date.now()) {
   const mode = env.PUBLISH_EXECUTION_MODE ?? 'unconfigured';
   const result = { mode, ready:false, reason:'发布服务尚未配置，请联系维护人员完成部署。', lastSeenAt:null as number | null };
   if ((env.PUBLISH_RUNNER_TOKEN ?? '').length < 32) return result;
-  if (mode === 'local' && env.ENVIRONMENT === 'dev') {
+  if ((mode === 'local' && env.ENVIRONMENT === 'dev') || (mode === 'aws' && env.ENVIRONMENT === 'production')) {
     const row = await env.DB.prepare('SELECT MAX(last_seen_at) AS t FROM publish_runner').first<{t:number | null}>();
     result.lastSeenAt = row?.t ?? null;
     result.ready = !!row?.t && now - row.t < RUNNER_FRESH_MS;

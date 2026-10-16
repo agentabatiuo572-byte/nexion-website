@@ -1,0 +1,17 @@
+[Unit]
+Description=UVEL verified AWS publication runner
+Requires=docker.service
+After=docker.service uvel-admin-api.service network-online.target
+Wants=uvel-admin-api.service network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/opt/uvel/start-service.sh publisher
+ExecStop=/usr/bin/docker stop --time 45 uvel-publisher
+Restart=always
+RestartSec=10
+TimeoutStopSec=55
+
+[Install]
+WantedBy=multi-user.target

@@ -598,7 +598,7 @@ publishRoutes.post('/runner-fail', async(c) => {
 publishRoutes.post('/next', async (c) => {
   const b = await c.req.json<{runnerId?:string;versionId?:number}>().catch(()=>null);
   if (!b?.runnerId || !RUNNER_ID.test(b.runnerId)) return c.json({error:'bad-runner-id'},400);
-  if (c.env.ENVIRONMENT==='production' && !Number.isSafeInteger(b.versionId)) return c.json({error:'version-required'},400);
+  if (c.env.ENVIRONMENT==='production' && c.env.PUBLISH_EXECUTION_MODE !== 'aws' && !Number.isSafeInteger(b.versionId)) return c.json({error:'version-required'},400);
   const lock = await c.env.DB.prepare('SELECT version_id, expires_at FROM publish_lock WHERE id = 1').first<{ version_id: number; expires_at: number }>();
   if (!lock || lock.expires_at < Date.now()) return c.json({ job: null });
   if (b.versionId !== undefined && b.versionId!==lock.version_id) return c.json({job:null});

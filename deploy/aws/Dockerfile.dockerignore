@@ -1,0 +1,12 @@
+**/node_modules
+**/dist
+**/dist-live
+**/.astro
+**/tmp
+**/.wrangler
+**/.trash
+**/.env
+**/.env.local
+**/*.log
+.omo
+fix1909

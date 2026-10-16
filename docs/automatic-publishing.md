@@ -1,5 +1,17 @@
 # 官网自动发布
 
+## UVEL AWS 部署
+
+`deploy/aws/` 是 uvel.ai 在 EC2 的部署入口。后台运行 `worker/aws/server.mjs`，复用现有 Hono 路由；SQLite WAL/FULL 实现 D1 所用的事务接口，KV 同库持久化。数据库保存在 `/var/lib/uvel/database`，不在镜像内。Nginx 统一代理到 loopback 8791，以保留地域、挑战闸和语言中间件；仅信任 Cloudflare 官方网络传来的客户端身份。生产写接口要求同源 JSON，发布机器接口仍要求独立 token。
+
+AWS 执行模式为 `ENVIRONMENT=production`、`PUBLISH_EXECUTION_MODE=aws` / `PUBLISH_MODE=aws`。常驻 runner 使用 `/var/lib/uvel/publisher` 的稳定身份、租约恢复记录和证据；源码与锁定依赖来自只读的固定提交镜像。首次发布执行全部生产门，后续文案发布仅按原有源码指纹规则复用静态门，页面检查始终执行。新快照完整验证并 fsync 后，通过 POSIX symlink rename 原子切换 `/var/www/uvel/current`；服务端回读私有印记后才确认成功。
+
+API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均无 Docker socket、IAM 凭据或数据库互通。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份和当时 current/version 元数据，历史 release 保留。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
+
+部署前：固定提交构建 `deploy/aws/Dockerfile`，其中 Linux 适配测试与后台构建必须通过；以原有 release 为回退点。初始化令牌及管理员口令不得进入镜像或日志。首次管理员在 `/admin/setup` 设置口令。验收必须包含真实 UI 的编辑→保存→刷新→发布→历史回滚；API restart 后检查持久化，publisher restart 后确认能接单。
+
+升级前先确认没有 validating/publishing/unknown 发布，停止 runner，再备份数据库和 nginx。替换 `/etc/uvel/image` 指向固定提交标签后启动 API 与 runner，确认健康及执行器就绪才切换入口。故障回退保留新数据库现场，恢复旧镜像/入口和对应 release；不要直接覆盖唯一数据库。日常内容回滚使用后台历史版本发布，不能手工改 current 冒充已完成回滚。
+
 运营在后台保存草稿、检查改动并点击发布后，服务端自动调度执行器。界面显示发布步骤、失败原因和版本记录；刷新或关闭后台不会取消任务。日常操作不需要 PowerShell、cookie 或手动启动 CI。
 
 本机由启动器托管独立执行器，使用单独服务凭证。生产使用 `.github/workflows/publish-website.yml`，只接收整数 `versionId`，从受保护的 `main` 触发并检出当次不可变 commit。站点固定为 `nexgrid-site-worker`，生产任务串行执行；D1 持久保存任务和调度记录，服务端回读本次上线印记后才确认 live。

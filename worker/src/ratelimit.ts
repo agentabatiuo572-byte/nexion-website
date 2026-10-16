@@ -13,11 +13,14 @@ export function createLimiter(windowMs: number, burst: number, maxKeys = 10_000)
     hit(key, now = Date.now()) {
       const b = bucket.get(key);
       if (!b || now - b.start > windowMs) {
+        if (!b && bucket.size >= maxKeys) {
+          for (const [oldKey, value] of bucket) if (now - value.start > windowMs) bucket.delete(oldKey);
+          if (bucket.size >= maxKeys) return true;
+        }
         bucket.set(key, { n: 1, start: now });
         return false;
       }
       b.n++;
-      if (bucket.size > maxKeys) bucket.clear(); // 内存上限保险丝
       return b.n > burst;
     },
     reset() {

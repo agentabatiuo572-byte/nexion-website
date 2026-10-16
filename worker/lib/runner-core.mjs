@@ -3,6 +3,7 @@ import { spawn } from 'node:child_process';
 import { createHash, randomUUID } from 'node:crypto';
 import { createServer } from 'node:net';
 import { promises as fs } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
@@ -48,22 +49,36 @@ export function parseOptions(argv, env = process.env) {
     throw new Error('PUBLISH_RUNNER_TOKEN 必须是至少 32 字节的机器密钥');
   }
   const mode = env.PUBLISH_MODE || 'local';
-  if (!['local', 'production'].includes(mode)) throw new Error('PUBLISH_MODE 只支持 local 或 production');
+  if (!['local', 'production', 'aws'].includes(mode)) throw new Error('PUBLISH_MODE 只支持 local、production 或 aws');
   const api = new URL(values.api || env.PUBLISH_API_URL || 'http://127.0.0.1:8787');
   if (!['http:', 'https:'].includes(api.protocol) || api.username || api.password || api.search || api.hash || api.pathname !== '/') {
     throw new Error('PUBLISH_API_URL 必须是无凭据、无路径参数的 HTTP(S) origin');
   }
   if (mode === 'local' && !['127.0.0.1', 'localhost', '[::1]'].includes(api.hostname)) throw new Error('local 模式只允许 loopback API');
   if (mode === 'production' && api.protocol !== 'https:') throw new Error('production API 必须使用 HTTPS');
+  if (mode === 'aws') {
+    if (process.platform === 'win32') throw new Error('AWS atomic publication requires Linux');
+    if (api.origin !== 'http://127.0.0.1:8791') throw new Error('AWS publisher requires the dedicated loopback API');
+    for (const name of ['PUBLISH_STATE_DIR', 'AWS_PUBLISH_ROOT']) if (!path.isAbsolute(env[name] ?? '')) throw new Error(`${name} must be an absolute persistent path`);
+  }
   const versionId = values.version === undefined ? undefined : Number(values.version);
   if (versionId !== undefined && (!Number.isSafeInteger(versionId) || versionId <= 0)) throw new Error('--version 必须是正整数');
   if (mode === 'production' && !env.PUBLISH_WRANGLER_CONFIG) throw new Error('production 必须指定 PUBLISH_WRANGLER_CONFIG');
   if (mode === 'production' && (!values.once || !versionId)) throw new Error('production 必须用 --once --version 定向领取本次 CI 的发布单');
-  return { api: api.origin, token, mode, versionId, once: !!values.once, wranglerConfig: env.PUBLISH_WRANGLER_CONFIG, requestTimeoutMs: 8000 };
+  return { api: api.origin, token, mode, versionId, once: !!values.once, wranglerConfig: env.PUBLISH_WRANGLER_CONFIG, stateDir: mode === 'aws' ? env.PUBLISH_STATE_DIR : undefined, publishRoot: mode === 'aws' ? env.AWS_PUBLISH_ROOT : undefined, requestTimeoutMs: 8000 };
 }
 
-export const processAlive = (pid) => {
+export function processIdentity(pid) {
+  if (process.platform !== 'linux' || !Number.isSafeInteger(pid) || pid <= 0) return null;
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    const start = stat.slice(stat.lastIndexOf(')') + 2).split(' ')[19];
+    return `${readFileSync('/proc/sys/kernel/random/boot_id','utf8').trim()}:${start}`;
+  } catch { return null; }
+}
+export const processAlive = (pid, expectedIdentity) => {
   if (!Number.isSafeInteger(pid) || pid <= 0) return null;
+  if (expectedIdentity) { const actual = processIdentity(pid); if (actual && actual !== expectedIdentity) return false; }
   try { process.kill(pid, 0); return true; }
   catch (error) { return error.code === 'ESRCH' ? false : null; }
 };
@@ -87,16 +102,16 @@ export async function acquireLock(stateDir) {
     let previous;
     try { previous = JSON.parse(await fs.readFile(lockPath, 'utf8')); }
     catch (error) { if (error.code !== 'ENOENT') throw new Error('执行器锁归属未知，无法确认原进程已退出'); }
-    if (previous && processAlive(previous.pid) !== false) throw new Error('原执行器仍活跃或进程归属无法确认');
+    if (previous && processAlive(previous.pid, previous.processIdentity) !== false) throw new Error('原执行器仍活跃或进程归属无法确认');
     let record;
     try { record = JSON.parse(await fs.readFile(path.join(stateDir, 'job.json'), 'utf8')); }
     catch (error) { if (error.code !== 'ENOENT') throw new Error('发布工作记录损坏，无法确认遗留子进程'); }
     // IPC 监护进程在原 runner 退出后清理子树；给它一个有界的退出窗口。
     if (record?.childPid) {
-      for (let i = 0; i < 20 && processAlive(record.childPid) === true; i++) await delay(250);
-      if (processAlive(record.childPid) !== false) throw new Error('原发布子进程仍活跃或归属无法确认，禁止并发写入');
+      for (let i = 0; i < 20 && processAlive(record.childPid, record.childProcessIdentity) === true; i++) await delay(250);
+      if (processAlive(record.childPid, record.childProcessIdentity) !== false) throw new Error('原发布子进程仍活跃或归属无法确认，禁止并发写入');
     }
-    await fs.writeFile(lockPath, `${JSON.stringify({ pid: process.pid, nonce, at: Date.now() })}\n`, { mode: 0o600 });
+    await fs.writeFile(lockPath, `${JSON.stringify({ pid: process.pid, processIdentity:processIdentity(process.pid), nonce, at: Date.now() })}\n`, { mode: 0o600 });
     return {
       async release() {
         try {

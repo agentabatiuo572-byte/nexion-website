@@ -1,0 +1,17 @@
+[Unit]
+Description=UVEL website administration API
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+ExecStart=/opt/uvel/start-service.sh api
+ExecStop=/usr/bin/docker stop --time 25 uvel-admin-api
+Restart=always
+RestartSec=5
+TimeoutStopSec=35
+
+[Install]
+WantedBy=multi-user.target

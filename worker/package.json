@@ -29,6 +29,7 @@
     "zod": "^3.23.0"
   },
   "devDependencies": {
+    "esbuild": "0.28.1",
     "@cloudflare/vitest-pool-workers": "^0.22.0",
     "typescript": "^5.6.0",
     "vitest": "^4.1.0",

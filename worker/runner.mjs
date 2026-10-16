@@ -9,7 +9,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { setTimeout as delay } from 'node:timers/promises';
-import { acquireLock, parseOptions, createApi, startLease, runCommand, createWorkspace, childEnvironment, runnerSourceFingerprint, processAlive } from './lib/runner-core.mjs';
+import { acquireLock, parseOptions, createApi, startLease, runCommand, createWorkspace, childEnvironment, runnerSourceFingerprint, processAlive, processIdentity } from './lib/runner-core.mjs';
 import { parseJsonc } from './lib/read-jsonc.mjs';
 import { directoryDigest, assertDigest, redactEvidence } from './lib/runner-artifacts.mjs';
 import { encodePublishProgress } from '../schema/src/publish-feedback.ts';
@@ -33,7 +33,7 @@ async function main() {
   const options = parseOptions(process.argv.slice(2));
   const sourceFingerprint = await runnerSourceFingerprint(SITE);
   const hash = createHash('sha256').update(SITE.toLowerCase()).digest('hex').slice(0, 20);
-  const stateDir = path.join(tmpdir(), `nexgrid-publisher-${hash}`);
+  const stateDir = options.stateDir ?? path.join(tmpdir(), `nexgrid-publisher-${hash}`);
   const lock = await acquireLock(stateDir);
   try {
   const recordPath = path.join(stateDir, 'job.json');
@@ -84,7 +84,8 @@ async function main() {
   const wait = async (ms) => { try { await delay(ms, undefined, { signal: STOP.signal }); } catch { /* 停机信号由循环处理。 */ } };
   const machineState = (signal = STOP.signal) => api(`/api/publish/runner-state?runnerId=${encodeURIComponent(runnerId)}`, undefined, signal);
   const checkEnvironment = (state) => {
-    if (options.mode === 'production' ? !['prod', 'production'].includes(state.environment) : state.environment !== 'dev') throw new Error(`执行模式 ${options.mode} 与 API 环境 ${String(state.environment)} 不符，拒绝领取或切换`);
+    if (options.mode === 'local' ? state.environment !== 'dev' : !['prod', 'production'].includes(state.environment)) throw new Error(`执行模式 ${options.mode} 与 API 环境 ${String(state.environment)} 不符，拒绝领取或切换`);
+    if (options.mode === 'aws' && state.executor?.mode !== 'aws') throw new Error('AWS publisher requires an AWS executor');
   };
   const report = async (step, status, extra = {}, signal = STOP.signal) => {
     const result = await api('/api/publish/step', { versionId: record.versionId, stamp: record.stamp, runnerId, step, status, ...extra }, signal);
@@ -93,7 +94,7 @@ async function main() {
   };
   const closeInterrupted = async (detail) => {
     if (!record) return;
-    if (record.terminationUnconfirmed || (record.childPid && processAlive(record.childPid) !== false)) throw new Error('旧发布子进程尚未确认退出，保留记录并暂停接单');
+    if (record.childPid ? processAlive(record.childPid, record.childProcessIdentity) !== false : record.terminationUnconfirmed) throw new Error('旧发布子进程尚未确认退出，保留记录并暂停接单');
     if (record.api && record.api !== options.api) throw new Error('中断单属于另一 API 地址；必须连接原地址收口，拒绝猜测归属');
     const savedEvidence = readSavedEvidence();
     if (!record.stamp) {
@@ -267,7 +268,7 @@ async function main() {
         if (!record || record.versionId !== job.versionId || record.stamp !== job.stamp || (pid === null && record.childPid !== ownedChildPid)) throw new Error('子进程退出确认与当前发布归属不符');
         const late = pid === null && terminationUnconfirmed;
         const previous = record;
-        try { save({ childPid: pid, ...(pid === null ? { terminationUnconfirmed: false } : {}) }); }
+        try { save({ childPid: pid, childProcessIdentity:pid === null ? null : processIdentity(pid), ...(pid === null ? { terminationUnconfirmed: false } : {}) }); }
         catch (error) { record = previous; throw error; }
         ownedChildPid = pid;
         if (pid === null) {
@@ -386,8 +387,13 @@ async function main() {
       const state = await confirmWithinLease(retrySignal => machineState(retrySignal)); checkEnvironment(state);
       if (state.activeVersion !== job.versionId) throw new Error('服务端已不再确认本次任务归属，禁止切换');
       await confirmWithinLease(retrySignal => lease.check(retrySignal)); signal.throwIfAborted();
-      const promoted = await runCommand(process.execPath, [path.join(site, 'worker/promote.mjs'), '--source', path.join(site, 'dist'), '--live', path.join(options.mode === 'production' ? site : SITE, 'dist-live'), '--materialized-root', site, '--version', String(job.versionId), '--expected-sha', finalArtifact.sha256], { ...commandOptions, cwd: site, env: { ...childEnvironment(), PUBLISH_STAMP: job.stamp } });
+      const promoted = await runCommand(process.execPath, [path.join(site, 'worker/promote.mjs'), '--source', path.join(site, 'dist'), '--live', path.join(options.mode === 'local' ? SITE : site, 'dist-live'), '--materialized-root', site, '--version', String(job.versionId), '--expected-sha', finalArtifact.sha256], { ...commandOptions, cwd: site, env: { ...childEnvironment(), PUBLISH_STAMP: job.stamp } });
       if (promoted.code !== 0 || promoted.aborted) throw new Error(`快照准备或提升失败：${promoted.output}`);
+      if (options.mode === 'aws') {
+        const { activateRelease } = await import(pathToFileURL(path.join(site, 'worker/aws/release.mjs')).href);
+        await activateRelease({ source:path.join(site, 'dist-live'), root:options.publishRoot, versionId:job.versionId, expectedSha:finalArtifact.sha256,
+          authorize:async () => { await confirmWithinLease(retrySignal => lease.check(retrySignal)); signal.throwIfAborted(); }, signal });
+      }
       if (options.mode === 'production') {
         await confirmWithinLease(retrySignal => lease.check(retrySignal)); signal.throwIfAborted();
         const deployed = await runCommand(process.execPath, [path.join(site, 'worker/node_modules/wrangler/bin/wrangler.js'), 'deploy', '--config', deployment.outputFile, '--assets', path.join(site, 'dist-live')], { ...commandOptions, cwd: path.join(site, 'worker') });
@@ -420,7 +426,7 @@ async function main() {
       }
       published = true;
       writeEvidence({ status: 'published', finishedAt: new Date().toISOString(), output: commandTail });
-      log(`v${job.versionId} ${options.mode === 'production' ? '公网部署' : '本地快照'}已由服务端核实`);
+      log(`v${job.versionId} ${options.mode === 'local' ? '本地快照' : '公网部署'}已由服务端核实`);
       clear(); return true;
     } catch (error) {
       clearTimeout(outputTimer); outputTimer = undefined;

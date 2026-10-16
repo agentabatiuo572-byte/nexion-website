@@ -1,0 +1,6 @@
+[Unit]
+Description=UVEL consistent SQLite backup
+After=docker.service uvel-admin-api.service
+[Service]
+Type=oneshot
+ExecStart=/opt/uvel/backup.sh
