@@ -92,6 +92,16 @@ function measureLayout(kind) {
   return { samples, failures };
 }
 
+export function sampleCoverageFailures(pages, samples) {
+  if (!pages.length) return ['页面检查范围为空'];
+  // A scoped run requires the components belonging to its selected pages.
+  // Full-site runs still require every kind present in their complete route set.
+  const required = ['menu'];
+  if (pages.some(entry => entry.home)) required.push('hero', 'how', 'trust');
+  if (pages.some(entry => /\/(?:nex|learn)\/$/.test(entry.route))) required.push('grid');
+  return required.filter(kind => !samples[kind]).map(kind => `${kind} 无观测样本`);
+}
+
 export async function checkUiLayout(browser, base, pages, onProgress) {
   const failures = [], samples = { hero: 0, grid: 0, menu: 0, how: 0, trust: 0 };
   const context = await browser.newContext({ reducedMotion: 'reduce' });
@@ -132,7 +142,7 @@ export async function checkUiLayout(browser, base, pages, onProgress) {
         await check('trust', entry.route, width, height);
       }
     }
-    for (const [kind, count] of Object.entries(samples)) if (!count) failures.push(`${kind} 无观测样本`);
+    failures.push(...sampleCoverageFailures(pages, samples));
     return { failures, samples };
   } finally { await context.close(); }
 }

@@ -8,10 +8,24 @@ import { artifactManifest, affectedRoutes, digest, validManifest, qualificationM
   qualificationArtifactsValid, replaceQualifiedStage } from './runner-incremental.mjs';
 import { directoryDigest } from './runner-artifacts.mjs';
 import { runGates } from './runner-gates.mjs';
+import { sampleCoverageFailures } from '../../scripts/check-ui-layout.mjs';
 
 const scratch = async t => { const root = await mkdtemp(path.join(tmpdir(), 'uvel-incremental-')); t.after(() => rm(root, { recursive: true, force: true })); return root; };
 const manifest = entries => { const list = Object.entries(entries).sort(([a],[b]) => a.localeCompare(b, 'en')).map(([p,s]) => ({ path: p, bytes: Buffer.byteLength(s), sha256: digest(s) })); return { manifest: list, files: list.length, sha256: digest(list) }; };
 const before = manifest({ 'index.html': 'home', 'learn/index.html': 'learn', 'vi/index.html': 'vi', 'site.css': 'old-css' });
+test('scoped layout coverage requires selected page components and still rejects missing expected samples', () => {
+  const home = { route: '/', home: true }, product = { route: '/vi/nex/', home: false };
+  const observed = { hero: 10, grid: 0, menu: 4, how: 15, trust: 18 }; // Actual v3 failed-run observations.
+  assert.deepEqual(sampleCoverageFailures([home], observed), []);
+  assert.deepEqual(sampleCoverageFailures([product], observed), ['grid 无观测样本']);
+  assert.deepEqual(sampleCoverageFailures([{ route: '/learn/', home: false }], observed), ['grid 无观测样本']);
+  assert.deepEqual(sampleCoverageFailures([{ route: '/legal/terms/', home: false }], { menu: 4 }), []);
+  assert.deepEqual(sampleCoverageFailures([home], { ...observed, hero: 0 }), ['hero 无观测样本']);
+  assert.deepEqual(sampleCoverageFailures([home], { ...observed, trust: 0 }), ['trust 无观测样本']);
+  assert.deepEqual(sampleCoverageFailures([home, product], observed), ['grid 无观测样本']);
+  assert.deepEqual(sampleCoverageFailures([home, product], { ...observed, grid: 4 }), []);
+  assert.deepEqual(sampleCoverageFailures([], observed), ['页面检查范围为空']);
+});
 test('one changed HTML limits checks to that page, preserving other languages', () => {
   const next = manifest({ 'index.html': 'new-home', 'learn/index.html': 'learn', 'vi/index.html': 'vi', 'site.css': 'old-css' });
   assert.deepEqual(affectedRoutes(before, next), { routes: ['/'], full: false, reason: '检查本次变化的页面' });
