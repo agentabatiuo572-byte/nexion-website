@@ -4,7 +4,7 @@
    卡=浅框内衬(10/10/20)+ 白底图区 + 序号章切口 + 标题 40 档 + 双列 12 mono;
    区头=左 gutter:16 mono 打字机标题 + 12 mono 副题 + CTA(钉屏全程可见);
    移动/coarse/reduced 兜底:全部卡竖向依次排开(520 宽)。
-   R45:序号章脱离全局 .x-mono(zh 曾被压成 12.5/1.6),5ch 最小宽算上内衬;phone 图白底对白底改 contain 整机可见(B9 过渡);
+   R45:序号章脱离全局 .x-mono(zh 曾被压成 12.5/1.6),5ch 最小宽算上内衬;phone 场景为宽屏裁切保留安全区,统一 cover 铺满;
    桌面编舞卡图 eager 由 fx 负责;数字格式随语言(B8)。
    🔴 卡上无任何收益金额,只展示价格与算力倍数(事实性)。 */
 import { useT, type Locale } from '../i18n';
@@ -44,7 +44,7 @@ const shareArt = contour(77, 12, 640, 400);
                   {PRODUCT_WIDE_IMAGES[s.id] && <source
                     data-deck-source media="not all"
                     srcset={PRODUCT_WIDE_IMAGES[s.id]} />}
-                  <img src={PRODUCT_IMAGES[s.id]} alt="" loading="lazy" width="960" height="640" class:list={{ contain: s.id === 'phone' }} />
+                  <img src={PRODUCT_IMAGES[s.id]} alt="" loading="lazy" width="960" height="640" />
                 </picture>
               ) : (
                 <svg viewBox={shareArt.viewBox} preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -176,9 +176,6 @@ const shareArt = contour(77, 12, 640, 400);
     height: 100%;
     object-fit: cover;
     display: block;
-  }
-  .media img.contain {
-    object-fit: contain;
   }
   /* 序号章贴死图区左上角,与卡框同底色成「切口」。
      不挂 .x-mono:全局 zh 覆写(12.5/1.6)曾压过本规则,章是 ASCII 编号,不该吃 CJK 豁免 */

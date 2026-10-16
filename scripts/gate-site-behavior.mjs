@@ -756,6 +756,9 @@ try {
     const cropPage = await cropContext.newPage();
     await cropPage.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
     const productCrops = JSON.parse(readFileSync(new URL('./fixtures/product-banner-crops.json', import.meta.url), 'utf8'));
+    const phoneArt = await cropContext.request.get(`${coreUrl}/devices/phone.webp`);
+    check('Phone使用已审阅的平滑边框场景', phoneArt.ok()
+      && createHash('sha256').update(await phoneArt.body()).digest('hex') === '2e4413e50cd954680b1190681f288422e471e54b79ac3c480a4ba5094fd6a513');
     for (const [width, motion] of [[390, 'reduce'], [861, 'no-preference'], [1024, 'no-preference'],
       [1279, 'no-preference'], [1280, 'no-preference'], [1440, 'no-preference'], [1024, 'reduce']]) {
       await cropPage.setViewportSize({ width, height: 900 });
@@ -779,7 +782,18 @@ try {
             const r = el.getBoundingClientRect(), frame = img.getBoundingClientRect(), unit = img.clientWidth / frame.width;
             return { left: (r.left-frame.left)*unit, top: (r.top-frame.top)*unit, right: (r.right-frame.left)*unit, bottom: (r.bottom-frame.top)*unit };
           }) }));
-        if (row.file === 'phone.webp') { check('Phone保持完整显示', row.fit === 'contain'); continue; }
+        if (row.file === 'phone.webp') {
+          const scale = Math.max(row.width / row.naturalWidth, row.height / row.naturalHeight);
+          const x = (row.width - row.naturalWidth * scale) / 2, y = (row.height - row.naturalHeight * scale) / 2;
+          // Reviewed five-phone union in the 1536x1024 artwork, including all physical frames.
+          const phones = { left: 250, top: 178, right: 1268, bottom: 790 };
+          check('Phone场景铺满且五部手机完整', row.fit === 'cover' && row.position === '50% 50%'
+            && row.naturalWidth === 1536 && row.naturalHeight === 1024
+            && x + phones.left * scale >= -1 && y + phones.top * scale >= -1
+            && x + phones.right * scale <= row.width + 1 && y + phones.bottom * scale <= row.height + 1,
+          `${row.file} @${width} ${motion} js=${javaScriptEnabled}`);
+          continue;
+        }
         const crop = productCrops.find(entry => entry.file === row.file);
         check('商品必须使用已核对的横幅裁剪', Boolean(crop), row.file);
         if (!crop) continue;

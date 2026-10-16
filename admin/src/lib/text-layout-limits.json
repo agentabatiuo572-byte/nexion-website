@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "sourceHash": "68f26aa0ea44ba3027fa000a8467b256261c63528911bc5afc99625f390319bd",
-  "portableLayoutHash": "528e1871408dcd441d97f04869790024d13080d6f6a7de694aa1f4c3504be095",
+  "sourceHash": "93bac5da1d1e713f9e34d010ff0a6496a358816c87af2e78d64d70a8fe86b020",
+  "portableLayoutHash": "8cfbd3193bb64dd7515bc5964001e1971a660c38c5328930f2c9fa1830366086",
   "locales": [
     "en",
     "vi",
@@ -2618,5 +2618,5 @@
       "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
     }
   },
-  "evidenceSha256": "950a063b79618761a2cacce56e5cc78cab78e98a33b1a2e66358f89d26ed06f7"
+  "evidenceSha256": "208bb2664bafbf48a182f5cdbee7222821cd984b6bb22dd31f317dbc1e80fa23"
 }
