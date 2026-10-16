@@ -501,8 +501,24 @@ try {
     }
     await context.close();
   }
+  const reviewedLogos = {
+    'logo-lockup-dark.webp': '0933f055f15bddef04a1311cdc1f3fa597d3299c1c04cc036c5d570913ffc52e',
+    'logo-lockup-light.webp': '153a70696df7368d17969af0eb36855b6669ce4c6e10f7fc7ef9dae1bec5d2ff',
+    'logo-wordmark-dark.webp': '1cd8679f2e102000b952daa7ba0a501fa3c645b36065146d5bb80acc833f2ea5',
+    'logo-wordmark-light.webp': 'c75633cb1fd36fdebb76aa7d5c3a2bc7eaa93396f8b1750055f78f4888df1072',
+    'og.png': '5abf3da73f5f9d1ff1eb20ade853ff9ef4928b17ded9843e47e63a687eceef25',
+  };
+  for (const [file, expected] of Object.entries(reviewedLogos)) {
+    const response = await staticContext.request.get(`${coreUrl}/${file}`);
+    check(`统一硬件字标资产 ${file}`, response.ok() && createHash('sha256').update(await response.body()).digest('hex') === expected);
+  }
   for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
+    const wordmark = page.locator('footer img.brand-lockup');
+    check(`页脚字标不随语言改变 ${locale}`, await wordmark.count() === 1
+      && await wordmark.getAttribute('src') === '/logo-lockup-dark.webp'
+      && await wordmark.getAttribute('alt') === 'UVEL'
+      && await page.locator('footer .wordmark, footer .mark').count() === 0);
     const three = await faqData(page);
     check(`H04 ${locale} 三条 FAQ`, three.labels.length === 3, `实际 ${three.labels.length}`);
     check(`H04 ${locale} 隐藏/删除/排序`, three.labels.join('|') === `FAQ_B_${locale}|FAQ_C_${locale}|FAQ_A_${locale}`, three.labels.join('|'));

@@ -21,12 +21,9 @@ const year = new Date().getFullYear();
 <footer class="site-footer">
   <div class="panel x-tile">
     <div class="top">
-      {/* 品牌组:方标 + 字标紧挨(主人改令④);读屏读字标,方标 aria-hidden */}
+      {/* 导航与页脚共享完整组合标，固定图文比例，避免各端独立缩放造成失衡。 */}
       <div class="lockup">
-        <span class="mark">
-          <img src="/logo-mark-dark.webp" width="90" height="89" alt="" aria-hidden="true" />
-        </span>
-        <div class="wordmark x-display-mega" data-lr>Uvel</div>
+        <img class="brand-lockup" src="/logo-lockup-dark.webp" width="359" height="126" alt="UVEL" loading="lazy" decoding="async" />
       </div>
 
       <div class="info">
@@ -85,27 +82,14 @@ const year = new Date().getFullYear();
     gap: calc(48 * var(--uc));
   }
   .lockup {
-    display: flex;
-    align-items: center;
-    gap: max(16px, calc(24 * var(--u)));
+    display: block;
     flex: 0 0 auto;
     min-width: 0;
   }
-  .mark {
+  .brand-lockup {
     display: block;
-    width: max(44px, calc(72 * var(--u)));
-    flex: 0 0 auto;
-  }
-  .mark img {
-    display: block;
-    width: 100%;
+    width: max(176px, calc(284 * var(--u)));
     height: auto;
-    border-radius: var(--x-r-sm); /* 素材是带砖底的 app-icon 形态,圆角与面板同语 */
-  }
-  .wordmark {
-    font-size: max(40px, calc(72 * var(--u)));
-    color: var(--x-white);
-    white-space: nowrap;
     user-select: none;
   }
   .info {
@@ -197,11 +181,6 @@ const year = new Date().getFullYear();
       flex-direction: column;
       align-items: flex-start;
       gap: calc(32 * var(--uc));
-    }
-    /* 上限接断点另一侧的实算值取整下调(861 宽 = 72·--u = 43.05 → 43):窄一像素不许反向变大。
-       与首屏标题同一族,由门 render-fit 判据 D 逐档实测钉住。 */
-    .wordmark {
-      font-size: clamp(34px, 10vw, calc(43 * var(--uc)));
     }
     .info {
       width: 100%;
