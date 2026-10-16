@@ -41,7 +41,7 @@ describe('audit filter requests', () => {
     render(<AuditPage />);
 
     expect(await screen.findByText('发布切换结果待核实')).toBeTruthy();
-    expect(screen.getByText('config.publish.unknown')).toBeTruthy();
+    expect(screen.queryByText('config.publish.unknown')).toBeNull();
   });
 
   it('distinguishes a geo update attempt from a confirmed applied update', async () => {
@@ -54,8 +54,17 @@ describe('audit filter requests', () => {
 
     expect(await screen.findByText('尝试修改区域屏蔽规则')).toBeTruthy();
     expect(screen.getByText('区域屏蔽规则已应用')).toBeTruthy();
-    expect(screen.getByText('geo.update.attempt')).toBeTruthy();
-    expect(screen.getByText('geo.update.applied')).toBeTruthy();
+    expect(screen.queryByText('geo.update.attempt')).toBeNull();
+    expect(screen.queryByText('geo.update.applied')).toBeNull();
+  });
+
+  it('names the saved language and field without exposing storage paths', async () => {
+    mocks.api.mockResolvedValue({ items: [{ ...result('config.save', 10).items[0], target: 'draft', before_summary: 'r1', after_summary: '1 处改动:copy.en.hero.scrollHint; 来源 1; 待办 0' }], nextBefore: null });
+    render(<AuditPage />);
+    expect(await screen.findByText('网站草稿')).toBeTruthy();
+    expect(screen.getByText(/草稿修订 1.*文案 · 英语 · 首屏 Hero · 滚动提示/)).toBeTruthy();
+    expect(screen.queryByText(/copy\.en\.hero\.scrollHint/)).toBeNull();
+    expect(screen.queryByText('config.save')).toBeNull();
   });
 
   it('ignores an older filter response that arrives after the current filter response', async () => {

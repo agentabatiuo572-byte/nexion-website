@@ -54,6 +54,8 @@ it('shows a non-secret mask for a saved key without treating it as replacement i
   mount();
   const keyField = await screen.findByLabelText('OpenCode Zen API Key') as HTMLInputElement;
   expect(keyField.value).toBe('');
+  expect(keyField.autocomplete).toBe('new-password');
+  expect(keyField.name).toBe('provider-api-key');
   expect(keyField.placeholder).toMatch(/^•{8,}$/u);
   expect(keyField.classList.contains('ai-key-field')).toBe(true);
   expect(keyField.getAttribute('aria-describedby')).toBe('ai-key-help');

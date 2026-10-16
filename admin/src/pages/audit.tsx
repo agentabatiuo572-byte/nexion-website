@@ -2,15 +2,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { api, toast } from '../api';
 import { LatestRequest } from '../lib/latest-request';
+import { humanPath } from '../lib/human-path';
 
 interface Row {
   id: number; ts: number; actor: string; action: string;
   target: string | null; before_summary: string | null; after_summary: string | null; reason: string | null;
 }
 
-/* 动作码 → 人话。审计是给人看的追责面,不该逼人认机器词;
-   机器码仍在下面小字保留(排查时要能对上日志),但主视线是人话。
-   缺映射时显示原码——不隐藏,但那说明表该补了(gate-console-copy 守这张表不许有死键)。 */
+/* 页面显示业务名称；原始动作码仍完整保留在 CSV，便于维护人员排查。 */
 const ACTION_LABEL: Record<string, string> = {
   'auth.setup.attempt': '尝试初始化', 'auth.setup.fail': '初始化失败', 'auth.setup': '完成初始化',
   'login.attempt': '尝试登录', 'login.success': '登录成功', 'login.fail': '登录失败', 'auth.logout': '退出登录',
@@ -30,6 +29,20 @@ const ACTION_LABEL: Record<string, string> = {
 const FILTERS = [
   ['', '全部'], ['content', '内容改动'], ['publish', '发布与回滚'], ['geo', '区域规则'], ['session', '登录与账号'], ['ops', '运维'],
 ] as const;
+
+function targetLabel(target: string | null): string {
+  if (!target || target === 'unknown') return '来源不详';
+  if (target === 'draft') return '网站草稿';
+  if (/^v\d+$/.test(target)) return `版本 ${target}`;
+  if (target.startsWith('draft-upgrade:')) return '网站草稿格式升级';
+  return humanPath(target);
+}
+
+function summaryLabel(summary: string | null): string {
+  if (!summary) return '';
+  return summary.replace(/\br(\d+)\b/g, '草稿修订 $1')
+    .replace(/\b(?:copy|downloads|stats|skus|faq|announcement|seo|footer|legal)(?:\[[^\]]+\])?(?:\.[\w-]+(?:\[[^\]]+\])?)+\b|\benabledLocales\b/g, humanPath);
+}
 
 export default function AuditPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
@@ -147,7 +160,7 @@ export default function AuditPage() {
       ...rows.map((r) => [
         r.id, new Date(r.ts).toISOString(), r.actor,
         r.action, ACTION_LABEL[r.action] ?? '',
-        r.target, !r.target || r.target === 'unknown' ? '来源不详' : r.target,
+        r.target, targetLabel(r.target),
         r.before_summary, r.after_summary, r.reason,
       ].map(esc).join(','))].join('\n');
     const a = document.createElement('a');
@@ -226,15 +239,14 @@ export default function AuditPage() {
                 return (
                 <tr key={r.id}>
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
-                  {/* enum-ok:主视线是人话,下面小字**刻意**保留机器码——排查时要能和日志对上 */}
-                  <td><b>{ACTION_LABEL[r.action] ?? r.action}</b>{ACTION_LABEL[r.action] ? <div className="kv mono">{r.action}</div> : null}</td>
+                  <td><b>{ACTION_LABEL[r.action] ?? '其他操作（原始记录可导出）'}</b></td>
                   {/* 「对象」列不印内部占位词:登录类事件的对象是来访 IP,取不到时服务端写 'unknown',
                       直接印出来运营会以为是个真值(实景走查 P1-3)。 */}
-                  <td>{!r.target || r.target === 'unknown' ? <span className="kv">来源不详</span> : r.target}</td>
+                  <td>{targetLabel(r.target)}</td>
                   {/* PRD CON14-E3 要「摘要 + 字节数」:折叠时先告诉人这条有多长,他才知道值不值得展开(实景走查 P2-8) */}
                   <td style={open === r.id ? {} : { maxWidth: '20rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {(() => {
-                      const text = [r.before_summary, r.after_summary].filter(Boolean).join(' → ');
+                      const text = [r.before_summary, r.after_summary].map(summaryLabel).filter(Boolean).join(' → ');
                       if (!text) return '—';
                       const bytes = new TextEncoder().encode(text).length;
                       return (
