@@ -15,7 +15,7 @@ export async function createBackup({ db, destination, livePath }) {
   const snapshot = new DatabaseSync(database, { readOnly:true });
   let versions; let activeJobs;
   try {
-    versions = snapshot.prepare("SELECT id,status,published_at FROM config_versions WHERE status='live'").all().map(row=>({...row}));
+    versions = snapshot.prepare("SELECT id,status,published_at,claim_nonce FROM config_versions WHERE status='live'").all().map(row=>({...row}));
     activeJobs = snapshot.prepare('SELECT count(*) AS n FROM publish_lock').get().n;
   } finally { snapshot.close(); }
   const releases = realpathSync(path.join(path.dirname(livePath),'releases'));
@@ -25,14 +25,14 @@ export async function createBackup({ db, destination, livePath }) {
     const candidate = path.join(releases,entry.name);
     try {
       const stamp = JSON.parse(readFileSync(path.join(candidate,'.publish-stamp.json'),'utf8'));
-      if (versions.length !== 1 || stamp.versionId !== versions[0].id || !stamp.artifact?.sha256) continue;
+      if (versions.length !== 1 || !versions[0].claim_nonce || stamp.versionId !== versions[0].id || stamp.stamp !== versions[0].claim_nonce || !stamp.artifact?.sha256) continue;
       assertDigest(candidate,stamp.artifact.sha256);
       recoveryRelease = candidate; break;
     } catch { /* An unverified or incomplete release cannot be a recovery target. */ }
   }
   let observedCurrent = null;
   try { observedCurrent = readlinkSync(livePath); } catch { /* Observation only. */ }
-  const metadata = { at:new Date().toISOString(), database, versions, recoveryRelease,
+  const metadata = { at:new Date().toISOString(), database, versions:versions.map(({claim_nonce,...version})=>version), recoveryRelease,
     recoveryStatus:!recoveryRelease ? 'unverified' : activeJobs ? 'requires-reconciliation' : 'ready', activeJobs, observedCurrent };
   writeFileSync(path.join(destination, `${name}.json`), JSON.stringify(metadata,null,2), {mode:0o600});
   return metadata;

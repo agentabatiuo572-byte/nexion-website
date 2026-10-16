@@ -94,7 +94,7 @@ async function main() {
   };
   const closeInterrupted = async (detail) => {
     if (!record) return;
-    if (record.childPid ? processAlive(record.childPid, record.childProcessIdentity) !== false : record.terminationUnconfirmed) throw new Error('旧发布子进程尚未确认退出，保留记录并暂停接单');
+    if (record.terminationUnconfirmed || (record.childPid && processAlive(record.childPid, record.childProcessIdentity) !== false)) throw new Error('旧发布子进程尚未确认退出，保留记录并暂停接单');
     if (record.api && record.api !== options.api) throw new Error('中断单属于另一 API 地址；必须连接原地址收口，拒绝猜测归属');
     const savedEvidence = readSavedEvidence();
     if (!record.stamp) {

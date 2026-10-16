@@ -6,7 +6,7 @@
 
 AWS 执行模式为 `ENVIRONMENT=production`、`PUBLISH_EXECUTION_MODE=aws` / `PUBLISH_MODE=aws`。常驻 runner 使用 `/var/lib/uvel/publisher` 的稳定身份、租约恢复记录和证据；源码与锁定依赖来自只读的固定提交镜像。首次发布执行全部生产门，后续文案发布仅按原有源码指纹规则复用静态门，页面检查始终执行。新快照完整验证并 fsync 后，通过 POSIX symlink rename 原子切换 `/var/www/uvel/current`；服务端回读私有印记后才确认成功。
 
-API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均无 Docker socket、IAM 凭据或数据库互通。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份和当时 current/version 元数据，历史 release 保留。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
+API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均不挂载 Docker socket、IAM 凭据或对方的数据目录。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份，从备份副本读取线上版本及本次发布身份，再匹配摘要完整的保留 release。未找到恢复目标则标为 unverified；备份时有活动发布则标为 requires-reconciliation，不把 separately observed current 当恢复指针。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
 
 部署前：固定提交构建 `deploy/aws/Dockerfile`，其中 Linux 适配测试与后台构建必须通过；以原有 release 为回退点。初始化令牌及管理员口令不得进入镜像或日志。首次管理员在 `/admin/setup` 设置口令。验收必须包含真实 UI 的编辑→保存→刷新→发布→历史回滚；API restart 后检查持久化，publisher restart 后确认能接单。
 
