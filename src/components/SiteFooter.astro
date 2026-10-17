@@ -141,9 +141,9 @@ const year = new Date().getFullYear();
     opacity: 0.75;
   }
   nav {
-    display: flex;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(240 * var(--uc))), 1fr));
     gap: calc(22 * var(--uc));
-    flex-wrap: wrap;
   }
   nav a {
     color: var(--x-ink-dim);
@@ -151,7 +151,8 @@ const year = new Date().getFullYear();
     min-height: var(--x-touch);
     display: inline-flex;
     align-items: center;
-    white-space: nowrap;
+    white-space: normal;
+    overflow-wrap: anywhere;
     text-transform: uppercase;
     letter-spacing: 0;
   }
