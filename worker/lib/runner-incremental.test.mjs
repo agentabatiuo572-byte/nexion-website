@@ -9,12 +9,58 @@ import { artifactManifest, affectedRoutes, digest, validManifest, qualificationM
   checkQualifiedSource, reusableArtifact, saveArtifact, cachedWebsite, atomicJson, runtimeIdentity,
   qualificationArtifactsValid, replaceQualifiedStage, copyWorkingArtifact } from './runner-incremental.mjs';
 import { directoryDigest } from './runner-artifacts.mjs';
-import { runGates } from './runner-gates.mjs';
+import { runGates, websiteVerificationTimeout } from './runner-gates.mjs';
 import { sampleCoverageFailures } from '../../scripts/check-ui-layout.mjs';
 
 const scratch = async t => { const root = await mkdtemp(path.join(tmpdir(), 'uvel-incremental-')); t.after(() => rm(root, { recursive: true, force: true })); return root; };
 const manifest = entries => { const list = Object.entries(entries).sort(([a],[b]) => a.localeCompare(b, 'en')).map(([p,s]) => ({ path: p, bytes: Buffer.byteLength(s), sha256: digest(s) })); return { manifest: list, files: list.length, sha256: digest(list) }; };
 const before = manifest({ 'index.html': 'home', 'learn/index.html': 'learn', 'vi/index.html': 'vi', 'site.css': 'old-css' });
+
+test('AWS website budgets cover bulk routes while keeping a finite ceiling and explicit deadlines', () => {
+  for (const [pages, minutes] of [[1,30],[24,30],[48,30],[49,45],[72,45],[73,60],[96,60],[240,60]]) {
+    assert.equal(websiteVerificationTimeout('aws', pages), minutes * 60_000);
+  }
+  for (const timeout of [1200, 0, -1, null, NaN, Infinity, 90 * 60_000]) {
+    assert.ok(Object.is(websiteVerificationTimeout('aws', 96, timeout), timeout), 'explicit values must reach the existing command validation unchanged');
+  }
+  for (const pages of [0, -1, NaN, Infinity, 1.5]) assert.throws(() => websiteVerificationTimeout('aws', pages), /正整数/);
+  assert.equal(websiteVerificationTimeout('local', 96, 1200), 60 * 60_000, 'retain the existing local-mode budget');
+  assert.equal(websiteVerificationTimeout('production', 96), undefined, 'retain the existing production command default');
+  assert.equal(websiteVerificationTimeout('production', 96, 1200), 1200);
+});
+
+test('AWS verify command budgets follow actual full or scoped artifacts without changing other checks', async t => {
+  for (const scenario of ['full', 'scoped', 'asset-change', 'explicit']) {
+    const root = await scratch(t), commands = [];
+    for (const dir of ['src/config', 'worker']) await mkdir(path.join(root, dir), { recursive: true });
+    const entries = Object.fromEntries(Array.from({length:96}, (_, i) => [i ? `page-${i}/index.html` : 'index.html', `page ${i}`]));
+    entries['site.css'] = 'new-css';
+    await writeFile(path.join(root, 'src/config/site.json'), JSON.stringify({enabledLocales:['en']}));
+    await writeFile(path.join(root, 'package.json'), JSON.stringify({type:'module',scripts:{build:'node build.mjs','verify:prod':'node verify.mjs'}}));
+    await writeFile(path.join(root, 'build.mjs'), `import fs from 'node:fs';import path from 'node:path';for(const [file,text] of Object.entries(${JSON.stringify(entries)})){const target=path.join('dist',file);fs.mkdirSync(path.dirname(target),{recursive:true});fs.writeFileSync(target,text);}`);
+    await writeFile(path.join(root, 'verify.mjs'), "import{writeFileSync}from'node:fs';writeFileSync('verify-args.json',JSON.stringify(process.argv.slice(2)));writeFileSync('.verify-exit.code','0');");
+    await writeFile(path.join(root, 'worker/package.json'), '{"type":"module"}');
+    for (const name of ['gate-config-consistency.mjs','gate-console-copy.mjs','gate-beacon-size.mjs']) await writeFile(path.join(root, 'worker', name), 'console.log("content checked");');
+    const previous = scenario === 'full' ? null : manifest({...entries, ...(scenario === 'asset-change' ? {'site.css':'old-css'} : {'index.html':'old-home'})});
+    const explicit = scenario === 'explicit' ? 15000 : undefined;
+    const result = await runGates(root, 'aws', {timeoutMs:explicit,onCommand:e=>{if(e.phase==='start')commands.push(e);}}, {
+      qualification:{root:'/qualified-program'},previousWebsite:previous,
+    });
+    assert.equal(result.ok,true,result.tail);
+    const verify = commands.filter(e=>e.args.includes('verify:prod'));
+    assert.equal(verify.length,1);
+    const scoped = ['scoped','explicit'].includes(scenario);
+    assert.equal(verify[0].timeoutMs, explicit ?? (scoped ? 30 : 60) * 60_000);
+    const args = JSON.parse(await readFile(path.join(root,'verify-args.json'),'utf8'));
+    assert.equal(args.includes('--routes'),scoped);
+    if(scoped) assert.equal(args[args.indexOf('--routes')+1],'/');
+    assert.equal(result.impact.routes.length,scoped?1:96);
+    assert.equal(args[args.indexOf('--qualified-code')+1],'/qualified-program');
+    for(const command of commands.filter(e=>!e.args.includes('verify:prod'))) assert.equal(command.timeoutMs,explicit ?? 30 * 60_000);
+    assert.equal(commands.filter(e=>e.args.includes('build')).length,1);
+    for(const name of ['gate-config-consistency.mjs','gate-console-copy.mjs','gate-beacon-size.mjs']) assert.ok(commands.some(e=>e.args.includes(name)));
+  }
+});
 async function treeMode(root, directoryMode, fileMode) {
   await chmod(root, directoryMode);
   for (const entry of await readdir(root, { withFileTypes: true })) {

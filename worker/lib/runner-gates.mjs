@@ -117,6 +117,15 @@ const SOURCE_STATIC_SUITES = new Set([
 ]);
 const INCREMENTAL_SKIPPED_PUBLISHER_TEST = 'publisher-故障回归';
 
+/** AWS 批量增加语言会同时改变所有页面；按真正检查的页面数给有界预算。
+ * 只调整网站验证命令，显式时限与其它运行模式保持原有行为。 */
+export function websiteVerificationTimeout(mode, pageCount, explicitTimeout) {
+  if (mode === 'local') return 60 * 60_000;
+  if (mode !== 'aws' || explicitTimeout !== undefined) return explicitTimeout;
+  if (!Number.isSafeInteger(pageCount) || pageCount < 1) throw new Error('网站检查页数必须是正整数');
+  return Math.min(60 * 60_000, Math.max(30 * 60_000, Math.ceil(pageCount / 24) * 15 * 60_000));
+}
+
 /** 原执行器全部门保留；增加类型检查和执行器自身失败路径测试。
    options.changeTier='content-only' 且 options.sourceUnchanged 时走增量:跳过源码静态门,
    返回的 skipped 如实记录跳过的门(审计/证据可查,不冒充通过)。缺省全量。 */
@@ -198,7 +207,11 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   if (impact && !impact.full) verifyArgs.push('--routes', impact.routes.join(','));
   if (options.qualification) verifyArgs.push('--qualified-code', options.qualification.root);
   if (impact) await commandOptions.onProgress?.(`${impact.reason}：${impact.routes.length} 个页面`);
-  const verified = await runNpm(verifyArgs, { ...commandOptions, cwd: site, timeoutMs: mode === 'local' ? 60 * 60_000 : commandOptions.timeoutMs });
+  const checkedPages = impact && !impact.full && impact.routes.length
+    ? new Set(impact.routes).size
+    : website.manifest.filter(file => file.path === 'index.html' || file.path.endsWith('/index.html')).length;
+  const verified = await runNpm(verifyArgs, { ...commandOptions, cwd: site,
+    timeoutMs: websiteVerificationTimeout(mode, checkedPages, commandOptions.timeoutMs) });
   const verdict = await verifyExit(site, verified);
   if (!verdict.ok) return verdict;
   assertDigest(path.join(site, 'dist'), artifact.sha256);
