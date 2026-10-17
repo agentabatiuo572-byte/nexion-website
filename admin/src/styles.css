@@ -135,7 +135,7 @@ tbody tr:hover { background:#fafcf9; }
 .focus-flash { outline:3px solid var(--brand-ink); outline-offset:4px; border-radius:0.625rem; }
 .page-heading { margin-bottom:1.5625rem; }
 .page-heading h2 { margin:0.3125rem 0 0.5625rem; }
-.page-description { color:var(--ink3); font-size: var(--text-body); line-height:1.8; max-width:48.75rem; }
+.page-description { color:var(--ink3); font-size: var(--text-body); line-height:1.8; max-width:48.75rem; text-wrap:balance; }
 .editor-actions { position:sticky; bottom:0.75rem; z-index:6; padding:1rem 1.25rem; border:1px solid var(--border); border-radius:0.75rem; background:#fffffff5; box-shadow:0 4px 1.5rem #1b342710; backdrop-filter:blur(0.75rem); display:flex; gap:0.75rem; align-items:center; flex-wrap:wrap; margin-top:1.5rem; }
 input,textarea,select,[data-field] { scroll-margin-block:6.25rem 8.75rem; }
 .copy-layout { display:grid; grid-template-columns:14rem minmax(0,1fr); gap:1.25rem; }
@@ -399,5 +399,7 @@ details[open] > summary { margin-bottom:0.5rem; }
 /* Keep each translation action adjacent to its target input's language and status. */
 .translation-input-label { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 6px; }
 .translation-input-label > label { margin: 0; }
+/* The adjacent helper/action spacing rule is for stacked content, not this inline toolbar. */
+.translation-input-label > .btn { margin: 0; flex: none; }
 .ai-page > .card { margin-bottom: 16px; }
 .ai-page .table-wrap { overflow-x: auto; }
