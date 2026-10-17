@@ -108,15 +108,19 @@ const items = await learnList(locale);
     overflow: hidden;
     /* Reserve the two title lines already allowed by the card layout. A single
        glyph-rounding wrap must not resize every equal-height grid row. */
-    min-block-size: 2lh;
+    min-block-size: 2.2em; /* Two lines at the existing .x-h24 leading of 1.1. */
     text-wrap: balance;
+  }
+
+  h2:is(:lang(vi), :lang(zh), :lang(ja), :lang(ko)) {
+    min-block-size: 2.7em; /* The same two lines at .x-h24's language leading of 1.35. */
   }
 
   .card > p {
     color: var(--x-ink-dim);
     margin: 0;
     /* Short summaries share a four-line reading area; longer copy can grow. */
-    min-block-size: 4lh;
+    min-block-size: 6.4em; /* Four lines at the existing .x-copy leading of 1.6. */
     text-wrap: pretty;
   }
   .fb {
