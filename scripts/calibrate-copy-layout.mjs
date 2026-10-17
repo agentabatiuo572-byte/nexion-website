@@ -174,7 +174,11 @@ export function mergeEvidence(previous, observation) {
   return { ...previous, observations };
 }
 
-export function searchBudget(previous, source, locale) {
+export function searchBudget(previous, source, locale, key) {
+  // Footer links have no fixed height budget. Every route/viewport/corpus must
+  // attempt its full growth proof even after an earlier ambiguous specimen.
+  // mergeEvidence still preserves that ambiguity and refuses numeric advice.
+  if (['footer.privacy', 'footer.appPrivacy', 'footer.terms', 'footer.contact'].includes(key)) return { ceiling: 512 };
   if (previous?.referenceFailure || previous?.unresolved) return { inspectOnly: true,
     searchReason: 'Earlier measurement prevents numeric advice; checking every remaining default display state.' };
   if (previous?.status !== 'measured') return { ceiling: 512 };
@@ -196,6 +200,10 @@ function aggregationSelfTest() {
   assert.equal(searchBudget(measured, 'Hello', 'en').ceiling, 36);
   assert.equal(searchBudget({ ...measured, limit: 21 }, 'Uvel\nLet compute flow', 'en').ceiling, 1);
   assert.equal(searchBudget(uncertain, 'Hello', 'en').inspectOnly, true);
+  for (const key of ['footer.privacy', 'footer.appPrivacy', 'footer.terms', 'footer.contact']) {
+    assert.deepEqual(searchBudget(uncertain, 'Hello', 'en', key), { ceiling: 512 });
+    assert.deepEqual(searchBudget(measured, 'Hello', 'en', key), { ceiling: 512 });
+  }
   console.log('[copy-layout v2] unresolved/baseline exceptions veto advice in either order; flowing observations do not');
 }
 
@@ -363,7 +371,7 @@ async function calibrate() {
         })));
         const run = async (subset, state) => {
           const trials = subset.map((item) => {
-            const budget = searchBudget(report.records[[item.key, item.instance || '', entry.locale].join('|')], item.input.source, entry.locale);
+            const budget = searchBudget(report.records[[item.key, item.instance || '', entry.locale].join('|')], item.input.source, entry.locale, item.key);
             return { ...item, searchReason: budget.searchReason, input: { ...item.input, ...budget } };
           });
           const results = await page.evaluate((items) => items.map((item) => ({ ...item, input: undefined, result: window.__measureCopySpecimen(item.input) })), trials);

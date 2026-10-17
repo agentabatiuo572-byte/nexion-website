@@ -2,6 +2,7 @@
 // Run against the asserted production preview: node scripts/test-mobile-download.mjs [base-url]
 import assert from 'node:assert/strict';
 import { chromium } from 'playwright';
+import { homeRoutes, readBuiltPages } from './gate-built-routes.mjs';
 
 const base = process.argv[2] || 'http://127.0.0.1:4399';
 const browser = await chromium.launch();
@@ -9,7 +10,8 @@ const errors = [];
 let checks = 0;
 const views = [[320, 521], [320, 568], [390, 521], [390, 568], [390, 844], [520, 521], [520, 568], [520, 620], [520, 720], [752, 900], [844, 390], [390, 360], [860, 844]];
 try {
-  for (const locale of ['', '/vi']) for (const [width, height] of views) {
+  for (const route of homeRoutes(readBuiltPages('dist'))) for (const [width, height] of views) {
+    const locale = route === '/' ? '' : route.slice(0, -1);
     const page = await browser.newPage({ viewport: { width, height }, reducedMotion: 'reduce' });
     await page.route('**/api/e', (route) => route.fulfill({ status: 204 }));
     await page.addInitScript(() => {

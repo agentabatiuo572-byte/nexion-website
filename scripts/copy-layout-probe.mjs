@@ -270,6 +270,53 @@ export function measureSpecimen({ selector, boundary, constraint = 'inline', bas
   function inspectLayout(host, measured, boundaryElement) {
     const failure = physical(host, measured);
     if (failure) return { failure };
+    if (host.matches('.site-footer nav a')) {
+      const footer = host.closest('.site-footer'), navigation = host.closest('nav');
+      const controls = [...navigation.querySelectorAll('a')].filter(shown);
+      const related = [...controls, ...footer.querySelectorAll('.teams, .legalline, .copy')].filter(shown);
+      const geometry = [];
+      for (const sibling of related) {
+        let current;
+        if (controls.includes(sibling)) current = sibling === host ? measured : measureInk(sibling);
+        else {
+          // Unchanged adjacent paragraphs are obstacles, not calibrated text.
+          // Use the union of their complete block and native text line boxes,
+          // a conservative exclusion area without synthesizing mixed-font ink.
+          const runs = textNodes(sibling).filter(node => shown(node.parentElement)).flatMap(node => {
+            const range = document.createRange(); range.selectNodeContents(node);
+            return [...range.getClientRects()].filter(rect => rect.width > 0.001 && rect.height > 0)
+              .map(rect => ({ parent: node.parentElement, ink: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom } }));
+          });
+          if (!runs.length) return { uncertainty: '页脚相邻内容缺少可测量文本范围' };
+          current = { runs, geometry: { measurement: 'conservative-block-and-text-ranges', box: union([box(sibling), ...runs.map(run => run.ink)]), ink: union(runs.map(run => run.ink)) } };
+        }
+        if (current.uncertainty) return { uncertainty: '页脚同区域文字无法精确测量（' + sibling.tagName.toLowerCase() + '.' + sibling.className + '）：' + current.uncertainty };
+        const siblingFailure = sibling === host ? null : physical(sibling, current);
+        if (siblingFailure) return { failure: '页脚同区域内容：' + siblingFailure };
+        const obstacle = union([current.geometry.box, current.geometry.ink]), footerBounds = box(footer);
+        if (obstacle.left < footerBounds.left - 1 || obstacle.right > footerBounds.right + 1 || obstacle.top < footerBounds.top - 1 || obstacle.bottom > footerBounds.bottom + 1)
+          return { failure: '页脚同区域内容超出页脚范围' };
+        if (controls.includes(sibling)) {
+          const bounds = box(sibling), navBounds = box(navigation), ink = current.geometry.ink;
+          if (bounds.width < 44 - 0.1 || bounds.height < 44 - 0.1) return { failure: '页脚链接触达区域不足 44px' };
+          // Unclipped glyph overhang is legal, as in the general inline probe.
+          // Its complete ink still cannot cross the nav or another control.
+          if (obstacle.left < navBounds.left - 1 || obstacle.right > navBounds.right + 1 || obstacle.top < navBounds.top - 1 || obstacle.bottom > navBounds.bottom + 1)
+            return { failure: '页脚链接超出导航网格' };
+          for (const container of [sibling.closest('.info'), footer].filter(Boolean)) {
+            const containerBounds = box(container);
+            if (bounds.left < containerBounds.left - 1 || bounds.right > containerBounds.right + 1 || bounds.top < containerBounds.top - 1 || bounds.bottom > containerBounds.bottom + 1)
+              return { failure: '页脚链接超出信息区或页脚范围' };
+          }
+        }
+        geometry.push({ ...current.geometry, box: obstacle });
+      }
+      measured.geometry.footerRelated = geometry;
+      for (let i = 0; i < geometry.length; i++) for (let j = i + 1; j < geometry.length; j++) {
+        if (overlap(geometry[i].box, geometry[j].box)) return { failure: '页脚链接或相邻内容相互遮挡' };
+      }
+      if (footer.scrollWidth > footer.clientWidth + 1) return { failure: '页脚出现横向溢出' };
+    }
     if (constraint === 'inline' && boundaryElement) {
       const bounds = box(boundaryElement), control = box(host.closest('.xbtn') || host);
       if (control.left < bounds.left - 1 || control.right > bounds.right + 1) {
@@ -334,7 +381,13 @@ export function measureSpecimen({ selector, boundary, constraint = 'inline', bas
       }
     }
     const paragraphs = element.matches('#mission .body') ? [...element.querySelectorAll(':scope > p')] : [];
-    if (paragraphs.length && paragraphs.map((p) => p.textContent).join('\n') === reference) {
+    if (element.hasAttribute('data-copy-segments') && allNodes.map(node => node.textContent).join('') === reference) {
+      // Preserve the authored font hierarchy; candidates extend the last text
+      // segment instead of flattening a mixed-size headline into one text node.
+      const node = allNodes.at(-1), original = node.textContent;
+      mutation = { restore() { node.textContent = original; },
+        apply(value) { node.textContent = original + value.slice(reference.length); } };
+    } else if (paragraphs.length && paragraphs.map((p) => p.textContent).join('\n') === reference) {
       const children = [...element.childNodes], last = paragraphs.at(-1), original = last.textContent;
       if (last.children.length || last.childNodes.length !== 1 || last.firstChild.nodeType !== Node.TEXT_NODE) {
         Object.assign(record, { missingText: true, reason: '多段原文含未支持的混合标记' }); continue;
@@ -372,6 +425,33 @@ export function measureSpecimen({ selector, boundary, constraint = 'inline', bas
       if (inspectOnly) { record.reason = '仅检查原样物理几何'; continue; }
       const additions = segments(' ' + (corpus || ' more text').repeat(Math.ceil((ceiling + 2) / Math.max(1, segments(corpus || ' more text').length)) + 1));
       const menu = element.closest('.site-nav .menu'), elementStyle = getComputedStyle(element);
+      const footer = element.matches('.site-footer nav a') ? element.closest('.site-footer') : null;
+      const footerNav = footer && element.closest('nav');
+      if (footerNav && getComputedStyle(footerNav).display === 'grid' && elementStyle.whiteSpace === 'normal'
+        && elementStyle.overflowWrap === 'anywhere' && basis === 'container' && ceiling >= 512) {
+        // These links now wrap in an auto-growing grid. Every route/viewport
+        // still checks the original and a complete long sample, including all
+        // siblings, ancestor clipping and touch targets. A failed growth proof
+        // is unresolved (never a fabricated cap or a skipped consumer).
+        const before = { link: box(element), nav: box(footerNav), footer: box(footer) };
+        const candidate = reference + additions.slice(0, Math.floor(ceiling)).join('');
+        mutation.apply(candidate);
+        const measured = measureInk(host);
+        record.testedThrough = count(candidate);
+        if (measured.uncertainty) { record.reason = measured.uncertainty; record.unresolved = true; continue; }
+        const layout = inspectLayout(host, measured, boundaryElement);
+        const after = { link: box(element), nav: box(footerNav), footer: box(footer) };
+        record.flowingTrial = { condition: '页脚链接自动换行，导航网格和页脚随内容增高', candidate, before, after, geometry: measured.geometry };
+        if (layout.uncertainty || layout.failure || ['link', 'nav', 'footer'].some(key => after[key].height <= before[key].height + 1)) {
+          record.reason = layout.uncertainty || layout.failure || '未能证明长文在页脚中完整展开';
+          record.unresolved = true;
+        } else {
+          record.flowing = record.flowingTrial;
+          delete record.flowingTrial;
+          record.reason = '页脚已验证完整长样本、自动增高和同区内容完整，不生成固定字数上限';
+        }
+        continue;
+      }
       if (element.matches('.site-nav .links > a') && elementStyle.whiteSpace === 'normal' && elementStyle.overflowWrap === 'anywhere'
         && menu && getComputedStyle(menu).position === 'fixed' && ['auto', 'scroll'].includes(getComputedStyle(menu).overflowY) && ceiling >= 512) {
         // The mobile menu explicitly wraps each link and scrolls vertically.
@@ -454,6 +534,13 @@ export async function selfTest() {
     assert.equal(result.observations[0].referenceFailure, null, 'Natural growth below the fold is not clipping.');
     await probe({ selector: 'h1', boundary: '.hero', basis: 'reference', source: 'Uvel\nLet compute flow', corpus: ' more', ceiling: 30 });
     assert.equal(await page.locator('h1').textContent(), 'Uvel\nLet compute flow');
+    await page.setContent('<h1 data-copy-segments style="width:240px;font:32px/38px Arial"><span style="display:block;font:20px/24px Arial">Uvel</span>\n<span style="display:block">Let compute flow</span></h1>');
+    result = await probe({ selector: 'h1', basis: 'reference', source: 'Uvel\nLet compute flow', corpus: ' more text', ceiling: 80 });
+    assert.equal(result.observations[0].referenceFailure, null);
+    assert.equal(result.observations[0].status, 'measured');
+    assert.equal(await page.locator('h1').textContent(), 'Uvel\nLet compute flow');
+    assert.equal(await page.locator('h1 > span').count(), 2, 'Mixed-size headline structure must survive candidate measurement.');
+    assert.equal(await page.locator('h1 > span').first().evaluate(el => getComputedStyle(el).fontSize), '20px');
     await page.setContent('<h1 style="width:80px;font:40px/48px Arial;white-space:nowrap;background:linear-gradient(white,gray);background-clip:text;-webkit-text-fill-color:transparent"><span>WWWW</span></h1>');
     result = await probe({ selector: 'h1', source: 'WWWW', inspectOnly: true });
     assert.equal(result.observations[0].referenceFailure, '渐变文字超出背景绘制范围');
@@ -565,6 +652,58 @@ export async function selfTest() {
     await page.setContent('<div class="metarow" style="width:130px;position:relative;font:20px/24px Arial"><span style="position:absolute;left:0">01</span><span style="position:absolute;right:0;white-space:nowrap">Hello</span></div>');
     result = await probe({ selector: '.metarow span:last-child', boundary: '.metarow', source: 'Hello', corpus: 'W', ceiling: 20 });
     assert.equal(result.observations[0].reason, '元信息文字相互遮挡');
+    const footerFixture = `<style>body{margin:0;font:16px/24px Arial}.site-footer{padding:20px}.info{display:flex;flex-direction:column;gap:18px}p{margin:0}nav{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:22px}nav a{display:inline-flex;align-items:center;min-height:44px;white-space:normal;overflow-wrap:anywhere}.copy{margin-top:20px}</style><footer class="site-footer"><div class="info"><p class="teams">Teams</p><nav><a href="/legal/privacy/">Privacy</a><a href="/legal/app-privacy/">App privacy</a><a href="/legal/terms/">Terms</a><a href="mailto:help@example.com">Contact</a></nav><p class="legalline">Legal entity</p></div><p class="copy">Copyright</p></footer>`;
+    const footerProbe = { selector: '.site-footer nav a:first-child', boundary: '.info', source: 'Privacy', corpus: 'more text ', ceiling: 512 };
+    for (const width of [320, 860, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.setContent(footerFixture);
+      const originalFooter = await page.locator('body').innerHTML();
+      await page.evaluate(() => { window.originalFooterLink = document.querySelector('nav a'); });
+      for (let index = 1; index <= 4; index++) {
+        const selector = `.site-footer nav a:nth-child(${index})`, source = await page.locator(selector).textContent();
+        result = await probe({ ...footerProbe, selector, source });
+        const record = result.observations[0];
+        assert.equal(record.referenceFailure, null);
+        assert.equal(record.unresolved, undefined);
+        assert.equal(record.limit, undefined, 'A flowing footer must not acquire a numerical cap.');
+        assert.equal(record.testedThrough, record.referenceLength + 512);
+        for (const key of ['link', 'nav', 'footer']) assert.ok(record.flowing.after[key].height > record.flowing.before[key].height + 1);
+        assert.equal(record.flowing.geometry.footerRelated.length, 7, 'All four links and adjacent text must be inspected.');
+        assert.equal(await page.locator('body').innerHTML(), originalFooter);
+        assert.equal(await page.evaluate(() => window.originalFooterLink === document.querySelector('nav a')), true);
+      }
+    }
+    await page.setViewportSize({ width: 390, height: 400 });
+    for (const broken of [
+      'nav a:first-child{height:44px;max-height:44px;overflow:hidden}',
+      'nav a:first-child{height:44px;max-height:44px;overflow:visible}',
+      'nav{height:180px;overflow:visible}',
+      '.info{height:300px;overflow:hidden}',
+      'nav a:first-child{width:800px}',
+      'nav a:nth-child(2){position:absolute;left:20px;top:62px}',
+      'nav a{min-height:20px}',
+      'nav a{min-height:43px}',
+      '.copy{position:absolute;top:100px}',
+      '.copy{position:absolute;top:3000px}',
+    ]) {
+      await page.setContent(footerFixture + `<style>${broken}</style>`);
+      const originalFooter = await page.locator('body').innerHTML();
+      result = await probe(footerProbe);
+      const record = result.observations[0];
+      assert.ok(record.referenceFailure || record.unresolved, 'Broken footer must fail closed: ' + broken);
+      assert.equal(record.flowing, undefined);
+      assert.equal(record.limit, undefined);
+      assert.equal(await page.locator('body').innerHTML(), originalFooter, 'Failed samples must restore original DOM.');
+    }
+    await page.setContent(footerFixture + '<style>nav a{white-space:nowrap;overflow-wrap:normal;overflow:hidden}</style>');
+    result = await probe(footerProbe);
+    assert.equal(result.observations[0].status, 'measured', 'A bounded legacy footer still searches its actual boundary.');
+    assert.equal(result.observations[0].flowing, undefined);
+    assert.equal(result.observations[0].failingLength, result.observations[0].limit + 1);
+    await page.setContent(footerFixture);
+    result = await probe({ ...footerProbe, inspectOnly: true });
+    assert.equal(result.observations[0].referenceFailure, null);
+    assert.equal(result.observations[0].testedThrough, undefined, 'An explicit original-only observation remains original-only.');
     await page.setContent('<header class="site-nav"><nav><div class="menu" style="position:fixed;inset:8px;overflow-y:auto"><div class="links" style="width:140px"><a style="display:block;white-space:normal;overflow-wrap:anywhere;font:20px/24px Arial">Hello</a><a style="display:block">Next</a></div></div></nav></header>');
     result = await probe({ selector: '.links > a:first-child', source: 'Hello', corpus: 'more text ', ceiling: 512 });
     assert.equal(result.observations[0].limit, undefined);

@@ -51,6 +51,8 @@ const externalHref = announcement.href?.startsWith('https://');
     if (!root) return;
     var dismissKey = 'x-announcement-dismissed';
     var timer = 0;
+    var previousScreenHeight = -1;
+    var layoutFrame = 0;
 
     function dismissed() {
       try { return sessionStorage.getItem(dismissKey) === root.dataset.id; }
@@ -70,6 +72,18 @@ const externalHref = announcement.href?.startsWith('https://');
       if (!(zoom > 0) || !isFinite(zoom)) zoom = 1;
       document.documentElement.style.setProperty('--x-announcement-screen-h', screenHeight + 'px');
       document.documentElement.style.setProperty('--x-announcement-h', screenHeight / zoom + 'px');
+      if (screenHeight !== previousScreenHeight) {
+        previousScreenHeight = screenHeight;
+        document.dispatchEvent(new Event('x:hero-copy-layout'));
+        // Recheck after layout and scroll anchoring have settled. An early
+        // dismissal can otherwise cache the old text position until boot ends.
+        cancelAnimationFrame(layoutFrame);
+        layoutFrame = requestAnimationFrame(function () {
+          layoutFrame = requestAnimationFrame(function () {
+            document.dispatchEvent(new Event('x:hero-copy-layout'));
+          });
+        });
+      }
     }
 
     function refresh() {

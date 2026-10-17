@@ -11,6 +11,7 @@ interface Props {
 }
 const { locale } = Astro.props;
 const t = useT(locale);
+const [heroBrand, ...heroSloganLines] = t('hero.title').split('\n');
 ---
 
 <section class="hero">
@@ -31,10 +32,10 @@ const t = useT(locale);
     </div>
 
     <div class="cluster">
-      <h1 class="x-display-mega" data-lr="load" data-lr-delay="200">{t('hero.title')}</h1>
+      <h1 class="x-display-mega" data-copy-segments><span class="hero-brand" data-lr="load" data-lr-delay="200">{heroBrand}</span>&#10;<span class="hero-slogan" data-lr="load" data-lr-delay="376">{heroSloganLines.join('\n')}</span></h1>
       <div class="subs">
-        <p class="sub x-mono-lg">{t('hero.note')}</p>
-        <p class="sub2 x-mono">{t('hero.note2')}</p>
+        <p class="sub x-mono-lg size-jump-ok">{t('hero.note')}</p>
+        <p class="sub2 x-mono size-jump-ok">{t('hero.note2')}</p>
       </div>
       <div class="dl-wrap" id="download">
         <div id="download-options">
@@ -145,6 +146,11 @@ const t = useT(locale);
     color: var(--x-white);
     margin: 0;
     text-align: left;
+    white-space: normal;
+  }
+  .hero-brand,
+  .hero-slogan {
+    display: block;
     white-space: pre-line;
   }
   h1:lang(zh) {
@@ -153,7 +159,8 @@ const t = useT(locale);
   /* IOTA-inspired silver grain. Repeat by line so long translations retain the same finish.
      The reveal engine temporarily replaces text with transformed .lr-inner spans. */
   @supports (background-clip: text) {
-    h1,
+    .hero-brand,
+    .hero-slogan,
     h1 :global(.lr-inner) {
       background-image:
         linear-gradient(to bottom, var(--x-white) 12%, color-mix(in srgb, var(--x-white) 88%, transparent) 30%, transparent 85%),
@@ -163,19 +170,22 @@ const t = useT(locale);
       background-clip: text;
       -webkit-text-fill-color: transparent;
     }
-    h1:has(.lr-inner) {
+    .hero-brand:has(.lr-inner),
+    .hero-slogan:has(.lr-inner) {
       background-image: none;
     }
   }
   @media print {
-    h1,
+    .hero-brand,
+    .hero-slogan,
     h1 :global(.lr-inner) {
       background-image: none;
       -webkit-text-fill-color: currentColor;
     }
   }
   @media screen and (forced-colors: active) {
-    h1,
+    .hero-brand,
+    .hero-slogan,
     h1 :global(.lr-inner) {
       background-image: none;
       -webkit-text-fill-color: CanvasText;
@@ -251,6 +261,23 @@ const t = useT(locale);
     .hero {
       z-index: 30; /* The fixed conversion controls stay above the following sections, below navigation. */
     }
+    .hero-brand,
+    .hero-slogan,
+    h1 :global(.lr-inner) {
+      background-image: linear-gradient(to bottom, var(--x-white) 25%, var(--x-ink-cap));
+    }
+    .hero-slogan:lang(de) {
+      hyphens: auto;
+    }
+    /* One continuous veil makes the globe ambient, without boxing individual lines. */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+      background: linear-gradient(180deg, var(--x-bg) 5%, rgb(var(--x-bg-rgb) / 0.92) 24%, rgb(var(--x-bg-rgb) / 0.3) 58%, rgb(var(--x-bg-rgb) / 0.08));
+    }
     .spacer {
       display: none;
     }
@@ -278,6 +305,20 @@ const t = useT(locale);
       width: auto;
       max-width: calc(420 * var(--uc));
       text-align: left;
+      font-family: var(--x-font-display);
+      text-transform: none;
+      letter-spacing: 0;
+      white-space: normal;
+    }
+    /* The approved mobile reading typography is deliberately larger than the
+       desktop's compact mono caption (size-jump-ok on these two paragraphs). */
+    .hero .sub {
+      font-size: 18px;
+      line-height: 1.4;
+    }
+    .hero .sub2 {
+      font-size: 14px;
+      line-height: 1.5;
     }
     .dl-wrap :global(.dl) {
       justify-content: flex-start;
@@ -314,8 +355,8 @@ const t = useT(locale);
       border-radius: 4px;
       background: var(--x-bg);
       color: var(--x-ink-dim);
-      font-family: var(--x-font-mono);
-      font-size: 11px;
+      font-family: var(--x-font-display);
+      font-size: 12px;
       font-weight: 400;
       line-height: 1.5;
     }
@@ -339,7 +380,20 @@ const t = useT(locale);
       background: var(--x-bg);
     }
     .dl-wrap.floating :global(.dl .xbtn.solid) {
-      background: var(--x-accent);
+      background: var(--x-bg);
+      color: var(--x-white);
+      border-color: var(--x-line);
+    }
+    .dl-wrap.floating :global(.dl .xbtn-a),
+    .dl-wrap.floating :global(.dl .xbtn-b) {
+      padding: 0;
+    }
+    .dl-wrap.floating :global(.dl .xbtn-a) {
+      transform: none;
+    }
+    .dl-wrap.floating :global(.dl .xbtn-b),
+    .dl-wrap.floating :global(.dl .xbtn-ghost) {
+      display: none;
     }
     /* Reserve the first viewport for the brand and conversion. Service facts start
        below it instead of competing with the heading and floating controls. */
@@ -363,29 +417,62 @@ const t = useT(locale);
      🔴 改 520 必须同步改这里的 521。 */
   @media (max-width: 860px) and (min-height: 521px) {
     .cluster {
-      gap: clamp(12px, calc((100svh - 520px) / 12), 24px);
+      gap: 24px;
+    }
+    /* One editorial group, anchored 40px below live navigation. Text grows
+       naturally; spare viewport height belongs below the group, never inside it. */
+    .hero:has(.floating) .cluster {
+      min-height: calc(100svh - var(--x-chrome-h) - 40px);
+      gap: 28px;
+    }
+    .subs {
+      gap: 16px;
     }
     .hero {
       height: auto;
       min-height: 100svh;
-      padding-top: calc(var(--x-chrome-h) + clamp(16px, calc((100svh - 520px) / 8), 40px));
+      padding-top: calc(var(--x-chrome-h) + 40px);
       padding-bottom: 40px;
     }
     /* 上限 = 断点另一侧的实算值取整下调,不是另挑一个好看的数:
        861 宽走桌面档 max(44px, 100.8·--u),--u = 0.0694444vw → 60.27px(zh 走 115.2·--u → 68.88px)。
        此前封顶 88 / 92,于是「窄一个像素反而大 46%」——尺寸随视口变窄而变大,是全站唯一的反向跳变。
-       两档窄面本来就整体高于桌面梯子(11vw 恒大于 ≈7vw),所以边界必然有台阶,能做的是把台阶
+       两档窄面本来就整体高于桌面梯子(窄屏 vw 项恒大于 ≈7vw),所以边界必然有台阶,能做的是把台阶
        压到一像素内**并保证方向朝前**(窄的那侧更小);取整下调就是留这点方向余量。
-       上限只在 ≥545px 宽处咬合(11vw = 60),手机档 390 仍是 42.9px,不受影响。
+       新稿用宽度与可用高度共同限幅；短屏先收字号，避免长译文侵入固定下载区。
        改桌面档 h1 的系数会让这两个上限失配 —— 由门 render-fit 判据 D 逐档实测钉住,漂了会红。 */
     h1 {
-      font-size: clamp(40px, 11vw, calc(60 * var(--uc)));
+      max-width: 8.5em;
+      overflow-wrap: anywhere;
+      font-size: clamp(30px, min(13.3vw, calc((100svh - var(--x-chrome-h) - 180px) / 8)), calc(60 * var(--uc)));
+    }
+    .hero-brand {
+      margin-bottom: 8px;
+      font-size: 30px;
+      line-height: 1.2;
     }
     h1:lang(zh) {
       font-size: clamp(44px, 14vw, calc(68 * var(--uc)));
     }
     h1:lang(ja) {
       font-size: clamp(36px, 11vw, calc(60 * var(--uc)));
+    }
+  }
+  @media (max-width: 860px) and (min-height: 521px) and (max-height: 620px) {
+    .hero-brand {
+      font-size: 22px;
+    }
+    .hero:has(.floating) .cluster {
+      gap: 18px;
+    }
+    .subs {
+      gap: 10px;
+    }
+    .hero .sub {
+      font-size: 16px;
+    }
+    .hero .sub2 {
+      font-size: 13px;
     }
   }
   /* 矮视口档(手机横放,也含被压扁的桌面窗口)。三条约束互相牵制,必须一起满足:

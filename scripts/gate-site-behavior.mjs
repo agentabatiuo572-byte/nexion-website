@@ -18,6 +18,7 @@ import { renderLegalMarkdown } from '../src/lib/legal-markdown.ts';
 import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
 import { resolveEnabledLocales } from '../src/lib/locale-policy.ts';
 import { readBuiltPages } from './gate-built-routes.mjs';
+import { mobileHeroCopyIsClear, sampleMobileHeroCopy, testMobileHeroSampling } from './mobile-hero-sampling.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASTRO = join(ROOT, 'node_modules', 'astro', 'bin', 'astro.mjs');
@@ -47,17 +48,6 @@ function canvasFrameLooksValid(frame) {
 
 function canvasFramePreserved(before, after, paused) {
   return paused === 'true' && canvasFrameLooksValid(before) && canvasFrameLooksValid(after);
-}
-
-function mobileHeroCopyIsClear(sample) {
-  return sample?.canvasActive === true
-    && sample.lineCount >= 3
-    && sample.flightCount === 14
-    && sample.dotCount === 2059
-    && sample.shieldLineCount >= 3
-    && sample.foregroundRatio >= 0.001
-    && sample.worstBrightRatio <= 0.002
-    && sample.peakLumaDelta <= 36;
 }
 
 function historyDidNotGrow(once, twice) {
@@ -94,7 +84,7 @@ function behaviorConfig(seed, siteConfig) {
   return { ...structuredClone(seed), enabledLocales: resolveEnabledLocales(siteConfig.enabledLocales) };
 }
 
-function selfTest() {
+async function selfTest() {
   const { config: seed, manifest } = buildSeed();
   const pdf = Buffer.from('%PDF-1.7\n%%EOF\n');
   const html = Buffer.from('<html>not a PDF</html>');
@@ -148,16 +138,16 @@ function selfTest() {
       'true',
     )],
     ['手机 hero 护字好样本', mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, foregroundRatio: 0.02, worstBrightRatio: 0.001, peakLumaDelta: 32,
+      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.02, worstBrightRatio: 0.001, peakLumaDelta: 32,
     })],
     ['手机 hero 亮轨压字坏样本被拒', !mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, foregroundRatio: 0.045, worstBrightRatio: 0.08, peakLumaDelta: 210,
+      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.045, worstBrightRatio: 0.08, peakLumaDelta: 210,
     })],
     ['手机 hero 关闭画布伪修复被拒', !mobileHeroCopyIsClear({
-      canvasActive: false, lineCount: 7, flightCount: 0, dotCount: 0, shieldLineCount: 0, foregroundRatio: 0, worstBrightRatio: 0, peakLumaDelta: 0,
+      canvasActive: false, lineCount: 7, flightCount: 0, dotCount: 0, shieldLineCount: 0, visibleForegroundRatio: 0, foregroundRatio: 0, worstBrightRatio: 0, peakLumaDelta: 0,
     })],
     ['手机 hero 全局降密度伪修复被拒', !mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 5, dotCount: 500, shieldLineCount: 7, foregroundRatio: 0.012, worstBrightRatio: 0, peakLumaDelta: 0,
+      canvasActive: true, lineCount: 7, flightCount: 5, dotCount: 500, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.012, worstBrightRatio: 0, peakLumaDelta: 0,
     })],
     ['重复 hash 不增长历史', historyDidNotGrow(7, 7)],
     ['重复 hash 增长坏样本被拒', !historyDidNotGrow(7, 8)],
@@ -169,7 +159,7 @@ function selfTest() {
     ['HTML 响应类型坏样本被拒', !pdfResponseMatches(200, 'text/html', pdf, pdf)],
     ['PDF 错文件坏样本被拒', !pdfResponseMatches(200, 'application/pdf', pdf, Buffer.from('%PDF-1.4'))],
   ];
-  for (const [name, pass] of cases) check(name, pass);
+  for (const [name, pass] of [...cases, ...await testMobileHeroSampling(chromium)]) check(name, pass);
   if (failures.length) {
     failures.forEach((line) => console.error(`[site-behavior:self-test] ✗ ${line}`));
     process.exit(2);
@@ -178,7 +168,7 @@ function selfTest() {
 }
 
 if (process.argv.includes('--self-test')) {
-  selfTest();
+  await selfTest();
   process.exit(0);
 }
 
@@ -304,92 +294,6 @@ function sampleCanvas(page) {
       buckets.add(`${red >> 4},${green >> 4},${blue >> 4}`);
     }
     return { sampled, background, foreground: sampled - background, colorBuckets: buckets.size };
-  });
-}
-
-function sampleMobileHeroCopy(page) {
-  return page.evaluate(() => {
-    const canvas = document.getElementById('x-bg');
-    const ctx = canvas?.getContext('2d');
-    const canvasRect = canvas?.getBoundingClientRect();
-    if (!canvas || !ctx || !canvasRect || !canvas.width || !canvas.height || !canvasRect.width || !canvasRect.height) {
-      return { canvasActive: false, lineCount: 0, flightCount: 0, dotCount: 0, shieldLineCount: 0, foregroundRatio: 0, worstBrightRatio: 1, peakLumaDelta: 255 };
-    }
-
-    const colorProbe = document.createElement('span');
-    colorProbe.style.color = 'var(--x-bg)';
-    document.body.append(colorProbe);
-    const rgb = getComputedStyle(colorProbe).color.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [12, 12, 13];
-    colorProbe.remove();
-    const bgLuma = 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2];
-    const scaleX = canvas.width / canvasRect.width;
-    const scaleY = canvas.height / canvasRect.height;
-    let foreground = 0;
-    let fieldSamples = 0;
-    for (let y = 0; y < canvas.height; y += 8) {
-      for (let x = 0; x < canvas.width; x += 8) {
-        const pixel = ctx.getImageData(x, y, 1, 1).data;
-        const delta = Math.max(Math.abs(pixel[0] - rgb[0]), Math.abs(pixel[1] - rgb[1]), Math.abs(pixel[2] - rgb[2]));
-        if (delta >= 12) foreground++;
-        fieldSamples++;
-      }
-    }
-
-    let lineCount = 0;
-    let worstBrightRatio = 0;
-    let peakLuma = bgLuma;
-    for (const element of document.querySelectorAll('.hero h1, .hero .sub, .hero .sub2')) {
-      const revealLines = [...element.querySelectorAll(':scope > .lr-line')];
-      const rects = revealLines.length
-        ? revealLines.map((line) => {
-            const box = line.getBoundingClientRect();
-            const inner = line.querySelector('.lr-inner');
-            if (!inner) return box;
-            const range = document.createRange();
-            range.selectNodeContents(inner);
-            const ink = [...range.getClientRects()].filter((rect) => rect.width > 0);
-            return ink.length ? {
-              left: Math.min(...ink.map((rect) => rect.left)),
-              right: Math.max(...ink.map((rect) => rect.right)),
-              top: Math.min(...ink.map((rect) => rect.top)),
-              bottom: Math.max(...ink.map((rect) => rect.bottom)),
-              width: Math.max(...ink.map((rect) => rect.right)) - Math.min(...ink.map((rect) => rect.left)),
-              height: Math.max(...ink.map((rect) => rect.bottom)) - Math.min(...ink.map((rect) => rect.top)),
-            } : box;
-          })
-        : (() => {
-            const range = document.createRange();
-            range.selectNodeContents(element);
-            return [...range.getClientRects()];
-          })();
-      for (const rect of rects) {
-        if (rect.width <= 0 || rect.height <= 0 || rect.bottom <= 0 || rect.top >= innerHeight) continue;
-        const x0 = Math.max(0, Math.floor((rect.left - canvasRect.left) * scaleX));
-        const y0 = Math.max(0, Math.floor((rect.top - canvasRect.top) * scaleY));
-        const x1 = Math.min(canvas.width, Math.ceil((rect.right - canvasRect.left) * scaleX));
-        const y1 = Math.min(canvas.height, Math.ceil((rect.bottom - canvasRect.top) * scaleY));
-        if (x1 <= x0 || y1 <= y0) continue;
-        const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
-        let bright = 0;
-        for (let index = 0; index < data.length; index += 4) {
-          const luma = 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
-          if (luma - bgLuma > 36) bright++;
-          peakLuma = Math.max(peakLuma, luma);
-        }
-        lineCount++;
-        worstBrightRatio = Math.max(worstBrightRatio, bright / (data.length / 4));
-      }
-    }
-    return {
-      canvasActive: Number(window.__xbg?.renders) > 2,
-      lineCount,
-      flightCount: Number(window.__xbg?.fl) || 0,
-      dotCount: Number(window.__xbg?.dots) || 0,
-      shieldLineCount: Number(window.__xbg?.shieldLines) || 0,
-      foregroundRatio: fieldSamples ? foreground / fieldSamples : 0,
-      worstBrightRatio,
-      peakLumaDelta: peakLuma - bgLuma,
-    };
   });
 }
 
@@ -735,6 +639,11 @@ try {
       check(`M16 ${locale} 手机 hero 稳定态 ${frame}/3 无亮粒子压字`, mobileHeroCopyIsClear(sample), JSON.stringify(sample));
       await mobileCanvasPage.waitForTimeout(120);
     }
+    await mobileCanvasPage.locator('[data-announcement-close]').click();
+    await mobileCanvasPage.waitForTimeout(350);
+    const dismissedSample = await sampleMobileHeroCopy(mobileCanvasPage);
+    check(`M16 ${locale} 关闭公告后护字位置与强度同步`, mobileHeroCopyIsClear(dismissedSample), JSON.stringify(dismissedSample));
+    await mobileCanvasPage.evaluate(() => sessionStorage.removeItem('x-announcement-dismissed'));
   }
   await mobileCanvasContext.close();
 

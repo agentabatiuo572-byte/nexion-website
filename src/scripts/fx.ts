@@ -367,6 +367,7 @@ function initGlobe() {
     padY: number;
   }
   const mobileHeroQuery = matchMedia('(max-width: 860px)');
+  const isHome = document.documentElement.hasAttribute('data-home');
   let copyShields: CopyShield[] = [];
   let copyShieldCssHeight = 0;
   const refreshCopyShields = () => {
@@ -425,7 +426,9 @@ function initGlobe() {
     copyShield.height = Math.max(1, Math.round(copyShieldCssHeight * DPR));
     sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     sctx.clearRect(0, 0, W, copyShieldCssHeight);
-    sctx.globalAlpha = 0.94;
+    // The homepage veil handles the scene; feathered line shields also protect
+    // long copy against bright moving flights, including after announcement changes.
+    sctx.globalAlpha = isHome ? 0.72 : 0.94;
     for (const zone of copyShields) {
       const outerTop = zone.top - zone.padY;
       const outerBottom = zone.bottom + zone.padY;
@@ -475,7 +478,9 @@ function initGlobe() {
   /* 姿态语义(R47.1):滚动只管构图——位置 / r=球半径 px / pitch(±0.35,极区无大陆不给正脸);
      经度旋转不归姿态管,由下方 spinYaw 常转累积(改令②)。数值为首轮构图值,评审轮微调。 */
   const R0 = () => 0.46 * Math.min(W, H);
-  const poseHome = (): Pose => ({ cx: 0.5 * W, cy: 0.6 * H, r: R0(), pitch: 0.31 });
+  const poseHome = (): Pose => isHome && mobileHeroQuery.matches
+    ? { cx: 0.94 * W, cy: 0.86 * H, r: Math.min(0.88 * W, 0.55 * H), pitch: 0.31 }
+    : { cx: 0.5 * W, cy: 0.6 * H, r: R0(), pitch: 0.31 };
   const poseA = (): Pose => ({ cx: 0.33 * W, cy: 0.68 * H, r: 0.55 * R0(), pitch: 0.1 });
   const poseB = (): Pose => ({ cx: 0.65 * W, cy: 0.5 * H, r: 0.7 * R0(), pitch: 0.35 });
   const poseC = (): Pose => ({ cx: 0.5 * W, cy: 0.55 * H, r: 1.6 * R0(), pitch: 0.2 });
