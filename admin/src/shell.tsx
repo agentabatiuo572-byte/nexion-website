@@ -37,9 +37,11 @@ export const useShell = () => useContext(ShellCtx);
 
 export interface OverviewExpectation {
   geo?: { enabled: boolean; countries: number; degraded: boolean };
+  draftRev?: number;
 }
 
 const matchesExpectation = (overview: Overview, expectation?: OverviewExpectation): boolean => {
+  if (expectation?.draftRev !== undefined && overview.draft.draftRev < expectation.draftRev) return false;
   if (!expectation?.geo) return true;
   return overview.geo?.enabled === expectation.geo.enabled
     && overview.geo.countries === expectation.geo.countries
@@ -96,6 +98,7 @@ export default function Shell() {
   const currentPage = NAV.flatMap((group) => group.items).find((item) => item.to === routeLocation.pathname);
   const allowNextNavigation = useRef(false);
   const reloadGeneration = useRef(0);
+  const latestReload = useRef<Promise<Overview | null> | null>(null);
   const requiredExpectation = useRef<OverviewExpectation | null>(null);
 
   const blocker = useBlocker(({ currentLocation, nextLocation }) => {
@@ -135,15 +138,20 @@ export default function Shell() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [hasUnsavedChanges]);
 
-  const reload = useCallback(async (expectation?: OverviewExpectation): Promise<Overview | null> => {
-    if (expectation) requiredExpectation.current = expectation;
+  const reload = useCallback((expectation?: OverviewExpectation): Promise<Overview | null> => {
+    if (expectation) requiredExpectation.current = {
+      ...requiredExpectation.current, ...expectation,
+      draftRev: Math.max(requiredExpectation.current?.draftRev ?? 0, expectation.draftRev ?? 0),
+    };
     const generation = ++reloadGeneration.current;
     const isCritical = requiredExpectation.current !== null;
     if (isCritical) setCriticalRefresh(true);
     setFailed(false);
-    try {
+    const request = (async (): Promise<Overview | null> => { try {
       const next = await api<Overview>('/api/config');
-      if (generation !== reloadGeneration.current) return null;
+      // A newer poll owns the UI, but the save still needs its result. Follow that
+      // request instead of reporting supersession as a network failure.
+      if (generation !== reloadGeneration.current) return latestReload.current;
       if (!matchesExpectation(next, requiredExpectation.current ?? expectation)) {
         setCriticalRefresh(false);
         setFailed(true);
@@ -154,12 +162,13 @@ export default function Shell() {
       setOverview(next);
       return next;
     } catch {
-      if (generation === reloadGeneration.current) {
-        setCriticalRefresh(false);
-        setFailed(true);
-      }
+      if (generation !== reloadGeneration.current) return latestReload.current;
+      setCriticalRefresh(false);
+      setFailed(true);
       return null;
-    }
+    } })();
+    latestReload.current = request;
+    return request;
   }, []);
   /* 🔴 先确认会话,再渲染子页(实景走查 P2-9)。
      此前壳与子页同时挂载并各自发请求,未登录时会连着打出好几个 401 ——

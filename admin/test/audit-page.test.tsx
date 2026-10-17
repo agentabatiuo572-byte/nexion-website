@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({ api: vi.fn(), toast: vi.fn() }));
 vi.mock('../src/api', () => ({ api: mocks.api, toast: mocks.toast }));
 
 import AuditPage from '../src/pages/audit';
+import { auditSummary, auditReason } from '../src/lib/audit-summary';
 
 afterEach(() => {
   cleanup();
@@ -23,6 +24,49 @@ const result = (action: string, id: number) => ({
 });
 
 describe('audit filter requests', () => {
+  it('shows AI summaries in operator language and preserves result uncertainty', async () => {
+    mocks.api.mockResolvedValue({ items: [
+      { ...result('ai.connection.saved', 20).items[0], target: 'ai-connection', after_summary: 'credential 2; provider nvidia; model nvidia/riva-translate-4b-instruct-v2; status available' },
+      { ...result('ai.connection.tested', 21).items[0], after_summary: 'operation 3; result invalid-key' },
+      { ...result('ai.connection.tested', 22).items[0], after_summary: 'operation 4; result network-error' },
+      { ...result('ai.settings', 23).items[0], after_summary: 'enabled 0; daily characters 50000' },
+      { ...result('config.publish.failed', 24).items[0], after_summary: '门未通过(build): node /app/scripts/build.mjs exited 1' },
+    ], nextBefore: null });
+    render(<AuditPage />);
+    expect(await screen.findByText(/密钥第 2 版；服务商：NVIDIA NIM；模型：.*；连接状态：可用/)).toBeTruthy();
+    expect(screen.getByText(/第 3 次连接测试；测试结果：密钥无效/)).toBeTruthy();
+    expect(screen.getByText(/连接中断，结果待确认/)).toBeTruthy();
+    expect(screen.getByText(/自动翻译：关闭；每日翻译上限：50000 个字符/)).toBeTruthy();
+    expect(screen.getByText('发布检查未通过，请到发布与版本查看详情')).toBeTruthy();
+    expect(screen.queryByText(/credential|operation|invalid-key|network-error|node \/app/)).toBeNull();
+  });
+
+  it('formats other recorded AI, translation and geo summaries without modifying user reasons', () => {
+    expect(auditSummary('credential 3', 'ai.connection.removed')).toBe('密钥第 3 版');
+    expect(auditSummary('credential 4; provider zen; model deepseek-v4-flash-free; status model-unavailable', 'ai.connection.saved')).toBe('密钥第 4 版；服务商：OpenCode Zen；模型：deepseek-v4-flash-free；连接状态：模型不可用');
+    expect(auditSummary('status future-status', 'ai.connection.saved')).toContain('待确认');
+    expect(auditSummary('operation 5; provider gemini; model gemini-2.5-flash', 'ai.connection.attempt')).toContain('服务商：Google Gemini');
+    expect(auditSummary('operation 6; result future-error', 'ai.connection.tested')).toContain('未完成');
+    expect(auditSummary('enabled=true [US,CN] page=42B', 'geo.update.applied')).toBe('区域屏蔽：开启；地区：美国、中国；拦截页内容 42 字节');
+    expect(auditReason('translation.apply', 'config.save')).toBe('应用 AI 翻译');
+    expect(auditReason('locked', 'login.fail')).toBe('尝试次数过多，暂时无法登录');
+    expect(auditReason('release operation 3 approved', 'config.publish')).toBe('release operation 3 approved');
+  });
+
+  it('exports original AI summaries and reasons for investigation', async () => {
+    const original = 'operation 3; result invalid-key';
+    mocks.api.mockResolvedValue({ items: [{ ...result('ai.connection.tested', 21).items[0], after_summary: original }], nextBefore: null });
+    let blob: Blob | undefined;
+    Object.defineProperty(URL, 'createObjectURL', { configurable: true, value: vi.fn(value => { blob = value; return 'blob:audit'; }) });
+    vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    render(<AuditPage />);
+    await screen.findByText(/测试结果：密钥无效/);
+    fireEvent.click(screen.getByRole('button', { name: '导出 CSV' }));
+    await waitFor(() => expect(blob).toBeDefined());
+    const content = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsText(blob!); });
+    expect(content).toContain(original);
+    expect(content).toContain('ai.connection.tested');
+  });
   it('provides a named native button to expand and collapse a long change', async () => {
     mocks.api.mockResolvedValue({ items: [{ ...result('config.save', 9).items[0], after_summary: '详细变更'.repeat(30) }], nextBefore: null });
     render(<AuditPage />);

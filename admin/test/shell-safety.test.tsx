@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { createRequire } from 'node:module';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { act } from 'react';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
@@ -23,6 +23,13 @@ vi.mock('../src/api', () => {
 });
 
 import Shell, { useShell, useUnsavedChanges } from '../src/shell';
+
+let reloadFromPage: ReturnType<typeof useShell>['reload'];
+function ConcurrentRefreshPage() {
+  const shell = useShell();
+  reloadFromPage = shell.reload;
+  return <div>当前草稿 {shell.overview?.draft.draftRev}</div>;
+}
 
 const overview = {
   liveVersion: 1,
@@ -74,6 +81,63 @@ afterEach(() => {
 });
 
 describe('Shell safety flows', () => {
+  async function setupConcurrentReads() {
+    const pending: Array<{ resolve: (value: typeof overview) => void; reject: (error: Error) => void }> = [];
+    let initialized = false;
+    mocks.api.mockImplementation((path: string) => {
+      if (path !== '/api/config') return Promise.resolve({});
+      if (!initialized) { initialized = true; return Promise.resolve(overview); }
+      return new Promise((resolve, reject) => pending.push({ resolve, reject }));
+    });
+    render(<RouterProvider router={createMemoryRouter([{ path: '/', element: <Shell />, children: [{ index: true, element: <ConcurrentRefreshPage /> }] }])} />);
+    await screen.findByText('当前草稿 1');
+    return pending;
+  }
+
+  it.each(['old-first', 'new-first', 'old-rejected'])('a saved revision follows the newer poll without a false failure (%s)', async (order) => {
+    const pending = await setupConcurrentReads();
+    let saved!: ReturnType<typeof reloadFromPage>, polled!: ReturnType<typeof reloadFromPage>;
+    act(() => { saved = reloadFromPage({ draftRev: 2 }); polled = reloadFromPage(); });
+    const newest = { ...overview, draft: { ...overview.draft, draftRev: 3 } };
+    let settled = false;
+    void saved.then(() => { settled = true; });
+    if (order === 'new-first') await act(async () => pending[1]!.resolve(newest));
+    await act(async () => {
+      if (order === 'old-rejected') pending[0]!.reject(new Error('old response lost'));
+      else pending[0]!.resolve({ ...overview, draft: { ...overview.draft, draftRev: 2 } });
+    });
+    if (order !== 'new-first') {
+      expect(settled).toBe(false);
+      await act(async () => pending[1]!.resolve(newest));
+    }
+    expect(await saved).toEqual(newest);
+    expect(await polled).toEqual(newest);
+    expect(screen.getByText('当前草稿 3')).toBeTruthy();
+    expect(screen.queryByText(/全局状态刷新失败/)).toBeNull();
+  });
+
+  it.each(['network-failure', 'stale-revision', 'geo-mismatch'])('a superseding poll must still confirm the write (%s)', async (failure) => {
+    const pending = await setupConcurrentReads();
+    let saved!: ReturnType<typeof reloadFromPage>;
+    act(() => {
+      saved = reloadFromPage({ draftRev: 2, ...(failure === 'geo-mismatch' ? { geo: { enabled: true, countries: 1, degraded: false } } : {}) });
+      void reloadFromPage();
+    });
+    await act(async () => pending[0]!.resolve({ ...overview, draft: { ...overview.draft, draftRev: 2 } }));
+    await act(async () => {
+      if (failure === 'network-failure') pending[1]!.reject(new Error('offline'));
+      else pending[1]!.resolve(failure === 'stale-revision' ? overview : { ...overview, draft: { ...overview.draft, draftRev: 2 } });
+    });
+    expect(await saved).toBeNull();
+    expect(screen.getByText(/全局状态刷新失败，旧状态已隐藏/)).toBeTruthy();
+    let retry!: ReturnType<typeof reloadFromPage>;
+    act(() => { retry = reloadFromPage(); });
+    const recovered = { ...overview, draft: { ...overview.draft, draftRev: 2 }, geo: { enabled: true, countries: 1, degraded: false } };
+    await act(async () => pending[2]!.resolve(recovered));
+    expect(await retry).toEqual(recovered);
+    expect(screen.queryByText(/全局状态刷新失败/)).toBeNull();
+  });
+
   it.each([null, { dbLive: 1, snapshot: 1, tampered: ['admin/index.html'] }])('reports failed publication without guaranteeing the live site is unaffected (drift=%j)', async (drift) => {
     mocks.api.mockImplementation((path: string) => Promise.resolve(path === '/api/config'
       ? { ...overview, drift, lastPublishFailed: { id: 2, reason: '发布服务中断或超时', at: Date.now() } }
@@ -247,12 +311,13 @@ it('keeps navigation labels readable at every width and mobile targets at least 
   await screen.findByText('编辑页面');
   fireEvent.click(screen.getByRole('button', { name: '打开导航' }));
   expect(screen.getByRole('button', { name: '关闭导航' }).getAttribute('aria-expanded')).toBe('true');
-  const require = createRequire(resolve(process.cwd(), '../package.json'));
+  const repoRoot = existsSync(resolve(process.cwd(), 'admin/package.json')) ? process.cwd() : resolve(process.cwd(), '..');
+  const require = createRequire(resolve(repoRoot, 'package.json'));
   const { chromium } = require('playwright');
   const browser = await chromium.launch({ headless: true });
   try {
     const page = await browser.newPage();
-    const css = readFileSync(resolve(process.cwd(), 'src/styles.css'), 'utf8');
+    const css = readFileSync(resolve(repoRoot, 'admin/src/styles.css'), 'utf8');
     await page.setContent('<style>' + css + '</style>' + container.innerHTML);
     for (const width of [320, 375, 760, 761, 1023, 1024, 1440, 1920, 2560, 3840]) {
       await page.setViewportSize({ width, height: 900 });

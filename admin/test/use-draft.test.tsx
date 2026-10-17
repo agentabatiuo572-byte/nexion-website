@@ -39,6 +39,7 @@ describe('every useDraft consumer carries edit-start intent', () => {
     mocks.overview.draft.draftRev = 2;
     hook.rerender({ dirty: true });
     await act(async () => { expect(await hook.result.current.save(mutate)).toBe(true); });
+    expect(mocks.reload).toHaveBeenCalledWith({ draftRev: 3 });
     const [url, request] = mocks.api.mock.calls[0]!;
     expect(url).toBe('/api/config/draft'); expect(request.method).toBe('PATCH');
     const body = JSON.parse(request.body);

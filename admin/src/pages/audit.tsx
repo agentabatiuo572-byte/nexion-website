@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, toast } from '../api';
 import { LatestRequest } from '../lib/latest-request';
 import { humanPath } from '../lib/human-path';
+import { auditSummary, auditReason } from '../lib/audit-summary';
 
 interface Row {
   id: number; ts: number; actor: string; action: string;
@@ -39,15 +40,6 @@ function targetLabel(target: string | null): string {
   if (/^v\d+$/.test(target)) return `版本 ${target}`;
   if (target.startsWith('draft-upgrade:')) return '网站草稿格式升级';
   return humanPath(target);
-}
-
-function summaryLabel(summary: string | null): string {
-  if (!summary) return '';
-  if (summary === 'validating/publishing') return '检查或发布进行中';
-  if (summary === 'none' || summary === 'live=none') return '暂无线上版本';
-  return summary.replace(/\br(\d+)\b/g, '草稿修订 $1')
-    .replace(/\blive=(v\d+)\b/g, '线上版本 $1')
-    .replace(/\benabledLocales(?:\[\d+\])?|\b(?:copy|downloads|stats|skus|faq|announcement|seo|footer|legal)(?:\[[^\]]+\])?(?:\.[\w-]+(?:\[[^\]]+\])?)+/g, humanPath);
 }
 
 export default function AuditPage() {
@@ -241,7 +233,8 @@ export default function AuditPage() {
                 /* 🔴 只有**真有东西可展开**的行才做成可点(第十轮 P2-13):
                    上一版整行都是 `cursor:pointer`,而短行点下去 innerText 一个字都不变 ——
                    界面上每个看起来能点的位置,要么有效,要么别让它看起来能点。 */
-                const expandable = ((r.before_summary ?? '') + (r.after_summary ?? '')).length > 60;
+                const text = [r.before_summary, r.after_summary].map(value => auditSummary(value, r.action)).filter(Boolean).join(' → ');
+                const expandable = text.length > 60;
                 return (
                 <tr key={r.id}>
                   <td className="mono kv">{new Date(r.ts).toLocaleString('zh-CN', { hour12: false })}</td>
@@ -252,7 +245,6 @@ export default function AuditPage() {
                   {/* PRD CON14-E3 要「摘要 + 字节数」:折叠时先告诉人这条有多长,他才知道值不值得展开(实景走查 P2-8) */}
                   <td style={open === r.id ? {} : { maxWidth: '20rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {(() => {
-                      const text = [r.before_summary, r.after_summary].map(summaryLabel).filter(Boolean).join(' → ');
                       if (!text) return '—';
                       const bytes = new TextEncoder().encode(text).length;
                       return (
@@ -263,7 +255,7 @@ export default function AuditPage() {
                       );
                     })()}
                   </td>
-                  <td>{r.reason ?? '—'}</td>
+                  <td>{auditReason(r.reason, r.action)}</td>
                   <td>{expandable && <button className="btn ghost sm" aria-expanded={open === r.id} aria-label={`${open === r.id ? '收起' : '展开'}第 ${r.id} 条变更`} onClick={() => setOpen(open === r.id ? null : r.id)}>{open === r.id ? '收起变更' : '展开变更'}</button>}</td>
                 </tr>
                 );

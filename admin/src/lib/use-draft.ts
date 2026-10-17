@@ -67,7 +67,7 @@ export function useDraft(hasUnsavedChanges = false) {
       // working copy, not the server's extra AI fields, so the second save carries only new intent.
       baseline.current = { payload: next, revision: res.draftRev };
       // T14 验收 P-4:剥离提示用真实计数,不用「(如有)」泛化文案
-      const refreshed = await reload();
+      const refreshed = await reload({ draftRev: res.draftRev });
       if (!refreshed) {
         toast('草稿已经保存，但最新状态读取失败；本页改动已保留，请刷新确认');
         return false;
