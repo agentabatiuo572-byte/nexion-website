@@ -106,12 +106,17 @@ const items = await learnList(locale);
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    /* Reserve the two title lines already allowed by the card layout. A single
+       glyph-rounding wrap must not resize every equal-height grid row. */
+    min-block-size: 2lh;
     text-wrap: balance;
   }
 
   .card > p {
     color: var(--x-ink-dim);
     margin: 0;
+    /* Short summaries share a four-line reading area; longer copy can grow. */
+    min-block-size: 4lh;
     text-wrap: pretty;
   }
   .fb {
