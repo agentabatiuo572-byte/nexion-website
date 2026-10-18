@@ -50,6 +50,13 @@ function canvasFramePreserved(before, after, paused) {
   return paused === 'true' && canvasFrameLooksValid(before) && canvasFrameLooksValid(after);
 }
 
+function rasterMatchesFullSize(job, result, expected) {
+  return job?.width === expected.cssWidth && job?.height === expected.cssHeight
+    && job?.dpr === expected.dpr && job?.points === 20000
+    && result.bodyWidth === expected.width && result.bodyHeight === expected.height
+    && result.glowWidth === expected.width && result.glowHeight === expected.height;
+}
+
 function historyDidNotGrow(once, twice) {
   return once === twice;
 }
@@ -137,17 +144,30 @@ async function selfTest() {
       { sampled: 1000, background: 1000, foreground: 0, colorBuckets: 1 },
       'true',
     )],
+    ['Worker 完整 DPR 位图好样本', rasterMatchesFullSize(
+      { width: 1280, height: 800, dpr: 1.5, points: 20000 },
+      { bodyWidth: 1920, bodyHeight: 1200, glowWidth: 1920, glowHeight: 1200 },
+      { cssWidth: 1280, cssHeight: 800, dpr: 1.5, width: 1920, height: 1200 },
+    )],
+    ['Worker 半精度位图坏样本被拒', !rasterMatchesFullSize(
+      { width: 1280, height: 800, dpr: 1.5, points: 20000 },
+      { bodyWidth: 960, bodyHeight: 600, glowWidth: 960, glowHeight: 600 },
+      { cssWidth: 1280, cssHeight: 800, dpr: 1.5, width: 1920, height: 1200 },
+    )],
     ['手机 hero 护字好样本', mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.02, worstBrightRatio: 0.001, peakLumaDelta: 32,
+      canvasActive: true, lineCount: 7, modelKind: 'lorenz', pointCount: 8000, cometCount: 0, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.02, worstBrightRatio: 0.001, peakLumaDelta: 32,
     })],
     ['手机 hero 亮轨压字坏样本被拒', !mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 14, dotCount: 2059, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.045, worstBrightRatio: 0.08, peakLumaDelta: 210,
+      canvasActive: true, lineCount: 7, modelKind: 'lorenz', pointCount: 8000, cometCount: 0, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.045, worstBrightRatio: 0.08, peakLumaDelta: 210,
     })],
     ['手机 hero 关闭画布伪修复被拒', !mobileHeroCopyIsClear({
-      canvasActive: false, lineCount: 7, flightCount: 0, dotCount: 0, shieldLineCount: 0, visibleForegroundRatio: 0, foregroundRatio: 0, worstBrightRatio: 0, peakLumaDelta: 0,
+      canvasActive: false, lineCount: 7, modelKind: 'lorenz', pointCount: 0, cometCount: 0, shieldLineCount: 0, visibleForegroundRatio: 0, foregroundRatio: 0, worstBrightRatio: 0, peakLumaDelta: 0,
     })],
     ['手机 hero 全局降密度伪修复被拒', !mobileHeroCopyIsClear({
-      canvasActive: true, lineCount: 7, flightCount: 5, dotCount: 500, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.012, worstBrightRatio: 0, peakLumaDelta: 0,
+      canvasActive: true, lineCount: 7, modelKind: 'lorenz', pointCount: 2000, cometCount: 0, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.012, worstBrightRatio: 0, peakLumaDelta: 0,
+    })],
+    ['手机 hero 非蝴蝶模型坏样本被拒', !mobileHeroCopyIsClear({
+      canvasActive: true, lineCount: 7, modelKind: 'globe', pointCount: 8000, cometCount: 0, shieldLineCount: 7, visibleForegroundRatio: 0.02, foregroundRatio: 0.02, worstBrightRatio: 0.001, peakLumaDelta: 32,
     })],
     ['重复 hash 不增长历史', historyDidNotGrow(7, 7)],
     ['重复 hash 增长坏样本被拒', !historyDidNotGrow(7, 8)],
@@ -295,6 +315,55 @@ function sampleCanvas(page) {
     }
     return { sampled, background, foreground: sampled - background, colorBuckets: buckets.size };
   });
+}
+
+// Wrap the real worker: inspect actual job/bitmap dimensions and retain real
+// replies for lifecycle races. The renderer and its pixel data remain untouched.
+function observeRasterWorker() {
+  const NativeWorker = window.Worker;
+  const probe = window.__rasterProbe = {
+    workers: [], jobs: [], results: [], held: [], pending: new Set(), maxPending: 0,
+    hold: false, releasing: false,
+    releaseOne() {
+      const reply = this.held.shift();
+      if (!reply) return false;
+      this.pending.delete(reply.data.id);
+      this.releasing = true;
+      try { reply.worker.dispatchEvent(new MessageEvent('message', { data: reply.data })); }
+      finally { this.releasing = false; }
+      return true;
+    },
+  };
+  window.Worker = class extends NativeWorker {
+    constructor(...args) {
+      super(...args);
+      probe.workers.push(this);
+      this.addEventListener('message', event => {
+        if (probe.releasing || event.data?.type !== 'raster') return;
+        const data = event.data;
+        probe.results.push({ id: data.id, bodyWidth: data.body.width, bodyHeight: data.body.height,
+          glowWidth: data.glow.width, glowHeight: data.glow.height });
+        if (probe.hold) {
+          event.stopImmediatePropagation();
+          probe.held.push({ worker: this, data });
+        } else probe.pending.delete(data.id);
+      });
+    }
+    postMessage(...args) {
+      const data = args[0];
+      if (data?.type === 'raster') {
+        probe.jobs.push({ id: data.id, width: data.width, height: data.height, dpr: data.dpr, points: data.px.length });
+        probe.pending.add(data.id);
+        probe.maxPending = Math.max(probe.maxPending, probe.pending.size);
+      }
+      return super.postMessage(...args);
+    }
+  };
+}
+
+async function canvasDigest(page) {
+  const png = await page.locator('#x-bg').evaluate(canvas => canvas.toDataURL());
+  return createHash('sha256').update(png).digest('hex');
 }
 
 try {
@@ -629,7 +698,7 @@ try {
   for (const locale of enabledLocales) {
     await mobileCanvasPage.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'networkidle' });
     await mobileCanvasPage.evaluate(() => document.fonts.ready);
-    await mobileCanvasPage.waitForFunction(() => Number(window.__xbg?.renders) > 2);
+    await mobileCanvasPage.waitForFunction(() => Number(window.__xbg?.frames) > 2);
     await mobileCanvasPage.waitForFunction(() => performance.now() >= 900);
     const openingSample = await sampleMobileHeroCopy(mobileCanvasPage);
     check(`M16 ${locale} 手机 hero 开场文字区无亮粒子压字`, mobileHeroCopyIsClear(openingSample), JSON.stringify(openingSample));
@@ -650,15 +719,17 @@ try {
   const pauseContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const pausePage = await pauseContext.newPage();
   await pausePage.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
-  await pausePage.waitForFunction(() => window.__xbg?.renders > 2);
+  await pausePage.waitForFunction(() => window.__xbg?.frames > 2);
   const desktopParticleModel = await pausePage.evaluate(() => ({
-    flights: window.__xbg?.fl,
-    dots: window.__xbg?.dots,
+    kind: window.__xbg?.kind,
+    points: window.__xbg?.points,
+    comets: window.__xbg?.comets,
     shieldLines: window.__xbg?.shieldLines,
   }));
   check(
-    'M16 桌面粒子密度原样且不启用护字区',
-    desktopParticleModel.flights === 36 && desktopParticleModel.dots === 4118 && desktopParticleModel.shieldLines === 0,
+    'M16 桌面蝴蝶轨迹密度与流光原样且不启用护字区',
+    desktopParticleModel.kind === 'lorenz' && desktopParticleModel.points === 20000
+      && desktopParticleModel.comets === 4 && desktopParticleModel.shieldLines === 0,
     JSON.stringify(desktopParticleModel),
   );
   await pausePage.locator('[data-bg-toggle]').click();
@@ -673,7 +744,159 @@ try {
     canvasFramePreserved(beforeResize, afterResize, paused),
     `${JSON.stringify(beforeResize)} → ${JSON.stringify(afterResize)}, paused=${paused}`,
   );
+  // Keep scroll and pointer unchanged across resume: a cached Lorenz body must
+  // replace the home static frame even when no geometry input changes.
+  await pausePage.locator('[data-bg-toggle]').evaluate(button => button.click());
+  await pausePage.mouse.move(-1, -1);
+  await pausePage.evaluate(() => window.scrollTo(0, document.getElementById('mission').getBoundingClientRect().top + scrollY));
+  await pausePage.waitForTimeout(1600);
+  for (const mode of ['pause', 'reduce']) {
+    if (mode === 'pause') await pausePage.locator('[data-bg-toggle]').evaluate(button => button.click());
+    else await pausePage.emulateMedia({ reducedMotion: 'reduce' });
+    await pausePage.waitForTimeout(350);
+    const still = await pausePage.evaluate(() => ({ ...window.__xbg, scroll: scrollY }));
+    if (mode === 'pause') await pausePage.locator('[data-bg-toggle]').evaluate(button => button.click());
+    else await pausePage.emulateMedia({ reducedMotion: 'no-preference' });
+    await pausePage.waitForTimeout(350);
+    const resumed = await pausePage.evaluate(() => ({ ...window.__xbg, scroll: scrollY }));
+    check(`M14 ${mode} 深滚动恢复首帧重建蝴蝶缓存`,
+      resumed.frames > still.frames && resumed.renders > still.renders && resumed.scroll === still.scroll,
+      `${JSON.stringify(still)} → ${JSON.stringify(resumed)}`);
+    await pausePage.waitForTimeout(350);
+    const settled = await pausePage.evaluate(() => ({ ...window.__xbg }));
+    check(`M14 ${mode} 恢复后静止主体继续复用缓存`,
+      settled.frames > resumed.frames && settled.renders === resumed.renders,
+      `${JSON.stringify(resumed)} → ${JSON.stringify(settled)}`);
+  }
   await pauseContext.close();
+
+  /* Real worker output, stale results and unavailable-worker fallback. No frame
+     rate assertion: these contracts must hold on software rasterizers as well. */
+  const rasterContext = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+  await rasterContext.addInitScript(observeRasterWorker);
+  const rasterPage = await rasterContext.newPage();
+  const rasterErrors = [];
+  rasterPage.on('pageerror', error => rasterErrors.push(error.message));
+  rasterPage.on('console', message => { if (message.type() === 'error') rasterErrors.push(message.text()); });
+  await rasterPage.goto(`${coreUrl}/`, { waitUntil: 'networkidle' });
+  await rasterPage.evaluate(() => document.fonts.ready);
+  await rasterPage.waitForFunction(() => window.__xbg?.worker === true && window.__xbg.frames > 2);
+  await rasterPage.mouse.move(240, 240);
+  await rasterPage.mouse.move(1000, 560);
+  await rasterPage.waitForFunction(() => window.__rasterProbe.results.length > 0);
+  const rasterSizes = await rasterPage.evaluate(() => {
+    const canvas = document.getElementById('x-bg');
+    const dpr = Math.min(devicePixelRatio, 1.5); // This viewport is below the 5.5M pixel cap.
+    return { jobs: window.__rasterProbe.jobs, results: window.__rasterProbe.results,
+      expected: { cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight, dpr,
+        width: Math.round(canvas.clientWidth * dpr), height: Math.round(canvas.clientHeight * dpr) },
+      canvasWidth: canvas.width, canvasHeight: canvas.height };
+  });
+  check('M14 鼠标移动时真实 Worker 主体/辉光保持完整 DPR',
+    rasterSizes.results.length > 0 && rasterSizes.canvasWidth === rasterSizes.expected.width
+      && rasterSizes.canvasHeight === rasterSizes.expected.height
+      && rasterSizes.results.every(result => rasterMatchesFullSize(rasterSizes.jobs.find(job => job.id === result.id), result, rasterSizes.expected)),
+    JSON.stringify(rasterSizes));
+
+  await rasterPage.waitForFunction(() => performance.now() >= 3400);
+  await rasterPage.evaluate(() => { window.__rasterProbe.hold = true; });
+  await rasterPage.mouse.move(400, 420);
+  await rasterPage.waitForFunction(() => window.__rasterProbe.held.length === 1);
+  await rasterPage.locator('[data-bg-toggle]').evaluate(button => button.click());
+  const pausedRaster = await rasterPage.evaluate(() => ({ renders: window.__xbg.renders, frames: window.__xbg.frames }));
+  const pausedDigest = await canvasDigest(rasterPage);
+  check('M14 暂停竞态观测到真实待交付 Worker 位图', await rasterPage.evaluate(() => window.__rasterProbe.releaseOne()));
+  await rasterPage.waitForTimeout(100);
+  const afterLatePause = await rasterPage.evaluate(() => ({ renders: window.__xbg.renders, frames: window.__xbg.frames }));
+  check('M14 暂停后迟到位图不覆盖静帧或重启动态',
+    await canvasDigest(rasterPage) === pausedDigest && afterLatePause.renders === pausedRaster.renders
+      && afterLatePause.frames === pausedRaster.frames,
+    `${JSON.stringify(pausedRaster)} → ${JSON.stringify(afterLatePause)}`);
+
+  await rasterPage.locator('[data-bg-toggle]').evaluate(button => button.click());
+  await rasterPage.waitForFunction(() => window.__rasterProbe.held.length === 1);
+  const beforeActiveResize = await rasterPage.evaluate(() => window.__xbg.renders);
+  await rasterPage.setViewportSize({ width: 1180, height: 760 });
+  await rasterPage.waitForFunction(before => window.__xbg.renders > before, beforeActiveResize);
+  const afterActiveResize = await rasterPage.evaluate(() => {
+    const canvas = document.getElementById('x-bg');
+    const dpr = Math.min(devicePixelRatio, 1.5);
+    return { renders: window.__xbg.renders, frames: window.__xbg.frames, width: canvas.width, height: canvas.height,
+      expectedWidth: Math.round(canvas.clientWidth * dpr), expectedHeight: Math.round(canvas.clientHeight * dpr) };
+  });
+  check('M14 resize 不等待旧 Worker 回包即重画完整背景',
+    afterActiveResize.width === afterActiveResize.expectedWidth && afterActiveResize.height === afterActiveResize.expectedHeight
+      && canvasFrameLooksValid(await sampleCanvas(rasterPage)),
+    JSON.stringify(afterActiveResize));
+  check('M14 resize 竞态观测到真实旧尺寸 Worker 位图', await rasterPage.evaluate(() => window.__rasterProbe.releaseOne()));
+  await rasterPage.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+  const afterLateResize = await rasterPage.evaluate(() => ({ renders: window.__xbg.renders, frames: window.__xbg.frames,
+    maxPending: window.__rasterProbe.maxPending }));
+  check('M14 resize 旧位图被丢弃且任务不会积压',
+    afterLateResize.renders === afterActiveResize.renders && afterLateResize.frames > afterActiveResize.frames
+      && afterLateResize.maxPending === 1,
+    `${JSON.stringify(afterActiveResize)} → ${JSON.stringify(afterLateResize)}`);
+  const messageErrorState = await rasterPage.evaluate(() => {
+    const worker = window.__rasterProbe.workers.at(-1);
+    const before = window.__xbg.worker;
+    worker?.dispatchEvent(new MessageEvent('messageerror'));
+    // Read in the same task: a later five-second timeout must not pass this check.
+    return { dispatched: !!worker, before, after: window.__xbg.worker, renders: window.__xbg.renders };
+  });
+  const immediateMessageErrorFallback = messageErrorState.dispatched
+    && messageErrorState.before === true && messageErrorState.after === false;
+  check('M14 真实 messageerror 事件立即关闭 Worker 路径', immediateMessageErrorFallback, JSON.stringify(messageErrorState));
+  if (immediateMessageErrorFallback) {
+    await rasterPage.waitForFunction(before => window.__xbg.renders > before, messageErrorState.renders);
+    const beforeErrorMove = await rasterPage.evaluate(() => ({ renders: window.__xbg.renders,
+      tiltX: window.__xbg.tiltX, tiltY: window.__xbg.tiltY, jobs: window.__rasterProbe.jobs.length }));
+    await rasterPage.mouse.move(1100, 700);
+    await rasterPage.waitForFunction(before => window.__xbg.renders > before.renders
+      && (window.__xbg.tiltX !== before.tiltX || window.__xbg.tiltY !== before.tiltY), beforeErrorMove);
+    const afterErrorMove = await rasterPage.evaluate(() => {
+      const canvas = document.getElementById('x-bg');
+      const dpr = Math.min(devicePixelRatio, 1.5);
+      return { worker: window.__xbg.worker, jobs: window.__rasterProbe.jobs.length,
+        width: canvas.width, height: canvas.height,
+        expectedWidth: Math.round(canvas.clientWidth * dpr), expectedHeight: Math.round(canvas.clientHeight * dpr) };
+    });
+    check('M14 messageerror 回退后鼠标继续驱动完整 DPR 同步背景',
+      afterErrorMove.worker === false && afterErrorMove.jobs === beforeErrorMove.jobs
+        && afterErrorMove.width === afterErrorMove.expectedWidth && afterErrorMove.height === afterErrorMove.expectedHeight
+        && canvasFrameLooksValid(await sampleCanvas(rasterPage)),
+      JSON.stringify(afterErrorMove));
+  } else {
+    check('M14 messageerror 回退后鼠标继续驱动完整 DPR 同步背景', false, '事件没有立即回退，不等待超时替它恢复');
+  }
+  check('M14 Worker 生命周期无页面或控制台异常', rasterErrors.length === 0, rasterErrors.join('\n'));
+  await rasterContext.close();
+
+  const fallbackContext = await browser.newContext({ viewport: { width: 1280, height: 800 }, deviceScaleFactor: 2 });
+  await fallbackContext.addInitScript(() => {
+    window.__blockedWorkerAttempts = 0;
+    window.Worker = class {
+      constructor() { window.__blockedWorkerAttempts++; throw new Error('Worker blocked by lifecycle test'); }
+    };
+  });
+  const fallbackPage = await fallbackContext.newPage();
+  const fallbackErrors = [];
+  fallbackPage.on('pageerror', error => fallbackErrors.push(error.message));
+  await fallbackPage.goto(`${coreUrl}/`, { waitUntil: 'networkidle' });
+  await fallbackPage.waitForFunction(() => window.__xbg?.frames > 2);
+  const beforeFallbackMove = await fallbackPage.evaluate(() => window.__xbg.renders);
+  await fallbackPage.mouse.move(1000, 560);
+  await fallbackPage.waitForFunction(before => window.__xbg.renders > before, beforeFallbackMove);
+  const fallbackState = await fallbackPage.evaluate(() => {
+    const canvas = document.getElementById('x-bg');
+    const dpr = Math.min(devicePixelRatio, 1.5);
+    return { attempts: window.__blockedWorkerAttempts, worker: window.__xbg.worker, width: canvas.width, height: canvas.height,
+      expectedWidth: Math.round(canvas.clientWidth * dpr), expectedHeight: Math.round(canvas.clientHeight * dpr) };
+  });
+  check('M14 Worker 构造失败仍有完整 DPR 同步背景与鼠标响应',
+    fallbackState.attempts === 1 && fallbackState.worker === false && fallbackState.width === fallbackState.expectedWidth
+      && fallbackState.height === fallbackState.expectedHeight && canvasFrameLooksValid(await sampleCanvas(fallbackPage)) && fallbackErrors.length === 0,
+    `${JSON.stringify(fallbackState)}; errors=${fallbackErrors.join(', ')}`);
+  await fallbackContext.close();
 
   // Keep crop resize/scroll checks separate from the motion lifecycle assertions below.
   for (const javaScriptEnabled of [true, false]) {
@@ -743,14 +966,14 @@ try {
   const motionContext = await browser.newContext({ viewport: { width: 1280, height: 800 } });
   const motionPage = await motionContext.newPage();
   await motionPage.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
-  await motionPage.waitForFunction(() => window.__xbg?.renders > 2);
+  await motionPage.waitForFunction(() => window.__xbg?.frames > 2);
   await motionPage.waitForFunction(() => document.querySelector('#devices')?.classList.contains('decked'));
   await motionPage.emulateMedia({ reducedMotion: 'reduce' });
   await motionPage.waitForFunction(() => matchMedia('(prefers-reduced-motion: reduce)').matches && !document.querySelector('#devices')?.classList.contains('decked'));
   await motionPage.waitForTimeout(100);
-  const renderA = await motionPage.evaluate(() => window.__xbg?.renders);
+  const motionA = await motionPage.evaluate(() => ({ renders: window.__xbg?.renders, frames: window.__xbg?.frames }));
   await motionPage.waitForTimeout(350);
-  const renderB = await motionPage.evaluate(() => window.__xbg?.renders);
+  const motionB = await motionPage.evaluate(() => ({ renders: window.__xbg?.renders, frames: window.__xbg?.frames }));
   const parallaxClear = await motionPage.locator('[data-plx]').evaluateAll((els) => els.every((el) => !el.style.transform));
   const reducedState = await motionPage.evaluate(() => ({
     splitLines: document.querySelectorAll('.lr-line').length,
@@ -761,9 +984,10 @@ try {
   }));
   check(
     'M15 运行中 reduce 停全部 JS 动效并直显终态',
-    renderA === renderB && parallaxClear && reducedState.splitLines === 0 && reducedState.typing === 0
+    motionA.renders === motionB.renders && motionA.frames === motionB.frames
+      && parallaxClear && reducedState.splitLines === 0 && reducedState.typing === 0
       && reducedState.hiddenReveals === 0 && reducedState.nodeText === reducedState.nodeTarget,
-    `renders ${renderA} → ${renderB}; ${JSON.stringify(reducedState)}`,
+    `motion ${JSON.stringify(motionA)} → ${JSON.stringify(motionB)}; ${JSON.stringify(reducedState)}`,
   );
 
   await motionPage.emulateMedia({ reducedMotion: 'no-preference' });

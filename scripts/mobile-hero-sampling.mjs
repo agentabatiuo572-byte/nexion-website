@@ -3,8 +3,9 @@
 export function mobileHeroCopyIsClear(sample) {
   return sample?.canvasActive === true
     && sample.lineCount >= 3
-    && sample.flightCount === 14
-    && sample.dotCount === 2059
+    && sample.modelKind === 'lorenz'
+    && sample.pointCount === 8000
+    && sample.cometCount === 0
     && sample.shieldLineCount >= 3
     && sample.foregroundRatio >= 0.001
     && sample.visibleForegroundRatio >= 0.001
@@ -76,9 +77,12 @@ export async function sampleMobileHeroCopy(page) {
         rgb, rects, width: innerWidth, height: innerHeight,
         hero: document.querySelector('.hero') ? box(document.querySelector('.hero')) : null,
         exclusions: [...document.querySelectorAll('.site-nav, #download')].map(box),
-        canvasActive: !!ctx && Number(window.__xbg?.renders) > 2,
-        flightCount: Number(window.__xbg?.fl) || 0,
-        dotCount: Number(window.__xbg?.dots) || 0,
+        // The Lorenz body stays cached; dynamic frames advance independently
+        // of body renders, including the coarse-pointer version without comets.
+        canvasActive: !!ctx && Number(window.__xbg?.renders) >= 1 && Number(window.__xbg?.frames) > 2,
+        modelKind: window.__xbg?.kind,
+        pointCount: Number(window.__xbg?.points),
+        cometCount: Number(window.__xbg?.comets),
         shieldLineCount: Number(window.__xbg?.shieldLines) || 0,
         foregroundRatio: fieldSamples ? foreground / fieldSamples : 0,
       };
@@ -110,7 +114,7 @@ export async function sampleMobileHeroCopy(page) {
         lineCount++;
         worstBrightRatio = Math.max(worstBrightRatio, bright / (data.length / 4));
       }
-      // A fully opaque veil must not pass by hiding the globe. Count only the
+      // A fully opaque veil must not pass by hiding the butterfly. Count only the
       // hero backdrop, excluding navigation/download UI that could fake activity.
       const data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
       const inside = (r, x, y) => r && x >= r.left && x < r.right && y >= r.top && y < r.bottom;
@@ -124,7 +128,7 @@ export async function sampleMobileHeroCopy(page) {
         }
       }
       return {
-        canvasActive: m.canvasActive, lineCount, flightCount: m.flightCount, dotCount: m.dotCount,
+        canvasActive: m.canvasActive, lineCount, modelKind: m.modelKind, pointCount: m.pointCount, cometCount: m.cometCount,
         shieldLineCount: m.shieldLineCount, foregroundRatio: m.foregroundRatio,
         visibleForegroundRatio: samples ? visible / samples : 0, worstBrightRatio, peakLumaDelta,
       };
@@ -156,19 +160,24 @@ export async function testMobileHeroSampling(chromium) {
       const ctx = document.getElementById('x-bg').getContext('2d');
       ctx.fillStyle = 'rgb(12,12,13)'; ctx.fillRect(0, 0, 390, 844);
       ctx.fillStyle = 'rgb(158,220,29)'; ctx.fillRect(0, 0, 390, 300); ctx.fillRect(200, 600, 190, 200);
-      window.__xbg = { renders: 3, fl: 14, dots: 2059, shieldLines: 3 };
+      window.__xbg = { kind: 'lorenz', renders: 1, frames: 3, points: 8000, comets: 0, shieldLines: 3 };
     });
     const good = await sampleMobileHeroCopy(page);
     cases.push(['CSS 遮罩参与真实合成采样', mobileHeroCopyIsClear(good)]);
     cases.push(['采样后恢复文字与动画', await page.evaluate(() => getComputedStyle(document.querySelector('h1')).visibility === 'visible' && document.getAnimations().every(a => a.playState === 'running'))]);
+    await page.evaluate(() => { window.__xbg.frames = 2; });
+    cases.push(['主体已有缓存但动态帧未启动的坏样本被拒', !mobileHeroCopyIsClear(await sampleMobileHeroCopy(page))]);
+    await page.evaluate(() => { window.__xbg.frames = 3; delete window.__xbg.comets; });
+    cases.push(['缺失流光模型字段的坏样本被拒', !mobileHeroCopyIsClear(await sampleMobileHeroCopy(page))]);
+    await page.evaluate(() => { window.__xbg.comets = 0; });
     await page.locator('.hero').evaluate(el => el.classList.add('unshielded'));
     const bright = await sampleMobileHeroCopy(page);
     cases.push(['移除遮罩的真实亮轨被拒', !mobileHeroCopyIsClear(bright) && bright.peakLumaDelta > 36]);
     await page.locator('.hero').evaluate(el => { el.classList.remove('unshielded'); el.classList.add('opaque'); });
     const opaque = await sampleMobileHeroCopy(page);
-    cases.push(['完全遮掉地球的伪修复被拒', !mobileHeroCopyIsClear(opaque) && opaque.foregroundRatio > 0.001 && opaque.visibleForegroundRatio === 0]);
+    cases.push(['完全遮掉蝴蝶的伪修复被拒', !mobileHeroCopyIsClear(opaque) && opaque.foregroundRatio > 0.001 && opaque.visibleForegroundRatio === 0]);
     await page.locator('.hero').evaluate(el => el.classList.remove('opaque'));
-    await page.evaluate(() => { document.getElementById('x-bg').getContext('2d').clearRect(0, 0, 390, 844); window.__xbg.renders = 0; });
+    await page.evaluate(() => { document.getElementById('x-bg').getContext('2d').clearRect(0, 0, 390, 844); window.__xbg.renders = 0; window.__xbg.frames = 0; });
     cases.push(['清空画布的伪修复被拒', !mobileHeroCopyIsClear(await sampleMobileHeroCopy(page))]);
   } finally {
     await browser.close();
