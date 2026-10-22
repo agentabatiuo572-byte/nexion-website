@@ -125,6 +125,7 @@ export function routeMatches(route, family, home) {
   if (family === 'all') return true;
   if (family === '404') return route.endsWith('/404.html');
   if (family === 'home') return home;
+  if (family === 'inner') return !home;
   if (family === 'article') return /\/learn\/[^/]+\/$/.test(route);
   if (family === 'legal') return /\/legal\//.test(route);
   return route.endsWith(`/${family}/`);
@@ -260,6 +261,8 @@ export function check() {
 }
 
 async function calibrate() {
+  // Fail in seconds for missing classifications before expensive browser measurements.
+  await import('./test-copy-layout-catalog.mjs');
   mkdirSync(CORRECTION, { recursive: true });
   const sourceHash = sourceFingerprint(), portableLayoutHash = sourceFingerprint(true, true);
   const fixtureResult = flag('dist') ? { dist: resolve(flag('dist')), fixture: join(dirname(resolve(flag('dist'))), 'fixture') } : await buildFixture();
@@ -278,7 +281,14 @@ async function calibrate() {
   // Every viewport is retained. Tight spaces establish the shared minimum
   // first, so later wider states need fewer sequential candidate checks.
   matrix.views.sort((a, b) => a.width * a.height - b.width * b.height);
-  const allPages = [...readBuiltPages(dist), ...LOCALES.map((locale) => ({ route: `${locale === 'en' ? '' : '/' + locale}/404.html`, locale, home: false }))];
+  // This catalogue measures the editable marketing shell. The standalone download
+  // utility has no navigation or announcement; its text/layout is covered by the
+  // dedicated distribution browser gate rather than invented missing consumers.
+  const marketingPages = readBuiltPages(dist).filter(({ route }) => {
+    const html = readFileSync(join(dist, route.slice(1), 'index.html'), 'utf8');
+    return !(html.includes('data-distribution-page') && /<meta\s+name="robots"\s+content="noindex"/.test(html));
+  });
+  const allPages = [...marketingPages, ...LOCALES.map((locale) => ({ route: `${locale === 'en' ? '' : '/' + locale}/404.html`, locale, home: false }))];
   assert.deepEqual([...new Set(allPages.map((page) => page.locale))].sort(), [...LOCALES].sort());
   const pages = smoke ? allPages.filter((page) => page.home && ['en', 'vi', 'zh'].includes(page.locale)) : allPages;
   if (smoke) matrix.views = [{ width: 320, height: 844 }, { width: 390, height: 521 }, { width: 1440, height: 900 }];

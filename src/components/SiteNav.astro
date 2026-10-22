@@ -27,8 +27,7 @@ const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
 const page = (p: string) => (p === '/' ? `${prefix}/` : `${prefix}${p}/`);
 const langHref = (l: Locale) => localizedPath(l, path);
 
-import { DOWNLOAD_URLS } from '../lib/downloads';
-const H5_URL = DOWNLOAD_URLS.h5;
+import { distributionPath } from '../lib/distribution';
 ---
 
 <header class="site-nav" id="site-nav">
@@ -83,12 +82,10 @@ const H5_URL = DOWNLOAD_URLS.h5;
             ))}
             </div>
           </details>
-          {H5_URL && (
-            <a class="h5 x-dimlink" data-scr href={H5_URL} target="_blank" rel="noopener">
+            {!isHome && <a class="h5 x-dimlink" data-scr data-nav-download="h5" data-download-entry="h5" href={distributionPath(locale, 'h5')}>
               {t('nav.launchH5')}
-            </a>
-          )}
-          <a class="xbtn solid dl-btn" href={anchor('download')}>
+            </a>}
+          <a class="xbtn solid dl-btn" data-nav-download="auto" data-download-auto-href={distributionPath(locale, 'auto')} href={anchor('download')}>
             <span class="xbtn-ghost" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>
             <span class="xbtn-a">{t('nav.download')} <span class="arr">→</span></span>
             <span class="xbtn-b" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>
@@ -325,6 +322,16 @@ const H5_URL = DOWNLOAD_URLS.h5;
       background 0.25s ease,
       color 0.25s ease,
       border-color 0.25s ease;
+  }
+  .dl-btn.solid {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--x-white) 20%, transparent), transparent 60%),
+      color-mix(in srgb, var(--x-accent) 76%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--x-white) 44%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--x-white) 12%, transparent);
   }
   .menu-toggle {
     display: none;

@@ -94,7 +94,12 @@ const routes = [...readFileSync(smPath, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)
   .map((m) => m[1].replace(/^https?:\/\/[^/]+/, ''))
   .map((p) => (p.endsWith('/') || p.includes('.') ? p : p + '/'));
 if (!routes.length) throw new Error('sitemap 为空,判据无对象');
-const generatedPages = readBuiltPages(join(ROOT, 'dist'));
+// The standalone, noindex download utility has no marketing zoom canvas.
+// It has its own viewport/interaction/QR decoding coverage in test-download-distribution.mjs.
+const generatedPages = readBuiltPages(join(ROOT, 'dist')).filter(({ route }) => {
+  const html = readFileSync(join(ROOT, 'dist', route.replace(/^\//, ''), 'index.html'), 'utf8');
+  return !(html.includes('data-distribution-page') && /<meta\s+name="robots"\s+content="noindex"/.test(html));
+});
 const seamBaselines = seamRoutes(generatedPages);
 if (generatedPages.some(({ route }) => !routes.includes(route)) || routes.some((route) => !generatedPages.some((page) => page.route === route))) {
   throw new Error('sitemap 与生成路由不一致，覆盖面不完整');

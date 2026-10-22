@@ -23,6 +23,12 @@ const system = (description, ...consumers) => ({ kind: 'system', description, co
 const home = (selector, constraint, boundary) => at('home', selector, constraint, boundary);
 const nex = (selector, constraint, boundary) => at('nex', selector, constraint, boundary);
 const all = (selector, constraint, boundary) => at('all', selector, constraint, boundary);
+// Marketing `all`/`inner` exclude the standalone download document. `shared`
+// covers the DownloadCard mounted in both marketing dialogs and download pages.
+const shared = (selector) => at('shared', selector);
+const downloadCopy = (description, keys, ...selectors) => Object.fromEntries(keys.map((key) =>
+  [`distribution.${key}`, flowing(description, ...selectors.map(shared))]));
+const downloadFlow = '下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。';
 const flow = '内容换行后自然增高，不设固定总字数上限。';
 const inline = '单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。';
 const navLabel = '桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。';
@@ -41,9 +47,9 @@ export const COPY_LAYOUT_CATALOG = {
   'nav.learn': bounded(`${navLabel} 同文案也用于可自然增高的学习板块眉标。`, all('.site-nav .links a[href$="/learn/"]', 'inline', '.site-nav nav'), home('#learn-entry .head .lab', 'block', '#learn-entry .head')),
   'nav.nex': bounded(navLabel, all('.site-nav .links a[href$="/nex/"]', 'inline', '.site-nav nav')),
   'nav.launchH5': bounded(inline,
-    all('.site-nav .h5', 'inline', '.site-nav nav'),
-    home('.hero .dl > :nth-child(3)', 'inline', '.hero .cluster'),
-    home('.final .dl > :nth-child(3)', 'inline', '.final .plate')),
+    at('inner', '.site-nav .h5', 'inline', '.site-nav nav'),
+    home('.hero .dl [data-download-entry="h5"] .dl-label', 'inline', '.hero .cluster'),
+    home('.final .dl [data-download-entry="h5"] .dl-label', 'inline', '.final .plate')),
   'nav.download': bounded(inline, all('.site-nav .dl-btn', 'inline', '.site-nav nav')),
   'nav.ariaMain': metadata('主导航辅助技术名称，仅 aria-label，不渲染为文字。'),
   'nav.ariaMenu': metadata('移动菜单按钮辅助技术名称，仅 aria-label。'),
@@ -56,8 +62,36 @@ export const COPY_LAYOUT_CATALOG = {
   'hero.note': reference(hero, home('.hero .subs .sub', 'hero', '.hero')),
   'hero.subtitle2': reference(hero, home('.hero .left .note2', 'hero', '.hero')),
   'hero.note2': reference(hero, home('.hero .subs .sub2', 'hero', '.hero')),
-  'download.ios': bounded(inline, home('.hero .dl > :nth-child(1)', 'inline', '.hero .cluster'), home('.final .dl > :nth-child(1)', 'inline', '.final .plate')),
-  'download.android': bounded(inline, home('.hero .dl > :nth-child(2)', 'inline', '.hero .cluster'), home('.final .dl > :nth-child(2)', 'inline', '.final .plate')),
+  'download.ios': metadata('iOS 平台按钮的完整辅助名称，仅 aria-label；可见平台名固定为 iOS。'),
+  'download.android': metadata('Android 平台按钮的完整辅助名称，仅 aria-label；可见平台名固定为 Android。'),
+  'distribution.downloadApp': bounded(inline,
+    home('.hero .dl [data-download-entry="auto"] .dl-label', 'inline', '.hero .cluster'),
+    home('.final .dl [data-download-entry="auto"] .dl-label', 'inline', '.final .plate')),
+  ...downloadCopy(downloadFlow, ['title', 'iosTitle', 'androidTitle', 'initiated', 'openingH5', 'blockedTitle', 'mismatchTitle', 'unknownTitle'], '[data-distribution-title]'),
+  ...downloadCopy(downloadFlow, ['subtitle', 'scanIos', 'scanAndroid', 'h5UnavailableBody', 'blockedBody', 'blockedIosBody', 'blockedH5Body', 'unknownBody'], '[data-distribution-description]'),
+  ...downloadCopy(downloadFlow, ['unavailable', 'h5Unavailable'], '[data-distribution-title]', '[data-distribution-action]'),
+  ...downloadCopy(downloadFlow, ['unavailableBody'], '[data-distribution-description]', '[data-distribution-status]'),
+  ...downloadCopy(downloadFlow, ['continueBody', 'openingH5Body'], '[data-distribution-description]', '[data-distribution-status]'),
+  ...downloadCopy(downloadFlow, ['initiatedBody', 'qrUnavailable'], '[data-distribution-status]'),
+  ...downloadCopy(downloadFlow, ['continueIos', 'downloadAndroid', 'openH5', 'retry'], '[data-distribution-action]'),
+  ...downloadCopy(downloadFlow, ['copied', 'copyFailed'], '[data-copy-status]'),
+  ...downloadCopy(downloadFlow, ['androidPackage', 'webEdition'], '[data-distribution-edition-label]'),
+  ...downloadCopy(downloadFlow, ['copyLink'], '[data-copy-label]'),
+  ...downloadCopy(downloadFlow, ['scanAfter'], '.distribution-qr p'),
+  ...downloadCopy(downloadFlow, ['quickStart'], '.distribution-help summary'),
+  ...downloadCopy(downloadFlow, ['noScript'], '.distribution-content noscript p'),
+  ...downloadCopy(downloadFlow, ['downloadNote'], '[data-distribution-description]', '[data-distribution-note]'),
+  'distribution.mismatchBody': { ...flowing(downloadFlow, shared('[data-distribution-description]')), syntax: 'template' },
+  ...Object.fromEntries([1, 2, 3].flatMap((step) => [
+    [`distribution.step${step}`, flowing(downloadFlow, shared(`.distribution-help li:nth-child(${step}) strong`))],
+    [`distribution.step${step}Body`, flowing(downloadFlow, shared(`.distribution-help li:nth-child(${step}) p`))],
+  ])),
+  'distribution.h5Title': system('下载状态标题与其他版本入口共用。入口文字不换行，取决于运行时显示的版本组合；不提供未经测量的字数上限，请在窄屏独立下载页预览检查。', shared('[data-distribution-title]'), shared('[data-distribution-option="h5"] span:not([aria-hidden])')),
+  'distribution.backHome': flowing('独立下载页的返回官网链接可换行，不设固定总字数上限。', at('download', '.download-home')),
+  ...Object.fromEntries(['close', 'scanHint', 'moreOptions', 'shareLink'].map((key) =>
+    [`distribution.${key}`, metadata('下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。')])),
+  ...Object.fromEntries(['preparing', 'useIos', 'useAndroid', 'helpTitle', 'iosPage', 'tagline', 'headline', 'androidLead'].map((key) =>
+    [`distribution.${key}`, metadata('预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。')])),
 
   'stats.activeDevices': flowing(flow, home('#stats .cell:nth-child(1) .label')),
   'stats.activeJobs': flowing(flow, home('#stats .cell:nth-child(2) .label')),

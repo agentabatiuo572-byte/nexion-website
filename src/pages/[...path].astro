@@ -1,5 +1,6 @@
 ---
 import Base from '../layouts/Base.astro';
+import DownloadPage from '../components/download/DownloadPage.astro';
 import HomePage from '../components/HomePage.astro';
 import NexContent from '../components/nex/NexContent.astro';
 import LearnList from '../components/learn/LearnList.astro';
@@ -30,7 +31,7 @@ const description = kind === 'home' ? t('site.description') : kind === 'nex' ? t
   : locale === 'vi' ? 'Chính sách quyền riêng tư của ứng dụng Uvel.'
   : locale === 'zh' ? 'Uvel App 隐私政策。' : 'Privacy policy for the Uvel App.';
 ---
-<Base locale={locale} title={title} description={description} path={path}>
+{kind === 'download' ? <DownloadPage locale={locale} /> : <Base locale={locale} title={title} description={description} path={path}>
   {kind === 'home' && <HomePage locale={locale} />}
   {kind === 'nex' && <NexContent locale={locale} />}
   {kind === 'learn' && <LearnList locale={locale} />}
@@ -38,4 +39,4 @@ const description = kind === 'home' ? t('site.description') : kind === 'nex' ? t
   {kind === 'terms' && <LegalTerms locale={locale} />}
   {kind === 'privacy' && <LegalPrivacy locale={locale} />}
   {kind === 'appPrivacy' && <LegalAppPrivacy locale={locale} />}
-</Base>
+</Base>}

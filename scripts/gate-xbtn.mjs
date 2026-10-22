@@ -38,11 +38,15 @@ function measure(button) {
   for (const el of chain) background = over(rgba(getComputedStyle(el).backgroundColor), background);
   const s = getComputedStyle(button), border = rgba(s.borderTopColor);
   const a = luminance(over(border, background)), b = luminance(background);
+  const ink = luminance(over(rgba(s.color), background));
   const rect = button.getBoundingClientRect();
   return {
     text: (button.querySelector('.xbtn-a, .static') || button).textContent.trim(),
     class: button.className, section: button.closest('section, dialog, nav, main')?.id || button.closest('section, dialog, nav, main')?.className,
     disabled: button.getAttribute('aria-disabled') === 'true', solid: button.classList.contains('solid'),
+    glassAccent: button.matches('.dl-btn.solid, .download-toggle.solid'),
+    fill: rgba(s.backgroundColor), blur: s.backdropFilter,
+    textRatio: (Math.max(ink, b) + 0.05) / (Math.min(ink, b) + 0.05),
     paper: Boolean(button.closest('.cert-zoom')), visible: Boolean(rect.width && rect.height),
     border: s.borderTopColor, borderWidth: s.borderTopWidth, borderStyle: s.borderTopStyle,
     color: s.color, background: s.backgroundColor, surface: background,
@@ -59,7 +63,12 @@ function violations(sample) {
   if (!(parseFloat(sample.borderWidth) > 0 && parseFloat(sample.borderWidth) <= 1.1) || sample.borderStyle !== 'solid') issues.push('thin outline missing');
   // Preserve the existing independent light-dialog treatment and solid brand fill.
   if (!sample.paper && !sample.solid && sample.ratio < (sample.disabled ? 2 : 3)) issues.push(`faint outline ${sample.ratio.toFixed(2)}:1`);
-  if (sample.solid && (sample.background !== 'rgb(158, 220, 29)' || sample.border !== sample.background)) issues.push('solid brand changed');
+  if (sample.glassAccent) {
+    if (sample.fill.slice(0, 3).some((c, i) => Math.abs(c - [158, 220, 29][i]) > 2)
+        || sample.fill[3] < 0.7 || sample.fill[3] >= 0.9) issues.push('download glass tint changed');
+    if (!sample.blur.includes('blur(')) issues.push('download glass blur missing');
+    if (sample.textRatio < 4.5) issues.push('download glass text contrast');
+  } else if (sample.solid && (sample.background !== 'rgb(158, 220, 29)' || sample.border !== sample.background)) issues.push('solid brand changed');
   if (sample.paper && sample.border !== 'rgba(12, 12, 13, 0.23)') issues.push('light dialog changed');
   return issues;
 }
@@ -91,6 +100,12 @@ try {
       const response = await page.goto(base + route);
       assert(response.ok(), route);
       await page.evaluate(() => document.fonts.ready);
+      // Standalone distribution pages use their own controls and no marketing xbtn.
+      // They are covered by download-distribution in verify, including keyboard/touch.
+      if (await page.locator('[data-distribution-page]').count()) {
+        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
+        continue;
+      }
       assert(await page.locator('.xbtn').count() > 0, `No buttons: ${route}`);
       await record(page, route, width);
       if (home) {
@@ -142,6 +157,23 @@ try {
           assert(violations(await disabled.first().evaluate(measure)).length > 0, 'Old --x-line-soft must fail'); mutations++;
         }
         await old.evaluate((el) => el.remove());
+        // The requested glass CTA must remain translucent and readable, not merely
+        // escape the solid-fill assertion. Exercise both regressions on the real DOM.
+        const narrowMenu = page.locator('.menu-toggle');
+        const openedMenu = await narrowMenu.isVisible();
+        if (openedMenu) await narrowMenu.click();
+        const accent = page.locator('.download-toggle.solid:visible, .dl-btn.solid:visible').first();
+        assert(await accent.count(), 'No visible glass download CTA');
+        for (const alpha of [1, 0.2]) {
+          const regression = await page.addStyleTag({ content: `.dl-btn.solid, .download-toggle.solid { background:rgba(158,220,29,${alpha}) !important }` });
+          await page.waitForFunction(a => [...document.querySelectorAll('.dl-btn.solid, .download-toggle.solid')]
+            .filter(el => el.getBoundingClientRect().height > 0)
+            .every(el => getComputedStyle(el).backgroundColor === (a === 1 ? 'rgb(158, 220, 29)' : `rgba(158, 220, 29, ${a})`)), alpha);
+          assert(violations(await accent.evaluate(measure)).length > 0, `Glass opacity ${alpha} must fail`);
+          mutations++;
+          await regression.evaluate(el => el.remove());
+        }
+        if (openedMenu) await narrowMenu.click();
         await page.reload(); await page.evaluate(() => document.fonts.ready);
         await record(page, route, width, 'reload');
       }

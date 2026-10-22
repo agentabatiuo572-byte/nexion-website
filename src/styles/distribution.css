@@ -1,0 +1,169 @@
+/* Standalone download surfaces and top-layer dialog use screen pixels, outside .x-canvas. */
+.distribution-card {
+  position: relative; width: 100%; color: var(--x-ink); text-align: center;
+  font-family: var(--x-font-display); line-height: 1.6; isolation: isolate;
+}
+.distribution-card [hidden] { display: none !important; }
+.distribution-content { position: relative; padding: 24px; }
+.distribution-icon-stage { position: relative; width: 124px; margin: 10px auto 22px; }
+.distribution-icon-stage::before {
+  content: ''; position: absolute; z-index: -1; inset: -30px;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--x-accent) 27%, transparent), transparent 68%);
+  filter: blur(18px); pointer-events: none;
+}
+.distribution-icon { display: block; width: 124px; height: 124px; border-radius: 28px; border: 1px solid var(--x-glass-border); }
+.distribution-edition {
+  display: inline-flex; align-items: center; gap: 7px; min-height: 28px; padding: 3px 16px; margin: 0 0 14px;
+  border-radius: 99px; background: var(--x-accent); color: var(--x-on-accent); font-size: 12px; font-weight: 500;
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--x-white) 45%, transparent), 0 0 22px color-mix(in srgb, var(--x-accent) 11%, transparent);
+}
+.distribution-glyph { display: block; width: 20px; height: 20px; flex: 0 0 auto; }
+.distribution-platform-icon { display: none; }
+[data-platform='ios'] [data-platform-icon='ios'],
+[data-platform='android'] [data-platform-icon='android'],
+[data-platform='h5'] [data-platform-icon='h5'] { display: inline-flex; }
+.distribution-edition .distribution-glyph { width: 16px; height: 16px; }
+.distribution-card h2 { margin: 0; font-size: 28px; font-weight: 500; line-height: 1.4; letter-spacing: -.6px; }
+.distribution-description { margin: 8px 0 22px; color: var(--x-ink-dim); font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
+.distribution-description:empty { display: none; }
+.distribution-status {
+  margin: 0 0 16px; padding: 10px 12px; border: 1px solid var(--x-line-soft); border-radius: 12px;
+  color: var(--x-ink-cap); background: var(--x-line-soft); font-size: 12px; line-height: 1.6;
+}
+.distribution-qr { margin: 20px 0 18px; }
+.distribution-qr-image {
+  width: 200px; min-height: 200px; margin: auto; border-radius: 14px; background: var(--x-white);
+  overflow: hidden; border: 1px solid var(--x-white); box-shadow: inset 0 1px 0 var(--x-white), 0 4px 16px rgb(var(--x-bg-rgb) / .18);
+}
+.distribution-qr-image svg { display: block; width: 100%; height: auto; }
+.distribution-qr p { margin: 16px 0 0; color: var(--x-ink-dim); font-size: 12px; line-height: 1.6; }
+.distribution-primary {
+  display: flex; align-items: center; justify-content: center; width: 100%; min-height: 52px; padding: 12px 16px;
+  border: 1px solid color-mix(in srgb, var(--x-accent-hot) 70%, transparent); border-radius: 99px;
+  color: var(--x-on-accent); background: linear-gradient(115deg, var(--x-accent-hot), var(--x-accent));
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--x-white) 35%, transparent), 0 0 24px color-mix(in srgb, var(--x-accent) 10%, transparent);
+  text-decoration: none; font-size: 14px; font-weight: 500; line-height: 1.6;
+  transition: box-shadow 320ms ease, border-color 320ms ease;
+}
+.distribution-primary:hover { box-shadow: 0 0 26px color-mix(in srgb, var(--x-accent) 22%, transparent); }
+.distribution-primary[aria-disabled='true'] {
+  background: var(--x-glass); border-color: var(--x-glass-border); color: var(--x-ink-dim); box-shadow: inset 0 1px 0 var(--x-line); cursor: default;
+}
+.distribution-install-note { margin: 12px 0 0; color: var(--x-ink-dim); font-size: 11px; line-height: 1.6; }
+.distribution-copy button,
+.distribution-options a {
+  display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 44px;
+  border: 1px solid var(--x-glass-border); border-radius: 99px; background: linear-gradient(135deg, var(--x-line-soft), transparent 60%, var(--x-line-soft));
+  color: var(--x-ink); box-shadow: inset 0 1px 0 var(--x-line); text-decoration: none;
+  font: inherit; font-size: 13px; cursor: pointer; transition: background 240ms ease, border-color 240ms ease;
+}
+.distribution-copy button { width: 100%; padding: 9px 16px; }
+.distribution-copy button:hover, .distribution-options a:hover { border-color: var(--x-ink-dim); background-color: var(--x-line-soft); }
+.distribution-copy p { margin: 8px 0 0; color: var(--x-ink-dim); font-size: 12px; line-height: 1.6; }
+.distribution-copy p:empty { display: none; }
+.distribution-copy input { width: 100%; min-height: 44px; margin-top: 10px; padding: 10px; border: 1px solid var(--x-line); border-radius: 8px; background: var(--x-bg); color: var(--x-ink); font: inherit; font-size: 12px; }
+.distribution-help {
+  margin-top: 24px; padding: 4px 18px 2px; border: 1px solid var(--x-glass-border); border-radius: 22px;
+  background: linear-gradient(130deg, var(--x-glass), var(--x-line-soft) 55%, var(--x-glass));
+  box-shadow: inset 0 1px 0 var(--x-line), inset 0 -1px 0 var(--x-line-soft), 0 16px 32px rgb(var(--x-bg-rgb) / .2);
+  backdrop-filter: blur(var(--x-blur)); text-align: left;
+}
+.distribution-help summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 54px; font-size: 16px; font-weight: 500; line-height: 1.6; cursor: pointer; list-style: none; }
+.distribution-help summary::-webkit-details-marker { display: none; }
+.distribution-help summary span { color: var(--x-ink-dim); font-size: 19px; font-weight: 400; }
+.distribution-help[open] summary span { transform: rotate(45deg); }
+.distribution-help ol { counter-reset: step; list-style: none; padding: 0; margin: 0; }
+.distribution-help li { counter-increment: step; position: relative; padding: 14px 0 14px 53px; border-top: 1px solid var(--x-line); font-size: 12px; line-height: 1.6; }
+.distribution-help li:first-child { border-top: 0; padding-top: 4px; }
+.distribution-help li::before {
+  content: counter(step, decimal-leading-zero); position: absolute; left: 0; top: 17px;
+  display: grid; place-items: center; width: 37px; height: 37px; border: 1px solid var(--x-glass-border); border-radius: 50%;
+  color: var(--x-accent-hot); font-family: var(--x-font-mono); font-size: 12px;
+  background: linear-gradient(135deg, var(--x-line-soft), transparent);
+}
+.distribution-help li:first-child::before { top: 7px; }
+.distribution-help strong { display: block; font-size: 13px; font-weight: 500; line-height: 1.6; }
+.distribution-help li p { margin: 4px 0 0; color: var(--x-ink-dim); }
+.distribution-options { --platform-glyph-cutout: var(--x-bg); display: flex; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--x-line-soft); margin-top: 22px; padding-top: 16px; }
+.distribution-options a { flex: 1; padding: 10px 12px; border-radius: 14px; white-space: nowrap; }
+.distribution-options a span:last-child { margin-left: auto; color: var(--x-ink-dim); }
+.distribution-close {
+  position: absolute; z-index: 2; top: 8px; right: 8px; width: 44px; height: 44px;
+  border: 0; border-radius: 50%; color: var(--x-ink-dim); background: transparent; font-size: 25px; line-height: 1; cursor: pointer;
+}
+.distribution-close:hover { background: var(--x-line-soft); color: var(--x-ink); }
+.distribution-card a:focus-visible, .distribution-card button:focus-visible,
+.distribution-card summary:focus-visible, .distribution-card input:focus-visible { outline: 2px solid var(--x-accent); outline-offset: 3px; }
+
+/* canvas-exempt: the dialog is outside the marketing zoom canvas, in screen coordinates. */
+#distribution-dialog { width: min(360px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); }
+#distribution-dialog {
+  padding: 0; border: 0; border-radius: 24px; color: var(--x-ink); background: transparent;
+  overflow: visible; overscroll-behavior: contain;
+}
+.distribution-panel {
+  position: relative; max-height: inherit; overflow: auto; border: 1px solid var(--x-glass-border); border-radius: inherit;
+  background: linear-gradient(130deg, var(--x-line-soft), transparent 35%, var(--x-line-soft)), rgb(var(--x-bg-rgb) / .92);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--x-white) 35%, transparent),
+    inset 0 -1px 0 var(--x-line), inset 0 0 24px var(--x-line-soft), 0 24px 56px rgb(var(--x-bg-rgb) / .45);
+  backdrop-filter: blur(var(--x-blur)) saturate(1.15); overscroll-behavior: contain; opacity: 0;
+}
+.distribution-panel::before {
+  content: ''; position: absolute; pointer-events: none; top: -1px; left: 20%; right: 20%; height: 1px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--x-accent-hot) 65%, transparent), transparent);
+  box-shadow: 0 2px 12px color-mix(in srgb, var(--x-accent) 25%, transparent);
+}
+#distribution-dialog[data-open='true'] .distribution-panel { opacity: 1; }
+.distribution-boot-glow {
+  position: absolute; z-index: 2; pointer-events: none; top: 50%; left: 8%; right: 8%; height: 2px;
+  border-radius: 99px; opacity: 0;
+  background: linear-gradient(90deg, transparent, var(--x-accent-hot) 24%, var(--x-white) 50%, var(--x-accent-hot) 76%, transparent);
+  box-shadow: 0 0 12px 2px color-mix(in srgb, var(--x-accent) 65%, transparent), 0 0 32px 8px color-mix(in srgb, var(--x-accent) 24%, transparent);
+}
+#distribution-dialog::backdrop { background: rgb(var(--x-bg-rgb) / .64); backdrop-filter: blur(8px); }
+#distribution-dialog .distribution-icon-stage, #distribution-dialog .distribution-options { display: none; }
+/* Unknown devices still need an explicit OS choice; ordinary QR cards have no switcher. */
+#distribution-dialog [data-state='choose'] .distribution-options { display: flex; }
+#distribution-dialog [data-state='choose'] [data-distribution-option='h5'] { display: none; }
+#distribution-dialog .distribution-content { padding: 30px 24px 24px; }
+#distribution-dialog h2 { font-size: 26px; }
+#distribution-dialog .distribution-description { margin-bottom: 16px; font-size: 13px; }
+#distribution-dialog .distribution-status { font-size: 11px; }
+#distribution-dialog[data-presentation='popover'] { position: fixed; margin: 0; width: 304px; border-radius: 20px; z-index: 100; }
+#distribution-dialog[data-presentation='popover'] .distribution-content { padding: 22px 20px 18px; }
+#distribution-dialog[data-presentation='popover'] .distribution-close { display: none; }
+#distribution-dialog[data-presentation='popover'] .distribution-edition { min-height: 24px; padding: 2px 12px; margin-bottom: 10px; font-size: 11px; }
+#distribution-dialog[data-presentation='popover'] h2 { font-size: 24px; }
+#distribution-dialog[data-presentation='popover'] .distribution-description { margin: 6px 0 0; font-size: 12px; }
+#distribution-dialog[data-presentation='popover'] .distribution-qr { margin: 16px 0; }
+#distribution-dialog[data-presentation='popover'] .distribution-qr-image { width: 176px; min-height: 176px; border-radius: 12px; }
+#distribution-dialog[data-presentation='popover'] .distribution-qr p { margin-top: 12px; font-size: 11px; }
+#distribution-dialog[data-presentation='popover'] .distribution-status { margin: 10px 0 0; padding: 6px 8px; }
+#distribution-dialog[data-presentation='popover'] .distribution-help { display: none; }
+
+.distribution-document { margin: 0; background: var(--x-bg); color: var(--x-ink); font-family: var(--x-font-display); }
+.distribution-document::before {
+  content: ''; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+  background: radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--x-accent) 7%, transparent), transparent 48%);
+}
+.download-header { display: flex; align-items: center; justify-content: space-between; max-width: 480px; margin: auto; padding: 22px 24px 8px; }
+.download-header a { display: inline-flex; align-items: center; min-height: 44px; border-radius: 4px; }
+.download-header img { display: block; width: 126px; height: auto; }
+.download-home { color: var(--x-ink-cap); text-decoration: none; font-size: 12px; line-height: 1.6; }
+.download-home:hover { color: var(--x-ink); }
+.download-header a:focus-visible { outline: 2px solid var(--x-accent); outline-offset: 4px; }
+.download-page { max-width: 432px; margin: auto; padding-bottom: 24px; }
+.download-page-heading { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+@media (max-width: 380px) {
+  .distribution-content { padding-inline: 20px; }
+  .distribution-card h2 { font-size: 26px; }
+  .distribution-help { padding-inline: 14px; }
+  .distribution-options { gap: 8px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #distribution-dialog, .distribution-primary, .distribution-copy button, .distribution-options a { transition: none; }
+  /* The site's 0.01ms global duration must not create even a first-frame opacity
+     transition on the new inner surface when the user requests no motion. */
+  .distribution-panel, .distribution-boot-glow { transition-property: none; animation: none; }
+}
+

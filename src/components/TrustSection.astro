@@ -46,7 +46,7 @@ const MEANS = [1, 2, 3] as const;
                 data-alt={t(`trust.${alt}`)}
                 aria-label={t('trust.certZoom')}
               >
-                <img src={`/cert-${cert}.png`} alt={t(`trust.${alt}`)} width="660" height="881" loading="lazy" />
+                <img src={`/cert-${cert}.png`} alt={t(`trust.${alt}`)} width="660" height={cert === 'new-york' ? 855 : 934} loading="lazy" />
                 <span class="cert-hint x-label">{t('trust.certZoom')}</span>
               </a>
             </figure>

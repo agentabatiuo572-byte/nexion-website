@@ -1,6 +1,6 @@
 /* 下载/H5 链接单源(官网后台 PRD CON05,R45 裁决「下载 URL 归后台配置」落地):
    控制台配置优先;构建环境变量 PUBLIC_*_URL 保兜底(Phase C 上线切换前的过渡链)。
-   空值 = 按钮 coming-soon 降级 / H5 键隐藏,零死链契约不变(WEB02)。 */
+   空值 = 分发页待开放状态，保留可访问的入口与帮助，零死链契约不变(WEB02)。 */
 import { SITE_CONFIG as site } from './site-config';
 import { resolveDownloadUrl } from './download-policy';
 

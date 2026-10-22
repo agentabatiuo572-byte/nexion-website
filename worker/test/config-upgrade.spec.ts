@@ -12,6 +12,7 @@ const current = SiteConfigSchema.parse(currentJson);
 const manifest = manifestJson as unknown as CopyManifest;
 const whitepaperKeys = ['title', 'summary', 'details'].map((key) => `trust.whitepaper.${key}`);
 const retiredWhitepaperKeys = ['trust.whitepaper.download', 'trust.whitepaper.coverAlt'];
+const distributionKeys = manifestJson.editable.filter(key => key.startsWith('distribution.'));
 const whitepaperDetailsV1 = {
   en: 'v{version} · Chinese edition · {pages} pages',
   vi: 'v{version} · Bản tiếng Trung · {pages} trang',
@@ -50,6 +51,50 @@ async function count(table: 'config_draft_upgrades' | 'audit') {
 
 beforeEach(async () => {
   await env.DB.batch(['audit', 'config_draft_upgrades', 'config_versions', 'config_draft'].map((table) => env.DB.prepare(`DELETE FROM ${table}`)));
+});
+
+describe('下载分发文案升级', () => {
+  it('已升级的旧草稿仅补下载文案，保留八语选择、人工旧值、FAQ、占位地址、历史与原升级记录', async () => {
+    const input = structuredClone(current);
+    for (const locale of LOCALES) for (const key of distributionKeys) delete input.copy[locale][key];
+    input.enabledLocales = LOCALES.filter(locale => locale !== 'zh');
+    input.copy.en['hero.title'] = 'Authored title';
+    input.copy.en['trust.whitepaper.details'] = whitepaperDetailsV1.en;
+    input.faq.items = input.faq.items.filter(item => item.id !== 'q10');
+    const original = await storeDraft(input);
+    const oldKey = 'website-whitepaper-2026-09-09-v3';
+    await env.DB.prepare('INSERT INTO config_draft_upgrades (draft_id,upgrade_key,original_payload,original_rev,upgraded_rev,applied_at,commit_nonce) VALUES (1,?1,?2,6,7,99,?3)').bind(oldKey, original, 'download-predecessor').run();
+    await env.DB.prepare("INSERT INTO config_versions (status,payload,created_by,created_at) VALUES ('live',?1,'admin',1)").bind(original).run();
+    const oldMarker = await env.DB.prepare('SELECT * FROM config_draft_upgrades WHERE upgrade_key=?1').bind(oldKey).first();
+    expect((await checkDraftUpgrade(env.DB)).status).toBe('retry');
+    expect((await draft()).payload).toBe(original);
+    expect((await ensureDraftUpgrade(env.DB)).status).toBe('applied');
+    const expected = structuredClone(input);
+    for (const locale of LOCALES) for (const key of distributionKeys) expected.copy[locale][key] = current.copy[locale][key]!;
+    expect(JSON.parse((await draft()).payload)).toEqual(expected);
+    expect((await draft()).draft_rev).toBe(8);
+    expect((await env.DB.prepare("SELECT payload FROM config_versions WHERE status='live'").first<{payload:string}>())!.payload).toBe(original);
+    expect(await env.DB.prepare('SELECT * FROM config_draft_upgrades WHERE upgrade_key=?1').bind(oldKey).first()).toEqual(oldMarker);
+    expect((await env.DB.prepare('SELECT original_payload FROM config_draft_upgrades WHERE upgrade_key=?1').bind(CONFIG_UPGRADE_KEY).first<{original_payload:string}>())!.original_payload).toBe(original);
+    expect((await ensureDraftUpgrade(env.DB)).status).toBe('current');
+    expect((await draft()).draft_rev).toBe(8);
+  });
+
+  it('保留已有下载译文和有意空值，缺失键才补默认；适配不改输入，重复运行幂等', () => {
+    const input = structuredClone(current);
+    for (const locale of LOCALES) delete input.copy[locale]['distribution.copyLink'];
+    input.copy.en['distribution.title'] = 'Authored download title';
+    input.copy.vi['distribution.title'] = '';
+    const before = structuredClone(input);
+    const result = adaptLegacyConfig(input);
+    expect(input).toEqual(before);
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error('Download adapter must accept previous shape');
+    expect(result.config.copy.en['distribution.title']).toBe(input.copy.en['distribution.title']);
+    expect(result.config.copy.vi['distribution.title']).toBe('');
+    for (const locale of LOCALES) expect(result.config.copy[locale]['distribution.copyLink']).toBe(current.copy[locale]['distribution.copyLink']);
+    expect(adaptLegacyConfig(result.config)).toMatchObject({ok:true,changed:false});
+  });
 });
 
 describe('旧配置升级：保留人工内容且只写一次', () => {

@@ -31,8 +31,9 @@ function check(label, pass, detail = '') {
   if (!pass) failures.push(`${label}${detail ? ` — ${detail}` : ''}`);
 }
 
-function disabledDownloadsStayDisabled({ oldUrls, heroDisabled, finalDisabled, navH5 }) {
-  return oldUrls === 0 && heroDisabled === 3 && finalDisabled === 3 && navH5 === 0;
+function disabledDownloadsStayDisabled({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }) {
+  // Entry links stay usable for QR/help; disabled destinations must never return via old env values.
+  return oldUrls === 0 && heroEntries === 4 && finalEntries === 4 && navH5 === 0 && configuredUrls === 0;
 }
 
 function matchesPreciseGrowth(value) {
@@ -112,12 +113,13 @@ async function selfTest() {
     ['Unicode 同 hash 可归一', decodeURIComponent('#1-%E5%AE%89%E8%A3%85'.slice(1)) === '1-安装'],
     ['不同公告 id 不误关闭', 'old-id' !== 'new-id'],
     ['窗口结束点为排他', !(100 >= 0 && 100 < 100)],
-    ['关闭下载压过旧环境', disabledDownloadsStayDisabled({ oldUrls: 0, heroDisabled: 3, finalDisabled: 3, navH5: 0 })],
-    ['旧环境下载回流样本被拒', !disabledDownloadsStayDisabled({ oldUrls: 1, heroDisabled: 3, finalDisabled: 3, navH5: 0 })],
+    ['关闭下载压过旧环境', disabledDownloadsStayDisabled({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0, configuredUrls: 0 })],
+    ['旧环境下载回流样本被拒', !disabledDownloadsStayDisabled({ oldUrls: 1, heroEntries: 4, finalEntries: 4, navH5: 0, configuredUrls: 0 })],
+    ['弹窗数据中的关闭链接回流被拒', !disabledDownloadsStayDisabled({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0, configuredUrls: 1 })],
     ['小数基数正算稳定', matchesPreciseGrowth('157')],
     ['小数基数偏一坏样本被拒', !matchesPreciseGrowth('158')],
     ['下载关闭态压过旧环境', resolveDownloadUrl({ enabled: false, url: '' }, 'https://old.example') === ''],
-    ['下载开启态仍可吃环境兜底', resolveDownloadUrl({ enabled: true, url: '' }, 'https://ok.example') === 'https://ok.example'],
+    ['下载开启态仍可吃环境兜底', resolveDownloadUrl({ enabled: true, url: '' }, 'https://ok.example') === 'https://ok.example/'],
     ['Markdown 前置空行后 H1 被提为页标题', renderLegalMarkdown('\n\n# Title\n\nBody').title === 'Title'],
     ['公告协议相对 URL 被校验器拒绝', protocolErrors.some((error) => error.path === 'announcement.href')],
     ['Legal 协议相对 URL 不生成链接', !renderLegalMarkdown('[bad](//external.example/path)').html.includes('<a ')],
@@ -589,13 +591,14 @@ try {
 
   await page.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
   const oldUrls = await page.locator('a[href*="OLD_"]').count();
-  const heroDisabled = await page.locator('#download .dl button[aria-disabled="true"]').count();
-  const finalDisabled = await page.locator('#final-cta .dl button[aria-disabled="true"]').count();
+  const heroEntries = await page.locator('#download .dl a[data-download-entry][href^="/download/"]').count();
+  const finalEntries = await page.locator('#final-cta .dl a[data-download-entry][href^="/download/"]').count();
   const navH5 = await page.locator('#site-nav .h5').count();
+  const configuredUrls = await page.locator('[data-distribution-card]').evaluateAll(cards => cards.reduce((count, card) => count + Object.values(JSON.parse(card.dataset.urls)).filter(Boolean).length, 0));
   check(
     'M11 disabled 压过旧 PUBLIC_URL',
-    disabledDownloadsStayDisabled({ oldUrls, heroDisabled, finalDisabled, navH5 }),
-    `旧链=${oldUrls}, hero禁用=${heroDisabled}, final禁用=${finalDisabled}, navH5=${navH5}`,
+    disabledDownloadsStayDisabled({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }),
+    `旧链=${oldUrls}, hero入口=${heroEntries}, final入口=${finalEntries}, navH5=${navH5}, 实际地址=${configuredUrls}`,
   );
 
   const expiredContext = await browser.newContext({ reducedMotion: 'reduce' });

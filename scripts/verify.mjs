@@ -442,6 +442,17 @@ if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.strin
   results.push({ gate: 'site-behavior(配置消费/运行时)', pass: r.status === 0, detail: r.status === 0 ? [] : out.slice(-30).map((line) => line.trim()) });
 }
 
+/* Distribution pages live outside the marketing canvas; their routing, actual
+   QR decoding, viewport bounds and pointer/keyboard behavior need their own gate. */
+for (const [name, args] of [
+  ['download-policy', ['--import', pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href, '--test', join(ROOT, 'scripts', 'download-distribution.test.mjs')]],
+  ['download-distribution', [join(ROOT, 'scripts', 'test-download-distribution.mjs')]],
+]) {
+  const r = await runGate(name, process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+  const detail = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').slice(-30);
+  results.push({ gate: name, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
+}
+
 /* ── 第八门:被层叠悄悄压掉的 CSS 声明 ──
    同型两次都是「写进去了但从未生效,而且没有任何反馈」:
    ① 同一条规则里写了两个 max-width(新值在前旧值在后),「已修」从未生效;

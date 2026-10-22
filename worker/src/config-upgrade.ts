@@ -5,7 +5,8 @@ import manifestJson from '../seed/copy-manifest.json';
 import { prepareAudit } from './audit';
 
 // Applied upgrade keys are immutable: a changed transformation always gets a new key.
-export const CONFIG_UPGRADE_KEY = 'website-whitepaper-2026-09-09-v3';
+export const CONFIG_UPGRADE_KEY = 'website-download-distribution-2026-10-22-v1';
+const PREVIOUS_UPGRADE_KEY = 'website-whitepaper-2026-09-09-v3';
 const ORIGINAL_LOCALES = ['en', 'vi', 'zh'] as const;
 const WHITEPAPER_KEYS = ['title', 'summary', 'details'].map((key) => `trust.whitepaper.${key}`);
 const WHITEPAPER_DETAILS_V1 = {
@@ -20,6 +21,7 @@ const WHITEPAPER_DETAILS_V1 = {
   ko: 'v{version} · 중국어판 · {pages}페이지',
 };
 const CURRENT = SiteConfigSchema.parse(addLegacyLocaleFields(currentSeedJson, manifestJson.editable));
+const DISTRIBUTION_KEYS = manifestJson.editable.filter(key => key.startsWith('distribution.'));
 const LEGACY = legacyJson as {
   copyKeys: string[];
   copyDefaults: Record<(typeof ORIGINAL_LOCALES)[number], Record<string, string>>;
@@ -143,7 +145,7 @@ function mergeFaq(draft: SiteConfig['faq']['items'], conflicts: UpgradeConflict[
 /** Pure adapter for drafts and historical rollback copies. Never rewrites a stored version. */
 export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
   // New language slots must not synthesize blank whitepaper values before the seed fill below.
-  const candidate = addLegacyLocaleFields(input, manifestJson.editable.filter((key) => !WHITEPAPER_KEYS.includes(key)));
+  const candidate = addLegacyLocaleFields(input, manifestJson.editable.filter((key) => !WHITEPAPER_KEYS.includes(key) && !DISTRIBUTION_KEYS.includes(key)));
   const parsed = SiteConfigSchema.safeParse(candidate);
   if (!parsed.success) return {
     ok: false,
@@ -160,7 +162,7 @@ export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
       copy['trust.whitepaper.details'] = CURRENT.copy[locale]['trust.whitepaper.details']!;
     }
     // Preserve all other authored values, including ''. Only absent keys take current defaults.
-    for (const key of WHITEPAPER_KEYS) {
+    for (const key of [...WHITEPAPER_KEYS, ...DISTRIBUTION_KEYS]) {
       if (!Object.hasOwn(copy, key)) copy[key] = CURRENT.copy[locale][key]!;
     }
   }
@@ -233,12 +235,13 @@ export async function commitDraftUpgrade(
   return checkDraftUpgrade(db);
 }
 
-type InspectedDraft = UpgradeDraftSnapshot & { marked: number };
+type InspectedDraft = UpgradeDraftSnapshot & { marked: number; predecessorMarked: number };
 const readUpgradeDraft = (db: D1Database) => db.prepare(
   `SELECT payload,draft_rev,updated_at,
-    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1) AS marked
+    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1) AS marked,
+    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?2) AS predecessorMarked
    FROM config_draft WHERE id=1`,
-).bind(CONFIG_UPGRADE_KEY).first<InspectedDraft>();
+).bind(CONFIG_UPGRADE_KEY, PREVIOUS_UPGRADE_KEY).first<InspectedDraft>();
 
 function inspectUpgrade(draft: InspectedDraft): ConfigUpgradeResult {
   let input: unknown;
@@ -246,7 +249,20 @@ function inspectUpgrade(draft: InspectedDraft): ConfigUpgradeResult {
     return { ok: false, conflicts: [{ path: 'draft', reason: '旧草稿无法解析，原内容已保留' }] };
   }
   // Once applied, authored values (including an intentionally restored old default) stay authored.
-  return draft.marked ? finishUpgrade(input, input as SiteConfig) : adaptLegacyConfig(input);
+  if (draft.marked) return finishUpgrade(input, input as SiteConfig);
+  if (draft.predecessorMarked) {
+    // A previously upgraded draft contains authored values. Do not replay older
+    // whitepaper/FAQ transformations when introducing the download copy slots.
+    const candidate = structuredClone(input);
+    const parsed = SiteConfigSchema.safeParse(candidate);
+    if (!parsed.success) return finishUpgrade(input, candidate as SiteConfig);
+    const config = candidate as SiteConfig;
+    for (const locale of LOCALES) for (const key of DISTRIBUTION_KEYS) {
+      if (!Object.hasOwn(config.copy[locale], key)) config.copy[locale][key] = CURRENT.copy[locale][key]!;
+    }
+    return finishUpgrade(input, config);
+  }
+  return adaptLegacyConfig(input);
 }
 
 /** Read paths never migrate an existing draft, create a marker, or announce unverified compatibility. */

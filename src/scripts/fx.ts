@@ -1094,34 +1094,60 @@ function initMobileDownloads() {
   const options = document.getElementById('download-options');
   const toggle = dock?.querySelector<HTMLButtonElement>('.download-toggle');
   if (!dock || !options || !toggle) return;
-  const narrow = matchMedia('(max-width: 860px)');
+  const footerOptions = document.querySelector<HTMLElement>('#final-cta .dl');
+  const narrow = matchMedia('(max-width: 760px)');
   let compact = window.scrollY > 48;
   let expanded = false;
   let pending = false;
+  let footerVisible = false;
+  const visibleLinks = (root: HTMLElement) => [...root.querySelectorAll<HTMLElement>('a, button')]
+    .filter(link => link.getClientRects().length > 0);
+  const checkFooter = () => {
+    if (!footerOptions) return false;
+    const rect = footerOptions.getBoundingClientRect();
+    const navBottom = document.querySelector('.site-nav')?.getBoundingClientRect().bottom ?? 0;
+    return rect.width > 0 && rect.height > 0 && rect.bottom > navBottom && rect.top < innerHeight;
+  };
   const render = () => {
     const mobile = narrow.matches;
+    const hideDock = mobile && footerVisible;
+    if (hideDock) {
+      expanded = false;
+      if (dock.contains(document.activeElement) && footerOptions) {
+        const active = document.activeElement instanceof HTMLElement ? document.activeElement.dataset.downloadEntry : undefined;
+        const candidates = visibleLinks(footerOptions);
+        const target = candidates.find(link => link.dataset.downloadEntry === active)
+          || candidates.find(link => link.dataset.downloadEntry !== 'h5') || candidates[0];
+        target?.focus({ preventScroll: true });
+      }
+    }
+    dock.toggleAttribute('inert', hideDock);
+    if (hideDock) { dock.style.visibility = 'hidden'; dock.setAttribute('aria-hidden', 'true'); }
+    else { dock.style.removeProperty('visibility'); dock.removeAttribute('aria-hidden'); }
     dock.classList.toggle('floating', mobile);
     document.documentElement.classList.toggle('mobile-download', mobile);
     options.toggleAttribute('data-lenis-prevent', mobile);
     const hideOptions = mobile && compact && !expanded;
     const hideToggle = !mobile || !compact || expanded;
     // Never leave keyboard focus in a control we are about to hide.
-    if (hideOptions && options.contains(document.activeElement)) {
+    if (!hideDock && hideOptions && options.contains(document.activeElement)) {
       toggle.hidden = false;
       toggle.focus({ preventScroll: true });
     }
-    if (hideToggle && document.activeElement === toggle) {
+    if (!hideDock && hideToggle && document.activeElement === toggle) {
       options.hidden = false;
-      options.querySelector<HTMLElement>('a, button')?.focus({ preventScroll: true });
+      visibleLinks(options)[0]?.focus({ preventScroll: true });
     }
     options.hidden = hideOptions;
     toggle.hidden = hideToggle;
-    toggle.setAttribute('aria-expanded', String(!hideOptions));
+    toggle.setAttribute('aria-expanded', String(!hideOptions && !hideDock));
   };
   const syncScroll = () => {
     pending = false;
     const next = compact ? window.scrollY > 8 : window.scrollY > 48;
-    if (next === compact) return;
+    const nextFooterVisible = checkFooter();
+    if (next === compact && nextFooterVisible === footerVisible) return;
+    footerVisible = nextFooterVisible;
     compact = next;
     expanded = false;
     render();
@@ -1129,7 +1155,7 @@ function initMobileDownloads() {
   toggle.addEventListener('click', (event) => {
     expanded = !expanded;
     render();
-    if (expanded && event.detail === 0) options.querySelector<HTMLElement>('a, button')?.focus({ preventScroll: true });
+    if (expanded && event.detail === 0) visibleLinks(options)[0]?.focus({ preventScroll: true });
   });
   document.addEventListener('keydown', (event) => {
     if (event.key !== 'Escape' || !expanded) return;
@@ -1147,10 +1173,14 @@ function initMobileDownloads() {
   }, { passive: true });
   narrow.addEventListener('change', () => {
     compact = window.scrollY > 48;
+    footerVisible = checkFooter();
     expanded = false;
     render();
   });
+  if (footerOptions && 'IntersectionObserver' in window) new IntersectionObserver(syncScroll).observe(footerOptions);
+  window.addEventListener('resize', syncScroll, { passive: true });
   window.addEventListener('pageshow', syncScroll);
+  footerVisible = checkFooter();
   render();
 }
 

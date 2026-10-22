@@ -4,7 +4,7 @@ import { learnList } from './learn';
 import type { Locale } from '../../schema/src/locales';
 
 export const PAGE_PATHS = {
-  home: '/', nex: '/nex/', learn: '/learn/',
+  home: '/', nex: '/nex/', learn: '/learn/', download: '/download/',
   terms: '/legal/terms/', privacy: '/legal/privacy/', appPrivacy: '/legal/app-privacy/',
 } as const;
 export type PageKind = keyof typeof PAGE_PATHS | 'article';

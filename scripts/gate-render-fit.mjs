@@ -328,7 +328,7 @@ const OPEN_ONE = (idx) => {
      候选面也不写死成某一个属性:凡「可能打开东西」的件都试,试到某个弹层真开为止;
      一个都开不起来 → 返回失败,由调用方记成观测面缺口判红。 */
   const cand = [...document.querySelectorAll(
-    '[data-src], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
+    '[data-src], [data-download-entry], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
   )];
   for (const el of cand) {
     try { el.click(); } catch { /* 个别件点了会抛,继续试下一个 */ }
@@ -1019,6 +1019,7 @@ try {
 const A = [...hitsA.values()].sort((a, b) => (b.over || 0) - (a.over || 0));
 const B = [...hitsB.values()].sort((a, b) => b.under - a.under);
 console.log(`[render-fit] 审计布局回归样本 ${JSON.stringify(layout.samples)}`);
+if (layout.skippedRoutes.length) console.log(`[render-fit] 独立下载页无营销导航，由下载专项覆盖：${layout.skippedRoutes.join(', ')}`);
 for (const failure of layout.failures) console.log(`[render-fit] ✘ UI ${failure}`);
 console.log(`[render-fit] 路由 ${ROUTES.length} 条(从产物枚举)${routeScope.scoped ? ` · 增量裁剪(${ROUTES.length}/${routeScope.total})` : ''}· 宽 ${widths.length} 档 / 矮档高 ${SHORT_H.length} 档(从产物 CSS 断点推导)`);
 console.log(`             宽: ${widths.join(' ')}`);
