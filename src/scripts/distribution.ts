@@ -14,6 +14,15 @@ if (card) {
   const urls: DownloadUrls = JSON.parse(root.dataset.urls || '{}');
   const messages: Record<string, string> = JSON.parse(root.dataset.messages || '{}');
   const locale = root.dataset.locale || 'en';
+  // Keep the existing CTA contract aligned with the destination the phone uses.
+  // Unknown/desktop auto choices and unavailable targets are not conversions.
+  document.querySelectorAll<HTMLElement>('[data-download-entry]').forEach(entry => {
+    const requested = parseDownloadRequest(entry.dataset.downloadEntry);
+    const platform = requested === 'h5' ? 'h5' : device === 'ios' || device === 'android'
+      ? device : requested === 'auto' ? null : requested;
+    if (platform && urls[platform]) entry.dataset.m = `cta:${platform}`;
+    else entry.removeAttribute('data-m');
+  });
   const get = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const title = get('[data-distribution-title]');
   const description = get('[data-distribution-description]');
@@ -188,6 +197,7 @@ if (card) {
     title.textContent = text(current === 'android' ? 'initiated' : current === 'h5' ? 'openingH5' : 'iosTitle');
     if (current === 'android') { action.textContent = text('retry'); help.open = true; }
     if (current === 'h5' && isPopover()) finishClose(false);
+    window.dispatchEvent(new Event('uvel:before-navigate'));
     window.location.assign(url);
   };
 

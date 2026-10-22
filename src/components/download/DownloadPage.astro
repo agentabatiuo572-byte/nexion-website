@@ -6,6 +6,7 @@ import '@fontsource/be-vietnam-pro/400.css';
 import '@fontsource/be-vietnam-pro/500.css';
 import '../../styles/tokens.css';
 import DownloadCard from './DownloadCard.astro';
+import SiteMetrics from '../SiteMetrics.astro';
 import { useT, type Locale } from '../../i18n';
 interface Props { locale: Locale }
 const { locale } = Astro.props;
@@ -23,6 +24,7 @@ const home = locale === 'en' ? '/' : `/${locale}/`;
     <meta name="description" content={t('distribution.subtitle')} />
     <link rel="icon" href="/favicon.ico" />
     <title>{t('distribution.title')} — UVEL</title>
+    <SiteMetrics />
   </head>
   <body class="distribution-document">
     <header class="download-header"><a href={home} aria-label={t('distribution.backHome')}><img src="/logo-lockup-dark.webp" alt="UVEL" width="126" height="44" /></a><a class="download-home" href={home}>‹ &nbsp;{t('distribution.backHome')}</a></header>

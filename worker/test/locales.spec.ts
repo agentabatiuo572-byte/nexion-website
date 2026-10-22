@@ -62,14 +62,21 @@ describe('Nine content languages and published selection', () => {
     expect(first.live.payload.enabledLocales).toEqual(['en', 'vi']);
     expect(first.live.payload.copy.ja['hero.title']).toBe('');
     expect(first.live.payload.legal.appPrivacy.md.ko).toBe('');
-    const whitepaperPaths = added.flatMap((locale) => ['title', 'summary', 'details'].map((key) => `copy.${locale}.trust.whitepaper.${key}`));
-    expect(first.dirty).toBe(whitepaperPaths.length);
-    expect(first.changedPaths.sort()).toEqual(whitepaperPaths.sort());
+    const upgradeKeys = ['title', 'summary', 'details'].map((key) => `trust.whitepaper.${key}`)
+      .concat(manifest.editable.filter((key) => key.startsWith('distribution.')));
+    expect(upgradeKeys).toHaveLength(61);
+    const upgradePaths = added.flatMap((locale) => upgradeKeys.map((key) => `copy.${locale}.${key}`));
+    expect(first.dirty).toBe(366);
+    const fullChanges = diffPaths(first.live.payload, first.draft.payload);
+    expect([...fullChanges].sort()).toEqual(upgradePaths.sort());
+    // The overview deliberately caps its UI summary at 200 paths; validate the
+    // complete payload diff above as well as that exact summary contract.
+    expect(first.changedPaths).toEqual(fullChanges.slice(0, 200));
     expect(first.draft.payload.enabledLocales).toEqual(['en', 'vi']);
     expect(first.draft.payload.copy.en['hero.title']).toBe(input.copy.en['hero.title']);
     for (const locale of added) {
       for (const [key, text] of Object.entries(first.draft.payload.copy[locale])) {
-        expect(text).toBe(key.startsWith('trust.whitepaper.') ? current().copy[locale][key] : '');
+        expect(text).toBe(upgradeKeys.includes(key) ? current().copy[locale][key] : '');
       }
       expect(first.draft.payload.faq.items.every((item) => item.q[locale] === '' && item.a[locale] === '')).toBe(true);
       expect(first.draft.payload.skus.every((item) => item.tagline[locale] === '')).toBe(true);

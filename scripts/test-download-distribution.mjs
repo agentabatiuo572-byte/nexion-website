@@ -68,14 +68,15 @@ async function session(profile = 'desktop', options = {}) {
   const settings = { ...deviceProfiles[profile], ...options };
   const context = await browser.newContext({ viewport: settings.viewport, userAgent: settings.userAgent + (settings.embedded ? ' MicroMessenger/8.0.50' : ''),
     isMobile: settings.isMobile || false, hasTouch: settings.hasTouch || false, reducedMotion: settings.reducedMotion || 'reduce', acceptDownloads: true });
-  const state = { context, page: await context.newPage(), targets: [], downloads: [], errors: [], unexpected: [], injected: 0 };
-  await context.addInitScript(({ platform, touch }) => {
+  const state = { context, page: await context.newPage(), targets: [], downloads: [], metrics: [], errors: [], unexpected: [], injected: 0 };
+  await context.addInitScript(({ platform, touch, dnt }) => {
     Object.defineProperty(navigator, 'platform', { get: () => platform });
     Object.defineProperty(navigator, 'maxTouchPoints', { get: () => touch });
+    Object.defineProperty(navigator, 'doNotTrack', { get: () => dnt ? '1' : '0' });
     // Repository screenshot protocol: avoid GPU-dependent force-dark behavior on the marketing canvas.
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (...args) { return this.id === 'x-bg' ? null : original.apply(this, args); };
-  }, { platform: settings.platform, touch: settings.touch });
+  }, { platform: settings.platform, touch: settings.touch, dnt: !!settings.dnt });
   const urls = Object.hasOwn(options, 'urls') ? options.urls : fixture;
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
@@ -90,7 +91,7 @@ async function session(profile = 'desktop', options = {}) {
       if (url.pathname === '/favicon.ico') { await route.fulfill({ status: 204 }); return; }
     }
     if (url.origin !== base) { state.unexpected.push(url.href); await route.abort('blockedbyclient'); return; }
-    if (url.pathname === '/api/e') { await route.fulfill({ status: 204 }); return; }
+    if (url.pathname === '/api/e') { state.metrics.push(...request.postDataJSON().events); await route.fulfill({ status: 204 }); return; }
     if (request.isNavigationRequest() && urls !== null) {
       const response = await route.fetch();
       const html = await response.text();
@@ -373,11 +374,30 @@ try {
         assert.equal(await group.locator('[data-download-entry]:visible').count(), 2, 'Mobile group exposes only auto App and H5');
         await assertTarget(s, device, () => button.click());
         assert.deepEqual(s.targets, [fixture[device]], 'Phone App button must choose actual OS');
+        assert.deepEqual(s.metrics.filter(event => event.t === 'cta').map(event => event.cta), [device], 'One real platform CTA must be sent before navigation');
         return { clicked: 'auto', entryGroup, destinationOS: device };
       });
     }
   }
   const first = locales.find(l => l.locale === 'en') || locales[0];
+  for (const locale of locales) for (const platform of ['ios', 'h5']) for (const dnt of [false, true]) {
+    await run(`metrics immediate ${platform} DNT=${dnt} ${locale.locale}`, 'ios', { dnt }, async s => {
+      await assertTarget(s, platform, () => goto(s.page, `${locale.route}?platform=${platform}`));
+      await settle(s.page);
+      const pvs = s.metrics.filter(event => event.t === 'pv');
+      if (dnt) assert.deepEqual(s.metrics, [], 'DNT disables every beacon including the pre-navigation flush');
+      else { assert.equal(pvs.length, 1); assert.equal(pvs[0].path, locale.route); assert.equal(pvs[0].loc, locale.locale); }
+      return { dnt, pageViews: pvs.length };
+    });
+  }
+  for (const profile of ['ios', 'android', 'unknown', 'desktop']) {
+    const urls = profile === 'ios' ? { ...fixture, ios: '' } : profile === 'android' ? { ...fixture, android: '' } : fixture;
+    await run(`metrics auto without resolved target ${profile}`, profile, { urls }, async s => {
+      await goto(s.page, first.home);
+      assert.equal(await s.page.locator('#download [data-download-entry="auto"]').getAttribute('data-m'), null);
+      return { unavailableHasNoCta: true };
+    });
+  }
   // These cases extend the original routing matrix with the wide-desktop QR popover.
   // Every opener is activated by an actual pointer or keyboard action.
   for (const locale of locales) {

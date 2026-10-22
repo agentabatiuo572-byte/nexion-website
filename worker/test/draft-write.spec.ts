@@ -39,7 +39,7 @@ describe('draft foundation: real D1 persistence and atomic intent', () => {
     expect(pointer('faq', 'items', 'a/b~c', 'q', 'ja')).toBe('/faq/items/a~1b~0c/q/ja');
   });
 
-  it('fills 1,482 defaults in one revision/audit, leaves history intact and is rerunnable', async () => {
+  it('fills 1,830 defaults in one revision/audit, leaves history intact and is rerunnable', async () => {
     const config = seed();
     const addedLocales = ['es', 'pt', 'fr', 'de', 'ja', 'ko'] as const;
     for (const locale of addedLocales) {
@@ -50,10 +50,11 @@ describe('draft foundation: real D1 persistence and atomic intent', () => {
     await env.DB.prepare('UPDATE config_draft SET payload=?1 WHERE id=1').bind(JSON.stringify(config)).run();
     const history = await env.DB.prepare('SELECT payload FROM config_versions').first<{ payload: string }>();
     const started = Date.now(), result = await fillDraftDefaults(env.DB);
-    expect(result.applied).toBe(1482);
+    // Six added languages × (278 copy fields + 20 FAQ fields + 7 SKU taglines).
+    expect(result.applied).toBe(1830);
     expect(result.draftRev).toBe(2);
     expect((await read()).config).toEqual(seed());
-    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM translation_state').first<{ n: number }>())!.n).toBe(1482);
+    expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM translation_state').first<{ n: number }>())!.n).toBe(1830);
     expect((await env.DB.prepare('SELECT COUNT(*) AS n FROM audit').first<{ n: number }>())!.n).toBe(1);
     expect((await env.DB.prepare('SELECT payload FROM config_versions').first<{ payload: string }>())!.payload).toBe(history!.payload);
     expect(await fillDraftDefaults(env.DB)).toMatchObject({ applied: 0, draftRev: 2 });
