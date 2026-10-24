@@ -315,7 +315,7 @@ const SCAN_SIZES = () => {
    出处:把手机端证书灯箱从「按原件 1160 出图、横向平移」改成适宽时,只修了横轴。
    我的探针只测了 390×844 一个尺寸,于是横屏与平板整面没被看到 —— 按推导视口全扫,**106 个组合装不下**。
    同一族第 3 次(判据靠手挑的一张清单),所以这次不写探针,写门。
-   弹层从 DOM 枚举(不列清单),开启件按本仓的 [data-src] 标记找,找不到就退回 showModal();
+   弹层从 DOM 枚举(不列清单),开启件优先按 aria-controls 关联找,再尝试其余候选;
    开不起来的弹层记成观测面缺口判红 —— 「打不开所以没测到」不许当成「没问题」。 */
 const OPEN_ONE = (idx) => {
   const dialogs = [...document.querySelectorAll('dialog')];
@@ -328,8 +328,12 @@ const OPEN_ONE = (idx) => {
      候选面也不写死成某一个属性:凡「可能打开东西」的件都试,试到某个弹层真开为止;
      一个都开不起来 → 返回失败,由调用方记成观测面缺口判红。 */
   const cand = [...document.querySelectorAll(
-    '[data-src], [data-download-entry], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
+    '[data-src], [aria-controls], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
   )];
+  // Download entries can navigate away (H5); only their declared dialog controls
+  // belong here. Prefer the target's relationship without inventing a dialog list.
+  const controlsTarget = (el) => !!d.id && (el.getAttribute('aria-controls') || '').split(/\s+/).includes(d.id);
+  cand.sort((a, b) => Number(controlsTarget(b)) - Number(controlsTarget(a)));
   for (const el of cand) {
     try { el.click(); } catch { /* 个别件点了会抛,继续试下一个 */ }
     if (d.open) return { ok: true, via: 'opener' };
@@ -629,6 +633,16 @@ if (process.argv.includes('--self-test')) {
     { waitUntil: 'load' },
   );
   const fHit = (await p.evaluate(MEASURE_CLOSED)).map((x) => x.sel).join(' ');
+  // E: a download navigation must not be probed as a dialog opener. Exercise
+  // the same opener as the runtime, including target association and failure.
+  await p.setContent('<a href="#left-page" data-download-entry="h5" onclick="document.body.dataset.navigated=1">H5</a>' +
+    '<button onclick="document.body.dataset.unrelated=1">unrelated</button>' +
+    '<a href="#dialog" aria-controls="target" aria-haspopup="dialog" onclick="event.preventDefault();document.getElementById(\'target\').showModal()">open</a>' +
+    '<dialog id="target">real content</dialog><dialog id="unreachable">no opener</dialog>');
+  const eOpened = await p.evaluate(OPEN_ONE, 0);
+  const eFirst = await p.evaluate(() => ({ navigated: document.body.dataset.navigated, unrelated: document.body.dataset.unrelated }));
+  const eMissing = await p.evaluate(OPEN_ONE, 1);
+  const eNavigated = await p.evaluate(() => document.body.dataset.navigated);
   // G:走的是主循环用的同一份 SCAN_SIBS
   await p.setViewportSize({ width: 800, height: 700 });
   await p.setContent(FIXTURE_G, { waitUntil: 'load' });
@@ -679,6 +693,8 @@ if (process.argv.includes('--self-test')) {
     ['㉒ G 有意居中(自身内容就不等高)不报 —— 实景回灌的红测', gHit.indexOf('div.mid') < 0],
     ['㉓ H 放大样本消除整像素量化假红', hOff(hStable) <= 0.005 && hOff(hLegacyFalseRed) > 0.005],
     ['㉔ H 真字体漂移仍会判红', hOff(hRealDrift) > 0.005],
+    ['㉕ E 优先真实关联开启件,不点击无关按钮或下载跳转', eOpened.ok && !eFirst.navigated && !eFirst.unrelated],
+    ['㉖ E 无真实开启件仍失败,且不点击 H5 跳转', !eMissing.ok && !eNavigated],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
