@@ -317,7 +317,8 @@ const SCAN_SIZES = () => {
    同一族第 3 次(判据靠手挑的一张清单),所以这次不写探针,写门。
    弹层从 DOM 枚举(不列清单),开启件优先按 aria-controls 关联找,再尝试其余候选;
    开不起来的弹层记成观测面缺口判红 —— 「打不开所以没测到」不许当成「没问题」。 */
-const OPEN_ONE = (idx) => {
+const OPEN_ONE = (options) => {
+  const { idx, embedded = false } = typeof options === 'number' ? { idx: options } : options;
   const dialogs = [...document.querySelectorAll('dialog')];
   for (const d of dialogs) if (d.open) d.close();
   const d = dialogs[idx];
@@ -328,7 +329,8 @@ const OPEN_ONE = (idx) => {
      候选面也不写死成某一个属性:凡「可能打开东西」的件都试,试到某个弹层真开为止;
      一个都开不起来 → 返回失败,由调用方记成观测面缺口判红。 */
   const cand = [...document.querySelectorAll(
-    '[data-src], [aria-controls], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]',
+    '[data-src], [aria-controls], button, summary, [aria-haspopup], a[href$=".png"], a[href$=".jpg"], a[href$=".webp"]' +
+      (embedded ? ', [data-download-entry]' : ''),
   )];
   // Download entries can navigate away (H5); only their declared dialog controls
   // belong here. Prefer the target's relationship without inventing a dialog list.
@@ -643,6 +645,8 @@ if (process.argv.includes('--self-test')) {
   const eFirst = await p.evaluate(() => ({ navigated: document.body.dataset.navigated, unrelated: document.body.dataset.unrelated }));
   const eMissing = await p.evaluate(OPEN_ONE, 1);
   const eNavigated = await p.evaluate(() => document.body.dataset.navigated);
+  await p.setContent('<a data-download-entry="h5" href="#h5" onclick="event.preventDefault();document.querySelector(\'dialog\').showModal()">embedded H5 guidance</a><dialog>open in browser</dialog>');
+  const eEmbedded = await p.evaluate(OPEN_ONE, { idx: 0, embedded: true });
   // G:走的是主循环用的同一份 SCAN_SIBS
   await p.setViewportSize({ width: 800, height: 700 });
   await p.setContent(FIXTURE_G, { waitUntil: 'load' });
@@ -695,6 +699,7 @@ if (process.argv.includes('--self-test')) {
     ['㉔ H 真字体漂移仍会判红', hOff(hRealDrift) > 0.005],
     ['㉕ E 优先真实关联开启件,不点击无关按钮或下载跳转', eOpened.ok && !eFirst.navigated && !eFirst.unrelated],
     ['㉖ E 无真实开启件仍失败,且不点击 H5 跳转', !eMissing.ok && !eNavigated],
+    ['㉗ E 内嵌浏览器场景使用真实 H5 开启件', eEmbedded.ok],
   ];
   let bad = 0;
   for (const [n, ok] of expect) { console.log(`  ${ok ? 'PASS' : 'FAIL'}  ${n}`); if (!ok) bad++; }
@@ -904,6 +909,15 @@ for (const [index, r] of ROUTES.entries()) {
 const hitsE = new Map();
 const hitsF = new Map();
 let dialogRoutes = 0;
+// In the embedded desktop scenario native entries still show their real QR,
+// while H5 shows its actual "open in browser" dialog instead of leaving the page.
+// Inner pages only have H5: a normal browser cannot exercise that dialog at all.
+const dialogCtx = await browser.newContext({
+  userAgent: (await page.evaluate(() => navigator.userAgent)) + ' MicroMessenger/8.0.50',
+  viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
+});
+{
+const page = await dialogCtx.newPage();
 for (const [index, r] of ROUTES.entries()) {
   progress(`页面布局：弹层检查 ${index + 1}/${ROUTES.length}，当前 ${r}`);
   await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
@@ -922,7 +936,7 @@ for (const [index, r] of ROUTES.entries()) {
   for (let idx = 0; idx < n; idx++) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.waitForTimeout(60);
-    const opened = await page.evaluate(OPEN_ONE, idx);
+    const opened = await page.evaluate(OPEN_ONE, { idx, embedded: true });
     if (!opened.ok) { blindSpots.set(`${r}|dialog#${idx}`, `${r}  第 ${idx + 1} 个弹层${opened.why}`); continue; }
     // 开着不关,直接换视口量 —— 每档重开一次既慢又会丢滚动位
     for (const w of widths) {
@@ -947,6 +961,8 @@ for (const [index, r] of ROUTES.entries()) {
     if (!hitsF.has(k)) hitsF.set(k, { ...m, where: `${r} 开关一轮后仍可见` });
   }
 }
+}
+await dialogCtx.close();
 
 const hitsC = [];
 for (const [index, r] of HOME.entries()) {
