@@ -1,5 +1,5 @@
 ---
-/* [FEAT-WEB10] /nex 轻页正文 — 蓝本 App PRD §11.3.1 合规裁剪:
+/* [FEAT-WEB10] /uvt 轻页正文 — 蓝本 App PRD §11.3.1 合规裁剪:
    无价格行/无实时行情;上市信息只写可验证事实(v1 不列交易所);App 内第 5 用法的
    措辞按官网 PRD §1.4-3 中性化为「长期持有」(App 原措辞属投机语态,官网禁用);
    App 内链一律改「下载 App」CTA。白皮书采用构建配置，未配置时指向随站发布的官网版 PDF。
@@ -21,109 +21,109 @@ const uses = [1, 2, 3, 4, 5] as const;
 const faqs = [1, 2, 3, 4] as const;
 ---
 
-<main class="nex-page">
+<main class="uvt-page">
   <header class="hero">
-    <span class="tag x-label" data-rv>{t('nex.pageTag')}</span>
-    <h1 class="x-display" data-rv style="--d:.08s">{t('nex.pageTitle')}</h1>
-    <p class="lead x-copy" data-rv style="--d:.16s">{t('nex.pageLead')}</p>
+    <span class="tag x-label" data-rv>{t('uvt.pageTag')}</span>
+    <h1 class="x-display" data-rv style="--d:.08s">{t('uvt.pageTitle')}</h1>
+    <p class="lead x-copy" data-rv style="--d:.16s">{t('uvt.pageLead')}</p>
   </header>
 
   {/* R48.7 令②:氛围配图(gpt-image-2 生成,机房柠檬灯带;纯装饰 alt 空,不进 i18n) */}
   <img class="hero-art" src="/art-aisle.webp" alt="" width="1280" height="853" loading="lazy" decoding="async" data-rv style="--d:.22s" />
 
-  <section class="block x-tile" aria-labelledby="nex-compare">
-    <h2 id="nex-compare" class="x-h24"><Icon name="compare" class="bic" />{t('nex.compareTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="uvt-compare">
+    <h2 id="uvt-compare" class="x-h24"><Icon name="compare" class="bic" />{t('uvt.compareTitle')}</h2>
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th class="x-label">{t('nex.cmpProp')}</th><th class="x-label">USDT</th><th class="x-label">NEX</th></tr>
+          <tr><th class="x-label">{t('uvt.cmpProp')}</th><th class="x-label">USDT</th><th class="x-label">UVT</th></tr>
         </thead>
         <tbody class="x-mono">
-          <tr><td>{t('nex.cmpType')}</td><td>{t('nex.cmpTypeUsdt')}</td><td>{t('nex.cmpTypeNex')}</td></tr>
-          <tr><td>{t('nex.cmpVol')}</td><td>{t('nex.cmpVolUsdt')}</td><td>{t('nex.cmpVolNex')}</td></tr>
-          <tr><td>{t('nex.cmpUse')}</td><td>{t('nex.cmpUseUsdt')}</td><td>{t('nex.cmpUseNex')}</td></tr>
+          <tr><td>{t('uvt.cmpType')}</td><td>{t('uvt.cmpTypeUsdt')}</td><td>{t('uvt.cmpTypeUvt')}</td></tr>
+          <tr><td>{t('uvt.cmpVol')}</td><td>{t('uvt.cmpVolUsdt')}</td><td>{t('uvt.cmpVolUvt')}</td></tr>
+          <tr><td>{t('uvt.cmpUse')}</td><td>{t('uvt.cmpUseUsdt')}</td><td>{t('uvt.cmpUseUvt')}</td></tr>
         </tbody>
       </table>
     </div>
   </section>
 
-  <section class="block x-tile" aria-labelledby="nex-sources">
-    <h2 id="nex-sources" class="x-h24"><Icon name="coin-bolt" class="bic" />{t('nex.sourcesTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="uvt-sources">
+    <h2 id="uvt-sources" class="x-h24"><Icon name="coin-bolt" class="bic" />{t('uvt.sourcesTitle')}</h2>
     <ul class="list" role="list">
       {sources.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b class="x-h24">{t(`nex.src${n}Title`)}</b>
-          <span class="x-copy">{t(`nex.src${n}Desc`)}</span>
+          <b class="x-h24">{t(`uvt.src${n}Title`)}</b>
+          <span class="x-copy">{t(`uvt.src${n}Desc`)}</span>
         </li>
       ))}
     </ul>
   </section>
 
-  <section class="block x-tile" aria-labelledby="nex-uses">
-    <h2 id="nex-uses" class="x-h24"><Icon name="swap" class="bic" />{t('nex.usesTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="uvt-uses">
+    <h2 id="uvt-uses" class="x-h24"><Icon name="swap" class="bic" />{t('uvt.usesTitle')}</h2>
     <ul class="list" role="list">
       {uses.map((n) => (
         <li data-rv style={`--d:${(n - 1) * 0.06}s`}>
           <span class="idx x-mono">0{n}</span>
-          <b class="x-h24">{t(`nex.use${n}Title`)}</b>
-          <span class="x-copy">{t(`nex.use${n}Desc`)}</span>
+          <b class="x-h24">{t(`uvt.use${n}Title`)}</b>
+          <span class="x-copy">{t(`uvt.use${n}Desc`)}</span>
         </li>
       ))}
     </ul>
   </section>
 
-  <section class="block x-tile" aria-labelledby="nex-mech">
-    <h2 id="nex-mech" class="x-h24"><Icon name="mech" class="bic" />{t('nex.mechTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="uvt-mech">
+    <h2 id="uvt-mech" class="x-h24"><Icon name="mech" class="bic" />{t('uvt.mechTitle')}</h2>
     <div class="mech">
       <article class="mcard" data-rv>
-        <h3 class="x-h24">{t('nex.mech1Title')}</h3>
-        <p class="x-copy">{t('nex.mech1Desc')}</p>
+        <h3 class="x-h24">{t('uvt.mech1Title')}</h3>
+        <p class="x-copy">{t('uvt.mech1Desc')}</p>
       </article>
       <article class="mcard" data-rv style="--d:.1s">
-        <h3 class="x-h24">{t('nex.mech2Title')}</h3>
-        <p class="x-copy">{t('nex.mech2Desc')}</p>
+        <h3 class="x-h24">{t('uvt.mech2Title')}</h3>
+        <p class="x-copy">{t('uvt.mech2Desc')}</p>
       </article>
     </div>
   </section>
 
-  <section class="block x-tile" aria-labelledby="nex-faq">
-    <h2 id="nex-faq" class="x-h24"><Icon name="faq" class="bic" />{t('nex.faqTitle')}</h2>
+  <section class="block x-tile" aria-labelledby="uvt-faq">
+    <h2 id="uvt-faq" class="x-h24"><Icon name="faq" class="bic" />{t('uvt.faqTitle')}</h2>
     {faqs.map((n) => (
       <details class="faq">
         <summary>
           <span class="idx x-mono">Q{n}</span>
-          <span class="q x-q">{t(`nex.faq${n}Q`)}</span>
+          <span class="q x-q">{t(`uvt.faq${n}Q`)}</span>
           <span class="mark x-mono" aria-hidden="true">+</span>
         </summary>
-        <p class="x-copy">{t(`nex.faq${n}A`)}</p>
+        <p class="x-copy">{t(`uvt.faq${n}A`)}</p>
       </details>
     ))}
   </section>
 
   <div class="cta-row">
     <a class="xbtn solid" href={`${prefix}/#download`}>
-      <span class="xbtn-ghost" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
-      <span class="xbtn-a">{t('nex.getApp')} <span class="arr">→</span></span>
-      <span class="xbtn-b" aria-hidden="true">{t('nex.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-ghost" aria-hidden="true">{t('uvt.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('uvt.getApp')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('uvt.getApp')} <span class="arr">→</span></span>
     </a>
     {WHITEPAPER_URL && (
       <a class="xbtn" data-whitepaper-read href={WHITEPAPER_URL} hreflang={WHITEPAPER_URL === WHITEPAPER.url ? WHITEPAPER.language : undefined} target="_blank" rel="noopener noreferrer">
-        <span class="xbtn-ghost" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
-        <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr">↗</span></span>
-        <span class="xbtn-b" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-ghost" aria-hidden="true">{t('uvt.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-a">{t('uvt.whitepaper')} <span class="arr">↗</span></span>
+        <span class="xbtn-b" aria-hidden="true">{t('uvt.whitepaper')} <span class="arr">↗</span></span>
       </a>
     )}
   </div>
 </main>
 
 <style>
-  .nex-page {
+  .uvt-page {
     /* R3:内容页=纸白;顶部留 84px 黑带,导航在暗带上可见,滚动后按层叠哲学被盖 */
     margin-top: calc(84 * var(--uc));
     padding: calc(46 * var(--uc)) var(--x-pad) clamp(24px, 3vw, calc(40 * var(--uc))); /* R39:内页 main 用简写会盖掉全局画布留白,显式补回 */
   }
-  .nex-page > * {
+  .uvt-page > * {
     max-width: calc(1100 * var(--uc));
   }
   .hero {
@@ -163,12 +163,11 @@ const faqs = [1, 2, 3, 4] as const;
     margin-bottom: calc(40 * var(--uc));
     padding: clamp(18px, 2.2vw, calc(30 * var(--uc)));
   }
-  /* 型类给字族/字重/字距/行高与语言分支;这里只留本处特有的字号与边框。
+  /* 型类给字族/字重/字距/行高与语言分支;这里只留本处特有的字号与间距。
      原来没有 vi/zh 分支,行高补偿静默失效。 */
   .block h2 {
     font-size: clamp(22px, 2.6vw, calc(32 * var(--uc)));
     color: var(--x-ink);
-    border-top: 1px solid var(--x-line);
     padding-top: calc(16 * var(--uc));
     margin: 0 0 calc(18 * var(--uc));
     /* R48.7 令②:块头配语义图标(柠檬点睛;本行无编号,不犯「一行双柠檬」) */

@@ -1,0 +1,37 @@
+---
+import '@fontsource/funnel-display/400.css';
+import '@fontsource/funnel-display/500.css';
+import '@fontsource/space-mono/400.css';
+import '@fontsource/be-vietnam-pro/400.css';
+import '@fontsource/be-vietnam-pro/500.css';
+import '../../styles/tokens.css';
+import DownloadCard from './DownloadCard.astro';
+import SiteMetrics from '../SiteMetrics.astro';
+import { useT, type Locale } from '../../i18n';
+interface Props { locale: Locale }
+const { locale } = Astro.props;
+const t = useT(locale);
+const home = locale === 'en' ? '/' : `/${locale}/`;
+---
+<!doctype html>
+<html lang={locale}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0c0c0d" />
+    <meta name="robots" content="noindex" />
+    <meta name="description" content={t('distribution.subtitle')} />
+    <link rel="icon" href="/favicon.ico" />
+    <title>{t('distribution.title')} — UVEL</title>
+    <SiteMetrics />
+  </head>
+  <body class="distribution-document">
+    <header class="download-header"><a href={home} aria-label={t('distribution.backHome')}><img src="/logo-lockup-dark.webp" alt="UVEL" width="126" height="44" /></a><a class="download-home" href={home}>‹ &nbsp;{t('distribution.backHome')}</a></header>
+    <main class="download-page" data-distribution-page>
+      <h1 class="download-page-heading">{t('distribution.title')}</h1>
+      <DownloadCard locale={locale} />
+    </main>
+    <script src="../../scripts/distribution.ts"></script>
+  </body>
+</html>

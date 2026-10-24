@@ -44,6 +44,8 @@ if (!DNT) {
     if (Q.length >= 10) send();
   };
   setInterval(send, 5000);
+  // A distribution page may redirect before its first load/pagehide lifecycle.
+  addEventListener('uvel:before-navigate', send);
   addEventListener('pagehide', () => {
     vitFlush();
     send();

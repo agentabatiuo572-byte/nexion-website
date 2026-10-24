@@ -20,7 +20,7 @@ Introduce el código de verificación, crea tu contraseña y completa la comprob
 
 ## 3. Recibe el regalo de bienvenida
 
-Las cuentas nuevas reciben una bonificación de bienvenida en NEX. Según la revisión de la cuenta, se abona inmediatamente o aparece como pendiente. Ambos estados se muestran en el panel y no tienes que hacer nada más.
+Las cuentas nuevas reciben una bonificación de bienvenida en UVT. Según la revisión de la cuenta, se abona inmediatamente o aparece como pendiente. Ambos estados se muestran en el panel y no tienes que hacer nada más.
 
 ## 4. Ya estás dentro
 

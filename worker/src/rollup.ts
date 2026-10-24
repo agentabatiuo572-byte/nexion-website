@@ -7,6 +7,7 @@ import {
   METRIC_CONVERSION_CTA_IDS,
   METRIC_FAQ_ID_PREFIX,
   METRIC_SECTION_IDS,
+  LEGACY_TOKEN_SECTION_ID,
   METRIC_TEXT_BYTES,
   GATE_ASN_MAX,
   GATE_EVENT_TYPE,
@@ -134,14 +135,14 @@ const EVENT_SHAPE_SQL = `CASE type
   ) THEN 1 ELSE 0 END
   WHEN 'sec' THEN CASE WHEN (
     ${eventTag('sec')}
-    AND ${enumField('sec', METRIC_SECTION_IDS)}
+    AND ${enumField('sec', [...METRIC_SECTION_IDS, LEGACY_TOKEN_SECTION_ID])}
     AND ${textField('path', 1, METRIC_TEXT_BYTES.path)}
     AND ${BEACON_META_PREDICATE}
   ) THEN 1 ELSE 0 END
   WHEN 'cta' THEN CASE WHEN (
     ${eventTag('cta')}
     AND ${enumField('cta', METRIC_CTA_IDS)}
-    AND ${enumField('sec', METRIC_CTA_SECTION_IDS)}
+    AND ${enumField('sec', [...METRIC_CTA_SECTION_IDS, LEGACY_TOKEN_SECTION_ID])}
     AND ${enumField('loc', LOCALES)}
     AND ${textField('path', 1, METRIC_TEXT_BYTES.path)}
     AND ${BEACON_META_PREDICATE}
@@ -435,12 +436,13 @@ const SECTION_SQL = DAY_EVENTS_CTE + `
 INSERT INTO daily_section (date, section_id, uniq)
 SELECT
   ?1,
-  COALESCE(CAST(json_extract(payload, '$.sec') AS TEXT), 'undefined'),
+  CASE WHEN json_extract(payload, '$.sec') = ${sqlText(LEGACY_TOKEN_SECTION_ID)} THEN 'uvt'
+       ELSE CAST(json_extract(payload, '$.sec') AS TEXT) END,
   COUNT(DISTINCT uid)
 FROM events
 WHERE type = 'sec'
   AND (${BOT_FLAG_SQL}) = 0
-GROUP BY COALESCE(CAST(json_extract(payload, '$.sec') AS TEXT), 'undefined')
+GROUP BY 2
 `;
 
 const FAQ_SQL = DAY_EVENTS_CTE + `

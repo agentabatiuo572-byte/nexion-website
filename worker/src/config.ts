@@ -9,12 +9,17 @@ import { deriveTranslationChanges, prepareTranslationChanges, translationFreshne
 import { enumerateTranslationFields } from '../../schema/src/draft-fields.js';
 import { loadRules } from './geo';
 import { checkDraftUpgrade, commitDraftUpgrade, validateUpgradeResolution, type DraftUpgradeStatus } from './config-upgrade';
+import { renameLegacyTokenConfig } from './token-rename';
 
 /* 配置模型(CON04-A1/E3 + CON13-③ 版本表底座)。
    编辑面永不直写线上:一切上新只经发布流水线(T21);此处只有 草稿/校验/版本读。 */
 
 const SEED = SiteConfigSchema.parse(addLegacyLocaleFields(seedJson, manifestJson.editable));
 const MANIFEST = manifestJson as unknown as CopyManifest;
+const editorSnapshot = (input: unknown): SiteConfig => {
+  const renamed = renameLegacyTokenConfig(input);
+  return addLegacyLocaleFields(renamed.ok ? renamed.config : input, MANIFEST.editable) as SiteConfig;
+};
 
 interface DraftRow {
   payload: string;
@@ -78,9 +83,10 @@ configRoutes.get('/', async (c) => {
   const configUpgrade = await ensureInit(c.env.DB);
   const [draft, live] = await Promise.all([getDraft(c.env.DB), getLive(c.env.DB)]);
   // Project old snapshots into the current editor shape without rewriting published history.
-  const livePayload = addLegacyLocaleFields(JSON.parse(live!.payload), MANIFEST.editable) as SiteConfig;
-  const draftPayload = addLegacyLocaleFields(JSON.parse(draft.payload), MANIFEST.editable) as SiteConfig;
-  const changed = diffPaths(livePayload, draftPayload);
+  const livePayload = editorSnapshot(JSON.parse(live!.payload));
+  const draftPayload = editorSnapshot(JSON.parse(draft.payload));
+  // The UI projects legacy names, but the publish diff must still include the actual stored rename.
+  const changed = diffPaths(addLegacyLocaleFields(JSON.parse(live!.payload), MANIFEST.editable) as SiteConfig, draftPayload);
   // CON02-③ geoEnabled:壳状态条第三 chip 的只读数据源(包④ 挂账「待 CON12 接真」,T17 交付后此处关账)
   const geo = await loadRules(c.env).catch(() => null);
   /* CON02-E2:上次发布失败 → 壳顶红条。只在「失败的那一版比线上还新」时才报——

@@ -4,7 +4,7 @@ import { scanForbidden as scanForbiddenShared } from '../../scripts/forbidden-pa
 import type { CopyManifest } from './manifest.js';
 import { MOCK_STAT_ANCHORS, SENSITIVE_COPY_PREFIXES, SiteConfigSchema, type SiteConfig, LOCALES } from './site-config.js';
 import { SOURCE_LOCALE } from './locales.js';
-import { enumerateTranslationFields, validateTranslationValue } from './draft-fields.js';
+import { containsLegacyTokenName, enumerateTranslationFields, validateTranslationValue } from './draft-fields.js';
 
 /* 校验器(CON04/05/06/07/08/09 各 E 条的发布级判据汇总,单源:控制台保存、发布前置校验、
    物化脚本三处同 import)。errors = 发布阻断;warnings = 软警告(可存草稿可发布,面上提示)。 */
@@ -73,6 +73,7 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
      「手机」变成「手<?>」——产品老实存下并物化,肉眼极难发现,上线即公开页面乱码。
      替换字符在正常文案里没有任何合法用途,见到即拒。这也保护「从别处复制粘贴」的场景。 */
   for (const [path, text] of allProse(c)) {
+    if (containsLegacyTokenName(text)) errors.push({ path, rule: 'stale-token', message: '文案仍含旧代币名称，请统一改为 UVT' });
     const i = text.indexOf('�');
     if (i >= 0) {
       const ctx = text.slice(Math.max(0, i - 8), i + 8);
@@ -81,12 +82,17 @@ export function validateConfig(c: SiteConfig, manifest: CopyManifest): Validatio
   }
 
   // Shared field guard also checks persisted/manual translations, not only fresh model output.
+  for (const sku of c.skus) if (containsLegacyTokenName(sku.name)) {
+    errors.push({ path: `skus.${sku.id}.name`, rule: 'stale-token', message: '产品名仍含旧代币名称，请统一改为 UVT' });
+  }
   for (const field of enumerateTranslationFields(c, manifest)) {
     if (!c.enabledLocales.includes(field.targetLocale) || !field.target.trim()) continue;
     const rule = validateTranslationValue(field, field.target);
+    if (rule === 'stale-token') continue; // Reported above for every locale, including the authored source.
     if (rule) errors.push({ path: field.draftFieldId.slice(1).replaceAll('/', '.'), rule,
       message: rule === 'translation-envelope' ? '译文含 AI 返回格式，请只填写译文正文'
         : rule === 'stale-brand' ? '译文仍含旧品牌名 NexGrid，请按当前原文更新'
+          : rule === 'stale-token' ? '译文仍含旧代币名称，请统一改为 UVT'
           : '译文格式与原文不符或超过字段限制' });
   }
 

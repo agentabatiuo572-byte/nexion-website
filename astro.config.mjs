@@ -30,7 +30,7 @@ export default defineConfig({
     },
   }, sitemap({
     i18n: { defaultLocale: 'en', locales: Object.fromEntries(activeLocales.map((locale) => [locale, locale])) },
-    filter: (page) => !/\/404\/?$/.test(new URL(page).pathname),
+    filter: (page) => !/\/(?:404|download)\/?$/.test(new URL(page).pathname),
   })],
   vite: { plugins: [tailwindcss()] },
   i18n: {

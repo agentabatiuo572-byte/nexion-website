@@ -1,0 +1,61 @@
+---
+import { useT, type Locale } from '../../i18n';
+import { DOWNLOAD_URLS } from '../../lib/downloads';
+import { distributionPath } from '../../lib/distribution';
+import '../../styles/distribution.css';
+import PlatformGlyph from './PlatformGlyph.astro';
+interface Props { locale: Locale; modal?: boolean }
+const { locale, modal = false } = Astro.props;
+const t = useT(locale);
+const textKeys = [
+  'iosTitle', 'androidTitle', 'h5Title', 'scanIos', 'scanAndroid', 'continueIos', 'downloadAndroid', 'openH5',
+  'unavailable', 'unavailableBody', 'h5Unavailable', 'h5UnavailableBody', 'preparing', 'initiated', 'initiatedBody',
+  'continueBody', 'blockedTitle', 'blockedBody', 'blockedIosBody', 'blockedH5Body', 'openingH5', 'openingH5Body',
+  'mismatchTitle', 'mismatchBody', 'unknownTitle', 'unknownBody', 'copied', 'copyFailed', 'retry',
+  'qrUnavailable', 'androidPackage', 'iosPage', 'webEdition', 'downloadNote', 'copyLink',
+  'title', 'headline', 'androidLead', 'scanAfter',
+];
+const messages = Object.fromEntries(textKeys.map(key => [key, t(`distribution.${key}`)]));
+---
+<section class="distribution-card" data-distribution-card data-locale={locale}
+  data-urls={JSON.stringify(DOWNLOAD_URLS)} data-messages={JSON.stringify(messages)}>
+  {modal && <button type="button" class="distribution-close" data-distribution-close aria-label={t('distribution.close')}>×</button>}
+  <div class="distribution-content">
+    <div class="distribution-icon-stage"><img class="distribution-icon" src="/downloads/uvel-app-icon.png" width="124" height="124" alt="UVEL" /></div>
+    <p class="distribution-edition" data-distribution-edition>
+      <span class="distribution-platform-icon" data-platform-icon="android"><PlatformGlyph platform="android" /></span>
+      <span class="distribution-platform-icon" data-platform-icon="ios"><PlatformGlyph platform="ios" /></span>
+      <span class="distribution-platform-icon" data-platform-icon="h5"><PlatformGlyph platform="h5" /></span>
+      <span data-distribution-edition-label>{t('distribution.androidPackage')}</span>
+    </p>
+    <h2 id={modal ? 'distribution-dialog-title' : 'distribution-title'} data-distribution-title>{t('distribution.title')}</h2>
+    <p class="distribution-description" data-distribution-description>{t('distribution.subtitle')}</p>
+    <div class="distribution-status" role="status" aria-live="polite" data-distribution-status hidden></div>
+    <div class="distribution-qr" data-distribution-qr-wrap hidden>
+      <div class="distribution-qr-image" role="img" aria-label={t('distribution.scanHint')} data-distribution-qr></div>
+      <p>{t('distribution.scanAfter')}</p>
+    </div>
+    <a class="distribution-primary" data-distribution-action href={distributionPath(locale)} hidden>{t('distribution.downloadAndroid')}</a>
+    <p class="distribution-install-note" data-distribution-note hidden>{t('distribution.downloadNote')}</p>
+    <a class="distribution-primary" data-distribution-switch href={distributionPath(locale)} hidden></a>
+    <div class="distribution-copy" data-distribution-copy-wrap hidden>
+      <button type="button" data-distribution-copy><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="6" width="12" height="15" rx="2"/><path d="M9 3h9a2 2 0 0 1 2 2v12"/></svg><span data-copy-label>{t('distribution.copyLink')}</span></button>
+      <input type="text" readonly aria-label={t('distribution.shareLink')} data-distribution-link hidden />
+      <p role="status" data-copy-status></p>
+    </div>
+    <details class="distribution-help" data-distribution-help>
+      <summary>{t('distribution.quickStart')}<span aria-hidden="true">+</span></summary>
+      <ol>
+        <li><strong>{t('distribution.step1')}</strong><p>{t('distribution.step1Body')}</p></li>
+        <li><strong>{t('distribution.step2')}</strong><p>{t('distribution.step2Body')}</p></li>
+        <li><strong>{t('distribution.step3')}</strong><p>{t('distribution.step3Body')}</p></li>
+      </ol>
+    </details>
+    <div class="distribution-options" aria-label={t('distribution.moreOptions')}>
+      <a href={distributionPath(locale, 'ios')} data-distribution-option="ios"><PlatformGlyph platform="ios" /><span>iOS</span><span aria-hidden="true">→</span></a>
+      <a href={distributionPath(locale, 'android')} data-distribution-option="android"><PlatformGlyph platform="android" /><span>Android</span><span aria-hidden="true">→</span></a>
+      <a href={distributionPath(locale, 'h5')} data-distribution-option="h5"><PlatformGlyph platform="h5" /><span>{t('distribution.h5Title')}</span><span aria-hidden="true">↗</span></a>
+    </div>
+    <noscript><p>{t('distribution.noScript')}</p></noscript>
+  </div>
+</section>

@@ -20,7 +20,7 @@ Saisissez le code de vérification, définissez votre mot de passe et effectuez 
 
 ## 3. Recevez votre cadeau de bienvenue
 
-Les nouveaux comptes reçoivent un bonus de bienvenue en NEX. Selon l’examen du compte, il est crédité immédiatement ou indiqué comme en attente. Les deux états sont visibles dans le tableau de bord, sans démarche supplémentaire.
+Les nouveaux comptes reçoivent un bonus de bienvenue en UVT. Selon l’examen du compte, il est crédité immédiatement ou indiqué comme en attente. Les deux états sont visibles dans le tableau de bord, sans démarche supplémentaire.
 
 ## 4. Vous y êtes
 

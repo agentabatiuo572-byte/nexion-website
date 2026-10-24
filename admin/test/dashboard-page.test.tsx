@@ -86,6 +86,40 @@ const healthy = {
   health: { probes: [], botShare: null, botLegacy: false, botDays: { covered: 0, total: 0 }, blocked: 0, blockedShare: null, blockedTop: [], geo: null, lastPublish: null },
 };
 
+it('labels historical token URLs in content and 404 rankings while keeping old and current counts separate', async () => {
+  const payload = {
+    ...healthy,
+    content: { ...healthy.content,
+      pages: [
+        { path: '/nex/', locale: 'en', pv: 17, uv: 8 },
+        { path: '/uvt/', locale: 'en', pv: 23, uv: 11 },
+        { path: '/vi/learn/staking-nex', locale: 'vi', pv: 5, uv: 3 },
+        { path: '/nexgrid/', locale: 'en', pv: 7, uv: 4 },
+      ],
+      learn: [{ slug: 'staking-nex', reads: 13 }, { slug: 'staking-uvt', reads: 19 }],
+    },
+    quality: { ...healthy.quality, notFound: [{ path: '/en/nex', hits: 3 }], notFoundTotal: 3 },
+  };
+  const before = structuredClone(payload);
+  mocks.api.mockResolvedValue(payload);
+  render(<MemoryRouter><Dashboard /></MemoryRouter>);
+  await screen.findByRole('heading', { name: '今日实时' });
+  const pages = within(card('页面 PV 榜')).getAllByRole('row');
+  expect(pages).toHaveLength(4);
+  expect(pages.map(row => row.querySelector('td:last-child')?.textContent)).toEqual(['17', '23', '5', '7']);
+  expect(pages[0]!.textContent).toBe('/uvt/旧链接en17');
+  expect(pages[1]!.textContent).toBe('/uvt/en23');
+  expect(pages[0]!.querySelector('[title]')?.getAttribute('title')).toBe('历史原链接：/nex/ · en');
+  expect(pages[2]!.textContent).toBe('/vi/learn/staking-uvt旧链接vi5');
+  expect(pages[3]!.textContent).toBe('/nexgrid/en7');
+  const learn = within(card('学习中心阅读榜')).getAllByRole('row');
+  expect(learn.map(row => row.textContent)).toEqual(['staking-uvt旧链接13', 'staking-uvt19']);
+  expect(learn[0]!.querySelector('[title]')?.getAttribute('title')).toBe('历史原链接：staking-nex');
+  const missing = within(card('性能与质量')).getAllByRole('row');
+  expect(missing.map(row => row.textContent)).toEqual(['/uvt旧链接3']);
+  expect(payload).toEqual(before);
+});
+
 it.each([
   ['overview', 'traffic', '独立访客 UV'], ['overview', 'downloads', '下载点击'],
   ['overview', 'conversion', '下载转化率'], ['', 'todayLive', '今日实时'],

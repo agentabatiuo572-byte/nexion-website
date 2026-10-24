@@ -20,7 +20,7 @@ Nhập mã xác minh, đặt mật khẩu, hoàn thành bước kiểm tra bảo
 
 ## 3. Nhận quà chào mừng
 
-Tài khoản mới nhận thưởng chào mừng bằng NEX. Tùy kết quả xét duyệt, thưởng vào ngay hoặc hiển thị đang chờ — cả hai trạng thái đều thấy trên màn hình chính, không cần thao tác thêm.
+Tài khoản mới nhận thưởng chào mừng bằng UVT. Tùy kết quả xét duyệt, thưởng vào ngay hoặc hiển thị đang chờ — cả hai trạng thái đều thấy trên màn hình chính, không cần thao tác thêm.
 
 ## 4. Hoàn tất
 

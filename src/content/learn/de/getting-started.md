@@ -20,7 +20,7 @@ Bestätigungscode eingeben, Passwort festlegen und die kurze Sicherheitsprüfung
 
 ## 3. Willkommensgeschenk abholen
 
-Neue Konten erhalten einen Willkommensbonus in NEX. Je nach Kontoprüfung wird er sofort gutgeschrieben oder als ausstehend angezeigt. Beide Zustände sind im Dashboard sichtbar; weitere Schritte sind nicht nötig.
+Neue Konten erhalten einen Willkommensbonus in UVT. Je nach Kontoprüfung wird er sofort gutgeschrieben oder als ausstehend angezeigt. Beide Zustände sind im Dashboard sichtbar; weitere Schritte sind nicht nötig.
 
 ## 4. Der Einstieg ist geschafft
 

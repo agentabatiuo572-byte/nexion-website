@@ -15,8 +15,12 @@ Both editions revise the compensation classifications and community-support sect
 
 The contents pages now use the actual chapter locations. The original technical-reference access date remains September 8, 2026; the revision date is October 16, 2026.
 
-English SHA-256: `9272376b29acb61d0d0bd8c074282a7d5f9fd941950dffb8c91e06219ec5453f`.
+English SHA-256: `4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20`.
 
 Chinese SHA-256: `7ef49310eb6a9b866e85186bf71f4342ad07e2574487f16f6b69a72f17a3f0c9`.
 
 The public PDF digest and English-only deployment boundary are checked by `scripts/test-uvel-identity.mjs` and the browser behavior gate. Changing the public whitepaper requires a fresh full-text and rendered-page review before updating its approved digest.
+
+## 2026-10-24 token rename
+
+The current token name is **UVT**. The public English PDF replaces all eight occurrences of the former ticker on pages 2, 13 and 18; the company and brand remain UVEL. Its filename, edition, business content and page layout are preserved. All 21 pages were checked for text equivalence apart from this rename and rendered for visual comparison. The Chinese comparison PDF remains a historical internal edition, not a source for the current token name.

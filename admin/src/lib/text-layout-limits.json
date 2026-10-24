@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "sourceHash": "65d71e26cbe4a331f2e2dd06d7acc0c5aaa5e66cced8fe4d420538c663c87a20",
-  "portableLayoutHash": "64c6add2aa8aa93cef63dc4c7794f2a15b039304a4dbc617eb5f24752cbedb68",
+  "sourceHash": "8ee1802f7d47d764200546b5275db9db2924312f92486593c94d8be36fec604f",
+  "portableLayoutHash": "2cba2d52b6e803286fe0950ad5b7e6d0486d730a04aef4bbe71f0ea1db4fd8b6",
   "locales": [
     "en",
     "vi",
@@ -138,19 +138,19 @@
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
       }
     },
-    "nav.nex": {
+    "nav.uvt": {
       "kind": "bounded",
       "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。",
       "references": {
-        "en": "NEX",
-        "vi": "NEX",
-        "es": "NEX",
-        "pt": "NEX",
-        "fr": "NEX",
-        "de": "NEX",
-        "ja": "NEX",
-        "ko": "NEX",
-        "zh": "NEX"
+        "en": "UVT",
+        "vi": "UVT",
+        "es": "UVT",
+        "pt": "UVT",
+        "fr": "UVT",
+        "de": "UVT",
+        "ja": "UVT",
+        "ko": "UVT",
+        "zh": "UVT"
       },
       "limits": {
         "en": 18,
@@ -405,58 +405,269 @@
       }
     },
     "download.ios": {
-      "kind": "bounded",
-      "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
-      "references": {
-        "en": "Download for iOS",
-        "vi": "Tải bản iOS",
-        "es": "Descargar para iOS",
-        "pt": "Baixar para iOS",
-        "fr": "Télécharger pour iOS",
-        "de": "Für iOS herunterladen",
-        "ja": "iOS版をダウンロード",
-        "ko": "iOS용 다운로드",
-        "zh": "iOS 下载"
-      },
-      "limits": {},
-      "previewReasons": {
-        "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
-        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
-      }
+      "kind": "metadata",
+      "description": "iOS 平台按钮的完整辅助名称，仅 aria-label；可见平台名固定为 iOS。"
     },
     "download.android": {
+      "kind": "metadata",
+      "description": "Android 平台按钮的完整辅助名称，仅 aria-label；可见平台名固定为 Android。"
+    },
+    "distribution.downloadApp": {
       "kind": "bounded",
       "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
       "references": {
-        "en": "Download for Android",
-        "vi": "Tải bản Android",
-        "es": "Descargar para Android",
-        "pt": "Baixar para Android",
-        "fr": "Télécharger pour Android",
-        "de": "Für Android herunterladen",
-        "ja": "Android版をダウンロード",
-        "ko": "Android용 다운로드",
-        "zh": "Android 下载"
+        "en": "Download App",
+        "vi": "Tải ứng dụng",
+        "es": "Descargar app",
+        "pt": "Baixar app",
+        "fr": "Télécharger l’app",
+        "de": "App herunterladen",
+        "ja": "アプリをダウンロード",
+        "ko": "앱 다운로드",
+        "zh": "下载 App"
       },
-      "limits": {},
+      "limits": {
+        "fr": 23,
+        "ja": 12,
+        "ko": 14,
+        "zh": 14
+      },
       "previewReasons": {
         "en": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "vi": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "es": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
         "pt": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "fr": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "de": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。",
-        "ko": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。",
-        "zh": "该字段受同区域内容及显示状态影响，无法给出可靠的固定字数上限，请查看前台预览。"
+        "de": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
       }
+    },
+    "distribution.title": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.iosTitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.androidTitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.initiated": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.openingH5": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.blockedTitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.mismatchTitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.unknownTitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.subtitle": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.scanIos": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.scanAndroid": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.h5UnavailableBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.blockedBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.blockedIosBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.blockedH5Body": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.unknownBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.unavailable": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.h5Unavailable": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.unavailableBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.continueBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.openingH5Body": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.initiatedBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.qrUnavailable": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.continueIos": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.downloadAndroid": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.openH5": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.retry": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.copied": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.copyFailed": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.androidPackage": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.webEdition": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.copyLink": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.scanAfter": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.quickStart": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.noScript": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.downloadNote": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.mismatchBody": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。",
+      "syntax": "template"
+    },
+    "distribution.step1": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.step1Body": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.step2": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.step2Body": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.step3": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.step3Body": {
+      "kind": "flowing",
+      "description": "下载弹窗与独立下载页的状态文案；仅在对应设备/下载状态显示，可换行，容器可滚动，不设固定总字数上限。"
+    },
+    "distribution.h5Title": {
+      "kind": "system",
+      "description": "下载状态标题与其他版本入口共用。入口文字不换行，取决于运行时显示的版本组合；不提供未经测量的字数上限，请在窄屏独立下载页预览检查。"
+    },
+    "distribution.backHome": {
+      "kind": "flowing",
+      "description": "独立下载页的返回官网链接可换行，不设固定总字数上限。"
+    },
+    "distribution.close": {
+      "kind": "metadata",
+      "description": "下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。"
+    },
+    "distribution.scanHint": {
+      "kind": "metadata",
+      "description": "下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。"
+    },
+    "distribution.moreOptions": {
+      "kind": "metadata",
+      "description": "下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。"
+    },
+    "distribution.shareLink": {
+      "kind": "metadata",
+      "description": "下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。"
+    },
+    "distribution.preparing": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.useIos": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.useAndroid": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.helpTitle": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.iosPage": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.tagline": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.headline": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
+    },
+    "distribution.androidLead": {
+      "kind": "metadata",
+      "description": "预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。"
     },
     "stats.activeDevices": {
       "kind": "flowing",
@@ -1582,47 +1793,47 @@
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
       }
     },
-    "nex.teaserTitle": {
+    "uvt.teaserTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.whatTitle": {
+    "uvt.teaser.whatTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.whatDesc": {
+    "uvt.teaser.whatDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.earnTitle": {
+    "uvt.teaser.earnTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.earnDesc": {
+    "uvt.teaser.earnDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.useTitle": {
+    "uvt.teaser.useTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.useDesc": {
+    "uvt.teaser.useDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaserCta": {
+    "uvt.teaserCta": {
       "kind": "bounded",
       "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
       "references": {
-        "en": "Learn more about NEX",
-        "vi": "Tìm hiểu thêm về NEX",
-        "es": "Más información sobre NEX",
-        "pt": "Saiba mais sobre NEX",
-        "fr": "En savoir plus sur NEX",
-        "de": "Mehr über NEX erfahren",
-        "ja": "NEXを詳しく知る",
-        "ko": "NEX 자세히 알아보기",
-        "zh": "深入了解 NEX"
+        "en": "Learn more about UVT",
+        "vi": "Tìm hiểu thêm về UVT",
+        "es": "Más información sobre UVT",
+        "pt": "Saiba mais sobre UVT",
+        "fr": "En savoir plus sur UVT",
+        "de": "Mehr über UVT erfahren",
+        "ja": "UVTを詳しく知る",
+        "ko": "UVT 자세히 알아보기",
+        "zh": "深入了解 UVT"
       },
       "limits": {
         "en": 27,
@@ -1637,199 +1848,199 @@
       },
       "previewReasons": {}
     },
-    "nex.pageTag": {
+    "uvt.pageTag": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.pageTitle": {
+    "uvt.pageTitle": {
       "kind": "flowing",
       "description": "页面标题自然增高，同时作为默认 SEO 标题。"
     },
-    "nex.pageLead": {
+    "uvt.pageLead": {
       "kind": "flowing",
       "description": "页面引言自然增高，同时作为默认 SEO 描述。"
     },
-    "nex.compareTitle": {
+    "uvt.compareTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpProp": {
+    "uvt.cmpProp": {
       "kind": "flowing",
       "description": "表头可换行，表格行高随内容增长。"
     },
-    "nex.cmpType": {
+    "uvt.cmpType": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpTypeUsdt": {
+    "uvt.cmpTypeUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpTypeNex": {
+    "uvt.cmpTypeUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVol": {
+    "uvt.cmpVol": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVolUsdt": {
+    "uvt.cmpVolUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVolNex": {
+    "uvt.cmpVolUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUse": {
+    "uvt.cmpUse": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUseUsdt": {
+    "uvt.cmpUseUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUseNex": {
+    "uvt.cmpUseUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.sourcesTitle": {
+    "uvt.sourcesTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src1Title": {
+    "uvt.src1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src1Desc": {
+    "uvt.src1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src2Title": {
+    "uvt.src2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src2Desc": {
+    "uvt.src2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src3Title": {
+    "uvt.src3Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src3Desc": {
+    "uvt.src3Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src4Title": {
+    "uvt.src4Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src4Desc": {
+    "uvt.src4Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.usesTitle": {
+    "uvt.usesTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use1Title": {
+    "uvt.use1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use1Desc": {
+    "uvt.use1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use2Title": {
+    "uvt.use2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use2Desc": {
+    "uvt.use2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use3Title": {
+    "uvt.use3Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use3Desc": {
+    "uvt.use3Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use4Title": {
+    "uvt.use4Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use4Desc": {
+    "uvt.use4Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use5Title": {
+    "uvt.use5Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use5Desc": {
+    "uvt.use5Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mechTitle": {
+    "uvt.mechTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech1Title": {
+    "uvt.mech1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech1Desc": {
+    "uvt.mech1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech2Title": {
+    "uvt.mech2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech2Desc": {
+    "uvt.mech2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faqTitle": {
+    "uvt.faqTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq1Q": {
+    "uvt.faq1Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq1A": {
+    "uvt.faq1A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq2Q": {
+    "uvt.faq2Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq2A": {
+    "uvt.faq2A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq3Q": {
+    "uvt.faq3Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq3A": {
+    "uvt.faq3A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq4Q": {
+    "uvt.faq4Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq4A": {
+    "uvt.faq4A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.getApp": {
+    "uvt.getApp": {
       "kind": "bounded",
       "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
       "references": {
@@ -1856,9 +2067,9 @@
       },
       "previewReasons": {}
     },
-    "nex.whitepaper": {
+    "uvt.whitepaper": {
       "kind": "bounded",
-      "description": "NEX 页按钮不换行；首页白皮书按钮允许换行且区域自然增高，不设首页按钮高度上限。两处需分别检查。",
+      "description": "UVT 页按钮不换行；首页白皮书按钮允许换行且区域自然增高，不设首页按钮高度上限。两处需分别检查。",
       "references": {
         "en": "Read the whitepaper",
         "vi": "Đọc whitepaper",
@@ -1982,7 +2193,7 @@
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "learn.topics.nex": {
+    "learn.topics.uvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
@@ -2393,7 +2604,7 @@
             "es": 52,
             "pt": 52,
             "fr": 62,
-            "de": 59,
+            "de": 56,
             "ja": 20,
             "ko": 24,
             "zh": 16
@@ -2413,7 +2624,7 @@
             "zh": "共享算力份额，无需任何硬件。"
           },
           "limits": {
-            "en": 48,
+            "en": 47,
             "vi": 58,
             "es": 54,
             "pt": 64,
@@ -2617,5 +2828,5 @@
       "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
     }
   },
-  "evidenceSha256": "9d3c784cd3a3371a5ac5d12c9e130fc757872dcbee9ab75875517e970f318b16"
+  "evidenceSha256": "9e79f94ea822707e74846b32044348a054227cded0240fd468a2adce30ab8f41"
 }

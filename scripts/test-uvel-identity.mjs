@@ -35,7 +35,7 @@ test('only the reviewed English whitepaper is in the public deployment directory
   assert.deepEqual(readdirSync(new URL('public/documents/', root)).filter(f => /whitepaper/i.test(f)), ['uvel-whitepaper-v1.3-en.pdf']);
   assert(existsSync(new URL('docs/whitepapers/uvel-whitepaper-v1.2-zh.pdf', root)));
   const sha = createHash('sha256').update(readFileSync(new URL('public/documents/uvel-whitepaper-v1.3-en.pdf', root))).digest('hex');
-  assert.equal(sha, '9272376b29acb61d0d0bd8c074282a7d5f9fd941950dffb8c91e06219ec5453f');
+  assert.equal(sha, '4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20');
   for (const name of ['cert-new-york.png','cert-new-york@2x.png','cert-msb.png','cert-msb@2x.png']) assert(existsSync(new URL(`public/${name}`, root)));
   assert(!existsSync(new URL('public/cert-colorado.png', root)));
 });

@@ -175,7 +175,7 @@ try {
   report.checks.push('all-nine-languages-seven-editors-mobile-4k-single-target-readonly-reference');
   for (const [route, path, canonical] of [
     ['seo', 'seo.learn.description.fr', 'seo.pages.learn.description.fr'],
-    ['seo', 'seo.pages.nex.title.ja', 'seo.pages.nex.title.ja'],
+    ['seo', 'seo.pages.uvt.title.ja', 'seo.pages.uvt.title.ja'],
     ['legal', 'legal.privacy.de', 'legal.privacy.md.de'],
     ['legal', 'legal.appPrivacy.md.ko', 'legal.appPrivacy.md.ko'],
   ]) {

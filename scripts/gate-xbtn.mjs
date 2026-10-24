@@ -38,12 +38,15 @@ function measure(button) {
   for (const el of chain) background = over(rgba(getComputedStyle(el).backgroundColor), background);
   const s = getComputedStyle(button), border = rgba(s.borderTopColor);
   const a = luminance(over(border, background)), b = luminance(background);
+  const ink = luminance(over(rgba(s.color), background));
   const rect = button.getBoundingClientRect();
   return {
     text: (button.querySelector('.xbtn-a, .static') || button).textContent.trim(),
     class: button.className, section: button.closest('section, dialog, nav, main')?.id || button.closest('section, dialog, nav, main')?.className,
     disabled: button.getAttribute('aria-disabled') === 'true', solid: button.classList.contains('solid'),
-    compactDownload: matchMedia('(max-width: 860px)').matches && button.matches('.hero .dl-wrap.floating .dl .xbtn.solid'),
+    glassAccent: button.matches('.dl-btn.solid, .download-toggle.solid'),
+    fill: rgba(s.backgroundColor), blur: s.backdropFilter,
+    textRatio: (Math.max(ink, b) + 0.05) / (Math.min(ink, b) + 0.05),
     paper: Boolean(button.closest('.cert-zoom')), visible: Boolean(rect.width && rect.height),
     border: s.borderTopColor, borderWidth: s.borderTopWidth, borderStyle: s.borderTopStyle,
     color: s.color, background: s.backgroundColor, surface: background,
@@ -60,9 +63,11 @@ function violations(sample) {
   if (!(parseFloat(sample.borderWidth) > 0 && parseFloat(sample.borderWidth) <= 1.1) || sample.borderStyle !== 'solid') issues.push('thin outline missing');
   // Preserve the existing independent light-dialog treatment and solid brand fill.
   if (!sample.paper && !sample.solid && sample.ratio < (sample.disabled ? 2 : 3)) issues.push(`faint outline ${sample.ratio.toFixed(2)}:1`);
-  // Existing mobile platform icons use the dark surface, not the desktop brand fill.
-  if (sample.compactDownload) {
-    if (sample.background !== 'rgb(12, 12, 13)' || sample.color !== 'rgb(255, 255, 255)' || sample.border !== 'rgba(255, 255, 255, 0.16)') issues.push('compact download style changed');
+  if (sample.glassAccent) {
+    if (sample.fill.slice(0, 3).some((c, i) => Math.abs(c - [158, 220, 29][i]) > 2)
+        || sample.fill[3] < 0.7 || sample.fill[3] >= 0.9) issues.push('download glass tint changed');
+    if (!sample.blur.includes('blur(')) issues.push('download glass blur missing');
+    if (sample.textRatio < 4.5) issues.push('download glass text contrast');
   } else if (sample.solid && (sample.background !== 'rgb(158, 220, 29)' || sample.border !== sample.background)) issues.push('solid brand changed');
   if (sample.paper && sample.border !== 'rgba(12, 12, 13, 0.23)') issues.push('light dialog changed');
   return issues;
@@ -74,12 +79,6 @@ async function record(page, route, width, phase = 'rest') {
     const sample = { route, width, phase, index, ...await buttons.nth(index).evaluate(measure) };
     samples.push(sample);
     for (const issue of violations(sample)) failures.push(`${route} ${width} ${phase} #${index}: ${issue}`);
-    if (sample.visible && sample.solid) {
-      const expected = sample.compactDownload ? 'compact download style changed' : 'solid brand changed';
-      assert(violations({ ...sample, background: 'rgb(255, 0, 0)' }).includes(expected), 'Wrong solid fill must fail');
-      assert(violations({ ...sample, border: 'rgb(255, 0, 0)' }).includes(expected), 'Wrong solid border must fail');
-      mutations += 2;
-    }
   }
 }
 
@@ -101,20 +100,26 @@ try {
       const response = await page.goto(base + route);
       assert(response.ok(), route);
       await page.evaluate(() => document.fonts.ready);
+      // Standalone distribution pages use their own controls and no marketing xbtn.
+      // They are covered by download-distribution in verify, including keyboard/touch.
+      if (await page.locator('[data-distribution-page]').count()) {
+        assert.match(await page.locator('meta[name="robots"]').getAttribute('content'), /noindex/);
+        continue;
+      }
       assert(await page.locator('.xbtn').count() > 0, `No buttons: ${route}`);
       await record(page, route, width);
       if (home) {
-        for (const selector of ['.hero .dl', '#path .cards', '#nex .more', '#learn-entry .more', '#final-cta .dl']) {
+        for (const selector of ['.hero .dl', '#path .cards', '#uvt .more', '#learn-entry .more', '#final-cta .dl']) {
           const target = page.locator(selector);
           assert.equal(await target.count(), 1, selector);
           await target.scrollIntoViewIfNeeded();
           if (out && width !== 1920) await target.screenshot({ path: resolve(out, `${route === '/' ? 'en' : route.split('/')[1]}-${width}-${selector.replaceAll(/[^a-z0-9]/gi, '_')}.png`) });
         }
         // Hover and keyboard focus must preserve the border and the slide-swap interaction.
-        const ghost = page.locator('#nex .xbtn');
+        const ghost = page.locator('#uvt .xbtn');
         const resting = await ghost.evaluate(measure);
         await ghost.hover();
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#nex .xbtn-b')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#uvt .xbtn-b')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
         const hover = await ghost.evaluate(measure);
         assert.equal(hover.border, resting.border);
         assert.equal(await ghost.locator('.xbtn-b').evaluate((el) => getComputedStyle(el).transform), 'matrix(1, 0, 0, 1, 0, 0)');
@@ -145,13 +150,30 @@ try {
         await page.locator('.hero .dl').waitFor({ state: 'visible' });
         // Execute the same measurement against the actual old token-based declarations.
         const old = await page.addStyleTag({ content: '.xbtn:not(.solid) { border-color:var(--x-line) !important } .xbtn.disabled { border-color:var(--x-line-soft) !important }' });
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#nex .xbtn')).borderTopColor === 'rgba(255, 255, 255, 0.16)');
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#uvt .xbtn')).borderTopColor === 'rgba(255, 255, 255, 0.16)');
         const oldGhost = await ghost.evaluate(measure);
         assert(violations(oldGhost).length > 0, `Old --x-line must fail: ${JSON.stringify(oldGhost)}`); mutations++;
         if (await disabled.count()) {
           assert(violations(await disabled.first().evaluate(measure)).length > 0, 'Old --x-line-soft must fail'); mutations++;
         }
         await old.evaluate((el) => el.remove());
+        // The requested glass CTA must remain translucent and readable, not merely
+        // escape the solid-fill assertion. Exercise both regressions on the real DOM.
+        const narrowMenu = page.locator('.menu-toggle');
+        const openedMenu = await narrowMenu.isVisible();
+        if (openedMenu) await narrowMenu.click();
+        const accent = page.locator('.download-toggle.solid:visible, .dl-btn.solid:visible').first();
+        assert(await accent.count(), 'No visible glass download CTA');
+        for (const alpha of [1, 0.2]) {
+          const regression = await page.addStyleTag({ content: `.dl-btn.solid, .download-toggle.solid { background:rgba(158,220,29,${alpha}) !important }` });
+          await page.waitForFunction(a => [...document.querySelectorAll('.dl-btn.solid, .download-toggle.solid')]
+            .filter(el => el.getBoundingClientRect().height > 0)
+            .every(el => getComputedStyle(el).backgroundColor === (a === 1 ? 'rgb(158, 220, 29)' : `rgba(158, 220, 29, ${a})`)), alpha);
+          assert(violations(await accent.evaluate(measure)).length > 0, `Glass opacity ${alpha} must fail`);
+          mutations++;
+          await regression.evaluate(el => el.remove());
+        }
+        if (openedMenu) await narrowMenu.click();
         await page.reload(); await page.evaluate(() => document.fonts.ready);
         await record(page, route, width, 'reload');
       }

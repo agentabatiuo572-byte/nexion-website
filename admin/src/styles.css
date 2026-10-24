@@ -218,11 +218,12 @@ input,textarea,select,[data-field] { scroll-margin-block:6.25rem 8.75rem; }
 .publisher-live-state.failed::before { background:#e06e65; }
 .publisher-phases { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin:0 0 1.375rem; padding:0; list-style:none; }
 .publisher-phases li { position:relative; display:flex; align-items:center; gap:0.6875rem; min-width:0; }
-.publisher-phases li::after { content:""; position:absolute; z-index:0; top:1rem; left:2.375rem; width:calc(100% - 2.75rem); height:1px; background:#3a4e40; }
+/* Keep each connector in flow after the label, so it never runs beneath text. */
+.publisher-phases li::after { content:""; flex:1 0 0.75rem; height:1px; margin-right:0.75rem; background:#3a4e40; }
 .publisher-phases li:last-child::after { display:none; }
 .publisher-phase-number { position:relative; z-index:1; display:grid; place-items:center; flex:none; width:2rem; height:2rem; border:1px solid #526459; border-radius:50%; background:#112019; color:#8fa096; font:600 var(--text-sm)/1 var(--mono); }
-.publisher-phases li div { min-width:0; padding-right:0.75rem; }
-.publisher-phases b,.publisher-phases small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.publisher-phases li div { min-width:0; flex:0 1 auto; }
+.publisher-phases b,.publisher-phases small { display:block; overflow-wrap:anywhere; }
 .publisher-phases b { color:#dae4dd; font-size:var(--text-sm); font-weight:600; }
 .publisher-phases small { margin-top:0.125rem; color:#83958a; }
 .publisher-phases li[data-state='done'] .publisher-phase-number { color:#17230a; background:var(--brand); border-color:var(--brand); }

@@ -31,10 +31,12 @@ function check(label, pass, detail = '') {
   if (!pass) failures.push(`${label}${detail ? ` — ${detail}` : ''}`);
 }
 
-function downloadsUseA3({ oldUrls, heroUrls, finalUrls, navH5 }) {
-  const expected = ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'];
-  return oldUrls === 0 && JSON.stringify(heroUrls) === JSON.stringify(expected)
-    && JSON.stringify(finalUrls) === JSON.stringify(expected) && navH5 === expected[2];
+function downloadsUseA3({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }) {
+  const expected = { ios: '/api/app-download/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' };
+  // The distribution shell owns navigation; its destination data must retain main's live A3 resolver.
+  return oldUrls === 0 && heroEntries === 4 && finalEntries === 4 && navH5 === 0
+    && Object.keys(expected).every(key => configuredUrls[key] === expected[key])
+    && Object.keys(configuredUrls).length === 3;
 }
 
 function matchesPreciseGrowth(value) {
@@ -114,14 +116,15 @@ async function selfTest() {
     ['Unicode 同 hash 可归一', decodeURIComponent('#1-%E5%AE%89%E8%A3%85'.slice(1)) === '1-安装'],
     ['不同公告 id 不误关闭', 'old-id' !== 'new-id'],
     ['窗口结束点为排他', !(100 >= 0 && 100 < 100)],
-    ['A3 入口与正式 H5 单源', downloadsUseA3({ oldUrls: 0,
-      heroUrls: ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'],
-      finalUrls: ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'], navH5: 'https://app.uvel.ai/h5/' })],
-    ['旧环境下载回流样本被拒', !downloadsUseA3({ oldUrls: 1, heroUrls: [], finalUrls: [], navH5: '' })],
+    ['分发入口保留 A3 与正式 H5 单源', downloadsUseA3({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0,
+      configuredUrls: { ios: '/api/app-download/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' } })],
+    ['旧环境下载回流样本被拒', !downloadsUseA3({ oldUrls: 1, heroEntries: 4, finalEntries: 4, navH5: 0, configuredUrls: {} })],
+    ['弹窗旧下载地址被拒', !downloadsUseA3({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0,
+      configuredUrls: { ios: 'https://old.example/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' } })],
     ['小数基数正算稳定', matchesPreciseGrowth('157')],
     ['小数基数偏一坏样本被拒', !matchesPreciseGrowth('158')],
     ['下载关闭态压过旧环境', resolveDownloadUrl({ enabled: false, url: '' }, 'https://old.example') === ''],
-    ['下载开启态仍可吃环境兜底', resolveDownloadUrl({ enabled: true, url: '' }, 'https://ok.example') === 'https://ok.example'],
+    ['下载开启态仍可吃环境兜底', resolveDownloadUrl({ enabled: true, url: '' }, 'https://ok.example') === 'https://ok.example/'],
     ['Markdown 前置空行后 H1 被提为页标题', renderLegalMarkdown('\n\n# Title\n\nBody').title === 'Title'],
     ['公告协议相对 URL 被校验器拒绝', protocolErrors.some((error) => error.path === 'announcement.href')],
     ['Legal 协议相对 URL 不生成链接', !renderLegalMarkdown('[bad](//external.example/path)').html.includes('<a ')],
@@ -439,12 +442,12 @@ try {
 
   const whitepaperUrl = '/documents/uvel-whitepaper-v1.3-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '9272376b29acb61d0d0bd8c074282a7d5f9fd941950dffb8c91e06219ec5453f');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
   ));
-  const nexWhitepaperUrl = loadEnv('production', ROOT, 'PUBLIC_').PUBLIC_WHITEPAPER_URL?.trim() || whitepaperUrl;
+  const uvtWhitepaperUrl = loadEnv('production', ROOT, 'PUBLIC_').PUBLIC_WHITEPAPER_URL?.trim() || whitepaperUrl;
   for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     const whitepaper = page.locator('#trust [data-whitepaper]');
@@ -464,7 +467,7 @@ try {
       && await read.getAttribute('href') === whitepaperUrl && await read.getAttribute('target') === '_blank'
       && await read.getAttribute('hreflang') === 'en'
       && (await read.getAttribute('rel') || '').split(' ').includes('noopener')
-      && (await read.locator('.xbtn-a').textContent()).includes(core.copy[locale]['nex.whitepaper']));
+      && (await read.locator('.xbtn-a').textContent()).includes(core.copy[locale]['uvt.whitepaper']));
     if (locale === enabledLocales[0]) {
       const [reader, response] = await Promise.all([
         page.waitForEvent('popup'),
@@ -498,11 +501,11 @@ try {
       }
     }
     await page.setViewportSize(originalViewport);
-    await page.goto(`${coreUrl}${pagePath(locale, '/nex/')}`, { waitUntil: 'domcontentloaded' });
-    const nexRead = page.locator('a[data-whitepaper-read]');
-    check(`白皮书 ${locale} NEX 默认入口或环境覆盖`, await nexRead.count() === 1
-      && await nexRead.isVisible() && await nexRead.getAttribute('href') === nexWhitepaperUrl
-      && (nexWhitepaperUrl !== whitepaperUrl || await nexRead.getAttribute('hreflang') === 'en'));
+    await page.goto(`${coreUrl}${pagePath(locale, '/uvt/')}`, { waitUntil: 'domcontentloaded' });
+    const uvtRead = page.locator('a[data-whitepaper-read]');
+    check(`白皮书 ${locale} UVT 默认入口或环境覆盖`, await uvtRead.count() === 1
+      && await uvtRead.isVisible() && await uvtRead.getAttribute('href') === uvtWhitepaperUrl
+      && (uvtWhitepaperUrl !== whitepaperUrl || await uvtRead.getAttribute('hreflang') === 'en'));
   }
 
   /* L01 的 hash 展开/聚焦是信息导航，不得被初始 reduced-motion 连带关闭。 */
@@ -542,7 +545,7 @@ try {
   const seoRoutes = {
     home: '/',
     learn: '/learn/',
-    nex: '/nex/',
+    uvt: '/uvt/',
     'legal-privacy': '/legal/privacy/',
     'legal-terms': '/legal/terms/',
     'legal-app-privacy': '/legal/app-privacy/',
@@ -593,13 +596,14 @@ try {
 
   await page.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
   const oldUrls = await page.locator('a[href*="OLD_"]').count();
-  const heroUrls = await page.locator('#download .dl a').evaluateAll(links => links.map(link => link.getAttribute('href')));
-  const finalUrls = await page.locator('#final-cta .dl a').evaluateAll(links => links.map(link => link.getAttribute('href')));
-  const navH5 = await page.locator('#site-nav .h5').getAttribute('href');
+  const heroEntries = await page.locator('#download .dl a[data-download-entry][href^="/download/"]').count();
+  const finalEntries = await page.locator('#final-cta .dl a[data-download-entry][href^="/download/"]').count();
+  const navH5 = await page.locator('#site-nav .h5').count();
+  const configuredUrls = await page.locator('[data-distribution-card]').evaluate(card => JSON.parse(card.dataset.urls));
   check(
-    'M11 A3 入口覆盖旧官网配置与 PUBLIC_URL',
-    downloadsUseA3({ oldUrls, heroUrls, finalUrls, navH5 }),
-    `旧链=${oldUrls}, hero=${heroUrls}, final=${finalUrls}, navH5=${navH5}`,
+    'M11 分发入口保留 A3，覆盖旧官网配置与 PUBLIC_URL',
+    downloadsUseA3({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }),
+    `旧链=${oldUrls}, hero入口=${heroEntries}, final入口=${finalEntries}, navH5=${navH5}, 实际地址=${JSON.stringify(configuredUrls)}`,
   );
 
   const expiredContext = await browser.newContext({ reducedMotion: 'reduce' });

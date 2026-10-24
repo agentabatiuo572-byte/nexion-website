@@ -32,7 +32,7 @@ const { manifest } = seed;
 const report = { status: 'running', source, variants: [], errors: [] };
 writeFileSync(join(output, 'public-runtime.json'), JSON.stringify(report));
 const articles = readdirSync(join(root, 'src/content/learn/en')).filter((name) => name.endsWith('.md'));
-const paths = ['/', '/nex/', '/learn/', '/legal/terms/', '/legal/privacy/', '/legal/app-privacy/', ...articles.map((name) => `/learn/${name.slice(0, -3)}/`)];
+const paths = ['/', '/uvt/', '/learn/', '/legal/terms/', '/legal/privacy/', '/legal/app-privacy/', ...articles.map((name) => `/learn/${name.slice(0, -3)}/`)];
 const route = (locale, path) => `${locale === 'en' ? '' : `/${locale}`}${path}`;
 const mime = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml', '.xml': 'application/xml', '.ico': 'image/x-icon' };
 
@@ -101,7 +101,7 @@ try {
           assert.equal(response.status(), 200, `${name}: ${url}`);
           assert.equal(await page.locator('html').getAttribute('lang'), locale);
           assert(await page.locator('main').innerText(), `${url}: empty page`);
-          const seoId = ({ '/': 'home', '/nex/': 'nex', '/learn/': 'learn', '/legal/privacy/': 'legal-privacy', '/legal/terms/': 'legal-terms', '/legal/app-privacy/': 'legal-app-privacy' })[path];
+          const seoId = ({ '/': 'home', '/uvt/': 'uvt', '/learn/': 'learn', '/legal/privacy/': 'legal-privacy', '/legal/terms/': 'legal-terms', '/legal/app-privacy/': 'legal-app-privacy' })[path];
           const seo = config.seo.pages[seoId];
           if (seo?.title[locale]?.trim()) {
             const title = seo.title[locale].trim();
@@ -138,14 +138,14 @@ try {
           result.routes.push(url);
         }
         if (!enabled.includes(locale)) continue;
-        await page.goto(base + route(locale, '/nex/'));
+        await page.goto(base + route(locale, '/uvt/'));
         const picker = page.locator('.lang-picker');
         await picker.locator('summary').focus();
         await page.keyboard.press('Enter');
         assert(await picker.getAttribute('open') !== null, `${locale}: keyboard menu opening`);
         const target = enabled[(enabled.indexOf(locale) + 1) % enabled.length];
         await picker.locator(`a[hreflang="${target}"]`).click();
-        await page.waitForURL(base + route(target, '/nex/'));
+        await page.waitForURL(base + route(target, '/uvt/'));
         assert.equal(await page.locator('html').getAttribute('lang'), target);
         result.menu.push({ from: locale, to: target });
         if (name === 'all-nine') for (const width of [320, 390, 1440, 3840]) {

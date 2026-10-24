@@ -129,7 +129,7 @@ test('working artifact rejects wrong bytes, cancellation, source aliases and lin
   assert.equal(directoryDigest(dist).sha256, q.artifactSha);
 });
 test('scoped layout coverage requires selected page components and still rejects missing expected samples', () => {
-  const home = { route: '/', home: true }, product = { route: '/vi/nex/', home: false };
+  const home = { route: '/', home: true }, product = { route: '/vi/uvt/', home: false };
   const observed = { hero: 10, grid: 0, menu: 4, how: 15, trust: 18 }; // Actual v3 failed-run observations.
   assert.deepEqual(sampleCoverageFailures([home], observed), []);
   assert.deepEqual(sampleCoverageFailures([product], observed), ['grid 无观测样本']);

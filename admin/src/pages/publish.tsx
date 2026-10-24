@@ -135,7 +135,7 @@ const RULE_LABEL: Record<string, string> = {
   'all-hidden': '设备板块全隐藏', 'min-visible': 'FAQ 可见不足 3 条', 'dup-id': 'FAQ id 重复', window: '公告时间窗',
   structure: '数据结构', 'seo-length': 'SEO 长度', 'pending-assets': '信任资料占位',
   'translation-stale': '译文待更新', 'newline-shape': '换行结构', 'encoding-damage': '编码损坏字符',
-  'too-long': '译文超长', 'translation-envelope': 'AI 格式包装', 'stale-brand': '旧品牌名',
+  'too-long': '译文超长', 'translation-envelope': 'AI 格式包装', 'stale-brand': '旧品牌名', 'stale-token': '旧代币名称',
   link: '译文链接不一致', markup: '译文标记结构不一致',
   'growth-noop': '自动增长没配增量', 'growth-future': '自动增长起算日在未来', 'growth-too-fast': '自动增长过快',
 };

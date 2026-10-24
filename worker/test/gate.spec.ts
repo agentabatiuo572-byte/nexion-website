@@ -147,7 +147,7 @@ describe('isGateExemptPath', () => {
     for (const path of ['/admin', '/admin/x', '/api/health', '/robots.txt', '/sitemap-index.xml', '/sitemap-0.xml', '/.well-known/security.txt', '/__gate/verify', '/logo-lockup-dark.webp', '/assets/app.js', '/data.json']) {
       expect(isGateExemptPath(path), path).toBe(true);
     }
-    for (const path of ['/', '/learn/how-it-works', '/zh/nex', '/index.html', '/foo.html', '/documents/uvel-whitepaper-v1.2-en.pdf']) {
+    for (const path of ['/', '/learn/how-it-works', '/zh/uvt', '/index.html', '/foo.html', '/documents/uvel-whitepaper-v1.2-en.pdf']) {
       expect(isGateExemptPath(path), path).toBe(false);
     }
   });

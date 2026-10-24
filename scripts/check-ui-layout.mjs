@@ -4,6 +4,13 @@ import { pathToFileURL } from 'node:url';
 import { chromium } from 'playwright';
 import { readBuiltPages } from './gate-built-routes.mjs';
 
+// Utility pages deliberately omit the marketing menu. A missing menu alone is
+// never an exemption; both the explicit page marker and a noindex token are required.
+function standaloneDownloadPage() {
+  const robots = document.querySelector('meta[name="robots"]')?.getAttribute('content') || '';
+  return !!document.querySelector('[data-distribution-page]') && robots.toLowerCase().split(/[\s,]+/).includes('noindex');
+}
+
 function measureLayout(kind) {
   const failures = [];
   let samples = 0;
@@ -25,7 +32,7 @@ function measureLayout(kind) {
     }
   }
   if (kind === 'grid') {
-    const required = location.pathname.endsWith('/nex/') ? '.mech > .mcard'
+    const required = location.pathname.endsWith('/uvt/') ? '.mech > .mcard'
       : location.pathname.endsWith('/learn/') ? '.learn > .grid > .card' : null;
     if (required && !document.querySelector(required)) failures.push('预期卡片缺失');
     for (const child of document.querySelectorAll('.mech > .mcard, .learn > .grid > .card')) {
@@ -98,12 +105,13 @@ export function sampleCoverageFailures(pages, samples) {
   // Full-site runs still require every kind present in their complete route set.
   const required = ['menu'];
   if (pages.some(entry => entry.home)) required.push('hero', 'how', 'trust');
-  if (pages.some(entry => /\/(?:nex|learn)\/$/.test(entry.route))) required.push('grid');
+  if (pages.some(entry => /\/(?:uvt|learn)\/$/.test(entry.route))) required.push('grid');
   return required.filter(kind => !samples[kind]).map(kind => `${kind} 无观测样本`);
 }
 
 export async function checkUiLayout(browser, base, pages, onProgress) {
   const failures = [], samples = { hero: 0, grid: 0, menu: 0, how: 0, trust: 0 };
+  const marketingPages = [], skippedRoutes = [];
   const context = await browser.newContext({ reducedMotion: 'reduce' });
   const page = await context.newPage();
   const check = async (kind, route, width, height) => {
@@ -114,6 +122,15 @@ export async function checkUiLayout(browser, base, pages, onProgress) {
   try {
     for (const [index, entry] of pages.entries()) {
       onProgress?.(`页面布局：菜单与卡片 ${index + 1}/${pages.length}，当前 ${entry.route}`);
+      await page.setViewportSize({ width: 320, height: 844 });
+      const classificationResponse = await page.goto(base + entry.route, { waitUntil: 'load' });
+      assert(classificationResponse?.ok(), `无法读取 ${entry.route}`);
+      if (await page.evaluate(standaloneDownloadPage)) {
+        skippedRoutes.push(entry.route);
+        continue;
+      }
+      marketingPages.push(entry);
+      assert(await page.locator('.menu-toggle').count(), `普通页面缺少导航菜单：${entry.route}`);
       for (const width of [320, 340, 360, 390]) {
         const height = 844;
         await page.setViewportSize({ width, height });
@@ -142,8 +159,10 @@ export async function checkUiLayout(browser, base, pages, onProgress) {
         await check('trust', entry.route, width, height);
       }
     }
-    failures.push(...sampleCoverageFailures(pages, samples));
-    return { failures, samples };
+    // An explicit utility-only scope is covered by the download browser gate.
+    // An empty scope still fails; ordinary pages still require menu samples.
+    if (marketingPages.length || !skippedRoutes.length) failures.push(...sampleCoverageFailures(marketingPages, samples));
+    return { failures, samples, skippedRoutes };
   } finally { await context.close(); }
 }
 
@@ -151,6 +170,19 @@ async function selfTest(browser) {
   const page = await browser.newPage({ viewport: { width: 320, height: 768 } });
   const pixel = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
   let checks = 0;
+  for (const [html, expected] of [
+    ['<meta name="robots" content="noindex"><main data-distribution-page></main>', true],
+    ['<meta name="robots" content="NOINDEX, nofollow"><main data-distribution-page></main>', true],
+    ['<meta name="robots" content="not-noindex"><main data-distribution-page></main>', false],
+    ['<main data-distribution-page></main>', false],
+    ['<meta name="robots" content="noindex"><main></main>', false],
+    ['<main>No menu</main>', false],
+  ]) {
+    await page.setContent(html);
+    assert.equal(await page.evaluate(standaloneDownloadPage), expected, '独立下载页必须同时具备明确标记和 noindex'); checks++;
+  }
+  assert(sampleCoverageFailures([], {}).length > 0, '空范围仍失败'); checks++;
+  assert(sampleCoverageFailures([{ route: '/learn/', home: false }], { grid: 1 }).includes('menu 无观测样本'), '普通页面仍需导航样本'); checks++;
   for (const [kind, good, bad] of [
     ['hero', '<div class="hero"><div class="dl-wrap">Download</div><p class="note2">Copy</p></div>', '.hero{padding-top:780px}'],
     ['grid', '<div class="mech" style="width:242px;display:grid"><article class="mcard">Card</article></div>', '.mcard{width:260px}'],

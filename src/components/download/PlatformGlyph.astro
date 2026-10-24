@@ -1,0 +1,19 @@
+---
+interface Props { platform: 'ios' | 'android' | 'h5' }
+const { platform } = Astro.props;
+---
+<svg class="distribution-glyph" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+  {platform === 'ios' && <>
+    <path fill="currentColor" d="M16.9 12.7c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.6-2.9-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.2 1.1-2.3 1.1-2.4 0-.1-2.2-.9-2.2-3.3z"/>
+    <path fill="currentColor" d="M14.2 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z"/>
+  </>}
+  {platform === 'android' && <g fill="currentColor">
+    <path d="M7 8a5 5 0 0 1 10 0v1H7zM7 10h10v7a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1z"/>
+    <path d="m8 4-1-2m9 2 1-2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+    <rect x="3.5" y="9.5" width="2.5" height="7" rx="1.25"/><rect x="18" y="9.5" width="2.5" height="7" rx="1.25"/>
+    <rect x="8" y="17" width="2.5" height="5" rx="1.25"/><rect x="13.5" y="17" width="2.5" height="5" rx="1.25"/>
+    <circle cx="9.5" cy="6.5" r=".65" fill="var(--platform-glyph-cutout, var(--x-accent))"/><circle cx="14.5" cy="6.5" r=".65" fill="var(--platform-glyph-cutout, var(--x-accent))"/>
+  </g>}
+  {platform === 'h5' && <g fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18M5 6.5h14M5 17.5h14"/></g>}
+</svg>
+

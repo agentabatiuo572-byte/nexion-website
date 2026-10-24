@@ -8,11 +8,14 @@ export const METRIC_SECTION_IDS = [
   'how',
   'path',
   'trust',
-  'nex',
+  'uvt',
   'learn-entry',
   'faq',
   'final-cta',
 ] as const;
+/** Old cached pages and immutable raw events still use this historical section ID. */
+export const LEGACY_TOKEN_SECTION_ID = 'nex' as const;
+export const normalizeMetricSectionId = (value: unknown): unknown => value === LEGACY_TOKEN_SECTION_ID ? 'uvt' : value;
 
 export const METRIC_CTA_IDS = ['ios', 'android', 'h5', 'contact'] as const;
 /** Download/Web App conversion KPI. Contact stays a valid tracked CTA but is not a product conversion. */

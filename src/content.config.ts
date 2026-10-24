@@ -9,7 +9,7 @@ const learn = defineCollection({
   schema: z.object({
     title: z.string(),
     description: z.string(),
-    topic: z.enum(['start', 'earn', 'devices', 'wallet', 'team', 'nex']),
+    topic: z.enum(['start', 'earn', 'devices', 'wallet', 'team', 'uvt']),
     appVersion: z.string(),
     updatedAt: z.string(),
     order: z.number(),

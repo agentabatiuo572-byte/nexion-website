@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Everything your devices earn settles into the in-app wallet in two assets: USDT (the stable settlement asset) and NEX (the platform token).
+Everything your devices earn settles into the in-app wallet in two assets: USDT (the stable settlement asset) and UVT (the platform token).
 
 ## Reading the dashboard
 
@@ -21,7 +21,7 @@ Withdrawals are in USDT. Set your withdrawal address once in Wallet → Security
 ## Making a withdrawal
 
 1. Open Wallet → Withdraw.
-2. Enter the amount; the screen shows the network confirmation fee. You can burn NEX to offset that fee if you hold any.
+2. Enter the amount; the screen shows the network confirmation fee. You can burn UVT to offset that fee if you hold any.
 3. Confirm with your security verification. The request enters review, and you can track its status on the withdrawal record.
 
 ## If something looks off

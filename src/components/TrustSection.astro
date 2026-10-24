@@ -46,7 +46,7 @@ const MEANS = [1, 2, 3] as const;
                 data-alt={t(`trust.${alt}`)}
                 aria-label={t('trust.certZoom')}
               >
-                <img src={`/cert-${cert}.png`} alt={t(`trust.${alt}`)} width="660" height="881" loading="lazy" />
+                <img src={`/cert-${cert}.png`} alt={t(`trust.${alt}`)} width="660" height={cert === 'new-york' ? 855 : 934} loading="lazy" />
                 <span class="cert-hint x-label">{t('trust.certZoom')}</span>
               </a>
             </figure>
@@ -108,9 +108,9 @@ const MEANS = [1, 2, 3] as const;
       <p class="whitepaper-details x-label">{t('trust.whitepaper.details', { version: WHITEPAPER.version, pages: WHITEPAPER.pages })}</p>
     </div>
     <a class="whitepaper-read xbtn solid" href={WHITEPAPER.url} hreflang={WHITEPAPER.language} type="application/pdf" target="_blank" rel="noopener noreferrer">
-      <span class="xbtn-ghost" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
-      <span class="xbtn-a">{t('nex.whitepaper')} <span class="arr" aria-hidden="true">↗</span></span>
-      <span class="xbtn-b" aria-hidden="true">{t('nex.whitepaper')} <span class="arr">↗</span></span>
+      <span class="xbtn-ghost" aria-hidden="true">{t('uvt.whitepaper')} <span class="arr">↗</span></span>
+      <span class="xbtn-a">{t('uvt.whitepaper')} <span class="arr" aria-hidden="true">↗</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('uvt.whitepaper')} <span class="arr">↗</span></span>
     </a>
   </article>
 </section>

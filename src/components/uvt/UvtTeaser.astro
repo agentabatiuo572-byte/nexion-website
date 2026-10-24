@@ -1,8 +1,8 @@
 ---
-/* [FEAT-WEB10] Home NEX 锚点板块 — R48 玻璃重构(章 04,B+C 杂交):
-   章头 = 幽灵编号 04(左,正文右让)+ kicker(nex.pageTag)+ 44 档标题(nex.teaserTitle);
-   三卡改「1 高柠檬瓷砖 + 2 宽素瓷砖」:what 档带 NEX 字符水印为品牌记忆点,earn/use 横排;
-   Learn more 按钮 → /nex/ 原样;视差保留(what 档 k 略小,高瓷砖大位移会撞相邻行)。 */
+/* [FEAT-WEB10] Home UVT 锚点板块 — R48 玻璃重构(章 04,B+C 杂交):
+   章头 = 幽灵编号 04(左,正文右让)+ kicker(uvt.pageTag)+ 44 档标题(uvt.teaserTitle);
+   三卡改「1 高柠檬瓷砖 + 2 宽素瓷砖」:what 档带 UVT 字符水印为品牌记忆点,earn/use 横排;
+   Learn more 按钮 → /uvt/ 原样;视差保留(what 档 k 略小,高瓷砖大位移会撞相邻行)。 */
 import { useT, type Locale } from '../../i18n';
 import Icon from '../Icon.astro';
 
@@ -14,21 +14,21 @@ const t = useT(locale);
 const prefix = locale === 'en' ? '' : `/${locale}`;
 ---
 
-<section class="nex-teaser" id="nex">
+<section class="uvt-teaser" id="uvt">
   <div class="head">
     <span class="x-ghost ghost" aria-hidden="true">04</span>
     <div class="lead">
-      <p class="lab x-mono-lg" data-tw>{t('nex.pageTag')}</p>
-      <h2 class="x-display" data-lr>{t('nex.teaserTitle')}</h2>
+      <p class="lab x-mono-lg" data-tw>{t('uvt.pageTag')}</p>
+      <h2 class="x-display" data-lr>{t('uvt.teaserTitle')}</h2>
     </div>
   </div>
   <div class="cards">
     <article class="card what x-tile x-tile-lit rv-fade" data-rv data-plx={0.05}>
       <p class="idx x-mono" data-tw>01</p>
       <div class="stack">
-        <span class="glyph x-display" aria-hidden="true">NEX</span>
-        <h3 class="x-display" data-lr>{t('nex.teaser.whatTitle')}</h3>
-        <p class="x-copy desc">{t('nex.teaser.whatDesc')}</p>
+        <span class="glyph x-display" aria-hidden="true">UVT</span>
+        <h3 class="x-display" data-lr>{t('uvt.teaser.whatTitle')}</h3>
+        <p class="x-copy desc">{t('uvt.teaser.whatDesc')}</p>
       </div>
     </article>
     {/* R48.1 主人改令②:02/03 从跨行栅格改显式右列,**视差挂在整列**上 ——
@@ -41,8 +41,8 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
           <Icon name="coin-bolt" class="tic" />
         </p>
         <div class="stack">
-          <h3 class="x-display" data-lr data-lr-delay={100}>{t('nex.teaser.earnTitle')}</h3>
-          <p class="x-copy desc">{t('nex.teaser.earnDesc')}</p>
+          <h3 class="x-display" data-lr data-lr-delay={100}>{t('uvt.teaser.earnTitle')}</h3>
+          <p class="x-copy desc">{t('uvt.teaser.earnDesc')}</p>
         </div>
       </article>
       <article class="card x-tile rv-fade" data-rv>
@@ -51,23 +51,23 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
           <Icon name="swap" class="tic" />
         </p>
         <div class="stack">
-          <h3 class="x-display" data-lr data-lr-delay={200}>{t('nex.teaser.useTitle')}</h3>
-          <p class="x-copy desc">{t('nex.teaser.useDesc')}</p>
+          <h3 class="x-display" data-lr data-lr-delay={200}>{t('uvt.teaser.useTitle')}</h3>
+          <p class="x-copy desc">{t('uvt.teaser.useDesc')}</p>
         </div>
       </article>
     </div>
   </div>
   <div class="more" data-rv>
-    <a class="xbtn" href={`${prefix}/nex/`}>
-      <span class="xbtn-ghost" aria-hidden="true">{t('nex.teaserCta')} <span class="arr">→</span></span>
-      <span class="xbtn-a">{t('nex.teaserCta')} <span class="arr">→</span></span>
-      <span class="xbtn-b" aria-hidden="true">{t('nex.teaserCta')} <span class="arr">→</span></span>
+    <a class="xbtn" href={`${prefix}/uvt/`}>
+      <span class="xbtn-ghost" aria-hidden="true">{t('uvt.teaserCta')} <span class="arr">→</span></span>
+      <span class="xbtn-a">{t('uvt.teaserCta')} <span class="arr">→</span></span>
+      <span class="xbtn-b" aria-hidden="true">{t('uvt.teaserCta')} <span class="arr">→</span></span>
     </a>
   </div>
 </section>
 
 <style>
-  .nex-teaser {
+  .uvt-teaser {
     padding: 0 var(--x-pad);
   }
   .head {
@@ -140,7 +140,7 @@ const prefix = locale === 'en' ? '' : `/${locale}`;
     flex-direction: column;
     gap: calc(14 * var(--uc));
   }
-  /* NEX 字符水印:品牌记忆点,只在高瓷砖;hot 档大字压柠檬 lit 底 */
+  /* UVT 字符水印:品牌记忆点,只在高瓷砖;hot 档大字压柠檬 lit 底 */
   .glyph {
     font-size: max(44px, calc(72 * var(--u)));
     font-weight: 500;

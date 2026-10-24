@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Alles, was die Geräte erwirtschaften, wird in zwei Vermögenswerten in der App-Wallet abgerechnet: USDT als stabilem Abrechnungswert und NEX als Plattform-Token.
+Alles, was die Geräte erwirtschaften, wird in zwei Vermögenswerten in der App-Wallet abgerechnet: USDT als stabilem Abrechnungswert und UVT als Plattform-Token.
 
 ## Das Dashboard lesen
 
@@ -21,7 +21,7 @@ Auszahlungen erfolgen in USDT. Die Auszahlungsadresse wird einmal unter Wallet �
 ## Eine Auszahlung vornehmen
 
 1. Wallet → Auszahlen öffnen.
-2. Betrag eingeben. Der Bildschirm zeigt die Netzwerkbestätigungsgebühr. Vorhandene NEX können verbrannt werden, um diese Gebühr auszugleichen.
+2. Betrag eingeben. Der Bildschirm zeigt die Netzwerkbestätigungsgebühr. Vorhandene UVT können verbrannt werden, um diese Gebühr auszugleichen.
 3. Mit der Sicherheitsprüfung bestätigen. Die Anfrage wird geprüft; der Status lässt sich im Auszahlungsbeleg verfolgen.
 
 ## Wenn etwas nicht stimmt

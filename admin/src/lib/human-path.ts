@@ -11,7 +11,8 @@ import { parseFieldTarget } from './field-target.ts';
 export const COPY_GROUPS: Record<string, string> = {
   hero: '首屏 Hero', download: '下载按钮文案', stats: '统计标签', path: '收益路径',
   how: '工作原理', why: '行业背景', devices: '设备板块', trust: '信任板块', social: '社证',
-  mission: '使命', nex: 'NEX', learn: '学习中心', faq: 'FAQ 标题', final: '收尾 CTA',
+  mission: '使命', uvt: 'UVT', learn: '学习中心', faq: 'FAQ 标题', final: '收尾 CTA',
+  nex: 'UVT', // Display immutable legacy diff paths with the current token name.
   site: '站点信息(SEO 源)', nav: '导航', footer: '页脚', legal: '法务提示', notfound: '404 页',
 };
 
@@ -63,8 +64,11 @@ const FIELD_NAME: Record<string, string> = {
   // 自动增长(enabled 上面已有,不重复)
   growth: '自动增长', since: '起算日', daily: '每日增量',
   terms: '服务条款', privacy: '隐私政策', appPrivacy: 'App 隐私政策',
+  topics: '主题',
+  cmpTypeUvt: 'UVT 类型', cmpVolUvt: 'UVT 波动', cmpUseUvt: 'UVT 用途',
+  cmpTypeNex: 'UVT 类型', cmpVolNex: 'UVT 波动', cmpUseNex: 'UVT 用途', // Historical field names only.
   // SEO 的页面 id(seo.pages 下的键就是路由名,直接摆出来运营对不上是哪一页)
-  pages: '页面', home: '首页', learn: '学习页', nex: 'NEX 页',
+  pages: '页面', home: '首页', learn: '学习页', uvt: 'UVT 页', nex: 'UVT 页',
   'legal-privacy': '隐私政策页', 'legal-terms': '服务条款页', 'legal-app-privacy': 'App 隐私政策页',
 };
 /** 例:`skus[0].priceUSD` → 「产品卡 · 第 1 张 · 价格」;认不出的部分保留原样,不隐藏 */

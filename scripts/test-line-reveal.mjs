@@ -26,7 +26,7 @@ if (process.argv.includes('--self-test')) {
       ['en', 'What the network computes'], ['vi', 'Nhận thanh toán bằng USDT'],
       ...['en', 'vi', 'zh', 'ja', 'ko'].flatMap((lang) => ['\u00a0', '\u202f', '\u2060', '\ufeff'].map((glue) => [lang, `前 甲${glue}乙 後`])),
       ['en', 'alpha   beta\ngamma'], ['en', 'A\n\nB'], ['en', '\nA\n'], ['en', '  \n  '], ['en', ''],
-      ['zh', '甲乙 丙丁\n戊己'], ['ja', '演算 NEX 計算 USDT'], ['ko', '연산 NEX 처리 USDT'],
+      ['zh', '甲乙 丙丁\n戊己'], ['ja', '演算 UVT 計算 USDT'], ['ko', '연산 UVT 처리 USDT'],
       ['vi', 'a\u0306\u0301 lực 👩‍💻 mạnh'],
     ];
     assert(cases.length > 0, 'Self-test requires fixtures');

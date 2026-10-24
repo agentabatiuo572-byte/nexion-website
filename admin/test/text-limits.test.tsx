@@ -42,8 +42,8 @@ it('counts graphemes, spaces, format markers and normalized line breaks without 
 });
 
 it.each([
-  ['/copy/vi/hero.title', 'hero.title'], ['/skus/nex~1plus/tagline/vi', 'sku.tagline'],
-  ['/skus/nex~1plus/name', 'sku.name'], ['/faq/items/faq~01/q/vi', 'faq.q'],
+  ['/copy/vi/hero.title', 'hero.title'], ['/skus/uvt~1plus/tagline/vi', 'sku.tagline'],
+  ['/skus/uvt~1plus/name', 'sku.name'], ['/faq/items/faq~01/q/vi', 'faq.q'],
   ['/faq/items/new-item/a/vi', 'faq.a'], ['/announcement/text/vi', 'announcement.text'],
   ['/seo/pages/legal-privacy/title/vi', 'seo.title'], ['/seo/pages/home/description/vi', 'seo.description'],
   ['/legal/appPrivacy/md/vi', 'legal.md'], ['/footer/contactEmail', 'footer.contactEmail'],

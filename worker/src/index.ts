@@ -19,6 +19,7 @@ import { isBotUserAgent } from './bot';
 import { METRIC_TEXT_BYTES } from '../../schema/src/event-contract';
 import { truncateUtf8 } from '../../schema/src/utf8';
 import { pathLocale, publishedLocales } from './published-locales';
+import { isLocale } from '../../schema/src/locales';
 
 /** 404 计数节流:同采集/拦截统计同档,防扫描器把 raw_events 写爆(计数因此为下限,面板标注) */
 const notFoundLimiter = createLimiter(60_000, 120);
@@ -145,6 +146,15 @@ const assetRequest = (url: string, headers?: Headers) => new Request(url, { meth
 app.all('*', async (c) => {
   if (c.req.method !== 'GET' && c.req.method !== 'HEAD') {
     return c.json({ error: 'method-not-allowed' }, 405, { Allow: 'GET, HEAD' });
+  }
+  // Keep previously shared token links usable without emitting duplicate pages into the site build.
+  const url = new URL(c.req.url);
+  const legacyToken = /^\/(?:(?<locale>[a-z]{2})\/)?(?<page>nex|learn\/staking-nex)\/?$/.exec(url.pathname);
+  if (legacyToken && (!legacyToken.groups?.locale || isLocale(legacyToken.groups.locale))) {
+    const locale = legacyToken.groups?.locale;
+    const prefix = locale && locale !== 'en' ? `/${locale}` : '';
+    const page = legacyToken.groups?.page === 'nex' ? '/uvt/' : '/learn/staking-uvt/';
+    return c.redirect(`${prefix}${page}${url.search}`, 301);
   }
   /* 🔴 上线印记不对公网开放(2026-09-01 第六轮 P1-7):它里面装着**当前仍然有效**的一次性口令,
      而 PRD CON13-④ 明写那枚口令「只经领单接口交给执行器」。它同时还泄露内部版本号与配置摘要。

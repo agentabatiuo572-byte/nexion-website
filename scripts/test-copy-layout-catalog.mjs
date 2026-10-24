@@ -16,7 +16,7 @@ for (const [key, field] of Object.entries(catalog)) {
   assert.ok(Array.isArray(field.consumers), `${key}: missing consumers`);
   if (['bounded', 'flowing'].includes(field.kind)) assert.ok(field.consumers.length, `${key}: visible text needs a consumer`);
   for (const consumer of field.consumers) {
-    assert.ok(['home', 'nex', 'learn', 'article', 'legal', '404', 'all'].includes(consumer.route), `${key}: invalid route`);
+    assert.ok(['home', 'uvt', 'learn', 'article', 'legal', '404', 'all', 'inner', 'download', 'shared'].includes(consumer.route), `${key}: invalid route`);
     assert.ok(consumer.selector.trim(), `${key}: missing selector`);
     if (field.kind === 'bounded') {
       assert.ok(['inline', 'block', 'hero', 'section', 'card'].includes(consumer.constraint), `${key}: missing constraint`);
@@ -29,8 +29,8 @@ for (const [key, field] of Object.entries(catalog)) {
 assert.equal(catalog['faq.a'].kind, 'flowing');
 assert.equal(catalog['legal.md'].kind, 'flowing');
 assert.equal(catalog['final.title'].kind, 'flowing');
-assert.equal(catalog['nex.getApp'].consumers.length, 3, 'App CTA is shared by NEX, Learn list and articles.');
-assert.equal(catalog['nex.whitepaper'].consumers.length, 2, 'PDF CTA is shared by homepage and NEX.');
+assert.equal(catalog['uvt.getApp'].consumers.length, 3, 'App CTA is shared by UVT, Learn list and articles.');
+assert.equal(catalog['uvt.whitepaper'].consumers.length, 2, 'PDF CTA is shared by homepage and UVT.');
 assert.equal(catalog['learn.toc'].consumers.length, 2, 'TOC label is shared by articles and legal pages.');
 assert.equal(catalog['nav.trust'].consumers.length, 2, 'Trust navigation label is also a section kicker.');
 assert.equal(catalog['nav.learn'].consumers.length, 2, 'Learn navigation label is also a section kicker.');
@@ -51,6 +51,20 @@ assert.equal(catalog['nav.skip'].kind, 'flowing', 'The skip link has no nowrap r
 assert.equal(catalog['trust.openOriginal'].kind, 'flowing', 'The original-image link wraps while the dialog image can shrink.');
 console.log(`copy-layout-catalog: ${manifest.editable.length} editable keys + ${families.length} families; explicit classification and shared consumers pass`);
 
+function matchesRoute(family, route) {
+  return family === 'shared' || (family === 'all' && route !== 'download')
+    || (family === 'inner' && route !== 'home' && route !== 'download') || family === route;
+}
+assert.equal(matchesRoute('inner', 'uvt'), true);
+assert.equal(matchesRoute('inner', 'home'), false);
+assert.equal(matchesRoute('inner', 'download'), false);
+assert.equal(matchesRoute('all', 'download'), false);
+assert.equal(matchesRoute('shared', 'download'), true);
+assert.equal(catalog['distribution.backHome'].consumers[0].route, 'download');
+assert.equal(catalog['distribution.close'].kind, 'metadata');
+assert.equal(catalog['distribution.unavailableBody'].kind, 'flowing');
+assert.ok(catalog['distribution.h5Title'].description.includes('不换行'));
+
 // Optional read-only browser check against an explicit built snapshot. The server's
 // response is compared byte-for-byte with that snapshot before selectors are checked.
 const built = process.argv.find((arg) => arg.startsWith('--dist='))?.slice('--dist='.length);
@@ -62,7 +76,7 @@ if (built) {
     const path = name.replaceAll('\\', '/');
     const parts = path.split('/');
     const locale = ['vi', 'es', 'pt', 'fr', 'de', 'ja', 'ko', 'zh'].includes(parts[0]) ? parts.shift() : 'en';
-    const route = parts[0] === '404.html' ? '404' : parts[0] === 'nex' ? 'nex'
+    const route = parts[0] === 'download' ? 'download' : parts[0] === '404.html' ? '404' : parts[0] === 'uvt' ? 'uvt'
       : parts[0] === 'legal' ? 'legal' : parts[0] === 'learn' ? parts.length > 2 ? 'article' : 'learn' : 'home';
     return { path, locale, route, html: readFileSync(join(dist, name), 'utf8') };
   });
@@ -79,7 +93,7 @@ if (built) {
     response.end(html ?? 'Not found');
   });
   await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
-  const require = createRequire(new URL('../../Nexion-uniapp/package.json', import.meta.url));
+  const require = createRequire(new URL('../package.json', import.meta.url));
   let browser;
   try {
     const { chromium } = require('playwright');
@@ -93,7 +107,7 @@ if (built) {
       assert.equal(await response.text(), page.html, `Wrong snapshot served for ${page.path}`);
       const candidates = Object.entries(catalog).flatMap(([key, field]) => field.consumers
         .map((consumer, index) => ({ key, index, ...consumer }))
-        .filter((consumer) => consumer.route === 'all' || consumer.route === page.route));
+        .filter((consumer) => matchesRoute(consumer.route, page.route)));
       const counts = await tab.evaluate((candidates) => candidates.map((consumer) => {
         const elements = [...document.querySelectorAll(consumer.selector)];
         const missingBoundary = consumer.boundary ? elements.some((element) => !element.closest(consumer.boundary)) : false;
@@ -102,7 +116,7 @@ if (built) {
       for (const result of counts) {
         assert.equal(result.missingBoundary, false, `${page.path} ${result.key}: consumer has no matching boundary`);
         const consumer = catalog[result.key].consumers[result.index];
-        if (consumer.route === 'all' && !result.key.startsWith('notfound.') && !result.key.startsWith('geo.') && !conditional.has(`${result.key}:${result.index}`)) {
+        if (['all', 'shared'].includes(consumer.route) && !result.key.startsWith('notfound.') && !result.key.startsWith('geo.') && !conditional.has(`${result.key}:${result.index}`)) {
           assert.ok(result.count > 0, `${page.path} ${result.key}: mandatory shared consumer is missing on this page`);
         }
         const id = `${page.locale}:${result.key}:${result.index}`;

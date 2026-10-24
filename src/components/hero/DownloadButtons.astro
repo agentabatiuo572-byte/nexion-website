@@ -1,14 +1,17 @@
 ---
-/* [FEAT-WEB02/12] 首页与收尾共用下载入口。
-   iOS/Android 点击时由同源 API 读取 A3，H5 指向正式 Web App。 */
+/* [FEAT-WEB02/12] Shared entry links: desktop QR, mobile OS routing.
+   Missing/disabled destinations open an explanatory state; no fake download URLs.
+   Hero and final CTA consume the same config and distribution controller. */
 import { useT, type Locale } from '../../i18n';
 import { DOWNLOAD_URLS } from '../../lib/downloads';
+import { distributionPath } from '../../lib/distribution';
+import PlatformGlyph from '../download/PlatformGlyph.astro';
 
 interface Props {
   locale: Locale;
-  /** Hero controls can switch to compact platform icons on narrow screens. */
+  /** Hero controls can use the compact floating layout on narrow screens. */
   compact?: boolean;
-  /** 反白区块内使用时置 true(边框/文字换深色) */
+  /** Keep the dark glass readable when used over a light section. */
   onLight?: boolean;
 }
 const { locale, onLight = false, compact = false } = Astro.props;
@@ -16,62 +19,36 @@ const t = useT(locale);
 const IOS = DOWNLOAD_URLS.ios;
 const ANDROID = DOWNLOAD_URLS.android;
 const H5 = DOWNLOAD_URLS.h5;
-const lightCls = onLight ? 'on-light' : '';
-
 const btns = [
-  { id: 'ios', url: IOS, label: t('download.ios'), icon: 'apple', solid: true, arr: '→' },
-  { id: 'android', url: ANDROID, label: t('download.android'), icon: 'android', solid: true, arr: '→' },
-  { id: 'h5', url: H5, label: t('nav.launchH5'), icon: 'h5', solid: false, arr: '↗' },
-];
+  { id: 'auto', url: IOS || ANDROID, label: t('distribution.downloadApp'), accessibleLabel: t('distribution.downloadApp') },
+  { id: 'ios', url: IOS, label: 'iOS', accessibleLabel: t('download.ios') },
+  { id: 'android', url: ANDROID, label: 'Android', accessibleLabel: t('download.android') },
+  { id: 'h5', url: H5, label: t('nav.launchH5'), accessibleLabel: t('distribution.openH5') },
+] as const;
 ---
 
-<div class="dl">
+<div class:list={['dl', { 'dl-compact': compact }]}>
   {
-    btns.map((b) => {
-      const inner = (
-        <>
-          {b.icon === 'apple' && (
-            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M16.9 12.7c0-2 1.6-3 1.7-3.1-.9-1.4-2.4-1.6-2.9-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.7-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.2 1.1-2.3 1.1-2.4 0-.1-2.2-.9-2.2-3.3z"
-              />
-              <path fill="currentColor" d="M14.2 6c.6-.7 1-1.7.9-2.7-.9 0-1.9.6-2.5 1.3-.5.6-1 1.6-.9 2.6 1 .1 1.9-.5 2.5-1.2z" />
+    btns.map((b) => (
+      /* Keep xbtn as the existing hero/floating layout hook, without slide-swap layers. */
+      <a
+        class:list={['xbtn', 'dl-button', { 'on-light': onLight }]}
+        aria-label={b.accessibleLabel}
+        title={compact ? b.accessibleLabel : undefined}
+        data-m={b.url ? `cta:${b.id}` : undefined}
+        data-download-entry={b.id}
+        href={distributionPath(locale, b.id)}
+      >
+        <span class="ic">
+          {b.id === 'auto' ? (
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5" />
             </svg>
-          )}
-          {b.icon === 'android' && (
-            <svg class="ic" viewBox="0 0 24 24" aria-hidden="true">
-              <path
-                d="M5.8 14.2c.3-3.1 3-5.4 6.2-5.4s5.9 2.3 6.2 5.4z"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.5"
-                stroke-linejoin="round"
-              />
-              <path d="M8.4 9.7 7 7.4M15.6 9.7 17 7.4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
-              <circle cx="9.4" cy="12.3" r="0.9" fill="currentColor" />
-              <circle cx="14.6" cy="12.3" r="0.9" fill="currentColor" />
-            </svg>
-          )}
-          {compact && b.icon === 'h5' && (
-            <svg class="ic web-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
-              <circle cx="12" cy="12" r="9" />
-              <ellipse cx="12" cy="12" rx="4" ry="9" />
-              <path d="M3 12h18M5 6.5h14M5 17.5h14" />
-            </svg>
-          )}
-          <span class="dl-label">{b.label}</span> <span class="arr">{b.arr}</span>
-        </>
-      );
-      return (
-        // data-m:埋点标识(官网后台 PRD CON15;hero+收尾 CTA 共用本单源,禁用态不计转化)
-        <a class:list={['xbtn', { solid: b.solid }, lightCls]} aria-label={compact ? b.label : undefined} title={compact ? b.label : undefined} data-m={`cta:${b.id}`} href={b.url} target="_blank" rel="noopener">
-          <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
-          <span class="xbtn-a">{inner}</span>
-          <span class="xbtn-b" aria-hidden="true">{inner}</span>
-        </a>
-      );
-    })
+          ) : <PlatformGlyph platform={b.id} />}
+        </span>
+        <span class="dl-label">{b.label}</span>
+      </a>
+    ))
   }
 </div>
 
@@ -81,30 +58,111 @@ const btns = [
     gap: calc(12 * var(--uc));
     flex-wrap: wrap;
   }
-  /* 保留品牌拼写(iOS/Android 小写规范),不吃 xbtn 的全大写制式 */
-  .dl :global(.xbtn) {
+  .dl .dl-button {
+    --platform-glyph-cutout: var(--x-bg);
+    position: relative;
+    isolation: isolate;
+    overflow: visible;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: calc(10 * var(--uc));
+    min-width: var(--x-touch);
+    min-height: max(44px, var(--x-touch));
+    padding: 0 calc(22 * var(--uc));
+    border: 1px solid color-mix(in srgb, var(--x-white) 44%, transparent);
+    border-radius: calc(999 * var(--uc));
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--x-white) 10%, transparent), transparent 48%, color-mix(in srgb, var(--x-white) 3%, transparent)),
+      rgb(var(--x-bg-rgb) / 0.32);
+    color: var(--x-white);
+    box-shadow:
+      inset 0 1px 0 color-mix(in srgb, var(--x-white) 18%, transparent),
+      inset 0 -1px 0 color-mix(in srgb, var(--x-white) 4%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(1.4);
+    backdrop-filter: blur(12px) saturate(1.4);
+    font-family: var(--x-font-display);
+    font-size: max(14px, calc(14 * var(--uc)));
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: 0;
     text-transform: none;
+    text-decoration: none;
+    opacity: 1;
+    transition: border-color 480ms ease-out;
+  }
+  .dl .dl-button[data-download-entry='auto'] {
+    display: none;
+  }
+  .dl-button::before,
+  .dl-button::after {
+    content: '';
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 480ms ease-out;
+  }
+  /* Close rim and broad diffused halo fade separately; content stays crisp and still. */
+  .dl-button::before {
+    z-index: 0;
+    box-shadow:
+      0 0 10px color-mix(in srgb, var(--x-accent) 24%, transparent),
+      inset 0 0 12px color-mix(in srgb, var(--x-accent) 7%, transparent);
+  }
+  .dl-button::after {
+    z-index: -1;
+    box-shadow: 0 0 24px 6px color-mix(in srgb, var(--x-accent) 14%, transparent);
+    filter: blur(12px);
+  }
+  .dl .dl-button:is(:hover, :focus-visible, [aria-expanded='true']) {
+    border-color: color-mix(in srgb, var(--x-accent) 88%, var(--x-white));
+    transition-duration: 360ms;
+  }
+  .dl-button:is(:hover, :focus-visible, [aria-expanded='true'])::before,
+  .dl-button:is(:hover, :focus-visible, [aria-expanded='true'])::after {
+    opacity: 1;
+    transition-duration: 360ms;
+  }
+  .dl .dl-button.on-light {
+    background:
+      linear-gradient(135deg, color-mix(in srgb, var(--x-white) 6%, transparent), transparent 60%),
+      rgb(var(--x-bg-rgb) / 0.72);
+  }
+  .ic,
+  .dl-label {
+    position: relative;
+    z-index: 1;
   }
   .ic {
-    width: calc(15 * var(--uc));
-    height: calc(15 * var(--uc));
+    width: calc(20 * var(--uc));
+    height: calc(20 * var(--uc));
     flex: 0 0 auto;
     display: block;
   }
-  .web-icon {
-    display: none;
+  .ic :global(svg) {
+    display: block;
+    width: 100%;
+    height: 100%;
   }
   @media (max-width: 860px) {
-    :global(.floating) .dl-label,
-    :global(.floating) .arr {
-      display: none;
+    /* The floating controls cross white certificate images. Keep a transparent
+       smoked surface there so white labels retain contrast over any page content. */
+    :global(.floating) .dl-compact .dl-button {
+      background-color: rgb(var(--x-bg-rgb) / 0.64);
     }
-    :global(.floating) .ic {
+    :global(.floating) .dl-compact .ic {
       width: 24px;
       height: 24px;
     }
-    :global(.floating) .web-icon {
-      display: block;
+  }
+  @media (max-width: 760px) {
+    .dl .dl-button:is([data-download-entry='ios'], [data-download-entry='android']) {
+      display: none;
+    }
+    .dl .dl-button[data-download-entry='auto'] {
+      display: inline-flex;
     }
   }
   @media (max-width: 520px) {
@@ -112,8 +170,15 @@ const btns = [
       flex-direction: column;
       align-items: stretch;
     }
-    .dl :global(.xbtn) {
+    .dl .dl-button {
       justify-content: center;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .dl .dl-button,
+    .dl .dl-button::before,
+    .dl .dl-button::after {
+      transition: none;
     }
   }
 </style>
