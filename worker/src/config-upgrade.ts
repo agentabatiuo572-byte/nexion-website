@@ -3,10 +3,14 @@ import currentSeedJson from '../seed/site-config.seed.json';
 import legacyJson from '../seed/config-upgrade-legacy-v1.json';
 import manifestJson from '../seed/copy-manifest.json';
 import { prepareAudit } from './audit';
+import { renameLegacyTokenConfig, renameTokenCopyKey, renameTokenFieldId, renameTokenText } from './token-rename';
+import { enumerateTranslationFields } from '../../schema/src/draft-fields.js';
+import { hashTranslationText, loadTranslationState, prepareTranslationChanges, translationSourceHash, translationStateKey, type TranslationChanges } from './translation-state';
 
 // Applied upgrade keys are immutable: a changed transformation always gets a new key.
-export const CONFIG_UPGRADE_KEY = 'website-download-distribution-2026-10-22-v1';
-const PREVIOUS_UPGRADE_KEY = 'website-whitepaper-2026-09-09-v3';
+export const CONFIG_UPGRADE_KEY = 'website-uvt-token-2026-10-24-v1';
+const PREVIOUS_UPGRADE_KEY = 'website-download-distribution-2026-10-22-v1';
+const WHITEPAPER_UPGRADE_KEY = 'website-whitepaper-2026-09-09-v3';
 const ORIGINAL_LOCALES = ['en', 'vi', 'zh'] as const;
 const WHITEPAPER_KEYS = ['title', 'summary', 'details'].map((key) => `trust.whitepaper.${key}`);
 const WHITEPAPER_DETAILS_V1 = {
@@ -22,7 +26,10 @@ const WHITEPAPER_DETAILS_V1 = {
 };
 const CURRENT = SiteConfigSchema.parse(addLegacyLocaleFields(currentSeedJson, manifestJson.editable));
 const DISTRIBUTION_KEYS = manifestJson.editable.filter(key => key.startsWith('distribution.'));
-const LEGACY = legacyJson as {
+const renamedLegacy = renameLegacyTokenConfig({ copy: legacyJson.copyDefaults, faq: legacyJson.faq });
+if (!renamedLegacy.ok) throw new Error('Legacy token baseline has conflicting fields');
+const legacyContent = renamedLegacy.config as { copy: typeof legacyJson.copyDefaults; faq: typeof legacyJson.faq };
+const LEGACY = { ...legacyJson, copyKeys: legacyJson.copyKeys.map(renameTokenCopyKey), copyDefaults: legacyContent.copy, faq: legacyContent.faq } as {
   copyKeys: string[];
   copyDefaults: Record<(typeof ORIGINAL_LOCALES)[number], Record<string, string>>;
   faq: typeof legacyJson.faq;
@@ -144,8 +151,10 @@ function mergeFaq(draft: SiteConfig['faq']['items'], conflicts: UpgradeConflict[
 
 /** Pure adapter for drafts and historical rollback copies. Never rewrites a stored version. */
 export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
+  const renamed = renameLegacyTokenConfig(input);
+  if (!renamed.ok) return renamed;
   // New language slots must not synthesize blank whitepaper values before the seed fill below.
-  const candidate = addLegacyLocaleFields(input, manifestJson.editable.filter((key) => !WHITEPAPER_KEYS.includes(key) && !DISTRIBUTION_KEYS.includes(key)));
+  const candidate = addLegacyLocaleFields(renamed.config, manifestJson.editable.filter((key) => !WHITEPAPER_KEYS.includes(key) && !DISTRIBUTION_KEYS.includes(key)));
   const parsed = SiteConfigSchema.safeParse(candidate);
   if (!parsed.success) return {
     ok: false,
@@ -189,6 +198,34 @@ export function adaptLegacyConfig(input: unknown): ConfigUpgradeResult {
   return finishUpgrade(input, draft);
 }
 
+/** A spelling migration preserves translation provenance and invalidates in-flight old-name jobs. */
+async function tokenTranslationChanges(db: D1Database, previousInput: unknown, next: SiteConfig): Promise<TranslationChanges> {
+  const shape = renameLegacyTokenConfig(previousInput);
+  if (!shape.ok || !SiteConfigSchema.safeParse(addLegacyLocaleFields(shape.config, [])).success) return { states: [], jobs: [] };
+  const previous = addLegacyLocaleFields(previousInput, []) as SiteConfig;
+  const previousFields = enumerateTranslationFields(previous, { editable: Object.keys(previous.copy.en) });
+  const before = new Map(previousFields.map(field => [translationStateKey(renameTokenFieldId(field.fieldId), field.targetLocale), field]));
+  const existing = await loadTranslationState(db), changes: TranslationChanges = { states: [], jobs: [] };
+  for (const field of enumerateTranslationFields(next, manifestJson as unknown as CopyManifest)) {
+    const key = translationStateKey(field.fieldId, field.targetLocale), old = before.get(key);
+    if (!old || (old.fieldId === field.fieldId && old.source === field.source && old.target === field.target)) continue;
+    if (renameTokenText(old.source) !== field.source || renameTokenText(old.target) !== field.target) continue;
+    const state = existing.get(translationStateKey(old.fieldId, old.targetLocale));
+    if (!state || state.deleted) continue;
+    const [oldSourceHash, nextSourceHash, oldValueHash, nextValueHash] = await Promise.all([
+      translationSourceHash(old), translationSourceHash(field), hashTranslationText(old.target), hashTranslationText(field.target),
+    ]);
+    const generation = Math.max(state.generation, existing.get(key)?.generation ?? 0) + 1;
+    changes.states.push({ ...state, field_id: field.fieldId,
+      source_hash: state.source_hash === oldSourceHash ? nextSourceHash : state.source_hash,
+      observed_source_hash: nextSourceHash,
+      applied_value_hash: state.applied_value_hash === oldValueHash ? nextValueHash : state.applied_value_hash,
+      generation, updated_at: Date.now() });
+    if (old.fieldId !== field.fieldId) changes.states.push({ ...state, deleted: 1, generation, updated_at: Date.now() });
+  }
+  return changes;
+}
+
 /** Backup, CAS, marker and audit are one D1 transaction; a stale snapshot cannot write any of them. */
 export async function commitDraftUpgrade(
   db: D1Database,
@@ -214,10 +251,14 @@ export async function commitDraftUpgrade(
   ).bind(upgradeKey, nextRev, now, nonce, snapshot.draft_rev, snapshot.payload)];
   if (upgrade.changed) {
     statements.push(db.prepare(
-      `UPDATE config_draft SET payload=?1, draft_rev=?2, updated_at=?3
+      `UPDATE config_draft SET payload=?1, draft_rev=?2, updated_at=?3, write_nonce=?7
         WHERE id=1 AND draft_rev=?4 AND payload=?5
           AND EXISTS (SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?6 AND commit_nonce=?7)`,
     ).bind(JSON.stringify(upgrade.config), nextRev, now, snapshot.draft_rev, snapshot.payload, upgradeKey, nonce));
+    let previous: unknown;
+    try { previous = JSON.parse(snapshot.payload); } catch { previous = null; }
+    const translations = await tokenTranslationChanges(db, previous, upgrade.config);
+    statements.push(...prepareTranslationChanges(db, translations, nonce, nextRev));
     statements.push(prepareAudit(db, {
       action: 'config.save', actor: options.explicitResolution ? 'admin' : 'system', target: `draft-upgrade:${upgradeKey}`,
       before: `draft revision ${snapshot.draft_rev}; original payload backed up`,
@@ -239,9 +280,9 @@ type InspectedDraft = UpgradeDraftSnapshot & { marked: number; predecessorMarked
 const readUpgradeDraft = (db: D1Database) => db.prepare(
   `SELECT payload,draft_rev,updated_at,
     EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?1) AS marked,
-    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key=?2) AS predecessorMarked
+    EXISTS(SELECT 1 FROM config_draft_upgrades WHERE draft_id=1 AND upgrade_key IN (?2,?3)) AS predecessorMarked
    FROM config_draft WHERE id=1`,
-).bind(CONFIG_UPGRADE_KEY, PREVIOUS_UPGRADE_KEY).first<InspectedDraft>();
+).bind(CONFIG_UPGRADE_KEY, PREVIOUS_UPGRADE_KEY, WHITEPAPER_UPGRADE_KEY).first<InspectedDraft>();
 
 function inspectUpgrade(draft: InspectedDraft): ConfigUpgradeResult {
   let input: unknown;
@@ -253,7 +294,9 @@ function inspectUpgrade(draft: InspectedDraft): ConfigUpgradeResult {
   if (draft.predecessorMarked) {
     // A previously upgraded draft contains authored values. Do not replay older
     // whitepaper/FAQ transformations when introducing the download copy slots.
-    const candidate = structuredClone(input);
+    const renamed = renameLegacyTokenConfig(input);
+    if (!renamed.ok) return renamed;
+    const candidate = renamed.config;
     const parsed = SiteConfigSchema.safeParse(candidate);
     if (!parsed.success) return finishUpgrade(input, candidate as SiteConfig);
     const config = candidate as SiteConfig;

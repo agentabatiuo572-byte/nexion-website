@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Tudo o que seus dispositivos geram é liquidado na carteira do aplicativo em dois ativos: USDT, o ativo estável de liquidação, e NEX, o token da plataforma.
+Tudo o que seus dispositivos geram é liquidado na carteira do aplicativo em dois ativos: USDT, o ativo estável de liquidação, e UVT, o token da plataforma.
 
 ## Entenda o painel
 
@@ -21,7 +21,7 @@ Os saques são em USDT. Cadastre seu endereço uma vez em Carteira → Seguranç
 ## Faça um saque
 
 1. Abra Carteira → Sacar.
-2. Informe o valor. A tela mostra a taxa de confirmação da rede. Se tiver NEX, você pode queimá-los para compensar essa taxa.
+2. Informe o valor. A tela mostra a taxa de confirmação da rede. Se tiver UVT, você pode queimá-los para compensar essa taxa.
 3. Confirme com a verificação de segurança. A solicitação entra em análise e seu andamento pode ser acompanhado no registro do saque.
 
 ## Se algo parecer errado

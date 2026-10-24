@@ -664,7 +664,7 @@ try {
   }
   for (const locale of locales) {
     await run(`inner page retains navigation WebApp ${locale.locale}`, 'desktop', {}, async s => {
-      const route = `${locale.home}nex/`;
+      const route = `${locale.home}uvt/`;
       assert(pages.some(page => page.route === route), 'Generated inner-page fixture must exist');
       await goto(s.page, route);
       const h5 = s.page.locator('.site-nav [data-download-entry="h5"]');

@@ -8,6 +8,7 @@ import { failReasonLine } from '../lib/fail-reason';
 import { countryName } from '../lib/iso-countries';
 import { LatestRequest } from '../lib/latest-request';
 import { LOCALE_NAME } from '../lib/human-path';
+import { historicalContentLabel } from '../lib/historical-content-label';
 import { Icon } from '../lib/icon';
 import './dashboard.css';
 
@@ -48,8 +49,16 @@ const num = (v: number | null | undefined) => (v === null || v === undefined ? '
 const CTA_LABEL: Record<string, string> = { ios: 'iOS', android: 'Android', h5: 'Web App', contact: '联系' };
 const SEC_LABEL: Record<string, string> = {
   download: '首屏下载区', stats: '实时数字', social: '社证', mission: '使命', devices: '设备阶梯',
-  how: 'How it works', path: '收益路径', trust: '信任板块', nex: 'NEX', 'learn-entry': '学习入口', faq: 'FAQ', 'final-cta': '收尾 CTA',
+  how: 'How it works', path: '收益路径', trust: '信任板块', uvt: 'UVT', nex: 'UVT', 'learn-entry': '学习入口', faq: 'FAQ', 'final-cta': '收尾 CTA',
 };
+
+function HistoricalContentLabel({ value, locale }: { value: string; locale?: string }) {
+  const display = historicalContentLabel(value);
+  return <span title={`${display.title}${locale ? ` · ${locale}` : ''}`}>
+    {display.label}{display.legacy && <small className="dash-row-locale">旧链接</small>}
+    {locale && <small className="dash-row-locale">{locale}</small>}
+  </span>;
+}
 
 function Card({ title, note, children, className = '', action }: { title: string; note?: string; children: React.ReactNode; className?: string; action?: React.ReactNode }) {
   return (
@@ -250,7 +259,7 @@ function DashboardData({ d, retry }: { d: Dash; retry: () => void }) {
           <Card title="页面 PV 榜">
             {d.content.pages.length === 0 ? <p className="dash-list-empty">暂无数据</p> : (
               <table><tbody>{d.content.pages.slice(0, 8).map((p) => (
-                  <tr key={p.path + p.locale}><td title={`${p.path} · ${p.locale}`} className="dash-truncate">{p.path}<small className="dash-row-locale">{p.locale}</small></td><td className="mono" style={{ textAlign: 'right' }}><b>{num(p.pv)}</b></td></tr>
+                  <tr key={p.path + p.locale}><td className="dash-truncate"><HistoricalContentLabel value={p.path} locale={p.locale} /></td><td className="mono" style={{ textAlign: 'right' }}><b>{num(p.pv)}</b></td></tr>
               ))}</tbody></table>
             )}
           </Card>
@@ -277,7 +286,7 @@ function DashboardData({ d, retry }: { d: Dash; retry: () => void }) {
           <Card title="学习中心阅读榜">
             {d.content.learn.length === 0 ? <p className="dash-list-empty">暂无数据</p> : (
               <table><tbody>{d.content.learn.slice(0, 8).map((l) => (
-                <tr key={l.slug}><td title={l.slug} className="dash-truncate">{l.slug}</td><td className="mono" style={{ textAlign: 'right' }}><b>{num(l.reads)}</b></td></tr>
+                <tr key={l.slug}><td className="dash-truncate"><HistoricalContentLabel value={l.slug} /></td><td className="mono" style={{ textAlign: 'right' }}><b>{num(l.reads)}</b></td></tr>
               ))}</tbody></table>
             )}
           </Card>
@@ -303,7 +312,7 @@ function DashboardData({ d, retry }: { d: Dash; retry: () => void }) {
             {d.quality.notFound.length > 0 && (
               <div style={{ marginTop: 8 }}><div className="kv">404 路径 Top</div>
                 <table><tbody>{d.quality.notFound.slice(0, 5).map((n) => (
-                  <tr key={n.path}><td className="mono" style={{ fontSize: 'var(--text-sm)' }}>{n.path}</td><td className="mono" style={{ textAlign: 'right' }}>{n.hits}</td></tr>
+                  <tr key={n.path}><td className="mono" style={{ fontSize: 'var(--text-sm)' }}><HistoricalContentLabel value={n.path} /></td><td className="mono" style={{ textAlign: 'right' }}>{n.hits}</td></tr>
                 ))}</tbody></table>
               </div>
             )}

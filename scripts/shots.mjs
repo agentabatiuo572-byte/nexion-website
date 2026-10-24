@@ -9,7 +9,7 @@
  *
  * 用法:
  *   node scripts/shots.mjs --routes / /vi/ /zh/ --size 1440x900 --out <目录>
- *   node scripts/shots.mjs --routes /nex/ --size 390x844 --out <目录>
+ *   node scripts/shots.mjs --routes /uvt/ --size 390x844 --out <目录>
  *   加 --canvas  保留背景粒子(颜色可能被本机翻转)
  *   加 --motion  不开「减少动态」(看磨砂导航 / 开场编排的真实态;静态构图截图别用)
  *   加 --full    另存一张整页长图
@@ -35,7 +35,7 @@ const one = (n, d) => listOf(n)[0] ?? d;
 const BASE = one('base', 'http://localhost:4399').replace(/\/$/, '');
 /* 🔴 本机 Git Bash(MSYS)会把裸参数 "/" 改写成 Git 的安装路径("C:/Program Files/Git/"),
    于是 URL 拼出来是 http://localhost:4399C:/Program Files/Git/ 直接报错。
-   所以路由**用不带斜杠的写法**:home / vi / zh / nex / vi/nex / learn/staking-nex;
+   所以路由**用不带斜杠的写法**:home / vi / zh / uvt / vi/uvt / learn/staking-uvt;
    带斜杠的也收,顺手把被改写掉的那一个认回首页。 */
 const norm = (r) => {
   if (/^[A-Za-z]:[\\/]/.test(r) || r.includes('Program Files')) return '/';

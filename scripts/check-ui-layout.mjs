@@ -32,7 +32,7 @@ function measureLayout(kind) {
     }
   }
   if (kind === 'grid') {
-    const required = location.pathname.endsWith('/nex/') ? '.mech > .mcard'
+    const required = location.pathname.endsWith('/uvt/') ? '.mech > .mcard'
       : location.pathname.endsWith('/learn/') ? '.learn > .grid > .card' : null;
     if (required && !document.querySelector(required)) failures.push('预期卡片缺失');
     for (const child of document.querySelectorAll('.mech > .mcard, .learn > .grid > .card')) {
@@ -105,7 +105,7 @@ export function sampleCoverageFailures(pages, samples) {
   // Full-site runs still require every kind present in their complete route set.
   const required = ['menu'];
   if (pages.some(entry => entry.home)) required.push('hero', 'how', 'trust');
-  if (pages.some(entry => /\/(?:nex|learn)\/$/.test(entry.route))) required.push('grid');
+  if (pages.some(entry => /\/(?:uvt|learn)\/$/.test(entry.route))) required.push('grid');
   return required.filter(kind => !samples[kind]).map(kind => `${kind} 无观测样本`);
 }
 

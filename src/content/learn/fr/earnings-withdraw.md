@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Tous les gains de vos appareils sont réglés dans le portefeuille de l’application sous deux formes : USDT, l’actif stable de règlement, et NEX, le jeton de la plateforme.
+Tous les gains de vos appareils sont réglés dans le portefeuille de l’application sous deux formes : USDT, l’actif stable de règlement, et UVT, le jeton de la plateforme.
 
 ## Lire le tableau de bord
 
@@ -21,7 +21,7 @@ Les retraits sont effectués en USDT. Enregistrez votre adresse dans Portefeuill
 ## Effectuer un retrait
 
 1. Ouvrez Portefeuille → Retirer.
-2. Saisissez le montant. L’écran indique les frais de confirmation du réseau. Si vous possédez des NEX, vous pouvez les brûler pour compenser ces frais.
+2. Saisissez le montant. L’écran indique les frais de confirmation du réseau. Si vous possédez des UVT, vous pouvez les brûler pour compenser ces frais.
 3. Confirmez avec la vérification de sécurité. La demande passe en cours d’examen et son état peut être suivi dans l’historique du retrait.
 
 ## Si quelque chose semble incorrect

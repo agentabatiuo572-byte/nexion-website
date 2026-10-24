@@ -109,17 +109,17 @@ try {
       assert(await page.locator('.xbtn').count() > 0, `No buttons: ${route}`);
       await record(page, route, width);
       if (home) {
-        for (const selector of ['.hero .dl', '#path .cards', '#nex .more', '#learn-entry .more', '#final-cta .dl']) {
+        for (const selector of ['.hero .dl', '#path .cards', '#uvt .more', '#learn-entry .more', '#final-cta .dl']) {
           const target = page.locator(selector);
           assert.equal(await target.count(), 1, selector);
           await target.scrollIntoViewIfNeeded();
           if (out && width !== 1920) await target.screenshot({ path: resolve(out, `${route === '/' ? 'en' : route.split('/')[1]}-${width}-${selector.replaceAll(/[^a-z0-9]/gi, '_')}.png`) });
         }
         // Hover and keyboard focus must preserve the border and the slide-swap interaction.
-        const ghost = page.locator('#nex .xbtn');
+        const ghost = page.locator('#uvt .xbtn');
         const resting = await ghost.evaluate(measure);
         await ghost.hover();
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#nex .xbtn-b')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#uvt .xbtn-b')).transform === 'matrix(1, 0, 0, 1, 0, 0)');
         const hover = await ghost.evaluate(measure);
         assert.equal(hover.border, resting.border);
         assert.equal(await ghost.locator('.xbtn-b').evaluate((el) => getComputedStyle(el).transform), 'matrix(1, 0, 0, 1, 0, 0)');
@@ -150,7 +150,7 @@ try {
         await page.locator('.hero .dl').waitFor({ state: 'visible' });
         // Execute the same measurement against the actual old token-based declarations.
         const old = await page.addStyleTag({ content: '.xbtn:not(.solid) { border-color:var(--x-line) !important } .xbtn.disabled { border-color:var(--x-line-soft) !important }' });
-        await page.waitForFunction(() => getComputedStyle(document.querySelector('#nex .xbtn')).borderTopColor === 'rgba(255, 255, 255, 0.16)');
+        await page.waitForFunction(() => getComputedStyle(document.querySelector('#uvt .xbtn')).borderTopColor === 'rgba(255, 255, 255, 0.16)');
         const oldGhost = await ghost.evaluate(measure);
         assert(violations(oldGhost).length > 0, `Old --x-line must fail: ${JSON.stringify(oldGhost)}`); mutations++;
         if (await disabled.count()) {

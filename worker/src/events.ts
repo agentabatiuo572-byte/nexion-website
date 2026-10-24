@@ -7,6 +7,7 @@ import {
   METRIC_SECTION_IDS,
   METRIC_TEXT_BYTES,
   isMetricFaqId,
+  normalizeMetricSectionId,
 } from '../../schema/src/event-contract';
 
 /* 线上事件契约(官网后台 PRD §5.2)。短键=省 beacon 体积;此处是唯一权威,
@@ -25,9 +26,9 @@ const path = boundedText(1, METRIC_TEXT_BYTES.path);
 const short = boundedText(0, METRIC_TEXT_BYTES.short);
 const locale = z.enum(LOCALES);
 const dev = z.enum(['m', 'd']);
-const section = z.enum(METRIC_SECTION_IDS);
+const section = z.preprocess(normalizeMetricSectionId, z.enum(METRIC_SECTION_IDS));
 const cta = z.enum(METRIC_CTA_IDS);
-const ctaSection = z.enum(METRIC_CTA_SECTION_IDS);
+const ctaSection = z.preprocess(normalizeMetricSectionId, z.enum(METRIC_CTA_SECTION_IDS));
 const faq = boundedText(1, METRIC_TEXT_BYTES.faq).refine(isMetricFaqId, { message: 'must be qN where N is positive' });
 
 export const EventSchema = z.discriminatedUnion('t', [

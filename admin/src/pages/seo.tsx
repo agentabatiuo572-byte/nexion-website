@@ -12,7 +12,7 @@ import { LOCALE_NAME } from '../lib/human-path';
 import { emptyTranslation, LocalePair, LocaleToolbar, SOURCE_LOCALE, useLocaleWorkspace, type Locale } from '../lib/locale-editor';
 
 const PAGES: Array<[string, string]> = [
-  ['home', '首页'], ['learn', '学习中心'], ['nex', 'NEX'],
+  ['home', '首页'], ['learn', '学习中心'], ['uvt', 'UVT'],
   ['legal-privacy', '隐私政策'], ['legal-terms', '使用条款'], ['legal-app-privacy', 'App 隐私'],
 ];
 

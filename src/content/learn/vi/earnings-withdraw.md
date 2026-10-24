@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Mọi thứ thiết bị của bạn tạo ra được kết toán vào ví trong ứng dụng bằng hai tài sản: USDT (tài sản kết toán ổn định) và NEX (token nền tảng).
+Mọi thứ thiết bị của bạn tạo ra được kết toán vào ví trong ứng dụng bằng hai tài sản: USDT (tài sản kết toán ổn định) và UVT (token nền tảng).
 
 ## Đọc màn hình chính
 
@@ -21,7 +21,7 @@ Rút tiền bằng USDT. Đặt địa chỉ rút một lần trong Ví → Bả
 ## Thực hiện rút
 
 1. Mở Ví → Rút.
-2. Nhập số tiền; màn hình hiển thị phí xác nhận mạng. Có NEX thì bạn có thể đốt NEX để bù phí này.
+2. Nhập số tiền; màn hình hiển thị phí xác nhận mạng. Có UVT thì bạn có thể đốt UVT để bù phí này.
 3. Xác nhận bằng bước bảo mật của bạn. Yêu cầu vào diện xét duyệt và trạng thái theo dõi được trên bản ghi rút tiền.
 
 ## Nếu có gì đó không ổn

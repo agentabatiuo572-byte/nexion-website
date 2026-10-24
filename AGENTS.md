@@ -1,8 +1,11 @@
-# nexgrid-website
+# UVEL 官网（仓库目录：nexgrid-website）
 
-NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转化 = App 下载(iOS/Android)+ H5 入口。规格唯一权威:`D:\WORKS\PLAN\PRD\NexGrid_官网PRD_v1.0.md`;实施拆解与 tester 报告在 `PLAN/PRD/specs/WEBSITE-*`。产品事实(SKU/收益机制/信任口径)只消费 App PRD v3.7,**不新造业务规则**。
+UVEL 官网(marketing site)，当前公司主体为 **UVEL AI LTD**。**纯展示站**:无登录/无交易,唯一转化 = App 下载(iOS/Android)+ H5 入口。业务规格（路径沿用历史文件名；品牌、主体、代币名称以主人最新指令及下述现状为准）:`D:\WORKS\PLAN\PRD\NexGrid_官网PRD_v1.0.md`;实施拆解与 tester 报告在 `PLAN/PRD/specs/WEBSITE-*`。产品事实(SKU/收益机制/信任口径)只消费 App PRD v3.7,**不新造业务规则**。
 
 ## Heads-up(与直觉不同的点,最先读)
+
+- 🔴 **当前身份（2026-10-24 校正）**：品牌 **UVEL**（页面常用字形 `Uvel`），公司 **UVEL AI LTD**，域名 `https://uvel.ai`，联系邮箱 `service@uvel.ai`。NexGrid 已是旧品牌，不能因为仓库目录、npm 包名、环境变量或历史 PRD 文件名仍含 `nexgrid`/`Nexion` 就恢复旧品牌或旧主体。
+- 🔴 **代币名称 = UVT**（主人 2026-10-24 全面更名指令）。前台九语文案、后台配置与翻译保护词、SEO、学习文章及公开白皮书均使用 UVT；新路由 `/uvt/`、`/learn/staking-uvt/`，新文案键 `uvt.*`/`nav.uvt`/`learn.topics.uvt`。`NEX`/`nex` 仅用于旧数据迁移、旧链接兼容及对应测试或明确标为历史的资料，不能作为当前产品名称。公司品牌与代币是不同字段。
 
 - **视觉体系 = axiom 方向**(主人 2026-08-20 指令:样式 100% 参照 axiom.peppermint.id,内容不变)。`src/styles/tokens.css` 自此为**本仓自有 SoT**(近黑 `--x-bg` / 反白 `--x-light` / 柠檬 `--x-accent`=V5 品牌 #9EDC1D 同值,2026-08-21 主人拍板由琥珀换系,粒子引擎双色公式同步柠檬族),不再镜像 App V5 dark tokens;App 侧 `nexion-design` 的 V5 字号/色板规则**对本仓不适用**(i18n/触达 44pt/focus/reduced-motion 纪律仍适用)。
 - Astro 7 + Tailwind 4(`@tailwindcss/vite`,无 config)。**零框架 JS**:React 岛已全部移除(cobe 地球 → 自研洛伦兹 canvas)。交互引擎单文件 `src/scripts/fx.ts`(R2 契约,主人 2026-08-20):①洛伦兹粒子背景——**静止不旋转不缩放(离屏缓存+分桶批量描边,主体零重渲染),只有流光沿轨迹跑;滚动才驱动缩放/旋转;鼠标倾斜+推斥** ②Lenis 平滑滚动 ③进场 / 行遮罩 / 打字机 / 叠卡 / 视差 / 时钟等(模块清单见 fx.ts 头注)——reduced-motion 全降级。**鼠标一律原生光标(圆点已移除,勿回加)**;**R8 区带制(2026-08-21)**:整站按参考站 1440 画布等比(R42 起由画布 zoom 壳实现,见下条;区高 token `--x-sec-h`),首页=黑带(hero/stats/statement/about/叠卡)→白幕布带 `.band-light.x-invert`(六块,decked 时 fx 加 `.curtain` 上拉一个区高盖钉屏尾)→黑收尾;设备叠卡=fx `initPile` 画布节拍(锚 27.43%/16.63%、卡宽 45.14%、STEP=1.0923 卡宽、拍距=区高、总高=(N+1)·区高、末态全叠 0.85),移动/coarse/reduced=竖排静态列;导航 z40 常驻置顶,**半透明磨砂底板**(主人 2026-08-26 拍板;暗 .64 / 亮 .72 / 内页 .9),过 `.x-invert` 底板 0.25s 淡变、文字在亮度交叉点瞬切(R45);小字密集板块/页必须不透明底,禁文字直压粒子线(页脚例外:透底 + 信息列护字层,B1)。
@@ -18,10 +21,10 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
   ⚠️ JS 里量几何要分清**布局单位**(offsetHeight / style.height,画布量)与**屏幕单位**(getBoundingClientRect),两者差一个 zoom。
   — 检查:`canvas-hazard`(静态)+ `canvas-geometry`(运行时七判据)
 - 字体 @fontsource 自托管:Funnel Display(display)+ Space Mono(mono)+ Be Vietnam Pro(vi 专用 display,Funnel 无 vietnamese 字集;语言尺一律挂元素自身的 `:lang()`,块级 lang 岛各吃各的尺)。zh 的 CJK 由系统字体栈接。
-- 文案全 key 化进 `src/i18n/{en,vi,zh}.json`,三语 key 树必须全等(verify 门);硬编码文案=回归。
+- 文案全 key 化进 `src/i18n/{en,vi,es,pt,fr,de,ja,ko,zh}.json`，九语 key 树必须全等(verify 门)；启用语言由 `src/config/site.json` 的 `enabledLocales` 配置；硬编码文案=回归。
 - 🔴 **本机截图验证坑(2026-08-20 实证)**:主人 Windows 全暗色主题,Chromium 无头/被遮挡窗口会**非确定性**触发强制暗色(Auto Dark)——反白板块被翻成黑底亮字(彩色/图片不动),连 `meta color-scheme` 都可能被无视,且同一配方时好时坏。**站点代码无罪**(最小复现页复现同症;计算样式/产物 CSS 全对;可见 GPU 窗口渲染正确)。协议:**DOM/计算样式断言任何模式都可信;亮区块(path/how/trust)的像素级截图必须用「废 canvas 无头」配方(addInitScript 令 #x-bg getContext 返回 null)或可见有头窗,且拍完必须回看**。暗区块截图不受影响。
 - 🔴 Browser pane(Codex 面板)在深滚动位整页黑屏,不可作渲染判断面;真验证一律 Playwright(借 `Nexion-uniapp` 依赖:`createRequire('D:/WORKS/PLAN/Nexion-uniapp/package.json')('playwright')`)。
-- 证书图 `public/cert-{msb,colorado}.png` 已降采样 660w(缩略 2x);灯箱用 `cert-*@2x.png`(1160w 原件);更早原件在 `.trash/*-cert-reencode/`。
+- 当前主体证书图为 `public/cert-{msb,new-york}.png`（660w）；灯箱用对应 `cert-*@2x.png`（1160w）。旧 Colorado 主体资料已退出公开站点，不能恢复；来源记录见 `docs/whitepapers/README.md`。
 - 行尾:仓内一律存 LF,由 `.gitattributes`(`* text=auto`)机器强制(2026-09-01 焊门)。**旧惯例「commit 带 `-c core.autocrlf=false`」已废**——它把 CRLF 工作副本原样入库,两天内两仓各制造一次千行假 diff(admin-ops 交接书 / 本仓 5 文件)。工作副本是 CRLF 无妨,入库自动归一;正常 `git commit` 即可。
 
 ## Commands
@@ -45,7 +48,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
   - `brand-parity`:官网 `--x-accent`+`--x-on-accent` 必须是 App `Nexion-uniapp/src/styles/tokens.css` **同一主题块**内的 brand+on-brand 配对(锁跨主题错配),且 `--x-accent-ink` 必须 `var(--x-accent)` 引用(封第二字面量漂移旁路);App 仓不在本机时 warn 放行
   - `particle-hue`:`fx.ts` 注释里 `HUE-GUARD:<名> (r,g,b)` 标注的粒子三端须与品牌同色相带 ±6°——**改粒子色值必同步改标注**,否则门失效
 - 🔴 **机械改写后必跑逐元素回归**:`node scripts/visual-diff.mjs snap <url> <a.json> [宽度]` 前后各一次,再 `diff a.json b.json [容差%]`
-- 截图(给评审 agent / 自己回看):`node scripts/shots.mjs --routes home vi zh nex --size 1440x900 --out <目录>`。**路由参数不带斜杠**(MSYS 会把裸 `/` 改写成 Git 安装路径);默认关掉背景 canvas —— 本机 Windows 暗色主题会让 Chromium 非确定性地把反白板块画成黑底亮字(环境问题非站点缺陷),关掉那张整屏 canvas 后颜色才可信。要看氛围粒子加 `--canvas`,要看磨砂导航与开场编排加 `--motion`
+- 截图(给评审 agent / 自己回看):`node scripts/shots.mjs --routes home vi zh uvt --size 1440x900 --out <目录>`。**路由参数不带斜杠**(MSYS 会把裸 `/` 改写成 Git 安装路径);默认关掉背景 canvas —— 本机 Windows 暗色主题会让 Chromium 非确定性地把反白板块画成黑底亮字(环境问题非站点缺陷),关掉那张整屏 canvas 后颜色才可信。要看氛围粒子加 `--canvas`,要看磨砂导航与开场编排加 `--motion`
   — why:R40-R42 三轮,每轮都在修好真东西的同时造新伤,同一个模式——**大范围改写后用总量指标(页高/门全绿)验收,总量对逐元素回归是瞎的**。
   R42 用页高「修好」了手机端,而那个修法本身把窄屏标题砍掉 44%,页高恰好正常所以没被发现,直到独立评审逐元素量才抓到。
   键 = 标签+类名+**数字归一后的文本**+序号(插包装层不影响;不归一则实时时钟会让该元素被静默排除出比对)。
@@ -91,8 +94,7 @@ NexGrid 官网(marketing site)。**纯展示站**:无登录/无交易,唯一转�
   原「统计数字仍是演示值」那道门已换向 —— 它的前提(最终换真数据)不存在了,改守配置自身站不站得住。
 - 🔴 **官网不出现任何收益数字/收益承诺**(主人 2026-08-20 裁决,含计算器已删)——why:英文市场证券化表述高危;检查:`npm run verify` 禁用词门
 - 🔴 信任板块只放主人提供的真实注册实体资料;App PRD §11.3 的占位背书(投资方/审计/媒体)**一项不得出现**——why:公网虚假背书=虚假陈述;检查:资料未到位时 `PENDING-TRUST-ASSETS` 标记 + verify:prod 拦截
-  - ✅ 资料已到位并**逐条回源核对过**(2026-09-01,源=`D:\WORKS\公司资料`):Entity ID `20221592644`、
-    FinCEN MSB `31000329265856`、法定名 NexGrid LTD,与证书原件一致;证书图 `public/cert-{msb,colorado}.png`。
-  - ⚠️ 仓里剩的那个 `PENDING-TRUST-ASSETS` 标记**挡的不是信任板块**,是 `LegalAppPrivacy.astro`
-    的 App 隐私政策正文(要 App 的数据清单/权限/保留期/联系人)—— 公司注册资料给不了它,别拿错资料去销标记。
-- 🔴 文案改动跑 verify 禁用词门;i18n 三语同步不豁免
+  - ✅ **当前主体资料（2026-10-16 更新）**：UVEL AI LTD，纽约州 DOS ID `8040896`，FinCEN MSB `31000342955895`，地址 `667 Madison Ave, New York, NY 10065`。资料抄录自主人提供的纽约州公司注册证书和 MSB 注册文件；来源说明见 `docs/whitepapers/README.md`，不将资料抄录表述为独立登记查询核验。
+  - 证书图为 `public/cert-{msb,new-york}.png`。旧 NexGrid LTD / Colorado 资料及旧注册号码只属于历史记录，禁止用于当前站点。
+  - App 隐私政策已于 2026-10-16 物化到 `src/config/site.json` 的 `legal.appPrivacy`，公开主体为 UVEL AI LTD。`PENDING-TRUST-ASSETS` 仍是缺资料时的阻断机制，不应照旧说明假设当前政策仍待补，也不能拿公司证书替代 App 数据处理资料。
+- 🔴 文案改动跑 verify 禁用词门;i18n 九语同步不豁免

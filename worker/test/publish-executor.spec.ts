@@ -7,6 +7,7 @@ import { LOCALES, MATERIALIZED_FILES, addLegacyLocaleFields, SiteConfigSchema, m
 import manifestJson from '../seed/copy-manifest.json';
 import currentSeedJson from '../seed/site-config.seed.json';
 import legacyJson from '../seed/config-upgrade-legacy-v1.json';
+import { renameTokenCopyKey } from '../src/token-rename';
 import { CONFIG_UPGRADE_KEY } from '../src/config-upgrade';
 
 const secret = 'test-service-secret-with-at-least-32-characters';
@@ -61,7 +62,7 @@ function legacyConfig(conflict = false) {
   const config = SiteConfigSchema.parse(structuredClone(currentSeedJson));
   for (const locale of ['en', 'vi', 'zh'] as const) {
     const defaults = legacyJson.copyDefaults[locale] as Record<string,string>;
-    config.copy[locale] = Object.fromEntries(legacyJson.copyKeys.map(key=>[key,Object.hasOwn(defaults,key) ? defaults[key] : config.copy[locale][key]]));
+    config.copy[locale] = Object.fromEntries(legacyJson.copyKeys.map(key=>[key,Object.hasOwn(defaults,key) ? defaults[key] : config.copy[locale][renameTokenCopyKey(key)]?.replaceAll('UVT','NEX')]));
   }
   config.enabledLocales = ['en', 'vi'];
   config.faq = (addLegacyLocaleFields({ faq: legacyJson.faq }, manifestJson.editable) as SiteConfig).faq;

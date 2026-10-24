@@ -33,7 +33,7 @@ export const FaqItem = object({
   deleted: z.boolean().optional(),
 });
 
-export const SEO_PAGE_IDS = ['home', 'learn', 'nex', 'legal-privacy', 'legal-terms', 'legal-app-privacy'] as const;
+export const SEO_PAGE_IDS = ['home', 'learn', 'uvt', 'legal-privacy', 'legal-terms', 'legal-app-privacy'] as const;
 
 export const SiteConfigSchema = object({
   enabledLocales: z.array(z.enum(LOCALES)).min(1)

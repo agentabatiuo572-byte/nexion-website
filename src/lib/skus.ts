@@ -1,5 +1,5 @@
 /* [FEAT-WEB06] SKU 契约 — App PRD §7.1 商品表的官网镜像(本文件为唯一消费源)。
-   🔴 不含收益字段(dailyUsdt/dailyNex 官网不拉取不展示,PRD §1.4-1);
+   🔴 不含收益字段(dailyUsdt/dailyUvt 官网不拉取不展示,PRD §1.4-1);
    算力倍数(multiplier)为事实性展示。status 快照按 §7.1 表 status 列;
    'coming' 渲染逻辑保留(unlocksAtPhase 未达机型的预热态),当前快照无 coming 项
    ——官网无 App phase 状态面,不虚构上架节奏,接真接口后由 server 下发。

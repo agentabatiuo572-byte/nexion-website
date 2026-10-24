@@ -103,7 +103,7 @@
        canvas ctx.font = `${weight} ${size}px ${family}`; ctx.measureText('0'.repeat(100)).width / 100 / size
      🔴 **常数是「某个字重」的 advance,不是「某个字体」的**:Space Mono 与 Funnel Display 三档字重同值,
         但 **Be Vietnam Pro 400 = 0.676、500/700 = 0.684**(差 1.18%)。下面取字重 400
-        (当前唯一 display 消费者 NexContent h1 挂 .x-display = w400;.x-h24 / .x-display-mega 是 w500)。
+        (当前唯一 display 消费者 UvtContent h1 挂 .x-display = w400;.x-h24 / .x-display-mega 是 w500)。
         **换字体或换字重都必须重测。**
      ⚠️ 代价交底:`ch` 在字体彻底加载失败时会跟着实际用上的兜底字体调整行长上限,常数不会。
         这是本路线固有的取舍(拿「字体挂了时行长略偏」换「每次加载都不会错版面」),不是缺陷。 */
@@ -348,7 +348,7 @@ html {
 }
 
 /* 24 档 · 问句体:手风琴问句 / 可折叠标题。400 字重、行距放宽 —— 它天生要折两行。
-   原来在 FaqSection / TrustSection / NexContent 三个组件里**逐字重复三份**,
+   原来在 FaqSection / TrustSection / UvtContent 三个组件里**逐字重复三份**,
    其中一处的注释自己写着「补要三处一起补」。 */
 .x-q {
   font-family: var(--x-font-display);
@@ -593,7 +593,7 @@ html.js [data-rv].rv-done {
   transition-delay: 0s;
 }
 /* 🔴 引擎没到货时的兜底(独立评审实测:bundle 被阻断后首页 35 个内容块永不显示,
-   /nex/ 连 H1 也是 data-rv、整页近乎空白)。隐藏由 html.js 开启——那是内联脚本挂的,
+   /uvt/ 连 H1 也是 data-rv、整页近乎空白)。隐藏由 html.js 开启——那是内联脚本挂的,
    bundle 挂掉也照挂;解除隐藏却要靠 fx 的 IntersectionObserver,于是一失败就永久隐形。
    [data-lr] 与 [data-tw] 早就有 x-unhide 兜底,这一支漏了(兜底按类型枚举,枚举漏一项)。
    条件是「引擎没到货」而不是「超时」:data-rv 是滚动进场,纯超时会让整页提前全显。

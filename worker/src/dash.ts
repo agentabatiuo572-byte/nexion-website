@@ -328,7 +328,7 @@ dashRoutes.get('/', async (c) => {
       (await db.prepare('SELECT slug, COALESCE(SUM(reads),0) reads FROM daily_learn WHERE date BETWEEN ?1 AND ?2 GROUP BY slug ORDER BY reads DESC LIMIT 15').bind(from, today).all<{ slug: string; reads: number }>()).results,
     ),
     section(async () =>
-      (await db.prepare('SELECT section_id, COALESCE(SUM(uniq),0) uniq FROM daily_section WHERE date BETWEEN ?1 AND ?2 GROUP BY section_id ORDER BY uniq DESC').bind(from, today).all<{ section_id: string; uniq: number }>()).results,
+      (await db.prepare("SELECT CASE WHEN section_id='nex' THEN 'uvt' ELSE section_id END AS section_id, COALESCE(SUM(uniq),0) uniq FROM daily_section WHERE date BETWEEN ?1 AND ?2 GROUP BY 1 ORDER BY uniq DESC").bind(from, today).all<{ section_id: string; uniq: number }>()).results,
     ),
   ]);
   const content = { pages, faq, learn, sections };

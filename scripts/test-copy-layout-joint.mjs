@@ -12,7 +12,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 const flag = (name) => process.argv.find((arg) => arg.startsWith('--' + name + '='))?.slice(name.length + 3);
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 const json = (path) => JSON.parse(readFileSync(path, 'utf8'));
-const nav = ['nav.how', 'nav.devices', 'nav.trust', 'nav.learn', 'nav.nex', 'nav.launchH5', 'nav.download'];
+const nav = ['nav.how', 'nav.devices', 'nav.trust', 'nav.learn', 'nav.uvt', 'nav.launchH5', 'nav.download'];
 const hero = ['hero.title', 'hero.subtitle', 'hero.subtitle2', 'hero.note', 'hero.note2', 'hero.scrollHint'];
 const buttons = ['download.ios', 'download.android', 'nav.launchH5'];
 const mission = ['mission.kicker', 'mission.title', 'mission.lead', ...Array.from({ length: 6 }, (_, i) => 'mission.f' + (i + 1))];

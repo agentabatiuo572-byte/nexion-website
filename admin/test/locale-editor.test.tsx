@@ -32,7 +32,7 @@ const fixture = (): SiteConfigView => ({
   skus: [{ id: 'phone', name: 'Phone', tagline: translated('tagline'), priceUSD: 1, multiplier: 1, status: 'active', sort: 1, visible: true }],
   faq: { items: [1, 2, 3].map((n) => ({ id: `q${n}`, q: translated(`question ${n}`), a: translated(`answer ${n}`), sort: n, visible: true })) },
   announcement: { id: 'notice', enabled: false, text: translated('announcement') },
-  seo: { pages: Object.fromEntries(['home', 'learn', 'nex', 'legal-privacy', 'legal-terms', 'legal-app-privacy'].map((page) => [page, { title: translated(`${page} title`), description: translated(`${page} description`) }])) },
+  seo: { pages: Object.fromEntries(['home', 'learn', 'uvt', 'legal-privacy', 'legal-terms', 'legal-app-privacy'].map((page) => [page, { title: translated(`${page} title`), description: translated(`${page} description`) }])) },
   footer: { social: [], contactEmail: '' },
   legal: { terms: { md: translated('terms'), updatedAt: '' }, privacy: { md: translated('privacy'), updatedAt: '' }, appPrivacy: { md: translated('appPrivacy'), updatedAt: '' } },
 });

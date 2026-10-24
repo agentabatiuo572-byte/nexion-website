@@ -173,9 +173,12 @@ export function enumerateTranslationFields(config: SiteConfig, manifest: Pick<Co
 }
 
 /** A deterministic, shared floor for both seed and model results. */
+export const containsLegacyTokenName = (value: string): boolean => /(^|[^A-Za-z0-9_])NEX(?=$|[^A-Za-z0-9_])/.test(value);
+
 export function validateTranslationValue(field: Pick<TranslationField, 'source' | 'maxLength'>, value: string): string | null {
   if (!value.trim()) return 'empty';
   if (value.length > field.maxLength) return 'too-long';
+  if (containsLegacyTokenName(value)) return 'stale-token';
   if (/^\s*(?:```|\{\s*["“«]?translations["”»]?\s*:)/iu.test(value)) return 'translation-envelope';
   if (/\bUvel\b/iu.test(field.source) && !/\bNexGrid\b/iu.test(field.source) && /\bNexGrid\b/iu.test(value)) return 'stale-brand';
   const matches = (text: string, pattern: RegExp) => JSON.stringify((text.match(pattern) ?? []).sort());

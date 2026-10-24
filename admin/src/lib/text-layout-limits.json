@@ -1,7 +1,7 @@
 {
   "version": 2,
-  "sourceHash": "5f0145fe4ed5346c3bb9df38f6c32a3cb612c21d5a31def4a2718419c996d5b2",
-  "portableLayoutHash": "a345285956ae6e5c223347dd1ab4fb256e70f560c3d4c4c2dce825cce778bd45",
+  "sourceHash": "47f5b360786f151e7e49e291056af0dda7d93bc08ec2ad2bf5025d6dfd0791f1",
+  "portableLayoutHash": "7884639de287d42e6b4fcb66e67ecb153ad0f28c5ac0826d7dc0c75648280775",
   "locales": [
     "en",
     "vi",
@@ -138,19 +138,19 @@
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
       }
     },
-    "nav.nex": {
+    "nav.uvt": {
       "kind": "bounded",
       "description": "桌面导航链接不换行，需与同排控件共同检查；移动菜单允许文字换行并可纵向滚动。",
       "references": {
-        "en": "NEX",
-        "vi": "NEX",
-        "es": "NEX",
-        "pt": "NEX",
-        "fr": "NEX",
-        "de": "NEX",
-        "ja": "NEX",
-        "ko": "NEX",
-        "zh": "NEX"
+        "en": "UVT",
+        "vi": "UVT",
+        "es": "UVT",
+        "pt": "UVT",
+        "fr": "UVT",
+        "de": "UVT",
+        "ja": "UVT",
+        "ko": "UVT",
+        "zh": "UVT"
       },
       "limits": {
         "en": 18,
@@ -1793,47 +1793,47 @@
         "ja": "扩写测试未得到可靠的固定字数边界，请结合前台预览检查换行及内容显示。"
       }
     },
-    "nex.teaserTitle": {
+    "uvt.teaserTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.whatTitle": {
+    "uvt.teaser.whatTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.whatDesc": {
+    "uvt.teaser.whatDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.earnTitle": {
+    "uvt.teaser.earnTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.earnDesc": {
+    "uvt.teaser.earnDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.useTitle": {
+    "uvt.teaser.useTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaser.useDesc": {
+    "uvt.teaser.useDesc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.teaserCta": {
+    "uvt.teaserCta": {
       "kind": "bounded",
       "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
       "references": {
-        "en": "Learn more about NEX",
-        "vi": "Tìm hiểu thêm về NEX",
-        "es": "Más información sobre NEX",
-        "pt": "Saiba mais sobre NEX",
-        "fr": "En savoir plus sur NEX",
-        "de": "Mehr über NEX erfahren",
-        "ja": "NEXを詳しく知る",
-        "ko": "NEX 자세히 알아보기",
-        "zh": "深入了解 NEX"
+        "en": "Learn more about UVT",
+        "vi": "Tìm hiểu thêm về UVT",
+        "es": "Más información sobre UVT",
+        "pt": "Saiba mais sobre UVT",
+        "fr": "En savoir plus sur UVT",
+        "de": "Mehr über UVT erfahren",
+        "ja": "UVTを詳しく知る",
+        "ko": "UVT 자세히 알아보기",
+        "zh": "深入了解 UVT"
       },
       "limits": {
         "en": 27,
@@ -1848,199 +1848,199 @@
       },
       "previewReasons": {}
     },
-    "nex.pageTag": {
+    "uvt.pageTag": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.pageTitle": {
+    "uvt.pageTitle": {
       "kind": "flowing",
       "description": "页面标题自然增高，同时作为默认 SEO 标题。"
     },
-    "nex.pageLead": {
+    "uvt.pageLead": {
       "kind": "flowing",
       "description": "页面引言自然增高，同时作为默认 SEO 描述。"
     },
-    "nex.compareTitle": {
+    "uvt.compareTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpProp": {
+    "uvt.cmpProp": {
       "kind": "flowing",
       "description": "表头可换行，表格行高随内容增长。"
     },
-    "nex.cmpType": {
+    "uvt.cmpType": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpTypeUsdt": {
+    "uvt.cmpTypeUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpTypeNex": {
+    "uvt.cmpTypeUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVol": {
+    "uvt.cmpVol": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVolUsdt": {
+    "uvt.cmpVolUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpVolNex": {
+    "uvt.cmpVolUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUse": {
+    "uvt.cmpUse": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUseUsdt": {
+    "uvt.cmpUseUsdt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.cmpUseNex": {
+    "uvt.cmpUseUvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.sourcesTitle": {
+    "uvt.sourcesTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src1Title": {
+    "uvt.src1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src1Desc": {
+    "uvt.src1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src2Title": {
+    "uvt.src2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src2Desc": {
+    "uvt.src2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src3Title": {
+    "uvt.src3Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src3Desc": {
+    "uvt.src3Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src4Title": {
+    "uvt.src4Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.src4Desc": {
+    "uvt.src4Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.usesTitle": {
+    "uvt.usesTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use1Title": {
+    "uvt.use1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use1Desc": {
+    "uvt.use1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use2Title": {
+    "uvt.use2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use2Desc": {
+    "uvt.use2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use3Title": {
+    "uvt.use3Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use3Desc": {
+    "uvt.use3Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use4Title": {
+    "uvt.use4Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use4Desc": {
+    "uvt.use4Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use5Title": {
+    "uvt.use5Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.use5Desc": {
+    "uvt.use5Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mechTitle": {
+    "uvt.mechTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech1Title": {
+    "uvt.mech1Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech1Desc": {
+    "uvt.mech1Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech2Title": {
+    "uvt.mech2Title": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.mech2Desc": {
+    "uvt.mech2Desc": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faqTitle": {
+    "uvt.faqTitle": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq1Q": {
+    "uvt.faq1Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq1A": {
+    "uvt.faq1A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq2Q": {
+    "uvt.faq2Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq2A": {
+    "uvt.faq2A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq3Q": {
+    "uvt.faq3Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq3A": {
+    "uvt.faq3A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq4Q": {
+    "uvt.faq4Q": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.faq4A": {
+    "uvt.faq4A": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "nex.getApp": {
+    "uvt.getApp": {
       "kind": "bounded",
       "description": "单个控件不换行，受实际可用宽度限制；所属按钮组允许的换行和自然增高不算溢出。",
       "references": {
@@ -2067,9 +2067,9 @@
       },
       "previewReasons": {}
     },
-    "nex.whitepaper": {
+    "uvt.whitepaper": {
       "kind": "bounded",
-      "description": "NEX 页按钮不换行；首页白皮书按钮允许换行且区域自然增高，不设首页按钮高度上限。两处需分别检查。",
+      "description": "UVT 页按钮不换行；首页白皮书按钮允许换行且区域自然增高，不设首页按钮高度上限。两处需分别检查。",
       "references": {
         "en": "Read the whitepaper",
         "vi": "Đọc whitepaper",
@@ -2193,7 +2193,7 @@
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
-    "learn.topics.nex": {
+    "learn.topics.uvt": {
       "kind": "flowing",
       "description": "内容换行后自然增高，不设固定总字数上限。"
     },
@@ -2828,5 +2828,5 @@
       "description": "下载、H5、公告跳转和社交链接是地址配置，不按可见文案长度计量；沿用原 URL 校验。"
     }
   },
-  "evidenceSha256": "1abde075928bcadb9e291743c77b37954020725321cb01e64d278670d8cc74d3"
+  "evidenceSha256": "730df32ecac6e2f683fc0ac4f274a7f292c410c28ca9bcfc37b9702e6cbebced"
 }

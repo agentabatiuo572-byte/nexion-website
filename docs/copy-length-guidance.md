@@ -55,7 +55,7 @@
 
 完整本地证据位于 `.cache/copy-length-correction/admin-runtime/`，含 `report.json`、默认英文标题的桌面/手机截图及完整交互记录。
 
-另有[独立前台边界复验](../.cache/copy-length-correction/independent-final-budget/review.md)及[原始证据](../.cache/copy-length-correction/independent-final-budget/evidence.json)：直接检查真实 DOM 与截图，覆盖英语／越南语 `nav.how`、日语 `nav.download`、中文 `nex.getApp` 共 4 组、12 个默认及边界样本。它没有复用校准探针作判断，也不代表对全部 449 条数字逐条做了独立浏览器复验。
+另有[独立前台边界复验](../.cache/copy-length-correction/independent-final-budget/review.md)及[原始证据](../.cache/copy-length-correction/independent-final-budget/evidence.json)：直接检查真实 DOM 与截图，覆盖英语／越南语 `nav.how`、日语 `nav.download`、中文 `uvt.getApp` 共 4 组、12 个默认及边界样本。它没有复用校准探针作判断，也不代表对全部 449 条数字逐条做了独立浏览器复验。
 
 ## 多字段同时修改的诊断
 
@@ -89,7 +89,7 @@
 | nav.devices | 排版建议 | 22 | 16 | 16 | 17 | 11 | 7 | 预览〔P2〕 | 23 | 22 | all: .site-nav .links a[href$="#devices"] |
 | nav.trust | 排版建议 | 20 | 15 | 13 | 14 | 11 | 10 | 预览〔P2〕 | 23 | 22 | all: .site-nav .links a[href$="#trust"]；home: #trust .head .lab |
 | nav.learn | 排版建议 | 20 | 11 | 9 | 10 | 8 | 12 | 预览〔P2〕 | 24 | 24 | all: .site-nav .links a[href$="/learn/"]；home: #learn-entry .head .lab |
-| nav.nex | 排版建议 | 18 | 11 | 7 | 8 | 5 | 4 | 预览〔P2〕 | 24 | 23 | all: .site-nav .links a[href$="/nex/"] |
+| nav.uvt | 排版建议 | 18 | 11 | 7 | 8 | 5 | 4 | 预览〔P2〕 | 24 | 23 | all: .site-nav .links a[href$="/uvt/"] |
 | nav.launchH5 | 排版建议 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P1〕 | 预览〔P2〕 | 预览〔P1〕 | 预览〔P1〕 | all: .site-nav .h5；home: .hero .dl > :nth-child(3)；home: .final .dl > :nth-child(3) |
 | nav.download | 排版建议 | 23 | 17 | 13 | 11 | 13 | 9 | 18 | 20 | 19 | all: .site-nav .dl-btn |
 | nav.ariaMain | 辅助文字 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 主导航辅助技术名称，仅 aria-label，不渲染为文字。 |
@@ -213,64 +213,64 @@
 | mission.f4 | 排版建议 | 67 | 预览〔P1〕 | 69 | 66 | 62 | 预览〔P1〕 | 预览〔P2〕 | 11 | 12 | home: #mission .cell:nth-child(4) .name |
 | mission.f5 | 排版建议 | 67 | 预览〔P1〕 | 65 | 67 | 60 | 预览〔P1〕 | 预览〔P2〕 | 12 | 10 | home: #mission .cell:nth-child(5) .name |
 | mission.f6 | 排版建议 | 63 | 预览〔P1〕 | 69 | 72 | 60 | 预览〔P1〕 | 预览〔P2〕 | 12 | 10 | home: #mission .cell:nth-child(6) .name |
-| nex.teaserTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .lead h2 |
-| nex.teaser.whatTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .what h3 |
-| nex.teaser.whatDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .what .desc |
-| nex.teaser.earnTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .side .card:nth-child(1) h3 |
-| nex.teaser.earnDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .side .card:nth-child(1) .desc |
-| nex.teaser.useTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .side .card:nth-child(2) h3 |
-| nex.teaser.useDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .side .card:nth-child(2) .desc |
-| nex.teaserCta | 排版建议 | 27 | 27 | 27 | 27 | 27 | 27 | 18 | 19 | 19 | home: #nex .more .xbtn |
-| nex.pageTag | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #nex .head .lab；nex: .nex-page .hero .tag |
-| nex.pageTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .hero h1 |
-| nex.pageLead | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .hero .lead |
-| nex.compareTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: #nex-compare |
-| nex.cmpProp | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table thead th:first-child |
-| nex.cmpType | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(1) td:nth-child(1) |
-| nex.cmpTypeUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(1) td:nth-child(2) |
-| nex.cmpTypeNex | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(1) td:nth-child(3) |
-| nex.cmpVol | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(2) td:nth-child(1) |
-| nex.cmpVolUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(2) td:nth-child(2) |
-| nex.cmpVolNex | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(2) td:nth-child(3) |
-| nex.cmpUse | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(3) td:nth-child(1) |
-| nex.cmpUseUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(3) td:nth-child(2) |
-| nex.cmpUseNex | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page table tbody tr:nth-child(3) td:nth-child(3) |
-| nex.sourcesTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: #nex-sources |
-| nex.src1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(1) b |
-| nex.src1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(1) .x-copy |
-| nex.src2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(2) b |
-| nex.src2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(2) .x-copy |
-| nex.src3Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(3) b |
-| nex.src3Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(3) .x-copy |
-| nex.src4Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(4) b |
-| nex.src4Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-sources"] li:nth-child(4) .x-copy |
-| nex.usesTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: #nex-uses |
-| nex.use1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(1) b |
-| nex.use1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(1) .x-copy |
-| nex.use2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(2) b |
-| nex.use2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(2) .x-copy |
-| nex.use3Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(3) b |
-| nex.use3Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(3) .x-copy |
-| nex.use4Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(4) b |
-| nex.use4Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(4) .x-copy |
-| nex.use5Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(5) b |
-| nex.use5Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: [aria-labelledby="nex-uses"] li:nth-child(5) .x-copy |
-| nex.mechTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: #nex-mech |
-| nex.mech1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .mcard:nth-child(1) h3 |
-| nex.mech1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .mcard:nth-child(1) p |
-| nex.mech2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .mcard:nth-child(2) h3 |
-| nex.mech2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .mcard:nth-child(2) p |
-| nex.faqTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: #nex-faq |
-| nex.faq1Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(1) .q |
-| nex.faq1A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(1) > p |
-| nex.faq2Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(2) .q |
-| nex.faq2A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(2) > p |
-| nex.faq3Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(3) .q |
-| nex.faq3A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(3) > p |
-| nex.faq4Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(4) .q |
-| nex.faq4A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | nex: .nex-page .faq:nth-of-type(4) > p |
-| nex.getApp | 排版建议 | 27 | 27 | 27 | 27 | 27 | 27 | 17 | 18 | 19 | nex: .nex-page .cta-row .xbtn.solid；learn: .learn .cta .xbtn；article: .article .cta .xbtn |
-| nex.whitepaper | 排版建议 | 33 | 33 | 33 | 33 | 34 | 33 | 21 | 22 | 20 | home: #whitepaper .whitepaper-read；nex: .nex-page [data-whitepaper-read] |
+| uvt.teaserTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .lead h2 |
+| uvt.teaser.whatTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .what h3 |
+| uvt.teaser.whatDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .what .desc |
+| uvt.teaser.earnTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .side .card:nth-child(1) h3 |
+| uvt.teaser.earnDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .side .card:nth-child(1) .desc |
+| uvt.teaser.useTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .side .card:nth-child(2) h3 |
+| uvt.teaser.useDesc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .side .card:nth-child(2) .desc |
+| uvt.teaserCta | 排版建议 | 27 | 27 | 27 | 27 | 27 | 27 | 18 | 19 | 19 | home: #uvt .more .xbtn |
+| uvt.pageTag | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #uvt .head .lab；uvt: .uvt-page .hero .tag |
+| uvt.pageTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .hero h1 |
+| uvt.pageLead | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .hero .lead |
+| uvt.compareTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: #uvt-compare |
+| uvt.cmpProp | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table thead th:first-child |
+| uvt.cmpType | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(1) td:nth-child(1) |
+| uvt.cmpTypeUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(1) td:nth-child(2) |
+| uvt.cmpTypeUvt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(1) td:nth-child(3) |
+| uvt.cmpVol | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(2) td:nth-child(1) |
+| uvt.cmpVolUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(2) td:nth-child(2) |
+| uvt.cmpVolUvt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(2) td:nth-child(3) |
+| uvt.cmpUse | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(3) td:nth-child(1) |
+| uvt.cmpUseUsdt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(3) td:nth-child(2) |
+| uvt.cmpUseUvt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page table tbody tr:nth-child(3) td:nth-child(3) |
+| uvt.sourcesTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: #uvt-sources |
+| uvt.src1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(1) b |
+| uvt.src1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(1) .x-copy |
+| uvt.src2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(2) b |
+| uvt.src2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(2) .x-copy |
+| uvt.src3Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(3) b |
+| uvt.src3Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(3) .x-copy |
+| uvt.src4Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(4) b |
+| uvt.src4Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-sources"] li:nth-child(4) .x-copy |
+| uvt.usesTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: #uvt-uses |
+| uvt.use1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(1) b |
+| uvt.use1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(1) .x-copy |
+| uvt.use2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(2) b |
+| uvt.use2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(2) .x-copy |
+| uvt.use3Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(3) b |
+| uvt.use3Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(3) .x-copy |
+| uvt.use4Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(4) b |
+| uvt.use4Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(4) .x-copy |
+| uvt.use5Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(5) b |
+| uvt.use5Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: [aria-labelledby="uvt-uses"] li:nth-child(5) .x-copy |
+| uvt.mechTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: #uvt-mech |
+| uvt.mech1Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .mcard:nth-child(1) h3 |
+| uvt.mech1Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .mcard:nth-child(1) p |
+| uvt.mech2Title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .mcard:nth-child(2) h3 |
+| uvt.mech2Desc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .mcard:nth-child(2) p |
+| uvt.faqTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: #uvt-faq |
+| uvt.faq1Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(1) .q |
+| uvt.faq1A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(1) > p |
+| uvt.faq2Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(2) .q |
+| uvt.faq2A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(2) > p |
+| uvt.faq3Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(3) .q |
+| uvt.faq3A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(3) > p |
+| uvt.faq4Q | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(4) .q |
+| uvt.faq4A | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | uvt: .uvt-page .faq:nth-of-type(4) > p |
+| uvt.getApp | 排版建议 | 27 | 27 | 27 | 27 | 27 | 27 | 17 | 18 | 19 | uvt: .uvt-page .cta-row .xbtn.solid；learn: .learn .cta .xbtn；article: .article .cta .xbtn |
+| uvt.whitepaper | 排版建议 | 33 | 33 | 33 | 33 | 34 | 33 | 21 | 22 | 20 | home: #whitepaper .whitepaper-read；uvt: .uvt-page [data-whitepaper-read] |
 | learn.title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | learn: .learn .head h1 |
 | learn.subtitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | learn: .learn .head > p |
 | learn.homeTitle | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .head h2 |
@@ -284,7 +284,7 @@
 | learn.topics.devices | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .topic；learn: .learn .topic；article: .article .meta；article: .article .related .topic |
 | learn.topics.wallet | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .topic；learn: .learn .topic；article: .article .meta；article: .article .related .topic |
 | learn.topics.team | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .topic；learn: .learn .topic；article: .article .meta；article: .article .related .topic |
-| learn.topics.nex | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .topic；learn: .learn .topic；article: .article .meta；article: .article .related .topic |
+| learn.topics.uvt | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #learn-entry .topic；learn: .learn .topic；article: .article .meta；article: .article .related .topic |
 | learn.related | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | article: .article .related > .x-label |
 | learn.toc | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | article: .article .toc > .x-label；legal: .legal .legal-toc > summary |
 | faq.title | 自然增长 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | 计数 | home: #faq .head .lab |

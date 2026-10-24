@@ -174,8 +174,8 @@ const revealProbe = () =>
   const page = await ctx.newPage();
   for (const [route, sel, label] of [
     ['/', '.name', 'MissionSection .name'],
-    ['/nex/', '.list b', 'NexContent .list b'],
-    ['/nex/', '.mcard h3', 'NexContent .mcard h3'],
+    ['/uvt/', '.list b', 'UvtContent .list b'],
+    ['/uvt/', '.mcard h3', 'UvtContent .mcard h3'],
   ]) {
     await page.goto(BASE + route, { waitUntil: 'load' });
     const r = await page.evaluate((s) => {

@@ -20,7 +20,7 @@ Digite o código de verificação, defina sua senha e conclua a rápida verifica
 
 ## 3. Receba seu presente de boas-vindas
 
-Contas novas recebem um bônus de boas-vindas em NEX. Conforme a análise da conta, ele é creditado imediatamente ou aparece como pendente. Os dois estados ficam visíveis no painel, sem nenhuma ação adicional.
+Contas novas recebem um bônus de boas-vindas em UVT. Conforme a análise da conta, ele é creditado imediatamente ou aparece como pendente. Os dois estados ficam visíveis no painel, sem nenhuma ação adicional.
 
 ## 4. Tudo pronto
 

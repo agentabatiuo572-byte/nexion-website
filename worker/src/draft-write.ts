@@ -21,7 +21,7 @@ export async function readDraftSnapshot(db: D1Database): Promise<DraftSnapshot> 
 export async function normalizeDraftPayload(db: D1Database, snapshot: DraftSnapshot, input: unknown): Promise<{ config: SiteConfig; sanitized: number; changed: string[] }> {
   const parsed = SiteConfigSchema.safeParse(input);
   if (!parsed.success) throw new DraftWriteError(400, { error: 'bad-structure', issues: parsed.error.issues.slice(0, 10) });
-  const errors = validateConfig(parsed.data, DRAFT_MANIFEST).errors.filter((issue) => ['placeholder', 'unknown-key', 'missing-key', 'dup-id'].includes(issue.rule));
+  const errors = validateConfig(parsed.data, DRAFT_MANIFEST).errors.filter((issue) => ['placeholder', 'unknown-key', 'missing-key', 'dup-id', 'stale-token'].includes(issue.rule));
   if (errors.length) throw new DraftWriteError(400, { error: errors[0]!.rule, issues: errors.slice(0, 10) });
   for (const items of [parsed.data.skus, parsed.data.footer.social]) {
     if (new Set(items.map((item) => item.id)).size !== items.length) throw new DraftWriteError(400, { error: 'dup-id' });

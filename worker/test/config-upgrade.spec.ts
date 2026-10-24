@@ -7,6 +7,7 @@ import manifestJson from '../seed/copy-manifest.json';
 import realLocaleDraft from './fixtures/legacy-locale-draft.json';
 import { adaptLegacyConfig, checkDraftUpgrade, commitDraftUpgrade, CONFIG_UPGRADE_KEY, ensureDraftUpgrade, type UpgradeDraftSnapshot } from '../src/config-upgrade';
 import { configRoutes, ensureInit } from '../src/config';
+import { renameTokenCopyKey } from '../src/token-rename';
 
 const current = SiteConfigSchema.parse(currentJson);
 const manifest = manifestJson as unknown as CopyManifest;
@@ -29,7 +30,7 @@ function legacy(): SiteConfig {
   const config = structuredClone(current);
   for (const locale of ['en', 'vi', 'zh'] as const) {
     config.copy[locale] = Object.fromEntries(legacyJson.copyKeys.map((key) => [key,
-      Object.hasOwn(previous[locale], key) ? previous[locale][key] : current.copy[locale][key],
+      Object.hasOwn(previous[locale], key) ? previous[locale][key] : current.copy[locale][renameTokenCopyKey(key)]?.replaceAll('UVT', 'NEX'),
     ]));
   }
   config.enabledLocales = ['en', 'vi'];
@@ -225,7 +226,7 @@ describe('旧配置升级：保留人工内容且只写一次', () => {
   });
 
   it('真实旧草稿已有 q10 时，六语空槽不构成新编号冲突，升级后可保存且备份/历史原文不变', async () => {
-    const original = await storeDraft(realLocaleDraft as SiteConfig);
+    const original = await storeDraft(realLocaleDraft as unknown as SiteConfig);
     await env.DB.prepare("INSERT INTO config_versions(status,payload,created_by,created_at) VALUES('live',?1,'admin',1)").bind(original).run();
     expect((await ensureDraftUpgrade(env.DB)).status).toBe('applied');
     const upgraded = await draft();

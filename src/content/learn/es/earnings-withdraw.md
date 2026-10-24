@@ -8,7 +8,7 @@ order: 4
 prdRef: "App PRD §9"
 ---
 
-Todo lo que generan tus dispositivos se liquida en la cartera de la aplicación en dos activos: USDT, el activo estable de liquidación, y NEX, el token de la plataforma.
+Todo lo que generan tus dispositivos se liquida en la cartera de la aplicación en dos activos: USDT, el activo estable de liquidación, y UVT, el token de la plataforma.
 
 ## Entender el panel
 
@@ -21,7 +21,7 @@ Los retiros se realizan en USDT. Configura una vez tu dirección en Cartera → 
 ## Realizar un retiro
 
 1. Abre Cartera → Retirar.
-2. Introduce el importe. La pantalla muestra la comisión de confirmación de la red. Si tienes NEX, puedes quemarlos para compensar esa comisión.
+2. Introduce el importe. La pantalla muestra la comisión de confirmación de la red. Si tienes UVT, puedes quemarlos para compensar esa comisión.
 3. Confirma mediante la verificación de seguridad. La solicitud pasa a revisión y puedes seguir su estado en el registro del retiro.
 
 ## Si algo no encaja

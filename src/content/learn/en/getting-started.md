@@ -20,7 +20,7 @@ Enter the verification code, set your password, and complete the quick security 
 
 ## 3. Claim your welcome gift
 
-New accounts receive a welcome bonus in NEX. Depending on account review, it lands immediately or shows as pending — both states are visible on your dashboard, nothing extra to do.
+New accounts receive a welcome bonus in UVT. Depending on account review, it lands immediately or shows as pending — both states are visible on your dashboard, nothing extra to do.
 
 ## 4. You're in
 

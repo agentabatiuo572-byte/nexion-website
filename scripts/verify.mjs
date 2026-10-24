@@ -177,6 +177,31 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
   recordGate('brand-name', detail.length === 0, detail);
 }
 
+/* UVT is the current token name. Check authored copy and emitted pages, including
+   CJK text adjoining the ticker; historic fixtures and migration code are excluded. */
+{
+  const staleToken = /(?<![A-Za-z])NEX(?![A-Za-z])/;
+  const files = [
+    ...LOCALES.map((locale) => join(SRC, 'i18n', `${locale}.json`)),
+    join(SRC, 'config', 'site.json'),
+    join(ROOT, 'worker', 'seed', 'site-config.seed.json'),
+    join(ROOT, 'worker', 'seed', 'copy-manifest.json'),
+    ...walk(join(SRC, 'content', 'learn'), ['.md']),
+    ...walk(join(ROOT, 'dist'), ['.html']),
+  ];
+  const detail = [];
+  if (!['NEX', 'NEXを使用', '购买NEX', 'NEX-USDT'].every((value) => staleToken.test(value))
+    || ['UVT', 'UVEL', 'NEXGRID_SITE_FIXTURE_DIR', 'NexGrid'].some((value) => staleToken.test(value))) {
+    detail.push('旧代币判据的阳性或豁免自检失败');
+  }
+  for (const file of files) {
+    readFileSync(file, 'utf8').split('\n').forEach((line, index) => {
+      if (staleToken.test(line)) detail.push(`${rel(file)}:${index + 1}: 公开内容仍使用旧代币名称`);
+    });
+  }
+  recordGate('token-name', detail.length === 0, detail);
+}
+
 /* ── 门 3:部署门(PRD §6-4:PENDING 标记 / Legal 缺失禁生产)── */
 {
   const detail = [];
@@ -221,8 +246,8 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     /* R49b 主人令:coming-soon 说明行撤除(后台即将接配),禁用态只列清单不拦 */
     if (disabledBtns > 0) info.push(`空值清单:下载 URL 未配 ×${disabledBtns}(禁用态,后台接配即消)`);
     if (!hasMailto) (PROD ? detail : info).push('空值清单:联系邮箱未配(PUBLIC_CONTACT_EMAIL)→ 页脚无任何联系渠道');
-    const nexHome = join(ROOT, 'dist', 'nex', 'index.html');
-    if (existsSync(nexHome) && !readFileSync(nexHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
+    const uvtHome = join(ROOT, 'dist', 'uvt', 'index.html');
+    if (existsSync(uvtHome) && !readFileSync(uvtHome, 'utf8').includes('whitepaper')) info.push('空值清单:白皮书未配(PUBLIC_WHITEPAPER_URL)');
   }
   /* 🔴 「统计数字仍是演示值」这条判据**从 CON16 改版起就不可能触发**
      (2026-09-01 第十轮独立验收 P0)。上一版三重不相交,少一重都还能活:

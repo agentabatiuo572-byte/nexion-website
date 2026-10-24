@@ -17,7 +17,7 @@ import { GLOBE_DOTS_B64, GLOBE_DOTS_N } from './globe-dots';
 /* 🔴 「引擎到货了」的信号,必须在模块**最顶上**挂,不能等 boot():
    [data-rv] 的隐藏初始态由 html.js 开启(内联脚本首帧前就挂,bundle 挂掉也照挂),
    而解除隐藏靠的是本模块的 IntersectionObserver 加 .in。bundle 一失败,首页 35 个内容块
-   永远停在 opacity:0,/nex/ 连 H1 都是 data-rv、整页近乎空白。
+   永远停在 opacity:0,/uvt/ 连 H1 都是 data-rv、整页近乎空白。
    兜底的条件只能是「引擎没到货」(html.js:not(.fx)),不能是「超时」——
    data-rv 是滚动进场,单纯超时会让整页提前全显。挂在顶上是为了尽早熄掉那条兜底动画:
    延迟到 DOMContentLoaded 才挂,慢网上会先闪一下再被隐藏。 */
@@ -1053,12 +1053,29 @@ function initLenis() {
 
 /* 站内 hash 的展开、聚焦和历史语义不依赖平滑滚动；初始 reduced-motion 也必须安装。 */
 function initHashNavigation() {
+  // Keep previously shared token anchors working after the UVT rename.
+  const canonicalTokenAnchor = (id: string) => id === 'nex' ? 'uvt'
+    : id.startsWith('nex-') ? `uvt${id.slice(3)}` : id;
+  const migrateLegacyHash = () => {
+    let id = location.hash.slice(1);
+    try { id = decodeURIComponent(id); } catch { return; }
+    const canonical = canonicalTokenAnchor(id);
+    if (canonical === id) return;
+    const target = document.getElementById(canonical);
+    if (!target) return;
+    history.replaceState(history.state, '', `#${canonical}`);
+    requestAnimationFrame(() => {
+      if (location.hash === `#${canonical}`) target.scrollIntoView({ behavior: 'instant' });
+    });
+  };
+  migrateLegacyHash();
+  addEventListener('hashchange', migrateLegacyHash);
   document.addEventListener('click', (e) => {
     /* R45:修饰键 / 非主键 / 已被处理的点击放行原生语义(Ctrl+click 开新标签等) */
     if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     const a = (e.target as HTMLElement).closest?.('a[href^="#"]') as HTMLAnchorElement | null;
     if (!a) return;
-    const id = a.getAttribute('href')!.slice(1);
+    const id = canonicalTokenAnchor(a.getAttribute('href')!.slice(1));
     const el = id && document.getElementById(id);
     if (!el) return;
     e.preventDefault();

@@ -437,12 +437,12 @@ try {
 
   const whitepaperUrl = '/documents/uvel-whitepaper-v1.3-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '9272376b29acb61d0d0bd8c074282a7d5f9fd941950dffb8c91e06219ec5453f');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
   ));
-  const nexWhitepaperUrl = loadEnv('production', ROOT, 'PUBLIC_').PUBLIC_WHITEPAPER_URL?.trim() || whitepaperUrl;
+  const uvtWhitepaperUrl = loadEnv('production', ROOT, 'PUBLIC_').PUBLIC_WHITEPAPER_URL?.trim() || whitepaperUrl;
   for (const locale of enabledLocales) {
     await page.goto(`${coreUrl}${pagePath(locale, '/')}`, { waitUntil: 'domcontentloaded' });
     const whitepaper = page.locator('#trust [data-whitepaper]');
@@ -462,7 +462,7 @@ try {
       && await read.getAttribute('href') === whitepaperUrl && await read.getAttribute('target') === '_blank'
       && await read.getAttribute('hreflang') === 'en'
       && (await read.getAttribute('rel') || '').split(' ').includes('noopener')
-      && (await read.locator('.xbtn-a').textContent()).includes(core.copy[locale]['nex.whitepaper']));
+      && (await read.locator('.xbtn-a').textContent()).includes(core.copy[locale]['uvt.whitepaper']));
     if (locale === enabledLocales[0]) {
       const [reader, response] = await Promise.all([
         page.waitForEvent('popup'),
@@ -496,11 +496,11 @@ try {
       }
     }
     await page.setViewportSize(originalViewport);
-    await page.goto(`${coreUrl}${pagePath(locale, '/nex/')}`, { waitUntil: 'domcontentloaded' });
-    const nexRead = page.locator('a[data-whitepaper-read]');
-    check(`白皮书 ${locale} NEX 默认入口或环境覆盖`, await nexRead.count() === 1
-      && await nexRead.isVisible() && await nexRead.getAttribute('href') === nexWhitepaperUrl
-      && (nexWhitepaperUrl !== whitepaperUrl || await nexRead.getAttribute('hreflang') === 'en'));
+    await page.goto(`${coreUrl}${pagePath(locale, '/uvt/')}`, { waitUntil: 'domcontentloaded' });
+    const uvtRead = page.locator('a[data-whitepaper-read]');
+    check(`白皮书 ${locale} UVT 默认入口或环境覆盖`, await uvtRead.count() === 1
+      && await uvtRead.isVisible() && await uvtRead.getAttribute('href') === uvtWhitepaperUrl
+      && (uvtWhitepaperUrl !== whitepaperUrl || await uvtRead.getAttribute('hreflang') === 'en'));
   }
 
   /* L01 的 hash 展开/聚焦是信息导航，不得被初始 reduced-motion 连带关闭。 */
@@ -540,7 +540,7 @@ try {
   const seoRoutes = {
     home: '/',
     learn: '/learn/',
-    nex: '/nex/',
+    uvt: '/uvt/',
     'legal-privacy': '/legal/privacy/',
     'legal-terms': '/legal/terms/',
     'legal-app-privacy': '/legal/app-privacy/',
