@@ -43,6 +43,7 @@ function measure(button) {
     text: (button.querySelector('.xbtn-a, .static') || button).textContent.trim(),
     class: button.className, section: button.closest('section, dialog, nav, main')?.id || button.closest('section, dialog, nav, main')?.className,
     disabled: button.getAttribute('aria-disabled') === 'true', solid: button.classList.contains('solid'),
+    compactDownload: matchMedia('(max-width: 860px)').matches && button.matches('.hero .dl-wrap.floating .dl .xbtn.solid'),
     paper: Boolean(button.closest('.cert-zoom')), visible: Boolean(rect.width && rect.height),
     border: s.borderTopColor, borderWidth: s.borderTopWidth, borderStyle: s.borderTopStyle,
     color: s.color, background: s.backgroundColor, surface: background,
@@ -59,7 +60,10 @@ function violations(sample) {
   if (!(parseFloat(sample.borderWidth) > 0 && parseFloat(sample.borderWidth) <= 1.1) || sample.borderStyle !== 'solid') issues.push('thin outline missing');
   // Preserve the existing independent light-dialog treatment and solid brand fill.
   if (!sample.paper && !sample.solid && sample.ratio < (sample.disabled ? 2 : 3)) issues.push(`faint outline ${sample.ratio.toFixed(2)}:1`);
-  if (sample.solid && (sample.background !== 'rgb(158, 220, 29)' || sample.border !== sample.background)) issues.push('solid brand changed');
+  // Existing mobile platform icons use the dark surface, not the desktop brand fill.
+  if (sample.compactDownload) {
+    if (sample.background !== 'rgb(12, 12, 13)' || sample.color !== 'rgb(255, 255, 255)' || sample.border !== 'rgba(255, 255, 255, 0.16)') issues.push('compact download style changed');
+  } else if (sample.solid && (sample.background !== 'rgb(158, 220, 29)' || sample.border !== sample.background)) issues.push('solid brand changed');
   if (sample.paper && sample.border !== 'rgba(12, 12, 13, 0.23)') issues.push('light dialog changed');
   return issues;
 }
@@ -70,6 +74,12 @@ async function record(page, route, width, phase = 'rest') {
     const sample = { route, width, phase, index, ...await buttons.nth(index).evaluate(measure) };
     samples.push(sample);
     for (const issue of violations(sample)) failures.push(`${route} ${width} ${phase} #${index}: ${issue}`);
+    if (sample.visible && sample.solid) {
+      const expected = sample.compactDownload ? 'compact download style changed' : 'solid brand changed';
+      assert(violations({ ...sample, background: 'rgb(255, 0, 0)' }).includes(expected), 'Wrong solid fill must fail');
+      assert(violations({ ...sample, border: 'rgb(255, 0, 0)' }).includes(expected), 'Wrong solid border must fail');
+      mutations += 2;
+    }
   }
 }
 
