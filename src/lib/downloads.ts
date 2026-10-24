@@ -1,13 +1,9 @@
-/* 下载/H5 链接单源(官网后台 PRD CON05,R45 裁决「下载 URL 归后台配置」落地):
-   控制台配置优先;构建环境变量 PUBLIC_*_URL 保兜底(Phase C 上线切换前的过渡链)。
-   空值 = 按钮 coming-soon 降级 / H5 键隐藏,零死链契约不变(WEB02)。 */
-import { SITE_CONFIG as site } from './site-config';
-import { resolveDownloadUrl } from './download-policy';
-
+// Native download entries resolve the current production A3 URL on each click.
+// Keep package URLs out of static builds; Web App uses the h5-lite-main deployment.
 export const DOWNLOAD_URLS = {
-  ios: resolveDownloadUrl(site.downloads.ios, import.meta.env.PUBLIC_IOS_URL),
-  android: resolveDownloadUrl(site.downloads.android, import.meta.env.PUBLIC_ANDROID_URL),
-  h5: resolveDownloadUrl(site.downloads.h5, import.meta.env.PUBLIC_H5_URL),
+  ios: '/api/app-download/ios',
+  android: '/api/app-download/android',
+  h5: 'https://app.uvel.ai/h5/',
 } as const;
 
 /* 官网使用与最新中文稿同版的英文白皮书，随静态站点发布。 */

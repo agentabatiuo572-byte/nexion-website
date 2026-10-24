@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { appDownloadRoutes } from './app-download';
 import type { Env } from './env';
 import { auditRoutes } from './audit';
 import { authRoutes, requireAuth, timingSafeEqualHex } from './auth';
@@ -40,6 +41,9 @@ app.use('*', gateMiddleware);
 app.get('/api/health', (c) =>
   c.json({ ok: true, service: 'nexgrid-site-worker', environment: c.env.ENVIRONMENT }),
 );
+
+// Public, runtime A3 downloads; independent of website-admin authentication/config.
+app.route('/api/app-download', appDownloadRoutes);
 
 // 挑战闸通行证校验(公开;token 由挑战页获取,siteverify 通过后签发 cookie)
 app.route('/__gate', gateRoutes);

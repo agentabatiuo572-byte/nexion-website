@@ -31,8 +31,10 @@ function check(label, pass, detail = '') {
   if (!pass) failures.push(`${label}${detail ? ` — ${detail}` : ''}`);
 }
 
-function disabledDownloadsStayDisabled({ oldUrls, heroDisabled, finalDisabled, navH5 }) {
-  return oldUrls === 0 && heroDisabled === 3 && finalDisabled === 3 && navH5 === 0;
+function downloadsUseA3({ oldUrls, heroUrls, finalUrls, navH5 }) {
+  const expected = ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'];
+  return oldUrls === 0 && JSON.stringify(heroUrls) === JSON.stringify(expected)
+    && JSON.stringify(finalUrls) === JSON.stringify(expected) && navH5 === expected[2];
 }
 
 function matchesPreciseGrowth(value) {
@@ -112,8 +114,10 @@ async function selfTest() {
     ['Unicode 同 hash 可归一', decodeURIComponent('#1-%E5%AE%89%E8%A3%85'.slice(1)) === '1-安装'],
     ['不同公告 id 不误关闭', 'old-id' !== 'new-id'],
     ['窗口结束点为排他', !(100 >= 0 && 100 < 100)],
-    ['关闭下载压过旧环境', disabledDownloadsStayDisabled({ oldUrls: 0, heroDisabled: 3, finalDisabled: 3, navH5: 0 })],
-    ['旧环境下载回流样本被拒', !disabledDownloadsStayDisabled({ oldUrls: 1, heroDisabled: 3, finalDisabled: 3, navH5: 0 })],
+    ['A3 入口与正式 H5 单源', downloadsUseA3({ oldUrls: 0,
+      heroUrls: ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'],
+      finalUrls: ['/api/app-download/ios', '/api/app-download/android', 'https://app.uvel.ai/h5/'], navH5: 'https://app.uvel.ai/h5/' })],
+    ['旧环境下载回流样本被拒', !downloadsUseA3({ oldUrls: 1, heroUrls: [], finalUrls: [], navH5: '' })],
     ['小数基数正算稳定', matchesPreciseGrowth('157')],
     ['小数基数偏一坏样本被拒', !matchesPreciseGrowth('158')],
     ['下载关闭态压过旧环境', resolveDownloadUrl({ enabled: false, url: '' }, 'https://old.example') === ''],
@@ -589,13 +593,13 @@ try {
 
   await page.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
   const oldUrls = await page.locator('a[href*="OLD_"]').count();
-  const heroDisabled = await page.locator('#download .dl button[aria-disabled="true"]').count();
-  const finalDisabled = await page.locator('#final-cta .dl button[aria-disabled="true"]').count();
-  const navH5 = await page.locator('#site-nav .h5').count();
+  const heroUrls = await page.locator('#download .dl a').evaluateAll(links => links.map(link => link.getAttribute('href')));
+  const finalUrls = await page.locator('#final-cta .dl a').evaluateAll(links => links.map(link => link.getAttribute('href')));
+  const navH5 = await page.locator('#site-nav .h5').getAttribute('href');
   check(
-    'M11 disabled 压过旧 PUBLIC_URL',
-    disabledDownloadsStayDisabled({ oldUrls, heroDisabled, finalDisabled, navH5 }),
-    `旧链=${oldUrls}, hero禁用=${heroDisabled}, final禁用=${finalDisabled}, navH5=${navH5}`,
+    'M11 A3 入口覆盖旧官网配置与 PUBLIC_URL',
+    downloadsUseA3({ oldUrls, heroUrls, finalUrls, navH5 }),
+    `旧链=${oldUrls}, hero=${heroUrls}, final=${finalUrls}, navH5=${navH5}`,
   );
 
   const expiredContext = await browser.newContext({ reducedMotion: 'reduce' });

@@ -1,10 +1,6 @@
 ---
-/* [FEAT-WEB02/12] 下载三键 — R9(主人 2026-08-21 第一屏令⑤):
-   文案改「iOS 下载 / Android 下载 / H5 版入口」,iOS/Android 带自绘平台图标;
-   H5 键恒渲染。URL 未配置 → 同文案禁用态(零死链,异常1)。
-   hero 与收尾 CTA 共用同组件同配置(PRD ⑦ 单源)。
-   R49b(主人 2026-08-31):coming-soon 说明行撤除——下载地址后台即将接配,禁用态为纯开发期过渡;
-   data-empty 钩子随之退役(钩子与消费方同生同灭,state-hook 门 0 EMIT 即静默)。 */
+/* [FEAT-WEB02/12] 首页与收尾共用下载入口。
+   iOS/Android 点击时由同源 API 读取 A3，H5 指向正式 Web App。 */
 import { useT, type Locale } from '../../i18n';
 import { DOWNLOAD_URLS } from '../../lib/downloads';
 
@@ -67,23 +63,13 @@ const btns = [
           <span class="dl-label">{b.label}</span> <span class="arr">{b.arr}</span>
         </>
       );
-      /* 未配 URL 的档走 aria-disabled 而不是原生 disabled —— 按 APG,禁用态的键**仍要可聚焦**:
-         不给 tabindex,键盘与朗读器的焦点模式就永远碰不到它,也就听不到「不可用」这件事。
-         独立可用性评审实测:390 档 Tab 序从汉堡键直接跳到页尾 CTA,三颗主键整段被跳过。 */
-      return b.url ? (
+      return (
         // data-m:埋点标识(官网后台 PRD CON15;hero+收尾 CTA 共用本单源,禁用态不计转化)
         <a class:list={['xbtn', { solid: b.solid }, lightCls]} aria-label={compact ? b.label : undefined} title={compact ? b.label : undefined} data-m={`cta:${b.id}`} href={b.url} target="_blank" rel="noopener">
           <span class="xbtn-ghost" aria-hidden="true">{inner}</span>
           <span class="xbtn-a">{inner}</span>
           <span class="xbtn-b" aria-hidden="true">{inner}</span>
         </a>
-      ) : (
-        // 原生 button 而不是 span[role=button]:后者按空格会滚页(独立评审实测 scrollY 0 → 738),
-        // 空格正是这类件的标准激活键,按下去既无反馈又把人甩下大半屏。原生按钮不滚页。
-        // 仍用 aria-disabled 而非原生 disabled —— 原生 disabled 会连焦点一起拿掉。
-        <button type="button" class:list={['xbtn', 'disabled', lightCls]} aria-label={compact ? b.label : undefined} title={compact ? b.label : undefined} aria-disabled="true">
-          <span class="static">{inner}</span>
-        </button>
       );
     })
   }
@@ -104,11 +90,6 @@ const btns = [
     height: calc(15 * var(--uc));
     flex: 0 0 auto;
     display: block;
-  }
-  .static {
-    display: inline-flex;
-    align-items: center;
-    gap: calc(8 * var(--uc));
   }
   .web-icon {
     display: none;
