@@ -17,10 +17,14 @@ The contents pages now use the actual chapter locations. The original technical-
 
 English SHA-256: `4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20`.
 
-Chinese SHA-256: `7ef49310eb6a9b866e85186bf71f4342ad07e2574487f16f6b69a72f17a3f0c9`.
+Chinese SHA-256: `8cbc560f6381a35504c80d0cd14adeb24e3bdc3ea5d2ffa87365eef3b4f50a09`.
 
-The public PDF digest and English-only deployment boundary are checked by `scripts/test-uvel-identity.mjs` and the browser behavior gate. Changing the public whitepaper requires a fresh full-text and rendered-page review before updating its approved digest.
+Both PDF digests and the English-only deployment boundary are checked by `scripts/test-uvel-identity.mjs`; the browser behavior gate also checks the public PDF. Changing either whitepaper requires a fresh full-text and rendered-page review before updating its approved digest.
 
 ## 2026-10-24 token rename
 
-The current token name is **UVT**. The public English PDF replaces all eight occurrences of the former ticker on pages 2, 13 and 18; the company and brand remain UVEL. Its filename, edition, business content and page layout are preserved. All 21 pages were checked for text equivalence apart from this rename and rendered for visual comparison. The Chinese comparison PDF remains a historical internal edition, not a source for the current token name.
+The current token name is **UVT**. The public English PDF replaces all eight occurrences of the former ticker on pages 2, 13 and 18; the company and brand remain UVEL. Its filename, edition, business content and page layout are preserved. All 21 pages were checked for text equivalence apart from this rename and rendered for visual comparison.
+
+## 2026-10-29 Chinese token rename correction
+
+The internal Chinese PDF had missed the token rename. All eight occurrences on pages 2, 9 and 14 now use **UVT**. Its filename, edition and business content are preserved. All 16 pages were rendered and compared: pixels outside the eight token labels are unchanged. The Chinese edition remains internal and is not included in the website deployment.
