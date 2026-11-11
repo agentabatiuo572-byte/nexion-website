@@ -10,6 +10,6 @@ export const DOWNLOAD_URLS = {
 export const WHITEPAPER = {
   url: '/documents/uvel-whitepaper-v1.3-en.pdf',
   version: '1.3',
-  pages: 21,
+  pages: 22,
   language: 'en',
 } as const;

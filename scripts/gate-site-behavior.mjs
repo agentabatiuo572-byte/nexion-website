@@ -442,7 +442,7 @@ try {
 
   const whitepaperUrl = '/documents/uvel-whitepaper-v1.3-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '03ba647070e2e7d593023b5328504a5ccd193b258943565b380a888823119549');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,
