@@ -31,5 +31,7 @@ Chapter 08 describes the proposed task service fee, compute customer billing, an
 
 Participant settlement statements show net task earnings after applicable fees.
 
-- English SHA-256 `03ba647070e2e7d593023b5328504a5ccd193b258943565b380a888823119549`
-- Chinese SHA-256 `2aa8b29fef961bab83acab47199301594aa06b0b7f1acfde5f2f1bef756397b8`
+Both covers use the light-background horizontal lockup from UVEL-Brand-Kit-2026-10-21 (712 x 246 PNG).
+
+- English SHA-256 `f4f7bb7577997d752c4b10d0a22dd092e250917b9cc47b6d1e730f1ae9f90f86`
+- Chinese SHA-256 `654cd83f9b018d041a6974600aac5b1f98b6c498c8ddd74a0360662f2a55ead2`
