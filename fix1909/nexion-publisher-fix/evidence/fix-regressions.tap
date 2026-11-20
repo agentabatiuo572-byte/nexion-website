@@ -1,0 +1,249 @@
+TAP version 13
+# (node:883) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: normal confirmation pins the freshly checked draft revision
+ok 1 - normal confirmation pins the freshly checked draft revision
+  ---
+  duration_ms: 1.291805
+  type: 'test'
+  ...
+# Subtest: zero content changes stay blocked on the normal publication path
+ok 2 - zero content changes stay blocked on the normal publication path
+  ---
+  duration_ms: 1.363312
+  type: 'test'
+  ...
+# Subtest: zero changes allow an explicitly confirmed, fully checked snapshot rebuild
+ok 3 - zero changes allow an explicitly confirmed, fully checked snapshot rebuild
+  ---
+  duration_ms: 0.248793
+  type: 'test'
+  ...
+# Subtest: confirmation cannot silently change to a later live version
+ok 4 - confirmation cannot silently change to a later live version
+  ---
+  duration_ms: 0.108722
+  type: 'test'
+  ...
+# Subtest: draft: active publication remains blocked
+ok 5 - draft: active publication remains blocked
+  ---
+  duration_ms: 0.126239
+  type: 'test'
+  ...
+# Subtest: draft: unverified switch remains blocked
+ok 6 - draft: unverified switch remains blocked
+  ---
+  duration_ms: 0.070305
+  type: 'test'
+  ...
+# Subtest: draft: unready executor remains blocked
+ok 7 - draft: unready executor remains blocked
+  ---
+  duration_ms: 0.055353
+  type: 'test'
+  ...
+# Subtest: draft: validation errors remains blocked
+ok 8 - draft: validation errors remains blocked
+  ---
+  duration_ms: 0.0537
+  type: 'test'
+  ...
+# Subtest: draft: config compatibility preparation remains blocked
+ok 9 - draft: config compatibility preparation remains blocked
+  ---
+  duration_ms: 0.251366
+  type: 'test'
+  ...
+# Subtest: rebuild: active publication remains blocked
+ok 10 - rebuild: active publication remains blocked
+  ---
+  duration_ms: 0.308913
+  type: 'test'
+  ...
+# Subtest: rebuild: unverified switch remains blocked
+ok 11 - rebuild: unverified switch remains blocked
+  ---
+  duration_ms: 0.117366
+  type: 'test'
+  ...
+# Subtest: rebuild: unready executor remains blocked
+ok 12 - rebuild: unready executor remains blocked
+  ---
+  duration_ms: 0.096264
+  type: 'test'
+  ...
+# Subtest: rebuild: validation errors remains blocked
+ok 13 - rebuild: validation errors remains blocked
+  ---
+  duration_ms: 0.054932
+  type: 'test'
+  ...
+# Subtest: rebuild: config compatibility preparation remains blocked
+ok 14 - rebuild: config compatibility preparation remains blocked
+  ---
+  duration_ms: 0.041332
+  type: 'test'
+  ...
+# Subtest: rebuild cannot silently ignore nonempty draft changes
+ok 15 - rebuild cannot silently ignore nonempty draft changes
+  ---
+  duration_ms: 0.084116
+  type: 'test'
+  ...
+# Subtest: rebuild without a live snapshot is rejected
+ok 16 - rebuild without a live snapshot is rejected
+  ---
+  duration_ms: 0.084196
+  type: 'test'
+  ...
+# Subtest: normal publication without a draft revision still throws
+ok 17 - normal publication without a draft revision still throws
+  ---
+  duration_ms: 0.072599
+  type: 'test'
+  ...
+# Subtest: a newer snapshot request supersedes a stale load and an earlier status poll
+ok 18 - a newer snapshot request supersedes a stale load and an earlier status poll
+  ---
+  duration_ms: 0.151277
+  type: 'test'
+  ...
+# Subtest: a full refresh blocks starting a poll until the current pair completes
+ok 19 - a full refresh blocks starting a poll until the current pair completes
+  ---
+  duration_ms: 0.067171
+  type: 'test'
+  ...
+# Subtest: unmount or submit invalidates pending responses
+ok 20 - unmount or submit invalidates pending responses
+  ---
+  duration_ms: 0.059218
+  type: 'test'
+  ...
+# Subtest: late asynchronous success and failure do not overwrite the latest pair
+ok 21 - late asynchronous success and failure do not overwrite the latest pair
+  ---
+  duration_ms: 0.117676
+  type: 'test'
+  ...
+# Subtest: main action rechecks, independent refresh exists, and stale confirmations cannot submit
+ok 22 - main action rechecks, independent refresh exists, and stale confirmations cannot submit
+  ---
+  duration_ms: 0.438968
+  type: 'test'
+  ...
+# (node:884) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# (node:884) ExperimentalWarning: Type Stripping is an experimental feature and might change at any time
+# Subtest: missing checks table reports pending upgrade, not an exception
+ok 23 - missing checks table reports pending upgrade, not an exception
+  ---
+  duration_ms: 1.894426
+  type: 'test'
+  ...
+# Subtest: complete table and unique sequence index are ready
+ok 24 - complete table and unique sequence index are ready
+  ---
+  duration_ms: 0.613479
+  type: 'test'
+  ...
+# Subtest: an incomplete table is not mistaken for an applied migration
+ok 25 - an incomplete table is not mistaken for an applied migration
+  ---
+  duration_ms: 0.441261
+  type: 'test'
+  ...
+# Subtest: missing unique index fails readiness
+ok 26 - missing unique index fails readiness
+  ---
+  duration_ms: 0.531486
+  type: 'test'
+  ...
+# Subtest: an index with the right name but wrong uniqueness is rejected
+ok 27 - an index with the right name but wrong uniqueness is rejected
+  ---
+  duration_ms: 0.675011
+  type: 'test'
+  ...
+# Subtest: an index with the right name but wrong key is rejected
+ok 28 - an index with the right name but wrong key is rejected
+  ---
+  duration_ms: 1.106417
+  type: 'test'
+  ...
+# Subtest: idle missing-schema API is eligible for a single managed restart
+ok 29 - idle missing-schema API is eligible for a single managed restart
+  ---
+  duration_ms: 0.556103
+  type: 'test'
+  ...
+# Subtest: validating anywhere in history prevents restart even without a live lock
+ok 30 - validating anywhere in history prevents restart even without a live lock
+  ---
+  duration_ms: 0.539628
+  type: 'test'
+  ...
+# Subtest: publishing anywhere in history prevents restart even without a live lock
+ok 31 - publishing anywhere in history prevents restart even without a live lock
+  ---
+  duration_ms: 0.609843
+  type: 'test'
+  ...
+# Subtest: unknown anywhere in history prevents restart even without a live lock
+ok 32 - unknown anywhere in history prevents restart even without a live lock
+  ---
+  duration_ms: 0.591225
+  type: 'test'
+  ...
+# Subtest: an unexpired orphan lock prevents restart
+ok 33 - an unexpired orphan lock prevents restart
+  ---
+  duration_ms: 0.322373
+  type: 'test'
+  ...
+# Subtest: expired terminal lock does not authorize a destructive cleanup
+ok 34 - expired terminal lock does not authorize a destructive cleanup
+  ---
+  duration_ms: 0.366889
+  type: 'test'
+  ...
+# Subtest: healthy schema is reused, never restarted by this probe
+ok 35 - healthy schema is reused, never restarted by this probe
+  ---
+  duration_ms: 0.387671
+  type: 'test'
+  ...
+# Subtest: readiness performs read-only statements and preserves every row
+ok 36 - readiness performs read-only statements and preserves every row
+  ---
+  duration_ms: 1.371614
+  type: 'test'
+  ...
+# Subtest: unrelated database failure propagates; it must not become safe-to-restart
+ok 37 - unrelated database failure propagates; it must not become safe-to-restart
+  ---
+  duration_ms: 0.492027
+  type: 'test'
+  ...
+# Subtest: new submissions, claims and checks require the upgraded table
+ok 38 - new submissions, claims and checks require the upgraded table
+  ---
+  duration_ms: 0.105017
+  type: 'test'
+  ...
+# Subtest: recovery, cancellation and heartbeat routes are not disabled by schema upgrade
+ok 39 - recovery, cancellation and heartbeat routes are not disabled by schema upgrade
+  ---
+  duration_ms: 0.077626
+  type: 'test'
+  ...
+1..39
+# tests 39
+# suites 0
+# pass 39
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 121.497956

@@ -1,0 +1,8 @@
+{
+  "admin/src/pages/publish.tsx": "6cea25a7cb8952045537561ea375b83e31fd8b48",
+  "admin/src/lib/publish-contract.ts": "c2349d50392ab9faffea77a9a2baf92d6788957e",
+  "scripts/launcher-publish.ps1": "a0d9ddfae12f23422710df5edbcfa633296a5c07",
+  "worker/src/publish-executor.ts": "f5e581e60a04024794707f1622c4b5612a7b4556",
+  "worker/package.json": "301f5ce28d9c63a2c4678bc5d3faab1836a6fd7a",
+  "scripts/test-start-website.ps1": "f98bff4a518e7a05b3ac572cd9bd5b7c78a52531"
+}

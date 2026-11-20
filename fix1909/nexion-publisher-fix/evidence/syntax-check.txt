@@ -1,0 +1,6 @@
+PASS syntax/transpile: admin/src/pages/publish.tsx
+PASS syntax/transpile: admin/src/lib/publish-contract.ts
+PASS syntax/transpile: admin/src/lib/publish-actions.ts
+PASS syntax/transpile: worker/src/publish-executor.ts
+PASS syntax/transpile: worker/src/publish-readiness.ts
+This is syntax/transpile validation, NOT a full repository typecheck or application build.

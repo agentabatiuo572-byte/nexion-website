@@ -1,0 +1,14 @@
+{
+  "admin/src/lib/publish-actions.ts": "767368031d2f207d0d1dc5b9cc71e18a7079789e7be55fb1388863646a3c54b5",
+  "admin/src/lib/publish-contract.ts": "9eca3e5344c90fc0f8b2f4733610ff2dcf73d8bd52cf12b1fa29ecca74aa94f9",
+  "admin/src/pages/publish.tsx": "20c95247b33072d2ad15b35317e92f4a26e00428773d3612e73b36912bc06934",
+  "docs/publisher-upgrade-fix.md": "2a2a80ca8d2031c1b05e1866d781f874a72f768a953a6e0546061f6cd1600352",
+  "scripts/launcher-publish.ps1": "f5e9ec9c45c8858ed3b2081738a24eeeb97eb9471e7c7940212f1d3458773015",
+  "scripts/test-publish-upgrade.ps1": "34ef2fe6b204e2f01b6988b88961465a2b58da78df53fff17134084c42dbc932",
+  "scripts/test-start-website.ps1": "f9b18c9a6b10081726785555b2a8da10658642795857c06a289b0697fdbee8e5",
+  "worker/package.json": "8ddee30a7388b32dde55735e96167232ee1f5bdca031a132ee8818a7c5a41557",
+  "worker/runner-tests/publish-actions.test.mjs": "260510bd8173e1a14c17b62295b7e4ce6411aecc0737f584184c49d0c7cb638f",
+  "worker/runner-tests/publish-readiness.test.mjs": "439e1744b45bae6b364e57ce30359074f8c5ced8b9260302f80bbd1b4eb6e581",
+  "worker/src/publish-executor.ts": "c636292f5683e241d3777e148f6b04d80597b60abc1e0ca1f61504300e5532e5",
+  "worker/src/publish-readiness.ts": "7a262aa0268cb0721a1ad8e547882b1fe8e47c1115b70aa829f463766001caf5"
+}

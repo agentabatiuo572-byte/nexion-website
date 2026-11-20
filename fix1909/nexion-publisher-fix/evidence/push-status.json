@@ -1,0 +1,13 @@
+{
+  "repository": "agentabatiuo572-byte/nexion-website",
+  "requested_branch": "fix/publisher-upgrade-recheck",
+  "action": "GitHub.create_branch",
+  "status": 403,
+  "message": "Resource not accessible by integration",
+  "permissions": {
+    "push": false,
+    "pull": true
+  },
+  "remote_mutation_completed": false,
+  "remote_main": "cd92e7cace568a2802aa63617776c56c3a3d9a55"
+}

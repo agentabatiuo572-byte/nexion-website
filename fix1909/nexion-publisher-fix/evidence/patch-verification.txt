@@ -1,0 +1,7 @@
+PASS: six original file Git blobs matched the remote baseline.
+PASS: git apply --check on a clean selected-file baseline.
+PASS: git am applied the single fix commit.
+PASS: applied tree is byte-identical to the repaired selected-file tree.
+Scope: selected files only; this is not a complete clone or full-repository build.
+Local fix commit: 9f2cfca232e65573e6e3e1c46816d1ea6a3a9081
+Subject: fix(publisher): verify schema readiness and recheck publish actions

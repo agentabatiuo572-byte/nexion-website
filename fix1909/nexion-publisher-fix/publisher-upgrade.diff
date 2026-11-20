@@ -1,0 +1,1002 @@
+diff --git a/admin/src/lib/publish-actions.ts b/admin/src/lib/publish-actions.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..3831c253a5c79a787ae53f06cf61fce5c0e5617d
+--- /dev/null
++++ b/admin/src/lib/publish-actions.ts
+@@ -0,0 +1,56 @@
++import type { PublishConfirmation } from './publish-contract';
++
++export type PublishIntent = 'draft' | 'rebuild';
++export interface PublishPrecheck {
++  ready: boolean;
++  changed: number;
++  errors: unknown[];
++  draftRev: number;
++  message?: string;
++}
++export interface PublishAvailability {
++  activeVersion: number | null;
++  versions: Array<{ id: number; status: string }>;
++  executor: { ready: boolean; reason: string };
++}
++
++export function publishBlockReason(pre: PublishPrecheck, status: PublishAvailability, intent: PublishIntent = 'draft'): string | null {
++  if (status.activeVersion) return '已有发布正在进行，请等待本次任务结束。';
++  if (status.versions.some(version => version.status === 'unknown')) return '上一次切换结果尚未核实，暂时不能再次发布。';
++  if (!status.executor.ready) return status.executor.reason || '发布服务尚未就绪，请恢复服务后重新检查。';
++  if (pre.message) return pre.message;
++  if (pre.errors.length) return '请先处理上方前置检查问题，再重新检查。';
++  if (intent === 'rebuild') {
++    if (pre.changed !== 0) return '已有待发布的内容改动，请核对后使用“检查并发布”。';
++    if (!status.versions.some(version => version.status === 'live')) return '没有可重新构建的线上版本。';
++  } else if (!pre.ready) {
++    return pre.changed === 0 ? '没有内容改动；代码升级请使用下方的版本重建入口。' : '前置检查尚未就绪，请重新检查。';
++  }
++  return null;
++}
++
++export function preparePublishConfirmation(pre: PublishPrecheck, status: PublishAvailability, intent: PublishIntent = 'draft'): PublishConfirmation {
++  const blocked = publishBlockReason(pre, status, intent);
++  if (blocked) throw new Error(blocked);
++  if (intent === 'rebuild') {
++    const version = status.versions.find(item => item.status === 'live')!;
++    // Pin the explicitly reviewed snapshot. Reuse the server's fully checked snapshot
++    // publication path, never send an allow-empty/skip-validation flag.
++    return { reason: `使用当前发布器代码重新构建 v${version.id}，保留该版本内容并执行全部检查`, rollbackFrom: version.id, rebuild: true };
++  }
++  return { reason: '', draftRev: pre.draftRev };
++}
++
++/** Older loads and polls cannot overwrite a newer full preflight/status pair. */
++export function createPublishRequestGate() {
++  let revision = 0;
++  let pending = false;
++  return {
++    begin: () => { pending = true; return ++revision; },
++    pending: () => pending,
++    finish: (ticket: number) => { if (ticket === revision) pending = false; },
++    current: () => revision,
++    isCurrent: (ticket: number) => ticket === revision,
++    invalidate: () => { revision++; pending = false; },
++  };
++}
+diff --git a/admin/src/lib/publish-contract.ts b/admin/src/lib/publish-contract.ts
+index c2349d50392ab9faffea77a9a2baf92d6788957e..9a765fb748595e1203ced8619796f60de4acf97a 100644
+--- a/admin/src/lib/publish-contract.ts
++++ b/admin/src/lib/publish-contract.ts
+@@ -1,6 +1,8 @@
+ export interface PublishConfirmation {
+   reason: string;
+   rollbackFrom?: number;
++  /** UI intent only; the server still uses the checked fromVersion publication path. */
++  rebuild?: boolean;
+   /** 普通发布在打开确认面时冻结的草稿 revision。 */
+   draftRev?: number;
+ }
+diff --git a/admin/src/pages/publish.tsx b/admin/src/pages/publish.tsx
+index 6cea25a7cb8952045537561ea375b83e31fd8b48..c267e616ba974b949ade3853afccd148202dac45 100644
+--- a/admin/src/pages/publish.tsx
++++ b/admin/src/pages/publish.tsx
+@@ -8,6 +8,7 @@ import { splitFailReason } from '../lib/fail-reason';
+ import { changeGroup, humanPath } from '../lib/human-path';
+ import { fieldEditorLink } from '../lib/field-target';
+ import { publishRequestBody, type PublishConfirmation } from '../lib/publish-contract';
++import { createPublishRequestGate, preparePublishConfirmation, publishBlockReason, type PublishIntent } from '../lib/publish-actions';
+ import { decodePublishProgress, groupPublishChecks, publishFailureAdvice, type PublishCheck } from '../../../schema/src/publish-feedback';
+ import { DefaultTranslationActions, useTranslations } from '../lib/translations';
+ import { useShell } from '../shell';
+@@ -86,6 +87,8 @@ export default function PublishPage() {
+   const [pre, setPre] = useState<Preflight | null>(null);
+   const [st, setSt] = useState<Status | null>(null);
+   const [failed, setFailed] = useState(false);
++  const [loadError, setLoadError] = useState('');
++  const [refreshing, setRefreshing] = useState(false);
+   const [pollFailed, setPollFailed] = useState(false);
+   const [busy, setBusy] = useState(false);
+   const [confirm, setConfirm] = useState<PublishConfirmation | null>(null);
+@@ -95,13 +98,31 @@ export default function PublishPage() {
+   const [showAllErrors, setShowAllErrors] = useState(false);
+   const [showAllWarnings, setShowAllWarnings] = useState(false);
+   const timer = useRef<number | null>(null);
++  const requests = useRef(createPublishRequestGate());
++  const acting = useRef(false);
+ 
+-  const load = useCallback(() => {
+-    Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')])
+-      .then(([p, s]) => { setPre(p); setSt(s); setFailed(false); setPollFailed(false); })
+-      .catch(() => setFailed(true));
++  const refresh = useCallback(async () => {
++    const ticket = requests.current.begin();
++    setRefreshing(true);
++    setConfirm(null);
++    try {
++      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
++      if (!requests.current.isCurrent(ticket)) return null;
++      setPre(p); setSt(s); setFailed(false); setPollFailed(false); setLoadError('');
++      return { p, s, ticket };
++    } catch (error) {
++      if (requests.current.isCurrent(ticket)) {
++        setFailed(true);
++        setLoadError(apiErrorHint(error, '发布检查暂时无法刷新，请稍后重试。'));
++      }
++      return null;
++    } finally {
++      if (requests.current.isCurrent(ticket)) { requests.current.finish(ticket); setRefreshing(false); }
++    }
+   }, []);
+-  useEffect(load, [load]);
++  // Keep an effect-safe, void-returning entry point for existing refresh buttons.
++  const load = useCallback(() => { void refresh(); }, [refresh]);
++  useEffect(() => { load(); return () => requests.current.invalidate(); }, [load]);
+   useEffect(() => {
+     if (translations && pre && translations.draftRev > pre.draftRev) load();
+   }, [translations?.draftRev, pre?.draftRev, load]);
+@@ -111,15 +132,21 @@ export default function PublishPage() {
+     let stopped = false;
+     if (st) {
+       const poll = () => {
++        const retry = () => { if (!stopped) timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000); };
++        if (requests.current.pending()) { retry(); return; }
++        const ticket = requests.current.current();
+         api<Status>('/api/publish/status').then((s) => {
+           if (stopped) return;
++          if (!requests.current.isCurrent(ticket)) { retry(); return; }
+           setPollFailed(false);
+           setSt(s);
+-          if ((st.activeVersion && !s.activeVersion) || (!st.executor.ready && s.executor.ready)) { load(); reloadShell(); }
++          // Never leave a confirmation enabled after another publisher acquired the job.
++          if (s.activeVersion || !s.executor.ready || s.versions.some(v => v.status === 'unknown')) setConfirm(null);
++          if ((st.activeVersion && !s.activeVersion) || (!st.executor.ready && s.executor.ready)) { load(); void reloadShell(); }
+         }).catch(() => {
+           if (stopped) return;
+-          setPollFailed(true);
+-          timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
++          if (requests.current.isCurrent(ticket)) setPollFailed(true);
++          retry();
+         });
+       };
+       timer.current = window.setTimeout(poll, st.activeVersion ? 2000 : 5000);
+@@ -128,11 +155,17 @@ export default function PublishPage() {
+   }, [st, load, reloadShell]);
+ 
+   async function doPublish() {
+-    if (!confirm) return;
++    if (!confirm || acting.current || refreshing || failed || pollFailed || !st || st.activeVersion
++      || !st.executor.ready || st.versions.some(v => v.status === 'unknown')) return;
++    if ((pre?.reasonRequired || confirm.rollbackFrom !== undefined) && confirm.reason.trim().length < 8) {
++      toast('需要填写理由（至少 8 字）'); return;
++    }
++    acting.current = true;
++    requests.current.invalidate();
+     setBusy(true);
+     try {
+       await api('/api/publish', { method: 'POST', body: JSON.stringify(publishRequestBody(confirm)) });
+-      toast(confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
++      toast(confirm.rebuild ? '版本重建已发起，将执行全部发布检查' : confirm.rollbackFrom ? '回滚已发起,同样要过全部机器门' : '发布已发起');
+       setConfirm(null);
+       load();
+     } catch (e) {
+@@ -143,23 +176,24 @@ export default function PublishPage() {
+         load();
+         return;
+       }
+-      const serviceMessage = e instanceof ApiError && ['executor-unavailable', 'config-upgrade-conflict', 'config-upgrade-retry'].includes(err)
++      const serviceMessage = e instanceof ApiError && ['executor-unavailable', 'config-upgrade-conflict', 'config-upgrade-retry', 'publish-schema-upgrade-required'].includes(err)
+         ? String(e.body.message ?? e.body.hint ?? '配置升级尚未完成，请刷新查看具体原因') : null;
+       toast(serviceMessage ?? (err.includes('reason') ? '需要填写理由(≥8 字)' : err.includes('in-progress') ? '已有发布正在进行或等待核实' : err.includes('preflight') ? '前置校验未通过' : '发起失败,请重试'));
+-    } finally { setBusy(false); }
++    } finally { acting.current = false; setBusy(false); }
+   }
+ 
+-  async function recheckAndConfirm() {
++  async function recheckAndConfirm(intent: PublishIntent = 'draft') {
++    if (acting.current) return;
++    acting.current = true;
+     setBusy(true);
+-    setConfirm(null);
+     try {
+-      const [p, s] = await Promise.all([api<Preflight>('/api/publish/preflight'), api<Status>('/api/publish/status')]);
+-      setPre(p); setSt(s);
+-      if (p.ready && !s.activeVersion && s.executor.ready && !s.versions.some(v => v.status === 'unknown')) {
+-        setConfirm({ reason: '', draftRev: p.draftRev });
+-      } else toast('检查结果已刷新，请先处理当前问题或等待发布服务恢复');
+-    } catch { toast('检查结果暂时无法刷新，请稍后重试'); }
+-    finally { setBusy(false); }
++      const result = await refresh();
++      if (!result || !requests.current.isCurrent(result.ticket)) return;
++      const { p, s } = result;
++      const blocked = publishBlockReason(p, s, intent);
++      if (blocked) { toast(blocked); return; }
++      setConfirm(preparePublishConfirmation(p, s, intent));
++    } finally { acting.current = false; setBusy(false); }
+   }
+ 
+   /* 取消两档:排队态直接取消;已开工则要执行器失联满 12 分钟 + 写明理由才允许强制中止。
+@@ -189,10 +223,15 @@ export default function PublishPage() {
+     }
+   }
+ 
+-  if (failed && (!pre || !st)) return <section><h2>发布与版本</h2><div className="note bad">数据获取失败 <button className="btn ghost sm" onClick={load}>重试</button></div></section>;
++  if (failed && (!pre || !st)) return <section><h2>发布与版本</h2><div className="note bad">{loadError || '数据获取失败'} <button className="btn ghost sm" disabled={refreshing || busy} onClick={load}>重新检查</button></div></section>;
+   if (!pre || !st) return <section><h2>发布与版本</h2><div className="skl" style={{ height: 80 }} /></section>;
+ 
+   const active = st.activeVersion;
++  const blocked = publishBlockReason(pre, st);
++  const rebuildBlocked = publishBlockReason(pre, st, 'rebuild');
++  const liveVersion = st.versions.find(v => v.status === 'live');
++  const snapshotStale = failed || pollFailed;
++  const unavailable = busy || refreshing || snapshotStale || !!active || !st.executor.ready || st.versions.some(v => v.status === 'unknown');
+   // 当前任务心跳与输出更新时间不同；安静的长检查仍会续租。
+   const taskDisconnected = !!active && !pollFailed && st.stepsOfVersion === active && st.steps.length > 0
+     && typeof st.silentMs === 'number' && Number.isFinite(st.silentMs) && st.silentMs >= 60_000;
+@@ -241,7 +280,11 @@ export default function PublishPage() {
+         })}
+       </ol>
+       {pollFailed && <div className="note warn" role="status">暂时无法刷新发布状态，正在自动重试。恢复连接后将核实执行结果。</div>}
+-      {failed && <div className="note warn" role="status">发布检查信息暂时无法刷新，已保留上次结果。<button className="btn ghost sm" onClick={load}>重试</button></div>}
++      {failed && <div className="note warn" role="status">{loadError || '发布检查信息暂时无法刷新，已保留上次结果。'}<button className="btn ghost sm" onClick={load}>重试</button></div>}
++      <div className="row" style={{ marginBottom: 12 }}>
++        <button className="btn ghost" disabled={busy || refreshing} onClick={load}>{refreshing ? '检查中…' : '重新检查'}</button>
++        <span className="kv" role="status">{snapshotStale ? '连接恢复并重新检查成功前，暂停提交发布。' : blocked}</span>
++      </div>
+       {unknown ? <div className="note warn" role="status">切换结果正在核实，核实前暂停新发布。草稿已保留。</div>
+         : !active && !st.executor.ready && <div className="note warn" role="status">{st.executor.reason}</div>}
+ 
+@@ -252,7 +295,7 @@ export default function PublishPage() {
+         <p>{failureAdvice.suggestion}</p>
+         <p className="kv">草稿改动已保留。{failedStep && failedStep.step !== 'swap' && !st.drift && !unknown
+           ? '未切换新版，官网保留原先版本。' : '线上状态以当前核验结果为准。'}当前能否发布以下方检查为准。</p>
+-        <button className="btn" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新检查并发布</button>
++        <button className="btn" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新检查并发布</button>
+         <details className="inline-help"><summary>查看失败技术详情</summary>
+           <pre className="kv mono" style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', maxHeight: 220, overflow: 'auto' }}>{failureAdvice.raw || '原因未记录'}</pre>
+         </details>
+@@ -299,7 +342,7 @@ export default function PublishPage() {
+               ))}
+               {failedChecks.length > 0 && <div className="row" style={{ marginTop: 8 }}>
+                 <span className="kv" style={{ color: '#ef8077' }}>有 {failedChecks.length} 项检查未通过，本次任务停止后可在下方重新发布。</span>
+-                <button className="btn ghost sm" disabled={busy || unknown || !st.executor.ready} onClick={() => void recheckAndConfirm()}>重新发布</button>
++                <button className="btn ghost sm" disabled={unavailable} onClick={() => void recheckAndConfirm()}>重新发布</button>
+               </div>}
+             </div>
+           ) : (
+@@ -389,7 +432,7 @@ export default function PublishPage() {
+           {/* 🔴 出路必须是**当下真能点的**:草稿零改动时「发布」按钮是灰的,劝人「重新发起」等于没说(第四轮 P1-6)。
+               回滚到当前记录的线上版本会走完整门链并重新搬运快照,正好把两边对齐。 */}
+           <div className="row" style={{ marginTop: 6, gap: 8 }}>
+-            <button className="btn" disabled={!!active || unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
++            <button className="btn" disabled={unavailable} onClick={() => setConfirm({ reason: '线上快照与系统记录不一致,重新发布当前线上版本以对齐', rollbackFrom: st.drift!.dbLive })}>
+               重新发布 v{st.drift.dbLive} 以对齐
+             </button>
+             <span className="kv">会走完整门链,门红则线上保持现状。</span>
+@@ -478,20 +521,28 @@ export default function PublishPage() {
+             );
+           })()}
+           <div className="row" style={{ marginTop: 12 }}>
+-            <button className="btn primary" disabled={!pre.ready || busy || !st.executor.ready || st.versions.some(v=>v.status==='unknown')} onClick={() => setConfirm({ reason: '', draftRev: pre.draftRev })}>
++            <button className="btn primary" disabled={unavailable || !!blocked} onClick={() => void recheckAndConfirm()}>
+               检查并发布
+             </button>
+-            <span className="kv">{!pre.ready && (pre.errors.length ? '处理上方问题后再发布' : '无改动可发布')}</span>
++            <span className="kv">{blocked}</span>
+           </div>
++          {pre.changed === 0 && liveVersion && <div className="note info" style={{ marginTop: 12 }}>
++            <p>代码升级不会计入草稿改动。可使用当前发布器代码重新构建 v{liveVersion.id}，同时更新官网和后台静态页面。</p>
++            <p className="kv">内容取自确认的版本，不覆盖草稿；仍须经过全部检查、切换和核验。不会更新正在运行的发布器进程。</p>
++            <button className="btn" disabled={unavailable || !!rebuildBlocked} onClick={() => void recheckAndConfirm('rebuild')}>重新构建 v{liveVersion.id}（使用当前代码）</button>
++            {rebuildBlocked && <p className="kv">{rebuildBlocked}</p>}
++          </div>}
+         </div>
+       )}
+ 
+       {/* 确认弹窗 */}
+       {confirm && (
+         <div className="card" style={{ marginBottom: 12, outline: '2px solid var(--brand)' }}>
+-          <h3>{confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
++          <h3>{confirm.rebuild ? `确认使用当前代码重新构建 v${confirm.rollbackFrom}?` : confirm.rollbackFrom ? `确认回滚到 v${confirm.rollbackFrom}?` : `确认发布 ${pre.changed} 处改动?`}</h3>
+           <p className="kv">
+-            {confirm.rollbackFrom
++            {confirm.rebuild
++              ? '本次使用所确认版本的内容和执行器当前代码重新构建，仍执行全部发布检查。草稿不会覆盖该版本内容，也不会被重建操作改写。确认的是具体版本，不会自动改成稍后出现的其他版本。成功后生成新版本号。'
++              : confirm.rollbackFrom
+               ? '回滚会按当前网站结构恢复该版内容，并发起一次新发布、执行全部检查。旧版格式会自动转换；已修改内容存在兼容冲突时会停止并提示。成功后生成新版本号。'
+               : '确认后系统锁定本次草稿，构建官网并执行全部检查，再组装后台、切换和核验。检查失败时保留旧版。'}
+           </p>
+@@ -501,7 +552,7 @@ export default function PublishPage() {
+           )}
+           <div className="row" style={{ justifyContent: 'flex-end' }}>
+             <button className="btn ghost" onClick={() => setConfirm(null)}>取消</button>
+-            <button className="btn primary" disabled={busy} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
++            <button className="btn primary" disabled={unavailable || ((pre.reasonRequired || confirm.rollbackFrom !== undefined) && confirm.reason.trim().length < 8)} onClick={() => void doPublish()}>{busy ? '发起中…' : '确认'}</button>
+           </div>
+         </div>
+       )}
+@@ -567,7 +618,7 @@ export default function PublishPage() {
+                   {/* 只有**真上线过**的版本能当回滚源(服务端同判据)。此前用「不是 live 也不是 failed」反着写,
+                       于是 cancelled 行也长出按钮,点了必 404 —— 界面给的每个按钮都该是能点通的。 */}
+                   {v.status === 'archived' && !active && (
+-                    <button className="btn ghost sm" disabled={unknown || !st.executor.ready} onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
++                    <button className="btn ghost sm" disabled={unavailable} onClick={() => setConfirm({ reason: '', rollbackFrom: v.id })}>回滚到此版</button>
+                   )}
+                 </td>
+               </tr>
+diff --git a/docs/publisher-upgrade-fix.md b/docs/publisher-upgrade-fix.md
+new file mode 100644
+index 0000000000000000000000000000000000000000..2ac54a7f2bc48e4933f55fcc611eaa2caa9bb7e6
+--- /dev/null
++++ b/docs/publisher-upgrade-fix.md
+@@ -0,0 +1,45 @@
++# 发布升级检查与无内容改动重建
++
++## 行为
++
++发布页提供独立的“重新检查”入口。该入口不依赖旧的可发布判断；主“检查并发布”按钮则重新取得前置检查和任务状态后，才打开确认面。确认携带本次检查的草稿 revision。请求失败会保留旧记录，但在检查恢复前禁止提交。迟到的检查或轮询不能覆盖更新的检查结果。
++
++草稿与线上一致时，普通发布仍然返回“无改动”，不会通过删除校验绕过限制。页面另提供“重新构建 vN（使用当前代码）”。它固定确认时的线上版本，复用现有 `fromVersion` 发布通道，要求发布理由，照常执行配置校验、物化、构建检查、组装、切换及上线核验。`rebuild` 仅是界面字段，不发送给服务端，不增加任何跳过检查的参数。后台审计沿用现有快照发布事件，理由明确记录为重建。
++
++重建使用执行器当次加载的代码，不等于从 GitHub 自动拉取代码，也不会替换正在运行的发布器进程。已有执行器的源码指纹重载逻辑保留。草稿有未发布的改动时，界面要求先走普通发布，不静默忽略这些改动。若确认后又出现新的线上版本，确认仍指向原来核对的版本，不悄悄换源。
++
++## 数据库升级
++
++新增机器身份探针：`GET /api/publish/runner-state?readiness=1`。它在授权成功后、发布路由初始化之前执行，只读取表结构、索引和任务状态，不执行迁移、初始化、恢复任务或删除锁。
++
++协议 1 核对 `0021_publish_checks.sql` 所需检查表列和唯一序号索引。缺失时，新的发布、领取和检查记录写入会被明确拒绝；前置检查和状态请求给出可读的 503 升级提示，而不是让缺表异常成为不明原因的失败。旧任务的心跳、步骤回报、取消和失败收尾不被此结构门禁阻断。结构检查不把数据库 I/O 异常当作“可以重启”。
++
++Windows 启动器复用 API 前读取此探针。只有“结构缺失、全局没有 validating/publishing/unknown 任务、没有未过期锁”才允许继续；立即再次读取后，沿用原有进程身份核验停止本仓 API。`worker` 的现有 `npm run dev` 会在起服前应用本地迁移。起服后再次验证结构，仍不完整就明确停止本轮升级，不循环杀进程。
++
++初次接入本修复时，若运行中的旧 API 不支持协议、认证失败、未能读取状态或无法证明进程归属，启动器不会强行停止它。维护人员需先确认原任务已结束或完成恢复，再受控重启本仓服务。不能删除 `.wrangler`、发布锁、版本记录或密钥文件作为升级手段。存在待核实任务时，先恢复原执行器收尾；不得以新发布覆盖不确定结果。
++
++生产环境不通过本地启动器迁移。生产仍需先按既有发布文档应用全部迁移，再上线匹配的 Worker 与后台静态资产。本修复没有加入自动部署、生产迁移或远程命令接口。
++
++## 回归命令
++
++在完整仓库、依赖已安装的 Node.js 24 环境执行：
++
++```sh
++npm --prefix worker run test:publisher
++npm --prefix worker run typecheck
++npm --prefix worker test
++npm --prefix admin run typecheck
++npm --prefix admin test
++npm --prefix admin run build
++```
++
++Windows PowerShell 5.1：
++
++```powershell
++powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\test-start-website.ps1
++powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File .\scripts\test-publish-upgrade.ps1
++```
++
++`test-start-website.ps1` 已接入独立升级回归，后者可以单跑，所有进程/API 操作均被替换为测试实现，不启动真实官网或修改真实数据库。
++
++新增 Node 回归使用真实内存 SQLite 测试结构检查和全局任务判断；发布动作、请求体和请求世代使用实际辅助函数测试。这些测试不代替 React 浏览器交互、D1/Worker 集成或 Windows 实机验收。正式上线前仍需在隔离环境验证从旧安装升级、检查失败保留快照、纯代码重建成功和发布记录一致性。
+diff --git a/scripts/launcher-publish.ps1 b/scripts/launcher-publish.ps1
+index a0d9ddfae12f23422710df5edbcfa633296a5c07..daabff8220767814ebb3a04c2140ce71e8c3ed19 100644
+--- a/scripts/launcher-publish.ps1
++++ b/scripts/launcher-publish.ps1
+@@ -260,12 +260,45 @@ function Get-PublishRunnerState([string]$Token) {
+     return $reply.Json
+ }
+ 
++function Get-PublishReadiness([string]$Token) {
++    if (@(Get-OwnedListener (Get-ServiceDefinition 'api')).Count -eq 0) { throw 'The local API is not running.' }
++    if (-not (Get-VerifiedApiSupervisor)) { throw 'API supervisor ownership could not be verified; no credential was sent.' }
++    $reply = Invoke-LocalApi 'http://127.0.0.1:8787' '/api/publish/runner-state?readiness=1' 'GET' $null '' $Token
++    if ($reply.Status -ne 200) { throw "Publish upgrade readiness could not be verified (HTTP $($reply.Status)). No service was stopped; check the API log and matching publish credentials." }
++    $state = $reply.Json
++    if ($state.protocol -ne 1 -or $state.environment -ne 'dev' -or $state.mode -ne 'local' -or
++        $state.storageReady -isnot [bool] -or $state.restartSafe -isnot [bool] -or
++        $state.requiredMigration -cne '0021_publish_checks.sql') {
++        throw 'The running API does not support the current publish upgrade probe. No service was stopped. Finish or resolve active publications, then restart this repository''s services with the updated launcher.'
++    }
++    # A missing activeVersion property must not be mistaken for a proven idle API.
++    if (-not ($state.PSObject.Properties.Name -contains 'activeVersion')) {
++        throw 'Publish upgrade readiness is incomplete; no service was stopped.'
++    }
++    return $state
++}
++
+ function Ensure-PublishApi([string]$Token) {
+-    try { [void](Get-PublishRunnerState $Token); return } catch { }
+-    Write-Host '[reload] Loading the local publish configuration into the owned API'
+-    Stop-OwnedApi
+-    Ensure-LocalService 'api'
+-    # A successful HTTP health check alone cannot prove the secret was loaded.
++    $state = Get-PublishReadiness $Token
++    if (-not $state.storageReady) {
++        if (-not $state.restartSafe -or $null -ne $state.activeVersion) {
++            throw 'A publication is running or awaiting verification. The API was preserved; finish recovery before applying local migrations.'
++        }
++        # Repeat the read immediately before the existing process-identity checks.
++        # New submissions/claims are blocked by the missing-schema guard, so an
++        # idle incomplete schema cannot accept a new job between this read and stop.
++        $state = Get-PublishReadiness $Token
++        if (-not $state.storageReady) {
++            if (-not $state.restartSafe -or $null -ne $state.activeVersion) { throw 'Publish upgrade safety changed; no service was stopped.' }
++            Write-Host '[upgrade] Restarting the verified idle API to apply pending local migrations'
++            Stop-OwnedApi
++            # worker npm run dev applies all migrations before starting Wrangler.
++            Ensure-LocalService 'api'
++            $state = Get-PublishReadiness $Token
++            if (-not $state.storageReady) { throw 'The publish database upgrade did not complete. Original data was preserved; see the API log. No repeat restart was attempted.' }
++        }
++    }
++    # Health/protocol/schema alone cannot prove the execution mode and secret work.
+     [void](Get-PublishRunnerState $Token)
+ }
+ 
+diff --git a/scripts/test-publish-upgrade.ps1 b/scripts/test-publish-upgrade.ps1
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8104f062938a4854338a370f8e5b25734a1b44f
+--- /dev/null
++++ b/scripts/test-publish-upgrade.ps1
+@@ -0,0 +1,109 @@
++#Requires -Version 5.1
++# This suite imports only helper definitions and substitutes every service/API action.
++# It never starts/stops a real process, reads credentials, or writes a database.
++$ErrorActionPreference = 'Stop'
++. (Join-Path $PSScriptRoot 'launcher-publish.ps1')
++$script:Passed = 0
++
++function Assert-True([bool]$Value, [string]$Message) { if (-not $Value) { throw $Message } }
++function Assert-Throws([scriptblock]$Action, [string]$Text) {
++    try { & $Action; throw 'Expected rejection was missing.' }
++    catch { if ($_.Exception.Message -notlike ('*' + $Text + '*')) { throw } }
++}
++function Invoke-Test([string]$Name, [scriptblock]$Action) {
++    & $Action
++    $script:Passed++
++    Write-Host ('PASS: ' + $Name)
++}
++function New-State([bool]$Ready, [bool]$Safe, $Active = $null) {
++    return [pscustomobject]@{
++        protocol = 1; environment = 'dev'; mode = 'local'; storageReady = $Ready
++        restartSafe = $Safe; requiredMigration = '0021_publish_checks.sql'; activeVersion = $Active
++    }
++}
++function Reset-Fixture([object[]]$States) {
++    $script:Responses = New-Object 'Collections.Generic.Queue[object]'
++    foreach ($state in $States) { $script:Responses.Enqueue($state) }
++    $script:Stops = 0; $script:Starts = 0; $script:RunnerChecks = 0
++    $script:Owned = $true; $script:HttpStatus = 200
++}
++function Get-ServiceDefinition([string]$Name) { return @{ Name = $Name } }
++function Get-OwnedListener($Definition) { return @(1) }
++function Get-VerifiedApiSupervisor { if ($script:Owned) { return [pscustomobject]@{ ProcessId = 123 } }; return $null }
++function Invoke-LocalApi([string]$BaseUri, [string]$Path, [string]$Method, $Body, [string]$Cookie, [string]$Token) {
++    Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787') 'Unexpected origin.'
++    Assert-True ($Method -ceq 'GET' -and $null -eq $Body -and -not $Cookie) 'Readiness was not a read-only machine probe.'
++    Assert-True ($Token -ceq 'synthetic-test-token') 'Unexpected credential.'
++    if ($Path -ceq '/api/publish/runner-state?readiness=1') {
++        if ($script:Responses.Count -eq 0) { throw 'Unexpected extra readiness request.' }
++        return [pscustomobject]@{ Status = $script:HttpStatus; Json = $script:Responses.Dequeue() }
++    }
++    Assert-True ($Path -ceq '/api/publish/runner-state') 'Unexpected API path.'
++    $script:RunnerChecks++
++    return [pscustomobject]@{ Status = 200; Json = [pscustomobject]@{ environment = 'dev'; executor = @{ mode = 'local'; ready = $false } } }
++}
++function Stop-OwnedApi { $script:Stops++ }
++function Ensure-LocalService([string]$Name) { Assert-True ($Name -ceq 'api') 'Wrong service restarted.'; $script:Starts++ }
++
++Invoke-Test 'Healthy API is reused without restarting or requiring runner heartbeat yet' {
++    Reset-Fixture @((New-State $true $false))
++    Ensure-PublishApi 'synthetic-test-token'
++    Assert-True ($script:Stops -eq 0 -and $script:Starts -eq 0 -and $script:RunnerChecks -eq 1) 'Healthy reuse failed.'
++}
++Invoke-Test 'Idle missing schema is rechecked, restarted once and verified afterward' {
++    Reset-Fixture @((New-State $false $true), (New-State $false $true), (New-State $true $false))
++    Ensure-PublishApi 'synthetic-test-token'
++    Assert-True ($script:Stops -eq 1 -and $script:Starts -eq 1 -and $script:Responses.Count -eq 0) 'Upgrade sequence was incomplete.'
++}
++Invoke-Test 'Active or uncertain publication is never killed for an upgrade' {
++    Reset-Fixture @((New-State $false $false 42))
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'awaiting verification'
++    Assert-True ($script:Stops -eq 0) 'Active API was stopped.'
++}
++Invoke-Test 'A new blocker found in the second check prevents restart' {
++    Reset-Fixture @((New-State $false $true), (New-State $false $false 42))
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'safety changed'
++    Assert-True ($script:Stops -eq 0) 'Changed safety was ignored.'
++}
++Invoke-Test 'Concurrent completed upgrade is reused instead of restarted' {
++    Reset-Fixture @((New-State $false $true), (New-State $true $false))
++    Ensure-PublishApi 'synthetic-test-token'
++    Assert-True ($script:Stops -eq 0 -and $script:RunnerChecks -eq 1) 'Already completed migration caused restart.'
++}
++Invoke-Test 'Incomplete migration after restart is not retried in a loop' {
++    Reset-Fixture @((New-State $false $true), (New-State $false $true), (New-State $false $true))
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'did not complete'
++    Assert-True ($script:Stops -eq 1 -and $script:Starts -eq 1 -and $script:RunnerChecks -eq 0) 'Upgrade loop or false success.'
++}
++Invoke-Test 'Old API returning HTTP 200 without capabilities is not trusted' {
++    Reset-Fixture @([pscustomobject]@{ environment = 'dev'; executor = @{ mode = 'local' } })
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'does not support'
++    Assert-True ($script:Stops -eq 0) 'Unproven old API was stopped.'
++}
++Invoke-Test 'Authentication failure does not authorize a restart' {
++    Reset-Fixture @((New-State $false $true)); $script:HttpStatus = 401
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'HTTP 401'
++    Assert-True ($script:Stops -eq 0) 'Auth failure authorized a stop.'
++}
++Invoke-Test 'Foreign process ownership prevents sending a credential' {
++    Reset-Fixture @((New-State $false $true)); $script:Owned = $false
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'ownership'
++    Assert-True ($script:Stops -eq 0 -and $script:Responses.Count -eq 1) 'Credential sent before ownership proof.'
++}
++Invoke-Test 'Missing global job state is not interpreted as idle' {
++    $state = New-State $false $true
++    $state.PSObject.Properties.Remove('activeVersion')
++    Reset-Fixture @($state)
++    Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'incomplete'
++    Assert-True ($script:Stops -eq 0) 'Incomplete state authorized restart.'
++}
++Invoke-Test 'Production and malformed readiness values are rejected' {
++    foreach ($field in @('environment', 'storageReady', 'restartSafe', 'protocol', 'requiredMigration')) {
++        $state = New-State $false $true
++        $state.$field = 'invalid'
++        Reset-Fixture @($state)
++        Assert-Throws { Ensure-PublishApi 'synthetic-test-token' } 'does not support'
++        Assert-True ($script:Stops -eq 0) 'Malformed readiness authorized restart.'
++    }
++}
++Write-Host ('Passed ' + $script:Passed + ' publish upgrade regression cases.')
+diff --git a/scripts/test-start-website.ps1 b/scripts/test-start-website.ps1
+index f98bff4a518e7a05b3ac572cd9bd5b7c78a52531..377f6ea274f8c33e8629c2e8b0cdcf1e610f3170 100644
+--- a/scripts/test-start-website.ps1
++++ b/scripts/test-start-website.ps1
+@@ -669,34 +669,48 @@ try {
+     Set-TestFunction 'Get-VerifiedApiSupervisor' { return @{ ProcessId = 72000 } }
+     Set-TestFunction 'Invoke-LocalApi' {
+         param([string]$BaseUri, [string]$Path, [string]$Method, $Body, [string]$Cookie, [string]$BearerToken)
+-        Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and $Path -ceq '/api/publish/runner-state' -and $Method -ceq 'GET') 'Runner readiness used an unexpected API route.'
++        Assert-True ($BaseUri -ceq 'http://127.0.0.1:8787' -and $Path -in @('/api/publish/runner-state', '/api/publish/runner-state?readiness=1') -and $Method -ceq 'GET') 'Runner readiness used an unexpected API route.'
+         Assert-True (-not $Cookie -and $BearerToken -ceq $script:ExpectedPublishToken -and $null -eq $Body) 'Runner readiness borrowed a password/session or lost its independent bearer.'
++        if ($Path -ceq '/api/publish/runner-state?readiness=1') {
++            return @{ Status = $script:RunnerApiStatus; Json = [pscustomobject]@{
++                protocol = 1; environment = 'dev'; mode = 'local'; storageReady = $script:StorageReady
++                restartSafe = (-not $script:StorageReady); activeVersion = $null; requiredMigration = '0021_publish_checks.sql'
++            } }
++        }
+         return @{ Status = $script:RunnerApiStatus; Json = @{ environment = 'dev'; executor = @{ mode = 'local'; ready = $true } } }
+     }
+     $script:ExpectedPublishToken = New-LocalPassword
+     $script:RunnerApiStatus = 200
++    $script:StorageReady = $true
+     Invoke-Test 'Publish readiness authenticates only with its dedicated bearer' {
+         Assert-True (Get-PublishRunnerState $script:ExpectedPublishToken).executor.ready 'Dedicated runner readiness failed.'
+         $script:RunnerApiStatus = 401
+         Assert-Throws { Get-PublishRunnerState $script:ExpectedPublishToken } 'not loaded'
+         $script:RunnerApiStatus = 200
+     }
+-    Set-TestFunction 'Stop-OwnedApi' { $script:ReloadEvents.Add('stop-owned'); $script:RunnerApiStatus = 200 }
++    Set-TestFunction 'Stop-OwnedApi' { $script:ReloadEvents.Add('stop-owned'); $script:StorageReady = $true }
+     Set-TestFunction 'Ensure-LocalService' { param([string]$Name); $script:ReloadEvents.Add('start-' + $Name) }
+     $script:ReloadEvents = New-Object 'Collections.Generic.List[string]'
+-    Invoke-Test 'An old running API is reloaded before runner startup and then reused' {
+-        $script:RunnerApiStatus = 401
++    Invoke-Test 'A verified idle API with missing schema is reloaded once and then reused' {
++        $script:StorageReady = $false
+         Ensure-PublishApi $script:ExpectedPublishToken
+         Ensure-PublishApi $script:ExpectedPublishToken
+         Assert-True (($script:ReloadEvents -join ',') -ceq 'stop-owned,start-api') 'API reload was skipped or repeated after authenticated readiness succeeded.'
+     }
+-    Invoke-Test 'API ownership failure aborts reload before launching a replacement' {
++    Invoke-Test 'Authentication failure cannot authorize stopping an API with unknown job state' {
+         $script:ReloadEvents.Clear()
+         $script:RunnerApiStatus = 401
++        Assert-Throws { Ensure-PublishApi $script:ExpectedPublishToken } 'HTTP 401'
++        Assert-True ($script:ReloadEvents.Count -eq 0) 'Authentication failure authorized an API restart.'
++        $script:RunnerApiStatus = 200
++    }
++    Invoke-Test 'API ownership failure aborts reload before launching a replacement' {
++        $script:ReloadEvents.Clear()
++        $script:StorageReady = $false
+         Set-TestFunction 'Stop-OwnedApi' { throw 'Unowned service must remain running.' }
+         Assert-Throws { Ensure-PublishApi $script:ExpectedPublishToken } 'Unowned service'
+         Assert-True ($script:ReloadEvents.Count -eq 0) 'Replacement API started despite rejected ownership.'
+-        $script:RunnerApiStatus = 200
++        $script:StorageReady = $true
+     }
+     Invoke-Test 'Runner receives the dedicated secret but no administrator password or cookie' {
+         $names = @('PUBLISH_RUNNER_TOKEN', 'PUBLISH_API_URL', 'PUBLISH_COOKIE', 'COOKIE', 'ADMIN_PASSWORD', 'PUBLISH_PASSWORD', 'SETUP_TOKEN', 'AI_CREDENTIAL_ENCRYPTION_KEY', 'AI_TICK_TOKEN', 'OPENAI_API_KEY', 'ai_future_secret')
+@@ -768,6 +782,12 @@ try {
+         Assert-True ($script:SchemaInstalls -eq 1) 'Missing schema dependencies were not installed.'
+         Assert-True (($script:OpenedUrls -join ',') -ceq 'http://127.0.0.1:8787/,http://127.0.0.1:5175/admin/') 'Startup opened an unpublished preview instead of the published website and console.'
+     }
++    Invoke-Test 'Publish upgrade capability and restart safety regressions' {
++        $suite = Join-Path (Split-Path -Parent $script:LauncherUnderTest) 'scripts/test-publish-upgrade.ps1'
++        & $WindowsPowerShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $suite
++        Assert-True ($LASTEXITCODE -eq 0) 'Publish upgrade capability regression suite failed.'
++    }
++
+     Set-TestFunction 'Start-Process' { throw 'Regression tests must never start a process.' }
+     $script:NoBrowser = $true
+     $script:RepoRoot = $script:RealRepoRoot
+diff --git a/worker/package.json b/worker/package.json
+index 301f5ce28d9c63a2c4678bc5d3faab1836a6fd7a..3156560d714483674de90b7ca82d4552a24ae6ac 100644
+--- a/worker/package.json
++++ b/worker/package.json
+@@ -8,7 +8,7 @@
+     "dev": "wrangler d1 migrations apply nexgrid_site --local && wrangler dev",
+     "pretest": "node --no-maglev test-ai-runtime.mjs",
+     "test": "vitest run",
+-    "test:publisher": "node --test lib/runner-tests.mjs runner-tests/production-config.test.mjs",
++    "test:publisher": "node --test lib/runner-tests.mjs runner-tests/production-config.test.mjs runner-tests/publish-readiness.test.mjs runner-tests/publish-actions.test.mjs",
+     "test:red-d1": "vitest run --config vitest.red-d1.config.ts",
+     "typecheck": "tsc --noEmit",
+     "postinstall": "wrangler types",
+diff --git a/worker/runner-tests/publish-actions.test.mjs b/worker/runner-tests/publish-actions.test.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..5ae051d5a9c7ecbcdb16a5a4c30ccb5e8e1cb5a0
+--- /dev/null
++++ b/worker/runner-tests/publish-actions.test.mjs
+@@ -0,0 +1,117 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { readFileSync } from 'node:fs';
++import { createPublishRequestGate, preparePublishConfirmation, publishBlockReason } from '../../admin/src/lib/publish-actions.ts';
++import { publishRequestBody } from '../../admin/src/lib/publish-contract.ts';
++
++const pre = (fields = {}) => ({ ready: true, changed: 1, errors: [], draftRev: 7, ...fields });
++const status = (fields = {}) => ({ activeVersion: null, executor: { ready: true, reason: '' }, versions: [{ id: 3, status: 'live' }], ...fields });
++
++test('normal confirmation pins the freshly checked draft revision', () => {
++  const confirmation = preparePublishConfirmation(pre({ draftRev: 23 }), status());
++  assert.deepEqual(publishRequestBody(confirmation), { reason: '', draftRev: 23 });
++});
++
++test('zero content changes stay blocked on the normal publication path', () => {
++  assert.match(publishBlockReason(pre({ ready: false, changed: 0 }), status()), /没有内容改动/);
++  assert.throws(() => preparePublishConfirmation(pre({ ready: false, changed: 0 }), status()), /没有内容改动/);
++});
++
++test('zero changes allow an explicitly confirmed, fully checked snapshot rebuild', () => {
++  const confirmation = preparePublishConfirmation(pre({ ready: false, changed: 0 }), status(), 'rebuild');
++  assert.equal(confirmation.rebuild, true);
++  assert.equal(confirmation.rollbackFrom, 3);
++  assert(confirmation.reason.trim().length >= 8);
++  assert.deepEqual(publishRequestBody(confirmation), { reason: confirmation.reason, fromVersion: 3 });
++  assert.equal('draftRev' in publishRequestBody(confirmation), false);
++  assert.equal('rebuild' in publishRequestBody(confirmation), false);
++});
++
++test('confirmation cannot silently change to a later live version', () => {
++  const s = status();
++  const confirmation = preparePublishConfirmation(pre({ ready: false, changed: 0 }), s, 'rebuild');
++  s.versions[0].id = 50;
++  assert.equal(publishRequestBody(confirmation).fromVersion, 3);
++});
++
++for (const intent of ['draft', 'rebuild']) {
++  for (const [name, s, p, expected] of [
++    ['active publication', status({ activeVersion: 9 }), pre(), /正在进行/],
++    ['unverified switch', status({ versions: [{ id: 2, status: 'unknown' }] }), pre(), /尚未核实/],
++    ['unready executor', status({ executor: { ready: false, reason: '服务配置未完成' } }), pre(), /服务配置未完成/],
++    ['validation errors', status(), pre({ errors: [{ rule: 'missing-key' }] }), /前置检查问题/],
++    ['config compatibility preparation', status(), pre({ message: '配置正在升级' }), /配置正在升级/],
++  ]) {
++    test(`${intent}: ${name} remains blocked`, () => {
++      assert.match(publishBlockReason(p, s, intent), expected);
++      assert.throws(() => preparePublishConfirmation(p, s, intent), expected);
++    });
++  }
++}
++
++test('rebuild cannot silently ignore nonempty draft changes', () => {
++  assert.throws(() => preparePublishConfirmation(pre(), status(), 'rebuild'), /待发布的内容改动/);
++});
++
++test('rebuild without a live snapshot is rejected', () => {
++  assert.throws(() => preparePublishConfirmation(pre({ ready: false, changed: 0 }), status({ versions: [] }), 'rebuild'), /没有可重新构建/);
++});
++
++test('normal publication without a draft revision still throws', () => {
++  assert.throws(() => publishRequestBody({ reason: '' }), /missing-draft-revision/);
++});
++
++test('a newer snapshot request supersedes a stale load and an earlier status poll', () => {
++  const gate = createPublishRequestGate();
++  const poll = gate.current();
++  const first = gate.begin();
++  const second = gate.begin();
++  assert.equal(gate.isCurrent(poll), false);
++  assert.equal(gate.isCurrent(first), false);
++  assert.equal(gate.isCurrent(second), true);
++  gate.finish(first);
++  assert.equal(gate.pending(), true);
++  gate.finish(second);
++  assert.equal(gate.pending(), false);
++});
++
++test('a full refresh blocks starting a poll until the current pair completes', () => {
++  const gate = createPublishRequestGate();
++  const ticket = gate.begin();
++  assert.equal(gate.pending(), true);
++  gate.finish(ticket);
++  assert.equal(gate.pending(), false);
++});
++
++test('unmount or submit invalidates pending responses', () => {
++  const gate = createPublishRequestGate();
++  const ticket = gate.begin();
++  gate.invalidate();
++  assert.equal(gate.isCurrent(ticket), false);
++  assert.equal(gate.pending(), false);
++});
++
++test('late asynchronous success and failure do not overwrite the latest pair', async () => {
++  const gate = createPublishRequestGate();
++  let settle;
++  const oldResponse = new Promise(resolve => { settle = resolve; });
++  let current;
++  const oldTicket = gate.begin();
++  const oldLoad = oldResponse.then(value => { if (gate.isCurrent(oldTicket)) current = value; });
++  const newTicket = gate.begin();
++  current = { draftRev: 9 };
++  gate.finish(newTicket);
++  settle({ draftRev: 2 });
++  await oldLoad;
++  assert.deepEqual(current, { draftRev: 9 });
++  assert.equal(gate.isCurrent(oldTicket), false);
++});
++
++// Integration wiring assertions supplement (not replace) actual helper execution above.
++test('main action rechecks, independent refresh exists, and stale confirmations cannot submit', () => {
++  const page = readFileSync(new URL('../../admin/src/pages/publish.tsx', import.meta.url), 'utf8');
++  assert.match(page, /disabled=\{unavailable \|\| !!blocked\} onClick=\{\(\) => void recheckAndConfirm\(\)\}/);
++  assert.match(page, /disabled=\{busy \|\| refreshing\} onClick=\{load\}/);
++  assert.match(page, /if \(!confirm \|\| acting.current \|\| refreshing \|\| failed \|\| pollFailed/);
++  assert.match(page, /if \(requests.current.pending\(\)\) \{ retry\(\); return; \}/);
++});
+diff --git a/worker/runner-tests/publish-readiness.test.mjs b/worker/runner-tests/publish-readiness.test.mjs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4b3375fbe30581aa3a618c12eaf84a2a720c3de7
+--- /dev/null
++++ b/worker/runner-tests/publish-readiness.test.mjs
+@@ -0,0 +1,133 @@
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { DatabaseSync } from 'node:sqlite';
++import { needsPublishStorage, publishReadiness, publishStorageReady, PUBLISH_READINESS_PROTOCOL } from '../src/publish-readiness.ts';
++
++const checks = `CREATE TABLE publish_checks (
++  id INTEGER PRIMARY KEY AUTOINCREMENT, version_id INTEGER NOT NULL,
++  step TEXT NOT NULL, seq INTEGER NOT NULL, title TEXT NOT NULL,
++  status TEXT NOT NULL, output TEXT, started_at INTEGER NOT NULL, ended_at INTEGER
++);
++CREATE UNIQUE INDEX idx_checks_version_seq ON publish_checks(version_id,seq);`;
++
++function fixture(t, upgraded = false) {
++  const sqlite = new DatabaseSync(':memory:');
++  t.after(() => sqlite.close());
++  sqlite.exec(`CREATE TABLE config_versions(id INTEGER PRIMARY KEY,status TEXT NOT NULL);
++    CREATE TABLE publish_lock(id INTEGER PRIMARY KEY,version_id INTEGER,expires_at INTEGER);`);
++  if (upgraded) sqlite.exec(checks);
++  const queries = [];
++  const db = { prepare(sql) {
++    queries.push(sql);
++    const statement = sqlite.prepare(sql);
++    // Node SQLite names numbered placeholders; D1 exposes them positionally.
++    const bind = (...values) => ({ first: async () => statement.get(Object.fromEntries(values.map((value, i) => [`?${i + 1}`, value]))) ?? null });
++    return { bind, first: async () => statement.get() ?? null, all: async () => ({ results: statement.all() }) };
++  } };
++  return { sqlite, db, queries };
++}
++
++test('missing checks table reports pending upgrade, not an exception', async t => {
++  const { db } = fixture(t);
++  assert.equal(await publishStorageReady(db), false);
++});
++
++test('complete table and unique sequence index are ready', async t => {
++  const { db } = fixture(t, true);
++  assert.equal(await publishStorageReady(db), true);
++});
++
++test('an incomplete table is not mistaken for an applied migration', async t => {
++  const { db, sqlite } = fixture(t);
++  sqlite.exec('CREATE TABLE publish_checks(id INTEGER,version_id INTEGER,seq INTEGER); CREATE UNIQUE INDEX idx_checks_version_seq ON publish_checks(version_id,seq)');
++  assert.equal(await publishStorageReady(db), false);
++});
++
++test('missing unique index fails readiness', async t => {
++  const { db, sqlite } = fixture(t, true);
++  sqlite.exec('DROP INDEX idx_checks_version_seq');
++  assert.equal(await publishStorageReady(db), false);
++});
++
++test('an index with the right name but wrong uniqueness is rejected', async t => {
++  const { db, sqlite } = fixture(t, true);
++  sqlite.exec('DROP INDEX idx_checks_version_seq; CREATE INDEX idx_checks_version_seq ON publish_checks(version_id,seq)');
++  assert.equal(await publishStorageReady(db), false);
++});
++
++test('an index with the right name but wrong key is rejected', async t => {
++  const { db, sqlite } = fixture(t, true);
++  sqlite.exec('DROP INDEX idx_checks_version_seq; CREATE UNIQUE INDEX idx_checks_version_seq ON publish_checks(id,seq)');
++  assert.equal(await publishStorageReady(db), false);
++});
++
++test('idle missing-schema API is eligible for a single managed restart', async t => {
++  const { db } = fixture(t);
++  const state = await publishReadiness(db, 1000);
++  assert.equal(state.protocol, PUBLISH_READINESS_PROTOCOL);
++  assert.equal(state.storageReady, false);
++  assert.equal(state.restartSafe, true);
++  assert.equal(state.activeVersion, null);
++  assert.equal(state.requiredMigration, '0021_publish_checks.sql');
++});
++
++for (const status of ['validating', 'publishing', 'unknown']) {
++  test(`${status} anywhere in history prevents restart even without a live lock`, async t => {
++    const { db, sqlite } = fixture(t);
++    sqlite.prepare('INSERT INTO config_versions(id,status) VALUES(1,?)').run(status);
++    for (let id = 2; id < 40; id++) sqlite.prepare('INSERT INTO config_versions VALUES(?,?)').run(id, 'failed');
++    const state = await publishReadiness(db, 1000);
++    assert.equal(state.restartSafe, false);
++    assert.equal(state.activeVersion, 1);
++  });
++}
++
++test('an unexpired orphan lock prevents restart', async t => {
++  const { db, sqlite } = fixture(t);
++  sqlite.exec('INSERT INTO publish_lock VALUES(1,99,5000)');
++  const state = await publishReadiness(db, 1000);
++  assert.equal(state.restartSafe, false);
++  assert.equal(state.activeVersion, 99);
++});
++
++test('expired terminal lock does not authorize a destructive cleanup', async t => {
++  const { db, sqlite } = fixture(t);
++  sqlite.exec("INSERT INTO config_versions VALUES(2,'failed'); INSERT INTO publish_lock VALUES(1,2,999)");
++  const state = await publishReadiness(db, 1000);
++  assert.equal(state.restartSafe, true);
++  assert.equal(sqlite.prepare('SELECT COUNT(*) AS n FROM publish_lock').get().n, 1);
++});
++
++test('healthy schema is reused, never restarted by this probe', async t => {
++  const { db } = fixture(t, true);
++  const state = await publishReadiness(db, 1000);
++  assert.equal(state.storageReady, true);
++  assert.equal(state.restartSafe, false);
++});
++
++test('readiness performs read-only statements and preserves every row', async t => {
++  const { db, sqlite, queries } = fixture(t, true);
++  sqlite.exec("INSERT INTO config_versions VALUES(8,'live')");
++  const before = sqlite.prepare('SELECT * FROM sqlite_master ORDER BY name').all();
++  await publishReadiness(db, 1000);
++  assert(queries.every(sql => /^(SELECT|PRAGMA)\b/.test(sql)));
++  assert.deepEqual(sqlite.prepare('SELECT * FROM sqlite_master ORDER BY name').all(), before);
++  assert.deepEqual({ ...sqlite.prepare('SELECT * FROM config_versions').get() }, { id: 8, status: 'live' });
++});
++
++test('unrelated database failure propagates; it must not become safe-to-restart', async () => {
++  const broken = { prepare() { throw new Error('synthetic database I/O failure'); } };
++  await assert.rejects(publishReadiness(broken), /I\/O failure/);
++});
++
++test('new submissions, claims and checks require the upgraded table', () => {
++  for (const route of ['publish', 'next', 'check']) assert.equal(needsPublishStorage(route, 'POST'), true);
++  for (const route of ['status', 'preflight']) assert.equal(needsPublishStorage(route, 'GET'), true);
++});
++
++test('recovery, cancellation and heartbeat routes are not disabled by schema upgrade', () => {
++  for (const route of ['heartbeat', 'runner-fail', 'step', 'cancel', 'runner-state']) {
++    assert.equal(needsPublishStorage(route, 'POST'), false);
++    assert.equal(needsPublishStorage(route, 'GET'), false);
++  }
++});
+diff --git a/worker/src/publish-executor.ts b/worker/src/publish-executor.ts
+index f5e581e60a04024794707f1622c4b5612a7b4556..8c18a6bf98f119f2747db2832b0e15b227798cf0 100644
+--- a/worker/src/publish-executor.ts
++++ b/worker/src/publish-executor.ts
+@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from 'hono';
+ import type { Env } from './env';
+ import { requireAuth, timingSafeEqualHex } from './auth';
+ import { checkDraftUpgrade } from './config-upgrade';
++import { needsPublishStorage, publishReadiness, publishStorageReady, PUBLISH_STORAGE_MESSAGE } from './publish-readiness';
+ 
+ export const RUNNER_FRESH_MS = 60_000;
+ export const RUNNER_ID = /^[a-zA-Z0-9_.:-]{1,100}$/;
+@@ -10,13 +11,28 @@ const MACHINE_ROUTES: Record<string, true> = { next: true, step: true, check: tr
+ /** Execution credentials never authorize editing, publishing or administrator operations. */
+ export const requirePublishIdentity: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+   const route = new URL(c.req.url).pathname.replace(/\/$/, '').split('/').at(-1)!;
+-  if (!MACHINE_ROUTES[route]) return requireAuth(c, next);
++  const requireStorage = async () => {
++    if (needsPublishStorage(route, c.req.method) && !(await publishStorageReady(c.env.DB))) {
++      c.res = c.json({ error: 'publish-schema-upgrade-required', message: PUBLISH_STORAGE_MESSAGE }, 503);
++      return;
++    }
++    await next();
++  };
++  // Authenticate first: schema or job information is not a public diagnostic endpoint.
++  if (!MACHINE_ROUTES[route]) return requireAuth(c, requireStorage);
+   const secret = c.env.PUBLISH_RUNNER_TOKEN ?? '';
+   const supplied = c.req.header('authorization') ?? '';
+   if (secret.length < 32 || supplied.length > 1024 || !timingSafeEqualHex(supplied, `Bearer ${secret}`)) {
+     return c.json({error:'unauthorized'}, 401);
+   }
+-  await next();
++  // A versioned, read-only machine probe must work before ensureInit and before the
++  // status route touches publish_checks. Old APIs ignore the query; the launcher
++  // rejects their missing protocol instead of treating a 200 as upgrade success.
++  if (route === 'runner-state' && c.req.method === 'GET' && c.req.query('readiness') === '1') {
++    return c.json({ environment: c.env.ENVIRONMENT, mode: c.env.PUBLISH_EXECUTION_MODE ?? 'unconfigured',
++      ...(await publishReadiness(c.env.DB)) });
++  }
++  await requireStorage();
+ };
+ 
+ /** Infrastructure availability also serves existing immutable jobs, independent of today's draft. */
+@@ -43,6 +59,10 @@ async function executionAvailability(env: Env, now = Date.now()) {
+ 
+ /** Accepting a new publication additionally requires the current draft to be compatible. */
+ export async function executorState(env: Env, now = Date.now()) {
++  if (!(await publishStorageReady(env.DB))) return {
++    mode: env.PUBLISH_EXECUTION_MODE ?? 'unconfigured', ready: false,
++    reason: PUBLISH_STORAGE_MESSAGE, lastSeenAt: null,
++  };
+   const result = await executionAvailability(env, now);
+   if ((env.PUBLISH_RUNNER_TOKEN ?? '').length < 32) return result;
+   const upgrade = await checkDraftUpgrade(env.DB);
+diff --git a/worker/src/publish-readiness.ts b/worker/src/publish-readiness.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..6c408eeba8c817e2d4b911dbbf3605310e689332
+--- /dev/null
++++ b/worker/src/publish-readiness.ts
+@@ -0,0 +1,52 @@
++/** Read-only capability probe. Never migrate a database or resolve a job on a GET. */
++export const PUBLISH_READINESS_PROTOCOL = 1;
++export const PUBLISH_STORAGE_MIGRATION = '0021_publish_checks.sql';
++export const PUBLISH_STORAGE_MESSAGE = '发布服务的数据库结构尚未升级，请通过启动器完成本地升级；生产环境请由维护人员应用数据库迁移。草稿和发布记录已保留。';
++
++// A minimal read-only surface also allows regression tests against an in-memory SQLite DB.
++export interface PublishReadDatabase {
++  prepare(sql: string): {
++    bind(...values: unknown[]): {
++      first<T>(): Promise<T | null>;
++    };
++    all<T>(): Promise<{ results: T[] }>;
++    first<T>(): Promise<T | null>;
++  };
++}
++
++const CHECK_COLUMNS = ['id', 'version_id', 'step', 'seq', 'title', 'status', 'output', 'started_at', 'ended_at'];
++
++export async function publishStorageReady(db: PublishReadDatabase): Promise<boolean> {
++  // PRAGMA returns an empty result for a missing table, without hiding unrelated DB failures.
++  const columns = await db.prepare('PRAGMA table_info(publish_checks)').all<{ name: string }>();
++  const names = new Set(columns.results.map(column => column.name));
++  if (!CHECK_COLUMNS.every(name => names.has(name))) return false;
++  const indexes = await db.prepare('PRAGMA index_list(publish_checks)').all<{ name: string; unique: number }>();
++  if (!indexes.results.some(index => index.name === 'idx_checks_version_seq' && index.unique === 1)) return false;
++  const key = await db.prepare('PRAGMA index_info(idx_checks_version_seq)').all<{ seqno: number; name: string }>();
++  return key.results.slice().sort((a, b) => a.seqno - b.seqno).map(column => column.name).join(',') === 'version_id,seq';
++}
++
++export async function publishReadiness(db: PublishReadDatabase, now = Date.now()) {
++  const storageReady = await publishStorageReady(db);
++  const active = await db.prepare("SELECT id FROM config_versions WHERE status IN ('validating','publishing','unknown') ORDER BY id LIMIT 1")
++    .first<{ id: number }>();
++  const held = await db.prepare('SELECT version_id FROM publish_lock WHERE expires_at>?1 LIMIT 1')
++    .bind(now).first<{ version_id: number }>();
++  return {
++    protocol: PUBLISH_READINESS_PROTOCOL,
++    storageReady,
++    requiredMigration: PUBLISH_STORAGE_MIGRATION,
++    // Only a missing schema plus a global no-job check authorizes a managed restart.
++    // New submissions/claims are blocked by the same schema probe until migrations finish.
++    restartSafe: !storageReady && !active && !held,
++    activeVersion: active?.id ?? held?.version_id ?? null,
++    message: storageReady ? '' : PUBLISH_STORAGE_MESSAGE,
++  };
++}
++
++/** Existing tasks may still heartbeat and report terminal state during an upgrade. */
++export function needsPublishStorage(route: string, method: string): boolean {
++  return (method === 'POST' && ['publish', 'next', 'check'].includes(route))
++    || (method === 'GET' && ['status', 'preflight'].includes(route));
++}
