@@ -6,6 +6,9 @@ COPY . .
 RUN npm ci --no-audit --no-fund && npm ci --prefix schema --no-audit --no-fund && npm ci --prefix worker --no-audit --no-fund && npm ci --prefix admin --no-audit --no-fund
 RUN npx --no-install playwright install --with-deps chromium
 RUN node --no-maglev --test worker/aws/tests/*.test.mjs
+ARG UVEL_ADMIN_PATH=/admin
+ARG UVEL_SITE_ORIGIN
+ENV UVEL_ADMIN_PATH=${UVEL_ADMIN_PATH} UVEL_SITE_ORIGIN=${UVEL_SITE_ORIGIN}
 RUN npm run build && npm run build:console && node worker/aws/build.mjs
 RUN git config --system --add safe.directory /app && mkdir -p /app/node_modules/.astro /app/node_modules/.vite /app/node_modules/.vite-temp /app/admin/node_modules/.vite-temp /app/worker/node_modules/.vite-temp /app/admin/node_modules/.vite /app/worker/node_modules/.vite && chmod -R a+rX /app /ms-playwright
 USER 10001:10001
