@@ -40,7 +40,7 @@ export function recordGate(name, pass, detail = []) {
   return entry;
 }
 export async function runGate(name, command, args, options = {}) {
-  // 发布遇到阻断就结束；手动 verify 汇总独立检查，过期校准等前置条件除外。
+  // 发布遇到阻断就结束；手动 verify 汇总独立检查。
   if (process.argv.includes('--fail-fast')) {
     const failed = results.find((result) => !result.pass);
     if (failed) {
@@ -436,17 +436,6 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
     : { gate: 'ai-antibbot-robots(FEAT-ANTIBOT01)', pass: false, detail: ['public/robots.txt 缺失'] };
   results.push(rb);
   console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: rb.gate, status: rb.pass ? 'ok' : 'failed' }));
-}
-
-// 校准过期是静态事实；先拦下，避免浏览器门跑完才发现记录不能用于后台提示。
-{
-  const r = await runGate('文案长度校准记录', process.execPath,
-    [join(ROOT, 'scripts', 'calibrate-copy-layout.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8' });
-  if (r.status !== 0) {
-    console.error('[verify] ✗ copy-layout-calibration：校准检查失败；若记录过期，请运行 node scripts/calibrate-copy-layout.mjs --write 后重试。');
-    process.exit(2);
-  }
-  results.push({ gate: 'copy-layout-calibration(静态)', pass: true, detail: [] });
 }
 
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。

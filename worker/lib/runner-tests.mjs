@@ -1080,7 +1080,7 @@ test('publish verify stops at the first blocking gate while manual verify still 
   const source = fileURLToPath(new URL('../..', import.meta.url));
   // Verify orchestration needs source files, not Git; publication snapshots have no .git.
   for (const rel of ['src', 'scripts', 'schema/src']) await cp(path.join(source, rel), path.join(workspace.site, rel), { recursive: true });
-  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/lib/runner-incremental.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'public/robots.txt']) {
+  for (const rel of ['worker/lib/runner-artifacts.mjs', 'worker/lib/runner-incremental.mjs', 'worker/register-ts-ext.mjs', 'worker/ts-ext-resolver.mjs', 'worker/src/aibot.ts', 'worker/seed/site-config.seed.json', 'worker/seed/copy-manifest.json', 'public/robots.txt']) {
     await mkdir(path.dirname(path.join(workspace.site, rel)), { recursive: true });
     await copyFile(path.join(source, rel), path.join(workspace.site, rel));
   }
@@ -1100,7 +1100,8 @@ test('publish verify stops at the first blocking gate while manual verify still 
       const stdout=new PassThrough(),stderr=new PassThrough();
       queueMicrotask(()=>{
         const failed=args.some(arg=>arg.endsWith('gate-site-behavior.mjs'));
-        if(args.some(arg=>arg.endsWith('calibrate-copy-layout.mjs')))writeFileSync('early-gate-ran','yes');
+        if(failed)writeFileSync('early-gate-ran','yes');
+        if(args.some(arg=>arg.endsWith('calibrate-copy-layout.mjs')))writeFileSync('calibration-ran','yes');
         if(args.some(arg=>arg.endsWith('gate-css-shadowed.mjs')))writeFileSync('later-gate-ran','yes');
         const text=failed?'INJECTED_BEHAVIOR_FAILURE':'1 pass';
         stdout.end(text);stderr.end();callback(failed?{code:2}:null,text,'');
@@ -1116,9 +1117,11 @@ test('publish verify stops at the first blocking gate while manual verify still 
   assert.match(fast.output, /后续检查未执行/);
   assert.equal((await readFile(path.join(workspace.site, '.verify-exit.code'), 'utf8')).trim(), '2');
   assert.equal(await readFile(path.join(workspace.site, 'early-gate-ran'), 'utf8'), 'yes');
+  await assert.rejects(readFile(path.join(workspace.site, 'calibration-ran')));
   await assert.rejects(readFile(path.join(workspace.site, 'later-gate-ran')));
   const full = await runCommand(process.execPath, args, { cwd: workspace.site });
   assert.equal(full.code, 2, full.output);
+  await assert.rejects(readFile(path.join(workspace.site, 'calibration-ran')));
   assert.equal(await readFile(path.join(workspace.site, 'later-gate-ran'), 'utf8'), 'yes');
   assert.match(full.output, /开始检查：画布几何/);
   assert.match(full.output, /结束检查：画布几何/);

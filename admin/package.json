@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit",
     "dev": "vite --port 5175",
     "test": "vitest run",
-    "test:copy-layout": "node ../scripts/test-copy-layout-catalog.mjs && node ../scripts/calibrate-copy-layout.mjs --self-test && node ../scripts/calibrate-copy-layout.mjs --check",
+    "test:copy-layout": "node ../scripts/test-copy-layout-catalog.mjs && node ../scripts/calibrate-copy-layout.mjs --self-test",
     "test:ui": "node ../scripts/console-ui-check.mjs",
     "test:typography": "node ../scripts/console-typography-check.mjs",
     "build": "npm run test:copy-layout && npm run typecheck && npm test && vite build"

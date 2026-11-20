@@ -1,7 +1,7 @@
 # UVEL whitepapers
 
-- Public English edition: [Version 1.3](../../public/documents/uvel-whitepaper-v1.3-en.pdf), 21 pages.
-- Internal Chinese comparison: [Version 1.2](uvel-whitepaper-v1.2-zh.pdf), 16 pages.
+- Public English edition: [Version 1.3](../../public/documents/uvel-whitepaper-v1.3-en.pdf), 22 pages.
+- Internal Chinese comparison: [Version 1.2](uvel-whitepaper-v1.2-zh.pdf), 17 pages.
 
 The Chinese edition is retained for owner review only. It is outside `public/` and must not be copied into the website deployment output or linked from the public website.
 
@@ -15,10 +15,6 @@ Both editions revise the compensation classifications and community-support sect
 
 The contents pages now use the actual chapter locations. The original technical-reference access date remains September 8, 2026; the revision date is October 16, 2026.
 
-English SHA-256: `4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20`.
-
-Chinese SHA-256: `8cbc560f6381a35504c80d0cd14adeb24e3bdc3ea5d2ffa87365eef3b4f50a09`.
-
 Both PDF digests and the English-only deployment boundary are checked by `scripts/test-uvel-identity.mjs`; the browser behavior gate also checks the public PDF. Changing either whitepaper requires a fresh full-text and rendered-page review before updating its approved digest.
 
 ## 2026-10-24 token rename
@@ -28,3 +24,14 @@ The current token name is **UVT**. The public English PDF replaces all eight occ
 ## 2026-10-29 Chinese token rename correction
 
 The internal Chinese PDF had missed the token rename. All eight occurrences on pages 2, 9 and 14 now use **UVT**. Its filename, edition and business content are preserved. All 16 pages were rendered and compared: pixels outside the eight token labels are unchanged. The Chinese edition remains internal and is not included in the website deployment.
+
+## 2026-11-11 platform revenue model
+
+Chapter 08 describes the proposed task service fee, compute customer billing, and device sales and optional services. The section starts on page 13 in English and page 9 in Chinese. Both editions carry the November 11 revision date. The existing edition numbers and filenames preserve the public PDF URL and internal references.
+
+Participant settlement statements show net task earnings after applicable fees.
+
+Both covers use the light-background horizontal lockup from UVEL-Brand-Kit-2026-10-21 (712 x 246 PNG).
+
+- English SHA-256 `f4f7bb7577997d752c4b10d0a22dd092e250917b9cc47b6d1e730f1ae9f90f86`
+- Chinese SHA-256 `654cd83f9b018d041a6974600aac5b1f98b6c498c8ddd74a0360662f2a55ead2`

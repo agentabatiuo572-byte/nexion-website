@@ -1793,6 +1793,10 @@ function initScramble() {
     const label = el.querySelector<HTMLElement>('[data-scr-label]') ?? el;
     const original = label.textContent ?? '';
     if (!original.trim()) continue;
+    // Keep the hit-tested text node alive: replacing it during pointerdown
+    // makes WebKit cancel the click on both summaries and navigation links.
+    const text = document.createTextNode(original);
+    label.replaceChildren(text);
     const chars = [...original]; // 码点级拆分(vi 声调字 NFC 单码点,安全)
     if (!el.hasAttribute('aria-label')) el.setAttribute('aria-label', original.trim());
     let raf = 0;
@@ -1800,11 +1804,11 @@ function initScramble() {
     const stop = (restore: boolean) => {
       cancelAnimationFrame(raf);
       raf = 0;
-      if (restore) label.textContent = original;
+      if (restore) text.data = original;
     };
     const run = () => {
       const settled = Math.min(Math.floor(frame / 4), chars.length);
-      label.textContent = chars.map((c, i) => (i < settled ? c : scrambleChar(c))).join('');
+      text.data = chars.map((c, i) => (i < settled ? c : scrambleChar(c))).join('');
       frame++;
       if (settled < chars.length) raf = requestAnimationFrame(run);
       else raf = 0;

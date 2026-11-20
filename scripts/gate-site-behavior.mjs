@@ -19,6 +19,7 @@ import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
 import { resolveEnabledLocales } from '../src/lib/locale-policy.ts';
 import { readBuiltPages } from './gate-built-routes.mjs';
 import { mobileHeroCopyIsClear, sampleMobileHeroCopy, testMobileHeroSampling } from './mobile-hero-sampling.mjs';
+import { testLanguageNavigation } from './test-language-navigation.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const ASTRO = join(ROOT, 'node_modules', 'astro', 'bin', 'astro.mjs');
@@ -383,6 +384,7 @@ try {
   const coreUrl = await serve(coreDist);
   const elevenUrl = await serve(elevenDist);
   browser = await chromium.launch({ headless: true });
+  checks += await testLanguageNavigation(browser, coreUrl, enabledLocales);
 
   const staticContext = await browser.newContext({ reducedMotion: 'reduce', viewport: { width: 1280, height: 800 } });
   const page = await staticContext.newPage();
@@ -442,7 +444,7 @@ try {
 
   const whitepaperUrl = '/documents/uvel-whitepaper-v1.3-en.pdf';
   const whitepaperBytes = readFileSync(join(coreDist, whitepaperUrl.slice(1)));
-  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === '4640565490b7f057fc8a6b0ff3ed77e72b4e9f0289a4eada0b85d461d9905d20');
+  check('白皮书 固定英文官网版文件', createHash('sha256').update(whitepaperBytes).digest('hex') === 'f4f7bb7577997d752c4b10d0a22dd092e250917b9cc47b6d1e730f1ae9f90f86');
   const pdfResponse = await staticContext.request.get(`${coreUrl}${whitepaperUrl}`);
   check('白皮书 GET 返回 PDF 且与构建文件一致', pdfResponseMatches(
     pdfResponse.status(), pdfResponse.headers()['content-type'] || '', await pdfResponse.body(), whitepaperBytes,

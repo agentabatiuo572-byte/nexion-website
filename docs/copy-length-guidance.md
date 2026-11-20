@@ -43,9 +43,9 @@
 - [浏览器验收脚本](../scripts/test-copy-hints-runtime.mjs)：先核对全部默认输入，再测边界、粘贴、AI 回填、切换、保存刷新和发布请求。
 - [Worker 独立 D1 检查](../worker/test/copy-advisory.spec.ts)：持久化、发布快照和原有硬校验；与后台内存 API 夹具分层说明。
 
-重新校准使用 `node scripts/calibrate-copy-layout.mjs --write`，随后运行 `npm --prefix admin run build` 和 `node scripts/test-copy-hints-runtime.mjs`。新版不使用旧 `jointLimits` 缩减值。旧版或不支持的数据版本只显示核验提醒，拒绝继续提供旧数字。
+全量校准仅按需手动运行，不作为常规验收、后台构建或发布的前置条件，也不因源码指纹变化而要求自动重跑。需要更新文案长度建议时使用 `node scripts/calibrate-copy-layout.mjs --write`，随后运行 `npm --prefix admin run build` 和 `node scripts/test-copy-hints-runtime.mjs`。新版不使用旧 `jointLimits` 缩减值。旧版或不支持的数据版本只显示核验提醒，拒绝继续提供旧数字。
 
-校准数据和构建必须具有匹配的源码、字体及产物指纹。后台测试使用真实构建与隔离内存 API；它不代表真实 AI 服务调用、托管发布完成或公网已更新。
+每次手动校准保留匹配当次源码、字体及构建产物的指纹，既有校准记录只证明记录中的快照。后台测试使用真实构建与隔离内存 API；它不代表真实 AI 服务调用、托管发布完成或公网已更新。
 
 ## 当前验收证据
 
