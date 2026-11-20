@@ -8,11 +8,9 @@ AWS 执行模式为 `ENVIRONMENT=production`、`PUBLISH_EXECUTION_MODE=aws` / `P
 
 API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均不挂载 Docker socket、IAM 凭据或对方的数据目录。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份，从备份副本读取线上版本及本次发布身份，再匹配摘要完整的保留 release。未找到恢复目标则标为 unverified；备份时有活动发布则标为 requires-reconciliation，不把 separately observed current 当恢复指针。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
 
-部署前：固定提交构建 `deploy/aws/Dockerfile`，其中 Linux 适配测试与后台构建必须通过。官网 PROD 的构建参数为 `UVEL_SITE_ORIGIN=https://www.uvel.ai`，`UVEL_ADMIN_PATH` 由部署环境提供，格式为斜杠加 32 位随机小写十六进制字符。镜像内的官网构建、后台构建、API 和发布器使用同一配置。初始化令牌及管理员口令通过服务环境传入，首次管理员在配置的后台入口下打开 `/setup` 设置口令。升级以原有 release 为回退点。验收必须包含真实 UI 的编辑→保存→刷新→发布→历史回滚；API restart 后检查持久化，publisher restart 后确认能接单。
+部署前：固定提交构建 `deploy/aws/Dockerfile`，其中 Linux 适配测试与后台构建必须通过；以原有 release 为回退点。初始化令牌及管理员口令不得进入镜像或日志。首次管理员在 `/admin/setup` 设置口令。验收必须包含真实 UI 的编辑→保存→刷新→发布→历史回滚；API restart 后检查持久化，publisher restart 后确认能接单。
 
 升级前先确认没有 validating/publishing/unknown 发布，停止 runner，再备份数据库和 nginx。替换 `/etc/uvel/image` 指向固定提交标签后启动 API 与 runner，确认健康及执行器就绪才切换入口。故障回退保留新数据库现场，恢复旧镜像/入口和对应 release；不要直接覆盖唯一数据库。日常内容回滚使用后台历史版本发布，不能手工改 current 冒充已完成回滚。
-
-首次部署使用带完整 Git 元数据的固定提交检出构建镜像。资格通过后，用资格目录中的完整 `artifact` 建立首个 `releases/` 快照和 `current` 链接，再启动 API。已有数据库的部署通过发布器验证并接管与镜像匹配的快照。镜像、快照和 API 环境必须配套切换，并保留原组合供回退。API 环境的 `PUBLIC_ORIGIN` 设为 `https://www.uvel.ai`，两个 `UVEL_*` 构建值由镜像继承。先在源站实测主页、后台脚本和样式、登录及旧入口 404，再替换现有 `www` 虚拟主机并执行 `nginx -t` 和平滑重载。
 
 运营在后台保存草稿、检查改动并点击发布后，服务端自动调度执行器。界面显示发布步骤、失败原因和版本记录；刷新或关闭后台不会取消任务。日常操作不需要 PowerShell、cookie 或手动启动 CI。
 

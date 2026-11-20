@@ -47,7 +47,7 @@ const router = createBrowserRouter(
       ],
     },
   ],
-  { basename: import.meta.env.BASE_URL.slice(0, -1) },
+  { basename: '/admin' },
 );
 
 /* 401 用路由跳转,不整页重载(实景走查 P2-9:三个并发探针 401 会连着触发三次整页导航,

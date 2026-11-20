@@ -51,13 +51,13 @@ export async function api<T>(path: string, init?: RequestInit, options: { redire
     && options.redirectUnauthorized !== false
     && requestGeneration === authGeneration
     && !location.hash.includes('login')
-    && location.pathname.replace(/\/+$/, '').toLowerCase() !== `${import.meta.env.BASE_URL}login`
+    && !location.pathname.includes('login')
   ) {
-    const back = encodeURIComponent(location.pathname.slice(import.meta.env.BASE_URL.length - 1) + location.search);
+    const back = encodeURIComponent(location.pathname.replace(/^\/admin/, '') + location.search);
     if (redirectedGeneration !== requestGeneration) {
       redirectedGeneration = requestGeneration;
       if (routerNavigate) routerNavigate(`/login?back=${back}`);
-      else location.assign(`${import.meta.env.BASE_URL}login?back=${back}`);
+      else location.assign(`/admin/login?back=${back}`);
     }
     throw new ApiError(401, { error: 'unauthorized' });
   }

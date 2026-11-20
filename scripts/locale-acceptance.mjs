@@ -13,7 +13,6 @@ import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
 import { SiteConfigSchema } from '../schema/src/site-config.ts';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
-const siteOrigin = process.env.UVEL_SITE_ORIGIN || 'https://uvel.ai';
 const output = join(root, '.codex/locale-review');
 mkdirSync(output, { recursive: true });
 const temp = mkdtempSync(join(output, 'artifacts-'));
@@ -95,7 +94,7 @@ try {
           const url = route(locale, path);
           if (!enabled.includes(locale)) {
             assert.equal((await fetch(base + url)).status, 404, `${name}: disabled route ${url}`);
-            assert(!sitemap.includes(`${siteOrigin}${url}<`), `${name}: disabled sitemap ${url}`);
+            assert(!sitemap.includes(`https://uvel.ai${url}<`), `${name}: disabled sitemap ${url}`);
             continue;
           }
           const response = await page.goto(base + url);
@@ -135,7 +134,7 @@ try {
           const alternatives = await page.locator('head link[rel=alternate][hreflang]').evaluateAll((links) => links.map((link) => link.hreflang).filter((lang) => lang !== 'x-default'));
           assert.deepEqual(alternatives.sort(), [...enabled].sort(), `${url}: hreflang selection`);
           assert.deepEqual((await page.locator('.lang a').evaluateAll((links) => links.map((link) => link.hreflang))).sort(), [...enabled].sort(), `${url}: menu selection`);
-          assert(sitemap.includes(`${siteOrigin}${url}<`), `${url}: missing sitemap route`);
+          assert(sitemap.includes(`https://uvel.ai${url}<`), `${url}: missing sitemap route`);
           result.routes.push(url);
         }
         if (!enabled.includes(locale)) continue;

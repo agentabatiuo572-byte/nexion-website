@@ -1,6 +1,6 @@
 /* 登录页(CON01 ⑤⑥:默认/加载/报错/锁定倒计时四态) */
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { advanceAuthGeneration, ApiError, api } from '../api';
 import { lockoutText, useLockout } from '../lib/use-lockout';
 import { Icon } from '../lib/icon';
@@ -72,7 +72,7 @@ export default function Login() {
           <button className="btn primary auth-submit" disabled={busy || lock.sec > 0}>
             {busy ? '登录中…' : '登录'}<Icon name="arrow-right" size={18} />
           </button>
-          <div className="auth-setup-link"><span>首次使用？</span><Link to="/setup">初始化管理员 <Icon name="arrow-up-right" size={16} /></Link></div>
+          <div className="auth-setup-link"><span>首次使用？</span><a href="/admin/setup">初始化管理员 <Icon name="arrow-up-right" size={16} /></a></div>
           <p className="kv auth-help">初始化需要部署时配置的初始化令牌。</p>
         </form>
         <span className="auth-main-footer"><Icon name="shield" size={15} />仅管理员可访问</span>

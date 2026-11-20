@@ -5,15 +5,10 @@ import path from 'node:path';
 import { SqliteDatabase, migrate, persistentKv } from './storage.mjs';
 import { assetsBinding } from './assets.mjs';
 
-const internalAdminPath = '/admin';
-const atPath = (pathname, prefix) => pathname === prefix || pathname.startsWith(prefix + '/');
-
 export function validateEnvironment(env) {
   if (env.ENVIRONMENT !== 'production' || env.PUBLISH_EXECUTION_MODE !== 'aws') throw new Error('AWS requires production/aws');
   const origin = new URL(env.PUBLIC_ORIGIN);
   if (origin.protocol !== 'https:' || origin.origin !== env.PUBLIC_ORIGIN) throw new Error('Canonical HTTPS origin required');
-  if (env.UVEL_SITE_ORIGIN && env.UVEL_SITE_ORIGIN !== origin.origin) throw new Error('Build and runtime origins differ');
-  if (env.UVEL_ADMIN_PATH && !/^\/(?:admin|[a-f0-9]{32})$/.test(env.UVEL_ADMIN_PATH)) throw new Error('Invalid admin path');
   for (const key of ['SETUP_TOKEN','PUBLISH_RUNNER_TOKEN','BEACON_SALT','BYPASS_SECRET','GATE_SECRET','AI_CREDENTIAL_ENCRYPTION_KEY']) {
     if (!env[key] || env[key].length < 32 || /dev-|placeholder|test-secret/i.test(env[key])) throw new Error(`Missing production secret: ${key}`);
   }
@@ -22,7 +17,6 @@ export function validateEnvironment(env) {
 }
 
 export function createHttpServer(worker, env, { host = '127.0.0.1', port = 8791 } = {}) {
-  const adminPath = env.UVEL_ADMIN_PATH || internalAdminPath;
   const pending = new Set();
   const ctx = { waitUntil(promise) { const p = Promise.resolve(promise).catch(() => console.error('background-task-failed')).finally(() => pending.delete(p)); pending.add(p); }, passThroughOnException() {} };
   const server = createServer(async (incoming, outgoing) => {
@@ -34,18 +28,12 @@ export function createHttpServer(worker, env, { host = '127.0.0.1', port = 8791 
       let decoded;
       try { decoded = decodeURIComponent(url.pathname); } catch { outgoing.writeHead(400).end(); return; }
       // Hono decodes routes. Reject aliases before any authentication/CSRF classifier.
-      const admin = atPath(decoded, adminPath);
-      if ((admin || atPath(decoded, internalAdminPath) || atPath(decoded, '/api')) && decoded !== url.pathname) {
+      if (/^\/(?:api|admin)(?:\/|$)/.test(decoded) && decoded !== url.pathname) {
         outgoing.writeHead(400, { 'cache-control':'no-store' }).end('Noncanonical route'); return;
       }
       if (decoded.includes('\\') || decoded.includes('\0') || decoded.split('/').some(part => part.startsWith('.')) || /^\/(?:_headers|_redirects)$/.test(decoded)) {
         outgoing.writeHead(404, { 'cache-control':'no-store' }).end('Not found'); return;
       }
-      if (!admin && atPath(decoded, internalAdminPath)) {
-        outgoing.writeHead(404, { 'cache-control':'no-store' }).end('Not found'); return;
-      }
-      // Keep the Worker's internal SPA, geo exemptions and asset layout on their existing mount.
-      if (admin) url.pathname = internalAdminPath + url.pathname.slice(adminPath.length);
       const machine = /^\/api\/publish\/(?:next|step|check|heartbeat|runner-state|runner-fail)\/?$/.test(url.pathname);
       if (!['GET','HEAD'].includes(incoming.method) && /^\/api\/(?:auth|config|publish|geo|ai|translations|admin)(?:\/|$)/.test(url.pathname) && !machine) {
         if (incoming.headers.origin !== env.PUBLIC_ORIGIN) { outgoing.writeHead(403, { 'content-type':'application/json','cache-control':'no-store' }).end('{"error":"origin-rejected"}'); return; }
@@ -63,16 +51,9 @@ export function createHttpServer(worker, env, { host = '127.0.0.1', port = 8791 
       const request = new Request(url, { method:incoming.method, headers, ...(!['GET','HEAD'].includes(incoming.method) && bytes ? { body:Buffer.concat(chunks) } : {}) });
       const response = await worker.fetch(request, env, ctx);
       for (const [name, value] of response.headers) if (name !== 'set-cookie') outgoing.setHeader(name, value);
-      const location = response.headers.get('location');
-      if (admin && location && adminPath !== internalAdminPath) {
-        const target = new URL(location, url);
-        if (target.origin === url.origin && atPath(target.pathname, internalAdminPath)) {
-          outgoing.setHeader('Location', adminPath + target.pathname.slice(internalAdminPath.length) + target.search + target.hash);
-        }
-      }
       const cookies = response.headers.getSetCookie();
       if (cookies.length) outgoing.setHeader('set-cookie', cookies);
-      if (url.pathname.startsWith('/api/') || admin) outgoing.setHeader('Cache-Control', 'no-store');
+      if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/admin')) outgoing.setHeader('Cache-Control', 'no-store');
       outgoing.setHeader('X-Content-Type-Options', 'nosniff');
       outgoing.writeHead(response.status);
       if (incoming.method === 'HEAD' || !response.body) outgoing.end();

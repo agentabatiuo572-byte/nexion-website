@@ -1,7 +1,7 @@
 /* 首次初始化(CON01:令牌+设口令;已初始化 → 死卡,E4「访问即见」——开门即探 /state,
    T10 验收 P-1 修:此前要提交才知道) */
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { ApiError, api, toast } from '../api';
 import { lockoutText, useLockout } from '../lib/use-lockout';
 import { Icon } from '../lib/icon';
@@ -52,7 +52,7 @@ export default function Setup() {
           <h1>已初始化</h1>
           <p className="auth-description">本后台已完成初始化，此入口已关闭。请使用管理员口令登录。</p>
           <details className="inline-help" style={{ marginBottom: 20 }}><summary>忘记管理员口令</summary><p className="kv">需要重新部署并轮换初始化令牌 SETUP_TOKEN，详见 worker/README 运维手册。</p></details>
-          <Link className="btn" style={{ width: '100%' }} to="/login">去登录</Link>
+          <a className="btn" style={{ width: '100%' }} href="/admin/login">去登录</a>
         </div>
       </div>
     );
@@ -70,7 +70,7 @@ export default function Setup() {
         {err && <div className="note bad" role="alert">{err}</div>}
         {lock.sec > 0 && <div className="note bad" role="alert">{lockoutText(lock.sec)}</div>}
         <button className="btn primary auth-submit" disabled={busy || lock.sec > 0}>{busy ? '提交中…' : '设置口令'}<Icon name="arrow-right" size={18} /></button>
-        <div className="auth-setup-link"><span>已经设置过？</span><Link to="/login">返回登录</Link></div>
+        <div className="auth-setup-link"><span>已经设置过？</span><a href="/admin/login">返回登录</a></div>
       </form>
     </div>
   );
