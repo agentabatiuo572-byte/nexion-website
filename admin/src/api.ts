@@ -51,7 +51,7 @@ export async function api<T>(path: string, init?: RequestInit, options: { redire
     && options.redirectUnauthorized !== false
     && requestGeneration === authGeneration
     && !location.hash.includes('login')
-    && location.pathname !== `${import.meta.env.BASE_URL}login`
+    && location.pathname.replace(/\/+$/, '').toLowerCase() !== `${import.meta.env.BASE_URL}login`
   ) {
     const back = encodeURIComponent(location.pathname.slice(import.meta.env.BASE_URL.length - 1) + location.search);
     if (redirectedGeneration !== requestGeneration) {

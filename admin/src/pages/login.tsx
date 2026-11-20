@@ -23,7 +23,7 @@ export default function Login() {
     setBusy(true);
     setErr('');
     try {
-      await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ password: pw }) }, { redirectUnauthorized: false });
+      await api('/api/auth/login', { method: 'POST', body: JSON.stringify({ password: pw }) });
       advanceAuthGeneration();
       nav(sp.get('back') || '/', { replace: true });
     } catch (ex) {
