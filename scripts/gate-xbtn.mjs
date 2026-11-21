@@ -85,6 +85,7 @@ async function record(page, route, width, phase = 'rest') {
 try {
   const builtPages = readBuiltPages(dist);
   const pages = [...scopeRoutes(builtPages, parseRoutesArg(process.argv)).pages];
+  assert(pages.length > 0, 'No built pages in button check scope');
   if (!pages.some(page => page.home)) {
     // These controls exercise the old button styles on the homepage even for an inner-page release.
     const home = builtPages.find(page => page.route === '/');
