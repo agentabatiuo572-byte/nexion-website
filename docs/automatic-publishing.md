@@ -14,6 +14,8 @@ API、runner 为两个非 root 容器。API 只能写数据库，runner 只能�
 
 仅修复发布器时，可用 `/etc/uvel/publisher-image` 固定发布器和资格容器的镜像，API 继续读取 `/etc/uvel/image`。整组升级时同步更新或取消发布器的独立镜像配置，并重新核对资格与就绪状态。
 
+发布器与资格容器通过同一启动参数限制为 12 GiB。八语发布会检查所有新增语言的页面，浏览器崩溃时结合容器的 `memory.events` 和失败时间核对是否触发内存上限。
+
 运营在后台保存草稿、检查改动并点击发布后，服务端自动调度执行器。界面显示发布步骤、失败原因和版本记录；刷新或关闭后台不会取消任务。日常操作不需要 PowerShell、cookie 或手动启动 CI。
 
 本机由启动器托管独立执行器，使用单独服务凭证。生产使用 `.github/workflows/publish-website.yml`，只接收整数 `versionId`，从受保护的 `main` 触发并检出当次不可变 commit。站点固定为 `nexgrid-site-worker`，生产任务串行执行；D1 持久保存任务和调度记录，服务端回读本次上线印记后才确认 live。
