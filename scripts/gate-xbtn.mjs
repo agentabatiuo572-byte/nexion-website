@@ -83,7 +83,15 @@ async function record(page, route, width, phase = 'rest') {
 }
 
 try {
-  const pages = [...scopeRoutes(readBuiltPages(dist), parseRoutesArg(process.argv)).pages, { route: '/404.html', home: false }];
+  const builtPages = readBuiltPages(dist);
+  const pages = [...scopeRoutes(builtPages, parseRoutesArg(process.argv)).pages];
+  if (!pages.some(page => page.home)) {
+    // These controls exercise the old button styles on the homepage even for an inner-page release.
+    const home = builtPages.find(page => page.route === '/');
+    assert(home?.home, 'Missing default homepage for button controls');
+    pages.push(home);
+  }
+  pages.push({ route: '/404.html', home: false });
   for (const width of [390, 1440, 1920]) {
     const page = await browser.newPage({ viewport: { width, height: 1000 }, reducedMotion: 'reduce' });
     // Static preview has no telemetry Worker; this probe does not validate analytics.
