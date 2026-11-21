@@ -17,6 +17,7 @@
     "test:worker": "npm --prefix worker test",
     "dev:worker": "npm --prefix worker run dev",
     "build:console": "npm --prefix admin run build && node worker/assemble-admin.mjs",
+    "build:console:assets": "npm --prefix admin run typecheck && cd admin && node node_modules/vite/bin/vite.js build && cd .. && node worker/assemble-admin.mjs",
     "test:site-behavior": "node --import ./worker/register-ts-ext.mjs scripts/gate-site-behavior.mjs",
     "test:downloads": "node --import ./worker/register-ts-ext.mjs --test scripts/download-distribution.test.mjs && node scripts/test-download-distribution.mjs",
     "preview:assert": "node scripts/preview-assert.mjs",

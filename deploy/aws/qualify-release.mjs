@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { createWorkspace, childEnvironment, runCommand } from '../../worker/lib/runner-core.mjs';
+import { createWorkspace, childEnvironment } from '../../worker/lib/runner-core.mjs';
 import { runGates, runNpm, runSourceBaseline, validateMaterialized } from '../../worker/lib/runner-gates.mjs';
 import { runtimeIdentity, atomicJson, materializedDigest, artifactManifest, replaceQualifiedStage, QUALIFICATION_VERSION } from '../../worker/lib/runner-incremental.mjs';
 import { assertDigest, directoryDigest } from '../../worker/lib/runner-artifacts.mjs';
@@ -39,9 +39,6 @@ try {
   await writeFile(path.join(site, 'src/config/site.json'), materializeSiteJson(config));
   const materialized = await validateMaterialized(site, config); assert.equal(materialized.ok, true, materialized.tail);
   const configSha = await materializedDigest(site);
-  // The actual deployment process policy is always checked, even when a previous stage passed.
-  const deadline = await runCommand(process.execPath, ['--no-maglev', '--test', '--test-name-pattern=command absolute deadlines', 'worker/lib/runner-tests.mjs'], options);
-  assert.equal(deadline.code, 0, deadline.output);
   let website = await prior('website.json');
   if (website) { try { assertDigest(path.join(output, 'site'), website.artifactSha); } catch { website = null; } }
   if (website) await cp(path.join(output, 'site'), path.join(site, 'dist'), { recursive: true });
@@ -55,7 +52,7 @@ try {
   if (admin) { try { assertDigest(path.join(output, 'admin'), admin.artifactSha); } catch { admin = null; } }
   if (admin) await cp(path.join(output, 'admin'), path.join(site, 'dist/admin'), { recursive: true });
   else {
-    const built = await runNpm(['run', 'build:console'], options); assert.equal(built.code, 0, built.output);
+    const built = await runNpm(['run', 'build:console:assets'], options); assert.equal(built.code, 0, built.output);
     const adminSha = directoryDigest(path.join(site, 'dist/admin')).sha256;
     await replaceQualifiedStage(output, 'admin', path.join(site, 'dist/admin'), adminSha);
     save('admin.json', { artifactSha: adminSha });

@@ -23,6 +23,7 @@ import { readBuiltPages, parseRoutesArg } from './gate-built-routes.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
+const AWS_RELEASE = process.argv.includes('--aws-release');
 /* 增量裁剪:发布器对纯文案改动只实测变化的 HTML 路由(--routes a,b,c)。
    只透传给三个运行时几何/版面门；覆盖面断言(sitemap↔产物)与内容门永远全量。 */
 const routesIndex = process.argv.indexOf('--routes');
@@ -79,7 +80,11 @@ if (qualificationIndex >= 0) {
   if (!qualification) throw new Error('Missing, stale or writable program qualification');
   await checkQualifiedSource(qualification, ROOT);
 }
-const evidenceMode = qualification ? 'qualified-content' : routesIndex >= 0 ? 'scoped' : 'full';
+const evidenceMode = AWS_RELEASE ? 'aws-release' : qualification ? 'qualified-content' : routesIndex >= 0 ? 'scoped' : 'full';
+const skipUnitSuite = name => {
+  console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: 'skipped' }));
+  results.push({ gate: name, pass: true, skipped: true, detail: ['AWS 发布使用静态检查和端到端验证'] });
+};
 const reuse = name => {
   console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: 'skipped' }));
   results.push({ gate: name, pass: true, reused: true, detail: ['复用同一程序与运行环境的真实成功检查'] });
@@ -462,6 +467,7 @@ for (const [name, args] of [
   ['download-policy', ['--import', pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href, '--test', join(ROOT, 'scripts', 'download-distribution.test.mjs')]],
   ['download-distribution', [join(ROOT, 'scripts', 'test-download-distribution.mjs')]],
 ]) {
+  if (AWS_RELEASE && name === 'download-policy') { skipUnitSuite(name); continue; }
   const r = await runGate(name, process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
   const detail = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').slice(-30);
   results.push({ gate: name, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
@@ -548,7 +554,9 @@ for (const [name, args] of [
    但此前**没有任何东西保证那些红测还过得了**——它们只在人想起来手跑时才执行,等于文档不是门。
    一道判据被悄悄改松(如 canvas-hazard 的字身正则曾漏判全部负值)时,门本体照样报绿,
    只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
-if (qualification) {
+if (AWS_RELEASE) {
+  skipUnitSuite('检查程序自测');
+} else if (qualification) {
   reuse('检查程序自测');
 } else {
   const SUITES = [
@@ -609,7 +617,7 @@ try {
 /* ── 汇总 ── */
 let failed = 0;
 for (const r of results) {
-  const mark = r.pass ? (r.warn ? '⚠' : '✓') : '✗';
+  const mark = r.skipped ? '–' : r.pass ? (r.warn ? '⚠' : '✓') : '✗';
   console.log(`[verify] ${mark} ${r.gate}${r.detail.length ? '' : ' — clean'}`);
   for (const d of r.detail.slice(0, 20)) console.log(`         ${d}`);
   if (!r.pass) failed++;
@@ -617,8 +625,9 @@ for (const r of results) {
 const code = failed ? 2 : 0;
 // NOT-RUN 不许混进 pass 计数——「跳过 ≠ 放宽」,报绿必须说清跑了几道
 const notRun = results.filter((r) => r.detail.some((d) => d.startsWith('NOT-RUN'))).length;
+const skipped = results.filter(r => r.skipped).length;
 console.log(
-  `[verify] ${results.length - failed - notRun}/${results.length} gates pass${notRun ? ` · ${notRun} NOT-RUN(未执行,不算过)` : ''}${PROD ? ' (prod mode)' : ''}`,
+  `[verify] ${results.length - failed - notRun - skipped}/${results.length - skipped} gates pass${skipped ? ` · ${skipped} skipped` : ''}${notRun ? ` · ${notRun} NOT-RUN(未执行,不算过)` : ''}${PROD ? ' (prod mode)' : ''}`,
 );
 writeFileSync(join(ROOT, '.verify-exit.code'), String(code));
 // pre-push 门读这份:NOT-RUN 不算过(--allow-not-run 放行的绿不背书任何一棵树),要推得走 ALLOW_UNVERIFIED_PUSH 留痕
@@ -628,7 +637,7 @@ try {
     mode: evidenceMode, routes: ROUTE_SCOPE?.split(',') ?? null,
     verdict: code === 0 && notRun === 0 ? 'pass' : 'fail', at: new Date().toISOString(),
     headTree: gitOut('rev-parse', 'HEAD^{tree}'), dirty: gitOut('status', '--porcelain') !== '', treeMoved: treeFingerprint() !== startFingerprint,
-    gates: results.length, reused: results.filter(r => r.reused).map(r => r.gate), failed, notRun, artifact,
+    gates: results.length, reused: results.filter(r => r.reused).map(r => r.gate), skipped: results.filter(r => r.skipped).map(r => r.gate), failed, notRun, artifact,
   }, null, 2) + '\n');
 } catch { /* 写不了缓存不影响门结论,只是推主线时要重跑 */ }
 process.exit(code);

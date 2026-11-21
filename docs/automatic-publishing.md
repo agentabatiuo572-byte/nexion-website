@@ -8,9 +8,11 @@ AWS 执行模式为 `ENVIRONMENT=production`、`PUBLISH_EXECUTION_MODE=aws` / `P
 
 API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均不挂载 Docker socket、IAM 凭据或对方的数据目录。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份，从备份副本读取线上版本及本次发布身份，再匹配摘要完整的保留 release。未找到恢复目标则标为 unverified；备份时有活动发布则标为 requires-reconciliation，不把 separately observed current 当恢复指针。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
 
-部署前：固定提交构建 `deploy/aws/Dockerfile`，其中 Linux 适配测试与后台构建必须通过；以原有 release 为回退点。初始化令牌及管理员口令不得进入镜像或日志。首次管理员在 `/admin/setup` 设置口令。验收必须包含真实 UI 的编辑→保存→刷新→发布→历史回滚；API restart 后检查持久化，publisher restart 后确认能接单。
+部署前：用固定提交构建 `deploy/aws/Dockerfile`，通过 AWS 发布资格检查和隔离环境的完整发布验证。AWS 构建和日常发布执行类型、配置、产物及实际浏览器检查，单测和检查脚本的单测套件记为跳过。以原有 release 为回退点。初始化令牌及管理员口令不得进入镜像或日志。首次管理员在 `/admin/setup` 设置口令。初次上线验收包含真实 UI 的编辑→保存→刷新→发布→历史回滚。单独恢复发布器时，在隔离发布目录和数据库完成同样的发布链路，再确认正式执行器可接单。
 
 升级前先确认没有 validating/publishing/unknown 发布，停止 runner，再备份数据库和 nginx。替换 `/etc/uvel/image` 指向固定提交标签后启动 API 与 runner，确认健康及执行器就绪才切换入口。故障回退保留新数据库现场，恢复旧镜像/入口和对应 release；不要直接覆盖唯一数据库。日常内容回滚使用后台历史版本发布，不能手工改 current 冒充已完成回滚。
+
+仅修复发布器时，可用 `/etc/uvel/publisher-image` 固定发布器和资格容器的镜像，API 继续读取 `/etc/uvel/image`。整组升级时同步更新或取消发布器的独立镜像配置，并重新核对资格与就绪状态。
 
 运营在后台保存草稿、检查改动并点击发布后，服务端自动调度执行器。界面显示发布步骤、失败原因和版本记录；刷新或关闭后台不会取消任务。日常操作不需要 PowerShell、cookie 或手动启动 CI。
 
@@ -23,7 +25,7 @@ API、runner 为两个非 root 容器。API 只能写数据库，runner 只能�
 3. 构建后台并组装发布包，复核官网未变、后台复制一致及最终包摘要。
 4. 切换本机快照或部署公网，再由服务端核实实际内容。回报中断只重试收口，不重复部署。
 
-AWS 程序资格由 `deploy/aws/qualify-release.mjs` 在与发布器相同的非 root、只读、`--init` 容器限制下生成，绑定完整源码摘要、Docker 镜像 ID（含实际安装依赖和浏览器）、Node、四组 lockfile、运行参数及各阶段成功记录。资格目录 `/opt/uvel/qualifications/<image-tag>` 由 root 安装为只读，再挂载到 `/qualification:ro`；缺失、可写、损坏或身份不一致时不复用。资格生成的代码、页面、后台阶段分别保存真实成功记录，重试不重复仍有效的阶段。发布器冷启动回归仅重复其负责的真实静态资产红绿测试，不再重复整个 Worker 测试集。
+AWS 程序资格由 `deploy/aws/qualify-release.mjs` 在与发布器相同的非 root、只读、`--init` 容器限制下生成，绑定完整源码摘要、Docker 镜像 ID（含实际安装依赖和浏览器）、Node、四组 lockfile、运行参数及各阶段成功记录。资格目录 `/opt/uvel/qualifications/<image-tag>` 由 root 安装为只读，再挂载到 `/qualification:ro`；缺失、可写、损坏或身份不一致时不复用。资格生成的代码、页面、后台阶段分别保存真实成功记录，重试不重复仍有效的阶段。AWS 专用验证记录不能作为主线全量验证凭证。
 
 日常内容发布仍进行配置校验、全部物化文件逐字节核对、一次官网构建、内容/语言/路由覆盖检查。新旧实际 HTML 摘要变化确定页面范围；非 HTML 资源变化（含图片、字体、CSS、脚本）、删除页面、缺失有效基线时扩大到全站。页面范围用于几何、布局、叠卡及按钮检查；每页原有断点和判据保持。网站行为变体测试只在源码、运行环境及启用语言集合均一致时复用。后台产物按资格中的摘要复用，组装后再校验。独立 `verify:prod` 仍全量，复用资格或路由裁剪的结果不能作为主线推送的 full 证据。
 

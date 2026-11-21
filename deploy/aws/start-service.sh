@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 kind="${1:?api, publisher or qualify required}"
-image="$(cat /etc/uvel/image)"
+image_file=/etc/uvel/image
+if [ "$kind" != api ] && [ -f /etc/uvel/publisher-image ]; then
+  image_file=/etc/uvel/publisher-image
+fi
+image="$(cat "$image_file")"
 case "$image" in uvel-admin:*) ;; *) echo 'Invalid pinned UVEL image' >&2; exit 1;; esac
 case "$kind" in
   api)

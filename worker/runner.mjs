@@ -395,7 +395,7 @@ async function main() {
         }
         await flushCheck({ step: 'build', title: '复用已验证的后台程序', status: 'ok' });
         built = { code: 0, output: '后台源码与程序版本未变，产物摘要一致' };
-      } else built = await runNpm(['run', 'build:console'], { ...commandOptions, cwd: site });
+      } else built = await runNpm(['run', options.mode === 'aws' ? 'build:console:assets' : 'build:console'], { ...commandOptions, cwd: site });
       if (built.code !== 0 || built.aborted) throw new Error(`控制台构建失败：${redact(built.output).slice(-5000)}`);
       assertDigest(path.join(site, 'dist'), gates.artifact.sha256, { exclude: ['admin', '.publish-stamp.json'] });
       assertDigest(path.join(site, 'dist/admin'), directoryDigest(path.join(site, 'admin/dist')).sha256);
