@@ -68,7 +68,7 @@ export const COPY_LAYOUT_CATALOG = {
     home('.hero .dl [data-download-entry="auto"] .dl-label', 'inline', '.hero .cluster'),
     home('.final .dl [data-download-entry="auto"] .dl-label', 'inline', '.final .plate')),
   ...downloadCopy(downloadFlow, ['title', 'iosTitle', 'androidTitle', 'initiated', 'openingH5', 'blockedTitle', 'mismatchTitle', 'unknownTitle'], '[data-distribution-title]'),
-  ...downloadCopy(downloadFlow, ['subtitle', 'scanIos', 'scanAndroid', 'h5UnavailableBody', 'blockedBody', 'blockedIosBody', 'blockedH5Body', 'unknownBody'], '[data-distribution-description]'),
+  ...downloadCopy(downloadFlow, ['subtitle', 'scanIos', 'scanAndroid', 'scanHint', 'h5UnavailableBody', 'blockedBody', 'blockedIosBody', 'blockedH5Body', 'unknownBody'], '[data-distribution-description]'),
   ...downloadCopy(downloadFlow, ['unavailable', 'h5Unavailable'], '[data-distribution-title]', '[data-distribution-action]'),
   ...downloadCopy(downloadFlow, ['unavailableBody'], '[data-distribution-description]', '[data-distribution-status]'),
   ...downloadCopy(downloadFlow, ['continueBody', 'openingH5Body'], '[data-distribution-description]', '[data-distribution-status]'),
@@ -88,7 +88,7 @@ export const COPY_LAYOUT_CATALOG = {
   ])),
   'distribution.h5Title': system('下载状态标题与其他版本入口共用。入口文字不换行，取决于运行时显示的版本组合；不提供未经测量的字数上限，请在窄屏独立下载页预览检查。', shared('[data-distribution-title]'), shared('[data-distribution-option="h5"] span:not([aria-hidden])')),
   'distribution.backHome': flowing('独立下载页的返回官网链接可换行，不设固定总字数上限。', at('download', '.download-home')),
-  ...Object.fromEntries(['close', 'scanHint', 'moreOptions', 'shareLink'].map((key) =>
+  ...Object.fromEntries(['close', 'moreOptions', 'shareLink'].map((key) =>
     [`distribution.${key}`, metadata('下载控件的辅助技术名称，仅 aria-label，不渲染为可见文字。')])),
   ...Object.fromEntries(['preparing', 'useIos', 'useAndroid', 'helpTitle', 'iosPage', 'tagline', 'headline', 'androidLead'].map((key) =>
     [`distribution.${key}`, metadata('预留下载文案，当前版本没有可见渲染消费者；启用时必须补充消费者及版面检查。')])),

@@ -37,6 +37,7 @@ const btns = [
         title={compact ? b.accessibleLabel : undefined}
         data-m={b.url ? `cta:${b.id}` : undefined}
         data-download-entry={b.id}
+        data-web-app-qr={compact && b.id === 'h5' ? '' : undefined}
         href={distributionPath(locale, b.id)}
       >
         <span class="ic">

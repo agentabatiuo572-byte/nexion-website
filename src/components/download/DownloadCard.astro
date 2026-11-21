@@ -8,11 +8,11 @@ interface Props { locale: Locale; modal?: boolean }
 const { locale, modal = false } = Astro.props;
 const t = useT(locale);
 const textKeys = [
-  'iosTitle', 'androidTitle', 'h5Title', 'scanIos', 'scanAndroid', 'continueIos', 'downloadAndroid', 'openH5',
+  'iosTitle', 'androidTitle', 'h5Title', 'scanIos', 'scanAndroid', 'scanHint', 'continueIos', 'downloadAndroid', 'openH5',
   'unavailable', 'unavailableBody', 'h5Unavailable', 'h5UnavailableBody', 'preparing', 'initiated', 'initiatedBody',
   'continueBody', 'blockedTitle', 'blockedBody', 'blockedIosBody', 'blockedH5Body', 'openingH5', 'openingH5Body',
   'mismatchTitle', 'mismatchBody', 'unknownTitle', 'unknownBody', 'copied', 'copyFailed', 'retry',
-  'qrUnavailable', 'androidPackage', 'iosPage', 'webEdition', 'downloadNote', 'copyLink',
+  'qrUnavailable', 'androidPackage', 'iosPage', 'webEdition', 'downloadNote', 'copyLink', 'shareLink',
   'title', 'headline', 'androidLead', 'scanAfter',
 ];
 const messages = Object.fromEntries(textKeys.map(key => [key, t(`distribution.${key}`)]));
@@ -33,7 +33,7 @@ const messages = Object.fromEntries(textKeys.map(key => [key, t(`distribution.${
     <div class="distribution-status" role="status" aria-live="polite" data-distribution-status hidden></div>
     <div class="distribution-qr" data-distribution-qr-wrap hidden>
       <div class="distribution-qr-image" role="img" aria-label={t('distribution.scanHint')} data-distribution-qr></div>
-      <p>{t('distribution.scanAfter')}</p>
+      <p data-distribution-install-caption>{t('distribution.scanAfter')}</p>
     </div>
     <a class="distribution-primary" data-distribution-action href={distributionPath(locale)} hidden>{t('distribution.downloadAndroid')}</a>
     <p class="distribution-install-note" data-distribution-note hidden>{t('distribution.downloadNote')}</p>

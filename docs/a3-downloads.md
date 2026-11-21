@@ -6,6 +6,7 @@
 - Worker 在每次 GET/HEAD 请求时，从固定公共接口 `https://api.uvel.ai/api/config/platform?officialLinkFragments=true` 读取 `data.share.appDownload.iosUrl/androidUrl`，仅接受 `code=0`、`source=official` 与无用户名密码的 HTTPS URL，返回 302 和 `Cache-Control: no-store`。
 - A3 变更后，下次点击直接使用新值，无须重新构建官网。地址可以是 APK/IPA 文件，也可以是已在 A3 配置的 HTTPS 安装落地页。
 - Web App（包括导航入口）经过分发入口后，目标统一为 `https://app.uvel.ai/h5/`，对应正式 `h5-lite-main`。
+- 首页首屏 Web App 按钮在桌面布局下悬停显示二维码，二维码直接编码正式 H5 地址。点击按钮仍直接打开 Web App，移动端维持点击访问。页尾 Web App 入口维持原交互。
 - 原官网后台的 `downloads` 配置和构建环境变量 `PUBLIC_IOS_URL/PUBLIC_ANDROID_URL/PUBLIC_H5_URL` 不再决定这些下载按钮的目标；历史配置字段暂时保留供既有后台兼容。
 - 配置缺失、非官方来源、无效 URL、上游错误或 5 秒超时返回 503 `download-unavailable`，不跳旧安装包。POST 等写方法返回 405，未知平台返回 404；访客凭据、请求体和查询参数不转给上游。
 

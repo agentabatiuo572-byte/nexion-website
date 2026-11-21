@@ -172,7 +172,7 @@ async function checkQr(page, expected) {
   const png = PNG.sync.read(await image.screenshot());
   const decoded = jsQR(new Uint8ClampedArray(png.data), png.width, png.height);
   assert(decoded, 'Rendered QR image could not be decoded');
-  assert.equal(decoded.data, expected, 'Rendered QR must contain current site origin and localized distribution path');
+  assert.equal(decoded.data, expected, 'Rendered QR must contain the expected destination');
   assert.equal(await page.locator('[data-distribution-link]').inputValue(), expected);
 }
 async function popoverIsOpen(page, platform) {
@@ -639,18 +639,19 @@ try {
     assert(await panel.evaluate(el => el.matches(':modal')));
     return { coarsePointerHoverIgnored: true, clickModal: true };
   });
-  await run('H5 hover never opens a QR popover', 'desktop', {}, async s => {
+  await run('homepage hero Web App shows a direct QR while retaining click navigation', 'desktop', {}, async s => {
     await goto(s.page, first.home);
-    const buttons = s.page.locator('[data-download-entry="h5"]');
-    let hovered = 0;
-    for (let index = 0; index < await buttons.count(); index++) {
-      const button = buttons.nth(index);
-      if (!await button.isVisible()) continue;
-      await button.hover(); await s.page.waitForTimeout(450);
-      assert(await s.page.locator('#distribution-dialog').isHidden()); assert.equal(s.targets.length, 0); hovered++;
-    }
-    assert(hovered >= 2, 'Multiple visible H5 entry points should be checked');
-    return { h5HoverEntryPoints: hovered };
+    const hero = s.page.locator('#download [data-download-entry="h5"]');
+    const footer = s.page.locator('#final-cta [data-download-entry="h5"]');
+    const panel = s.page.locator('#distribution-dialog');
+    await hero.hover(); await popoverIsOpen(s.page, 'h5');
+    await checkQr(s.page, fixture.h5);
+    assert.equal(countTarget(s, 'h5'), 0);
+    await footer.hover(); await panel.waitFor({ state: 'hidden' });
+    await hero.hover(); await popoverIsOpen(s.page, 'h5');
+    await hero.click(); await s.page.waitForURL(fixture.h5);
+    assert.equal(countTarget(s, 'h5'), 1);
+    return { heroQr: true, footerHoverIgnored: true, directClick: true };
   });
   for (const locale of locales) for (const width of [390, 760, 761, 1440]) {
     await run(`download hierarchy preserves navigation and responsive groups ${locale.locale} ${width}`, 'desktop', { viewport: { width, height: 844 } }, async s => {

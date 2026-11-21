@@ -35,6 +35,7 @@ if (card) {
   const linkInput = get<HTMLInputElement>('[data-distribution-link]');
   const qrWrap = get('[data-distribution-qr-wrap]');
   const qrElement = get('[data-distribution-qr]');
+  const installCaption = get('[data-distribution-install-caption]');
   const help = get<HTMLDetailsElement>('[data-distribution-help]');
   const note = get('[data-distribution-note]');
   const hoverMedia = window.matchMedia('(min-width: 761px) and (hover: hover) and (pointer: fine)');
@@ -203,7 +204,11 @@ if (card) {
 
   function render(request: DownloadRequest, source: 'button' | 'scan', autoNavigate = false,
     trigger: HTMLAnchorElement | null = anchor, interaction: Interaction = 'click') {
-    const decision = decideDownload(request, device, urls, embedded, source);
+    let decision = decideDownload(request, device, urls, embedded, source);
+    if (request === 'h5' && interaction === 'hover') {
+      if (decision.kind !== 'navigate') return;
+      decision = { ...decision, kind: 'qr' };
+    }
     current = decision.platform;
     root.dataset.state = decision.kind;
     root.dataset.platform = current;
@@ -225,16 +230,19 @@ if (card) {
     linkInput.hidden = true;
     copyStatus.textContent = '';
     get('[data-copy-label]').textContent = text('copyLink');
-    shareUrl = new URL(distributionPath(locale, current), location.origin).href;
+    shareUrl = current === 'h5' && decision.kind === 'qr'
+      ? decision.url : new URL(distributionPath(locale, current), location.origin).href;
     linkInput.value = shareUrl;
+    linkInput.setAttribute('aria-label', text(current === 'h5' ? 'openH5' : 'shareLink'));
+    installCaption.hidden = current === 'h5';
     root.querySelectorAll<HTMLAnchorElement>('.distribution-options [data-distribution-option]').forEach(link => {
       link.setAttribute('aria-current', String(link.dataset.distributionOption === current));
       link.hidden = decision.kind !== 'choose' && link.dataset.distributionOption === current;
     });
 
     if (decision.kind === 'qr') {
-      title.textContent = text('title');
-      description.textContent = text(current === 'ios' ? 'scanIos' : 'scanAndroid');
+      title.textContent = text(current === 'h5' ? 'h5Title' : 'title');
+      description.textContent = text(current === 'h5' ? 'scanHint' : current === 'ios' ? 'scanIos' : 'scanAndroid');
       copyWrap.hidden = false;
       qrWrap.hidden = false;
       try {
@@ -324,9 +332,10 @@ if (card) {
     if (isPopover() && keyboardEngaged) copyButton.focus({ preventScroll: true });
   });
   if (dialog) {
-    document.querySelectorAll<HTMLAnchorElement>('[data-download-entry="ios"], [data-download-entry="android"]').forEach(entry => {
+    document.querySelectorAll<HTMLAnchorElement>('[data-download-entry="ios"], [data-download-entry="android"], [data-web-app-qr]').forEach(entry => {
+      const hoverOnly = entry.hasAttribute('data-web-app-qr');
       entry.setAttribute('aria-controls', dialog.id);
-      entry.setAttribute('aria-haspopup', 'dialog');
+      if (!hoverOnly) entry.setAttribute('aria-haspopup', 'dialog');
       entry.setAttribute('aria-expanded', 'false');
       const disclose = (interaction: Interaction) => {
         if (!canPopover() || suppressFocusOpen) return;
@@ -338,6 +347,7 @@ if (card) {
       };
       entry.addEventListener('mouseenter', () => disclose('hover'));
       entry.addEventListener('mouseleave', () => { keyboardEngaged = false; scheduleClose(); });
+      if (hoverOnly) return;
       entry.addEventListener('focus', () => { if (entry.matches(':focus-visible')) disclose('focus'); });
       entry.addEventListener('blur', scheduleClose);
       entry.addEventListener('keydown', event => {
