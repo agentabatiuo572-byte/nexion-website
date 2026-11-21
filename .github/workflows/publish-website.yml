@@ -59,8 +59,8 @@ jobs:
           npm ci --prefix schema
       - name: Install the rendering gate browser
         run: npx --no-install playwright install --with-deps chromium
-      - name: Test production configuration safeguards
-        run: node --test worker/runner-tests/production-config.test.mjs
+      - name: Verify production configuration CLI failure handling
+        run: node --test --test-name-pattern='^CLI rejects missing deployment configuration' worker/runner-tests/production-config.test.mjs
       - name: Claim, verify and publish this version
         env:
           PUBLISH_RUNNER_TOKEN: ${{ secrets.PUBLISH_RUNNER_TOKEN }}

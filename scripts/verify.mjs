@@ -553,9 +553,12 @@ if (qualification) {
     ['canvas-geometry-lifecycle', ['scripts/test-canvas-geometry-lifecycle.mjs']],
     ['hash-navigation', ['scripts/test-hash-navigation.mjs']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
+  ];
+  // 无 .git 的发布快照不执行提交或推送；主线本地验证仍实跑两道钩子。
+  if (existsSync(join(ROOT, '.git'))) SUITES.push(
     ['githooks-pre-push', ['--test', '--test-name-pattern=^端到端:', '.githooks/verify-before-push.test.mjs']],
     ['githooks-pre-commit', ['--test', '--test-name-pattern=^端到端:', '.githooks/guard-mainline-commit.test.mjs']],
-  ];
+  );
   const detail = [];
   for (const [name, argv] of SUITES) {
     const command = argv[0].startsWith('--') ? argv : [join(ROOT, ...argv[0].split('/')), ...argv.slice(1)];

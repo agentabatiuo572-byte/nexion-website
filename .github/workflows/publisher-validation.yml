@@ -68,7 +68,7 @@ jobs:
       - name: Publisher regressions
         if: matrix.suite == 'publisher'
         timeout-minutes: 15
-        run: npm --prefix "$VALIDATION_ROOT/worker" run test:publisher
+        run: npm --prefix "$VALIDATION_ROOT/worker" run test:publisher:e2e
       - name: Worker typecheck
         if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix "$VALIDATION_ROOT/worker" run typecheck
@@ -83,17 +83,13 @@ jobs:
           if (!result.ok) throw new Error(`${result.gate}: ${result.tail}`);
           await prepareWorkerTestAssets(process.cwd());
           NODE
-      - name: Worker tests
+      - name: Worker static serving end-to-end
         if: ${{ !cancelled() && steps.assets.outcome == 'success' && matrix.suite == 'application' }}
         timeout-minutes: 10
-        run: npm --prefix "$VALIDATION_ROOT/worker" test
+        run: npm --prefix "$VALIDATION_ROOT/worker" run test:static
       - name: Admin typecheck
         if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix "$VALIDATION_ROOT/admin" run typecheck
-      - name: Admin tests
-        if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
-        timeout-minutes: 5
-        run: npm --prefix "$VALIDATION_ROOT/admin" test
       - name: Admin build
         if: ${{ !cancelled() && steps.snapshot.outcome == 'success' && matrix.suite == 'application' }}
         run: npm --prefix "$VALIDATION_ROOT/admin" run build

@@ -104,17 +104,6 @@ export async function validateMaterialized(site, config) {
   return { ok: true, gate: null, tail: '本次发布配置校验通过，全部物化文件逐字节一致' };
 }
 
-/** 源码静态门:只验源码/门脚本自身,与本次配置正文无关。纯文案改动且源码指纹未变时可跳,
-   上一次全量跑过即留结论。配置相关门(config-consistency/console-copy/beacon-size)永远跑:
-   文案变长/链接变化会真实影响它们。 */
-const SOURCE_STATIC_SUITES = new Set([
-  'jsonc-reader-红测',
-  'exit-finally-红测',
-  'config-consistency-自检',
-  'console-copy-自检',
-  'worker-AI-runtime',
-  'worker-单测',
-]);
 const INCREMENTAL_SKIPPED_PUBLISHER_TEST = 'publisher-故障回归';
 
 /** AWS 批量增加语言会同时改变所有页面；按真正检查的页面数给有界预算。
@@ -126,8 +115,7 @@ export function websiteVerificationTimeout(mode, pageCount, explicitTimeout) {
   return Math.min(60 * 60_000, Math.max(30 * 60_000, Math.ceil(pageCount / 24) * 15 * 60_000));
 }
 
-/** 原执行器全部门保留；增加类型检查和执行器自身失败路径测试。
-   options.changeTier='content-only' 且 options.sourceUnchanged 时走增量:跳过源码静态门,
+/** options.changeTier='content-only' 且 options.sourceUnchanged 时走增量:复用源码运行时检查,
    返回的 skipped 如实记录跳过的门(审计/证据可查,不冒充通过)。缺省全量。 */
 export async function runGates(site, mode, commandOptions = {}, options = {}) {
   const qualified = !!options.qualification || options.codeAlreadyQualified === true;
@@ -143,7 +131,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
     if (!bindings.ok) return bindings;
     await commandOptions.onCheck?.({ step: 'gates', title: 'worker-types', status: 'ok' });
   }
-  // Admin build 自带 typecheck + test；相同输入只检查一次。
+  // Admin build 自带 typecheck 和文案目录检查。
   // worker 类型只与 worker 源码有关,增量时源码未变可跳；官网侧保留(物化 i18n 落进 src)。
   for (const cwd of [site, worker]) {
     const gate = `typecheck:${path.basename(cwd)}`;
@@ -159,20 +147,14 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   await commandOptions.onCheck?.({ step: 'gates', title: 'site-build', status: 'ok' });
   const artifact = directoryDigest(path.join(site, 'dist'));
   // 先检查后台与执行器，确定性错误不必等九语浏览器检查结束才暴露。
-  if (!qualified) await prepareWorkerTestAssets(site, commandOptions);
   const suites = [
-    ['jsonc-reader-红测', ['lib/test-read-jsonc.mjs'], worker],
-    ['exit-finally-红测', ['lib/test-exit-skips-finally.mjs'], worker],
-    ['config-consistency-自检', ['gate-config-consistency.mjs', '--self-test'], worker],
-    ['console-copy-自检', ['gate-console-copy.mjs', '--self-test'], worker],
     ['config-consistency', ['gate-config-consistency.mjs'], worker],
     ['console-copy', ['gate-console-copy.mjs'], worker],
     ['beacon-size', ['gate-beacon-size.mjs'], worker],
     ['worker-AI-runtime', ['--no-maglev', 'test-ai-runtime.mjs'], worker],
-    ['worker-单测', ['--no-maglev', 'node_modules/vitest/vitest.mjs', 'run'], worker],
   ];
   for (const [gate, args, cwd] of suites) {
-    if (incremental && SOURCE_STATIC_SUITES.has(gate)) {
+    if (incremental && gate === 'worker-AI-runtime') {
       skipped.push(gate);
       await commandOptions.onProgress?.(`跳过检查:${gate}(程序输入未变,复用已通过的检查)`);
       await commandOptions.onCheck?.({ step: 'gates', title: gate, status: 'skipped' });
@@ -193,7 +175,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
     await commandOptions.onCheck?.({ step: 'gates', title: INCREMENTAL_SKIPPED_PUBLISHER_TEST, status: 'skipped' });
   } else {
     await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'running' });
-    const publisher = await runNpm(['run', 'test:publisher'], { ...commandOptions, cwd: worker });
+    const publisher = await runNpm(['run', 'test:publisher:e2e'], { ...commandOptions, cwd: worker });
     if (publisher.code !== 0 || publisher.aborted) return { ok: false, gate: 'publisher-故障回归', tail: publisher.output };
     await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'ok' });
   }

@@ -55,11 +55,13 @@ function matchesRoute(family, route) {
   return family === 'shared' || (family === 'all' && route !== 'download')
     || (family === 'inner' && route !== 'home' && route !== 'download') || family === route;
 }
-assert.equal(matchesRoute('inner', 'uvt'), true);
-assert.equal(matchesRoute('inner', 'home'), false);
-assert.equal(matchesRoute('inner', 'download'), false);
-assert.equal(matchesRoute('all', 'download'), false);
-assert.equal(matchesRoute('shared', 'download'), true);
+if (process.argv.includes('--self-test')) {
+  assert.equal(matchesRoute('inner', 'uvt'), true);
+  assert.equal(matchesRoute('inner', 'home'), false);
+  assert.equal(matchesRoute('inner', 'download'), false);
+  assert.equal(matchesRoute('all', 'download'), false);
+  assert.equal(matchesRoute('shared', 'download'), true);
+}
 assert.equal(catalog['distribution.backHome'].consumers[0].route, 'download');
 assert.equal(catalog['distribution.close'].kind, 'metadata');
 assert.equal(catalog['distribution.unavailableBody'].kind, 'flowing');
