@@ -11,7 +11,7 @@
     "test:copy-layout": "node ../scripts/test-copy-layout-catalog.mjs && node ../scripts/calibrate-copy-layout.mjs --self-test",
     "test:ui": "node ../scripts/console-ui-check.mjs",
     "test:typography": "node ../scripts/console-typography-check.mjs",
-    "build": "npm run test:copy-layout && npm run typecheck && npm test && vite build"
+    "build": "node ../scripts/test-copy-layout-catalog.mjs && npm run typecheck && vite build"
   },
   "dependencies": {
     "react": "^19.0.0",

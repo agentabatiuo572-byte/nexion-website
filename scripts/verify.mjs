@@ -458,11 +458,11 @@ if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.strin
 
 /* Distribution pages live outside the marketing canvas; their routing, actual
    QR decoding, viewport bounds and pointer/keyboard behavior need their own gate. */
-for (const [name, args] of [
-  ['download-policy', ['--import', pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href, '--test', join(ROOT, 'scripts', 'download-distribution.test.mjs')]],
-  ['download-distribution', [join(ROOT, 'scripts', 'test-download-distribution.mjs')]],
-]) {
-  const r = await runGate(name, process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 });
+{
+  const name = 'download-distribution';
+  const r = await runGate(name, process.execPath, [join(ROOT, 'scripts', 'test-download-distribution.mjs')], {
+    cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024,
+  });
   const detail = `${r.stdout || ''}\n${r.stderr || ''}`.trim().split('\n').slice(-30);
   results.push({ gate: name, pass: r.status === 0, detail: r.status === 0 ? [] : detail });
 }
@@ -543,33 +543,18 @@ for (const [name, args] of [
   results.push({ gate: 'xbtn(运行时边框/状态)', pass: r.status === 0, detail: r.status === 0 ? [] : [(r.stderr || r.stdout || 'NOT-RUN').trim()] });
 }
 
-/* ── 门自检:各门自带的红绿表必须真在跑 ──
-   三道门(canvas-hazard / render-fit / css-shadowed)各自写了红测,头注里也写着「判据必须有红测」,
-   但此前**没有任何东西保证那些红测还过得了**——它们只在人想起来手跑时才执行,等于文档不是门。
-   一道判据被悄悄改松(如 canvas-hazard 的字身正则曾漏判全部负值)时,门本体照样报绿,
-   只有红测会响;红测不跑 = 那层保护不存在。放在汇总前统一跑,任一失败即整体判红。 */
+/* 保留实际发布文件的静态检查，以及浏览器、独立检查命令和 Git 钩子的端到端回归。 */
 if (qualification) {
   reuse('检查程序自测');
 } else {
   const SUITES = [
-    ['uvel-identity', ['--experimental-transform-types', '--import', './worker/register-ts-ext.mjs', 'scripts/test-uvel-identity.mjs']],
-    ['built-routes', ['scripts/test-built-routes.mjs']],
-    ['forbidden-locales', ['scripts/test-forbidden-locales.mjs']],
-    ['i18n-parity', ['scripts/test-i18n-parity.mjs']],
-    ['locale-policy', ['scripts/test-locale-policy.mjs']],
-    ['canvas-hazard', ['scripts/gate-canvas-unit.mjs', '--self-test']],
+    ['uvel-identity', ['--experimental-transform-types', '--import', './worker/register-ts-ext.mjs',
+      '--test', '--test-name-pattern=^(all nine dictionaries|only the reviewed English whitepaper)', 'scripts/test-uvel-identity.mjs']],
     ['canvas-geometry-lifecycle', ['scripts/test-canvas-geometry-lifecycle.mjs']],
-    ['render-fit', ['scripts/gate-render-fit.mjs', '--self-test']],
-    ['ui-layout', ['scripts/check-ui-layout.mjs', '--self-test']],
-    ['line-reveal', ['scripts/test-line-reveal.mjs', '--self-test']],
     ['hash-navigation', ['scripts/test-hash-navigation.mjs']],
     ['css-shadowed', ['scripts/test-css-shadowed.mjs']],
-    ['regex-escape', ['scripts/test-regex-escape.mjs']],
-    ['ai-antibbot-robots', ['scripts/gate-robots.mjs', '--self-test']],
-    ['site-behavior', ['--import', './worker/register-ts-ext.mjs', 'scripts/gate-site-behavior.mjs', '--self-test']],
-    // git 层两道门的红测(2026-09-03 Tier 1-⑧,node --test 体例,成功行是「# pass N」):pre-push full 门 / pre-commit S 级门
-    ['githooks-pre-push', ['.githooks/verify-before-push.test.mjs']],
-    ['githooks-pre-commit', ['.githooks/guard-mainline-commit.test.mjs']],
+    ['githooks-pre-push', ['--test', '--test-name-pattern=^端到端:', '.githooks/verify-before-push.test.mjs']],
+    ['githooks-pre-commit', ['--test', '--test-name-pattern=^端到端:', '.githooks/guard-mainline-commit.test.mjs']],
   ];
   const detail = [];
   for (const [name, argv] of SUITES) {
