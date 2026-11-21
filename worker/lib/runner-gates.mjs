@@ -208,7 +208,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   if (aws) verifyArgs.push('--aws-release');
   const dist = path.join(site, 'dist');
   const website = artifactManifest(dist);
-  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website, dist) : null;
+  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website, dist, options.previousDist) : null;
   if (impact && !impact.full) verifyArgs.push('--routes', impact.routes.join(','));
   if (impact?.full || impact?.notFoundChanged) verifyArgs.push('--check-not-found');
   if (options.qualification) verifyArgs.push('--qualified-code', options.qualification.root);

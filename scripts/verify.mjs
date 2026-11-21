@@ -454,6 +454,7 @@ if (qualification && !process.argv.includes('--check-not-found')
       '--import',
       pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href,
       join(ROOT, 'scripts', 'gate-site-behavior.mjs'),
+      ...(AWS_RELEASE ? ['--built-not-found'] : []),
     ],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
   );
@@ -518,7 +519,7 @@ for (const [name, args] of [
   const args = scopedArgs([join(ROOT, 'scripts', 'gate-render-fit.mjs')]);
   if (AWS_RELEASE) args.push('--parallel-layout');
   const r = await runGate('各语言与屏幕尺寸的页面布局', process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const out = ((r.stdout || '') + '\n' + (r.stderr || '')).trim().split('\n').filter(Boolean);
   const detail = out.filter((l) => !/^\[render-fit\] ✓/.test(l) && !/^\[publish-progress\]/.test(l)).map((l) => l.replace(/^\s*/, ''));
   if (r.status === 3) {
     // 与 canvas-geometry 同体例:跑不起来 ≠ 放行,NOT-RUN 一律算红,要放行须显式 --allow-not-run

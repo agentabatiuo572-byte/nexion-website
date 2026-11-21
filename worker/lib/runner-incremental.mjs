@@ -42,7 +42,7 @@ export function validManifest(value) {
     && value.files === value.manifest.length && digest(value.manifest) === value.sha256;
 }
 
-export function affectedRoutes(previous, current, dist) {
+export function affectedRoutes(previous, current, dist, previousDist) {
   if (!validManifest(current)) throw new Error('Invalid current website manifest');
   const route = file => file === 'index.html' ? '/' : file.endsWith('/index.html') ? `/${file.slice(0, -10)}` : null;
   const all = current.manifest.map(f => route(f.path)).filter(Boolean).sort();
@@ -54,32 +54,38 @@ export function affectedRoutes(previous, current, dist) {
   const changed = [...new Set([...before.keys(), ...after.keys()])].filter(f => before.get(f) !== after.get(f));
   // The sitemap and localized 404 pages have dedicated coverage in verify.
   // A removed route has no current layout to measure.
-  const notFoundChanged = changed.some(f => /(?:^|\/)404\.html$/.test(f));
-  const assets = changed.filter(f => !route(f) && !/(?:^|\/)404\.html$/.test(f) && !['sitemap-0.xml', 'sitemap-index.xml'].includes(f));
+  const notFound = f => /(?:^|\/)404\.html$/.test(f);
+  let notFoundChanged = changed.some(notFound);
+  const assets = changed.filter(f => !route(f) && !notFound(f) && !['sitemap-0.xml', 'sitemap-index.xml'].includes(f));
   if (!dist && changed.some(f => !after.has(f))) return full('页面删除，重新检查路由与语言覆盖');
   if (assets.some(f => !dist || !f.startsWith('_astro/'))) return full('公共资源的影响范围无法限定');
-  const impacted = new Set(changed.filter(f => after.has(f) && route(f)));
+  const impacted = new Set(changed.filter(f => route(f)));
   if (assets.length) {
     // Astro emits CSS and JS with literal chunk, image and font filenames. Walk
-    // back from changed filenames through emitted imports and CSS URLs to the HTML.
-    const names = new Set(assets.map(f => path.posix.basename(f)));
-    const sources = current.manifest
-      .filter(({ path: f }) => route(f) || /^_astro\/.*\.(?:css|m?js)$/.test(f))
-      .map(({ path: f }) => ({ file: f, html: !!route(f), text: readFileSync(path.join(dist, f), 'utf8') }));
-    let grew;
-    do {
-      grew = false;
-      for (const source of sources) {
-        if (![...names].some(name => source.text.includes(name))) continue;
-        if (source.html) impacted.add(source.file);
-        else {
-          const name = path.posix.basename(source.file);
-          if (!names.has(name)) { names.add(name); grew = true; }
+    // back from changed filenames to the HTML in both verified and new builds.
+    const bundles = [[current, dist], [previous, previousDist]].filter(([, root]) => root)
+      .flatMap(([artifact, root]) => artifact.manifest
+        .filter(({ path: f }) => route(f) || notFound(f) || /^_astro\/.*\.(?:css|m?js)$/.test(f))
+        .map(({ path: f }) => ({ file: f, text: readFileSync(path.join(root, f), 'utf8') })));
+    for (const asset of assets) {
+      const names = new Set([path.posix.basename(asset)]);
+      let mapped = false;
+      for (const name of names) {
+        for (const source of bundles) {
+          if (!source.text.includes(name)) continue;
+          if (route(source.file) || notFound(source.file)) {
+            mapped = true;
+            if (route(source.file)) impacted.add(source.file);
+            else notFoundChanged = true;
+          } else {
+            names.add(path.posix.basename(source.file));
+          }
         }
       }
-    } while (grew);
+      if (!mapped) return full('编译资源的影响范围无法限定');
+    }
   }
-  const routes = [...impacted].map(route).sort();
+  const routes = [...impacted].filter(f => after.has(f)).map(route).sort();
   return { routes: routes.length ? routes : ['/'], full: false, reason: routes.length ? '检查本次变化的页面' : '页面未变化，保留首页上线前检查',
     ...(notFoundChanged ? { notFoundChanged } : {}) };
 }

@@ -372,8 +372,13 @@ async function main() {
           skipped: ['已验证的相同内容构建与页面检查'], impact: { reused: true, routes: [] } };
         await flushCheck({ step: 'gates', title: '复用已验证的相同内容', status: 'ok' });
       } else {
+        const previousWebsite = qualification ? cachedWebsite(stateDir, qualification, options.publishRoot) : null;
+        const previousDist = qualification ? path.join(
+          previousWebsite === qualification.website ? qualification.root : options.publishRoot,
+          previousWebsite === qualification.website ? 'artifact' : 'current',
+        ) : null;
         gates = await runGates(site, options.mode, commandOptions, { changeTier, sourceUnchanged, qualification,
-          previousWebsite: qualification ? cachedWebsite(stateDir, qualification, options.publishRoot) : null });
+          previousWebsite, previousDist });
       }
       if (!gates.ok) { await flushCheck({ step: 'gates', title: gates.gate ?? '发布门', status: 'failed', output: redact(gates.tail ?? '').slice(-4000) }); throw new Error(`门未通过(${gates.gate})：${redact(gates.tail).slice(-5000)}`); }
       assertDigest(path.join(site, 'dist'), gates.artifact?.sha256, { exclude: ['admin', '.publish-stamp.json'] });

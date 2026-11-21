@@ -760,7 +760,7 @@ const progress = (detail) => console.log('[publish-progress] ' + JSON.stringify(
 const layoutWorkers = process.argv.includes('--parallel-layout') ? 3 : 1;
 const inspectRoutes = async (context, routes, label, inspect) => {
   let next = 0;
-  await Promise.all(Array.from({ length: Math.min(layoutWorkers, routes.length) }, async () => {
+  const workers = Array.from({ length: Math.min(layoutWorkers, routes.length) }, async () => {
     const tab = await context.newPage();
     try {
       while (next < routes.length) {
@@ -772,7 +772,14 @@ const inspectRoutes = async (context, routes, label, inspect) => {
     } finally {
       await tab.close();
     }
-  }));
+  });
+  try {
+    await Promise.all(workers);
+  } catch (error) {
+    await browser.close();
+    if (server) await server.close();
+    throw error;
+  }
 };
 
 const browser = await chromium.launch();
