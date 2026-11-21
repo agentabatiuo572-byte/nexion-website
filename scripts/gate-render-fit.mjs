@@ -757,6 +757,23 @@ const { widths, heights } = breakpoints();
 // 首屏层间判据只需首页多语,但视口要走全部「宽 × 矮档高」组合
 const SHORT_H = heights.filter((h) => h <= 900);
 const progress = (detail) => console.log('[publish-progress] ' + JSON.stringify({ detail }));
+const layoutWorkers = process.argv.includes('--parallel-layout') ? 3 : 1;
+const inspectRoutes = async (context, routes, label, inspect) => {
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(layoutWorkers, routes.length) }, async () => {
+    const tab = await context.newPage();
+    try {
+      while (next < routes.length) {
+        const index = next++;
+        const route = routes[index];
+        progress(`页面布局：${label} ${index + 1}/${routes.length}，当前 ${route}`);
+        await inspect(tab, route);
+      }
+    } finally {
+      await tab.close();
+    }
+  }));
+};
 
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
@@ -772,7 +789,7 @@ let heightSensitive = 0;
 /* 稳态:先把全页滚一遍,让所有靠进入视口触发的揭示动效放完,再等宿主还原成纯文本。
    放完之后 resize 不会重新拆行(fx 只重拆未播的),所以每条路由做一次就够。
    等不到也不硬等 —— 真正的判决交给 blind 计数,静默跳过才是假绿的来源。 */
-const settle = async () => {
+const settle = async (page) => {
   await page.evaluate(async () => {
     const l = window.__lenis || window.lenis;
     const go = (y) => (l && l.scrollTo ? l.scrollTo(y, { immediate: true }) : window.scrollTo(0, y));
@@ -813,7 +830,7 @@ const settle = async () => {
 /* 指纹必须带行高:只改 `line-height` 的高度断点会产生完全相同的字号指纹 → 整条路由被判「不敏感」
    → 那些高度档判据 A 一次都不扫,而 A 判的恰恰是行间。今天仓里没有这种规则,写进来是封住它。 */
 const fingerprint = (sizes) => Object.entries(sizes).map(([k, v]) => `${k}:${v.fs}/${v.lh}`).join('|');
-const scanA = async (r, w, h) => {
+const scanA = async (page, r, w, h) => {
   let { hits, blind } = await page.evaluate(SCAN_LINES);
   /* 🔴 settle 只在路由载入后跑一次,而这之后视口要换 18 档宽 —— 揭示动效的触发窗
      与视口尺寸相关,在 settle 那个尺寸下触发过的,换个尺寸可能仍带着结构
@@ -846,12 +863,11 @@ const scanA = async (r, w, h) => {
   for (const b of blind) if (!blindSpots.has(`${r}|${b}`)) blindSpots.set(`${r}|${b}`, `${r} @${w}×${h}  ${b}`);
 };
 
-for (const [index, r] of ROUTES.entries()) {
-  progress(`页面布局：文字与字号 ${index + 1}/${ROUTES.length}，当前 ${r}`);
+await inspectRoutes(ctx, ROUTES, '文字与字号', async (page, r) => {
   const res = await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
-  if (!res || !res.ok()) { hitsA.set('route:' + r, `${r}  路由取不到`); continue; }
+  if (!res || !res.ok()) { hitsA.set('route:' + r, `${r}  路由取不到`); return; }
   await page.evaluate(() => document.fonts.ready);
-  await settle();
+  await settle(page);
 
   /* 这条路由对**视口高**敏不敏感?在最窄与最宽两档各试一遍全部高度档,版式指纹变了就是敏感。
      不敏感的路由只在 900 扫(与从前一致);敏感的路由按高度分档扫 —— 高度断点会换字号梯子,
@@ -875,7 +891,7 @@ for (const [index, r] of ROUTES.entries()) {
     await page.setViewportSize({ width: w, height: 900 });
     await page.waitForTimeout(40);
     const sizes900 = await page.evaluate(SCAN_SIZES);
-    await scanA(r, w, 900);
+    await scanA(page, r, w, 900);
 
     if (sensitive) {
       // 同一宽度下,版式完全等价的高度档只量一次(指纹去重),不同的都要量
@@ -887,7 +903,7 @@ for (const [index, r] of ROUTES.entries()) {
         const fp = fingerprint(await page.evaluate(SCAN_SIZES));
         if (seen.has(fp)) continue;
         seen.add(fp);
-        await scanA(r, w, hh);
+        await scanA(page, r, w, hh);
       }
       await page.setViewportSize({ width: w, height: 900 });
       await page.waitForTimeout(30);
@@ -904,7 +920,7 @@ for (const [index, r] of ROUTES.entries()) {
     prevW = w;
     prevSizes = sizes900;
   }
-}
+});
 /* ── E:弹层装不装得下 · F:关闭态必须真隐藏 ── */
 const hitsE = new Map();
 const hitsF = new Map();
@@ -916,13 +932,12 @@ const dialogCtx = await browser.newContext({
   userAgent: (await page.evaluate(() => navigator.userAgent)) + ' MicroMessenger/8.0.50',
   viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1,
 });
-{
-const page = await dialogCtx.newPage();
-for (const [index, r] of ROUTES.entries()) {
-  progress(`页面布局：弹层检查 ${index + 1}/${ROUTES.length}，当前 ${r}`);
-  await page.goto(BASE + r, { waitUntil: 'networkidle' }).catch(() => null);
+await inspectRoutes(dialogCtx, ROUTES, '弹层检查', async (page, r) => {
+  const response = await page.goto(BASE + r, { waitUntil: 'networkidle' });
+  if (!response?.ok()) throw new Error(`弹层检查无法读取 ${r}`);
+  await page.evaluate(() => document.fonts.ready);
   const n = await page.evaluate(() => document.querySelectorAll('dialog').length);
-  if (!n) continue;
+  if (!n) return;
   dialogRoutes++;
   // F(载入即测):最窄与最宽两档 —— 基类规则与媒体块规则两侧都看得到
   for (const w of [widths[0], widths[widths.length - 1]]) {
@@ -960,8 +975,7 @@ for (const [index, r] of ROUTES.entries()) {
     const k = `${r}|${m.sel}|after`;
     if (!hitsF.has(k)) hitsF.set(k, { ...m, where: `${r} 开关一轮后仍可见` });
   }
-}
-}
+});
 await dialogCtx.close();
 
 const hitsC = [];

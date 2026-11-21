@@ -206,9 +206,11 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   await rm(path.join(site, '.verify-exit.code'), { force: true });
   const verifyArgs = ['run', ['production', 'aws'].includes(mode) ? 'verify:prod' : 'verify', '--', '--built-dist-sha', artifact.sha256, '--fail-fast'];
   if (aws) verifyArgs.push('--aws-release');
-  const website = artifactManifest(path.join(site, 'dist'));
-  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website) : null;
+  const dist = path.join(site, 'dist');
+  const website = artifactManifest(dist);
+  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website, dist) : null;
   if (impact && !impact.full) verifyArgs.push('--routes', impact.routes.join(','));
+  if (impact?.full || impact?.notFoundChanged) verifyArgs.push('--check-not-found');
   if (options.qualification) verifyArgs.push('--qualified-code', options.qualification.root);
   if (impact) await commandOptions.onProgress?.(`${impact.reason}：${impact.routes.length} 个页面`);
   const checkedPages = impact && !impact.full && impact.routes.length
