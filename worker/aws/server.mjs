@@ -1,4 +1,5 @@
 import { createServer } from 'node:http';
+import { isIP } from 'node:net';
 import { Readable } from 'node:stream';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -17,6 +18,32 @@ export function validateEnvironment(env) {
 }
 
 export function createHttpServer(worker, env, { host = '127.0.0.1', port = 8791 } = {}) {
+  const a3Url = env.AWS_ANDROID_A3_URL;
+  if (a3Url !== undefined) {
+    if (env.ENVIRONMENT !== 'production' || env.PUBLISH_EXECUTION_MODE !== 'aws' ||
+        a3Url !== 'http://127.0.0.1:8110/api/config/platform?officialLinkFragments=true' || host !== '127.0.0.1') {
+      throw new Error('AWS_ANDROID_A3_URL requires the production loopback A3 endpoint and listener');
+    }
+    env.readAndroidA3 = (headers, signal) => {
+      // Nginx overwrites these fields. Its GeoIP lookup and Cloudflare are independent sources.
+      const gatewayCountry = headers.get('X-Uvel-Verified-Gateway-Country');
+      const cfCountry = headers.get('CF-IPCountry');
+      const clientIp = headers.get('CF-Connecting-IP');
+      if (![gatewayCountry, cfCountry].every(country => /^[A-Z]{2}$/.test(country ?? '') && country !== 'XX') ||
+          !clientIp || !isIP(clientIp)) {
+        throw new Error('Missing verified visitor location');
+      }
+      return fetch(a3Url, {
+        headers: {
+          Accept: 'application/json',
+          'X-Nexion-Edge-Country': gatewayCountry,
+          'CF-IPCountry': cfCountry,
+          'CF-Connecting-IP': clientIp,
+        },
+        redirect: 'error', cache: 'no-store', signal,
+      });
+    };
+  }
   const pending = new Set();
   const ctx = { waitUntil(promise) { const p = Promise.resolve(promise).catch(() => console.error('background-task-failed')).finally(() => pending.delete(p)); pending.add(p); }, passThroughOnException() {} };
   const server = createServer(async (incoming, outgoing) => {

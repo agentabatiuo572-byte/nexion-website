@@ -1,8 +1,8 @@
 import { Hono } from 'hono';
+import type { Env } from './env';
 
-// Fixed public upstream: never forward visitor cookies, authorization or query strings.
 const CONFIG_URL = 'https://api.uvel.ai/api/config/platform?officialLinkFragments=true';
-export const appDownloadRoutes = new Hono();
+export const appDownloadRoutes = new Hono<{ Bindings: Env }>();
 
 appDownloadRoutes.all('/:platform', async (c) => {
   c.header('Cache-Control', 'no-store');
@@ -14,10 +14,13 @@ appDownloadRoutes.all('/:platform', async (c) => {
   if (platform !== 'ios' && platform !== 'android') return c.json({ error: 'not-found' }, 404);
 
   try {
-    const response = await fetch(CONFIG_URL, {
-      method: 'GET', headers: { Accept: 'application/json' },
-      redirect: 'error', signal: AbortSignal.timeout(5000), cache: 'no-store',
-    });
+    const signal = AbortSignal.timeout(5000);
+    const response = platform === 'android' && c.env?.readAndroidA3
+      ? await c.env.readAndroidA3(c.req.raw.headers, signal)
+      : await fetch(CONFIG_URL, {
+          method: 'GET', headers: { Accept: 'application/json' },
+          redirect: 'error', signal, cache: 'no-store',
+        });
     if (!response.ok) throw new Error('config-unavailable');
     const payload = await response.json() as {
       code?: number;
