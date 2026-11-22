@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 export const fixtureTargets = {
-  ios: 'https://apps.apple.com/us/app/download-qa/id1234567890',
+  ios: 'https://dl.7624819.xyz/ios/download-qa',
   android: 'https://downloads.example.test/android.apk',
   h5: 'https://downloads.example.test/web-app/',
 };

@@ -95,7 +95,7 @@ async function session(profile = 'desktop', options = {}) {
         await route.fulfill({ status: 200, headers: { 'content-type': 'application/vnd.android.package-archive', 'content-disposition': 'attachment; filename="simulated-uvel.apk"' }, body: 'SIMULATED APK FIXTURE - NOT AN INSTALLABLE APPLICATION' }); return;
       }
       if (url.href === fixture.ios || url.href === fixture.h5) {
-        await route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>Simulated destination</title><h1 data-fixture>${url.href === fixture.ios ? 'Simulated App Store destination' : 'Simulated H5 application'}</h1>` }); return;
+        await route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>Simulated destination</title><h1 data-fixture>${url.href === fixture.ios ? 'Simulated iOS destination' : 'Simulated H5 application'}</h1>` }); return;
       }
       if (url.pathname === '/favicon.ico') { await route.fulfill({ status: 204 }); return; }
     }

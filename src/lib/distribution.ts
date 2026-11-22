@@ -26,7 +26,7 @@ export function parseDownloadRequest(value: string | null | undefined): Download
   return value === 'ios' || value === 'android' || value === 'h5' ? value : 'auto';
 }
 
-/** Native iOS distribution uses an Apple product page or public TestFlight invitation. */
+/** iOS supports Apple distribution links and the site's release host. */
 export function safeDownloadUrl(value: string | undefined, platform?: DownloadPlatform): string {
   const url = (value ?? '').trim();
   if (!/^https:\/\//i.test(url) || /[\u0000-\u0020\u007f\\]/.test(url)) return '';
@@ -36,7 +36,7 @@ export function safeDownloadUrl(value: string | undefined, platform?: DownloadPl
     if (platform === 'ios') {
       const product = parsed.host === 'apps.apple.com' && /^\/(?:[a-z]{2}\/)?app\/(?:[^/]+\/)?id\d+\/?$/i.test(parsed.pathname);
       const invitation = parsed.host === 'testflight.apple.com' && /^\/join\/[a-zA-Z0-9]+\/?$/.test(parsed.pathname);
-      if (!product && !invitation) return '';
+      if (!product && !invitation && parsed.host !== 'dl.7624819.xyz') return '';
     }
     return parsed.href;
   } catch { return ''; }
