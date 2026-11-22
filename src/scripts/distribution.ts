@@ -14,15 +14,44 @@ if (card) {
   const urls: DownloadUrls = JSON.parse(root.dataset.urls || '{}');
   const messages: Record<string, string> = JSON.parse(root.dataset.messages || '{}');
   const locale = root.dataset.locale || 'en';
-  // Keep the existing CTA contract aligned with the destination the phone uses.
-  // Unknown/desktop auto choices and unavailable targets are not conversions.
-  document.querySelectorAll<HTMLElement>('[data-download-entry]').forEach(entry => {
+  function configureEntry(entry: HTMLAnchorElement) {
     const requested = parseDownloadRequest(entry.dataset.downloadEntry);
-    const platform = requested === 'h5' ? 'h5' : device === 'ios' || device === 'android'
-      ? device : requested === 'auto' ? null : requested;
-    if (platform && urls[platform]) entry.dataset.m = `cta:${platform}`;
+    const { platform, url } = decideDownload(requested, device, urls, embedded);
+    const target = requested === 'auto' && device !== 'ios' && device !== 'android' ? '' : url;
+    if (requested === 'auto') {
+      if (target) {
+        entry.href = target;
+        entry.removeAttribute('role');
+        entry.removeAttribute('tabindex');
+      } else {
+        entry.removeAttribute('href');
+        entry.setAttribute('role', 'button');
+        entry.tabIndex = 0;
+      }
+    }
+    if (target) entry.dataset.m = `cta:${platform}`;
     else entry.removeAttribute('data-m');
-  });
+  }
+  document.querySelectorAll<HTMLAnchorElement>('[data-download-entry]').forEach(configureEntry);
+  const navDownload = document.querySelector<HTMLAnchorElement>('[data-nav-download="auto"]');
+  if (navDownload) {
+    const anchorHref = navDownload.getAttribute('href')!;
+    const mobile = matchMedia('(max-width: 760px)');
+    const syncNav = () => {
+      if (mobile.matches) {
+        navDownload.dataset.downloadEntry = 'auto';
+        configureEntry(navDownload);
+      } else {
+        delete navDownload.dataset.downloadEntry;
+        delete navDownload.dataset.m;
+        navDownload.setAttribute('href', anchorHref);
+        navDownload.removeAttribute('role');
+        navDownload.removeAttribute('tabindex');
+      }
+    };
+    syncNav();
+    mobile.addEventListener('change', syncNav);
+  }
   const get = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!;
   const title = get('[data-distribution-title]');
   const description = get('[data-distribution-description]');
@@ -197,14 +226,14 @@ if (card) {
     setStatus(text(current === 'android' ? 'initiatedBody' : current === 'h5' ? 'openingH5Body' : 'continueBody'));
     title.textContent = text(current === 'android' ? 'initiated' : current === 'h5' ? 'openingH5' : 'iosTitle');
     if (current === 'android') { action.textContent = text('retry'); help.open = true; }
-    if (current === 'h5' && isPopover()) finishClose(false);
+    if (isPopover()) finishClose(false);
     window.dispatchEvent(new Event('uvel:before-navigate'));
     window.location.assign(url);
   };
 
   function render(request: DownloadRequest, source: 'button' | 'scan', autoNavigate = false,
     trigger: HTMLAnchorElement | null = anchor, interaction: Interaction = 'click') {
-    let decision = decideDownload(request, device, urls, embedded, source);
+    let decision = decideDownload(request, device, urls, embedded, interaction === 'click' ? source : 'preview');
     if (request === 'h5' && interaction === 'hover') {
       if (decision.kind !== 'navigate') return;
       decision = { ...decision, kind: 'qr' };
@@ -218,10 +247,12 @@ if (card) {
     setStatus('');
     qrWrap.hidden = true;
     qrElement.replaceChildren();
+    delete qrElement.dataset.url;
     qrVersion++;
     action.hidden = true;
     action.removeAttribute('href');
     switchLink.hidden = true;
+    switchLink.removeAttribute('href');
     help.hidden = current !== 'android' || device === 'desktop'
       || decision.kind !== 'navigate';
     help.open = !help.hidden;
@@ -230,8 +261,7 @@ if (card) {
     linkInput.hidden = true;
     copyStatus.textContent = '';
     get('[data-copy-label]').textContent = text('copyLink');
-    shareUrl = current === 'h5' && decision.kind === 'qr'
-      ? decision.url : new URL(distributionPath(locale, current), location.origin).href;
+    shareUrl = decision.url;
     linkInput.value = shareUrl;
     linkInput.setAttribute('aria-label', text(current === 'h5' ? 'openH5' : 'shareLink'));
     installCaption.hidden = current === 'h5';
@@ -257,7 +287,6 @@ if (card) {
         setStatus(text('qrUnavailable'));
         linkInput.hidden = false;
       }
-      if (!decision.url) setStatus(text('unavailableBody'));
     } else if (decision.kind === 'choose') {
       title.textContent = text('unknownTitle');
       description.textContent = text('unknownBody');
@@ -266,10 +295,12 @@ if (card) {
       description.textContent = text('mismatchBody').replace('{platform}', current === 'ios' ? 'iOS' : 'Android');
       const target = device === 'ios' ? 'ios' : 'android';
       const alternate = get<HTMLAnchorElement>(`.distribution-options [data-distribution-option="${target}"]`);
-      switchLink.href = alternate.href;
-      switchLink.dataset.distributionOption = target;
-      switchLink.textContent = alternate.textContent;
-      switchLink.hidden = false;
+      if (alternate.hasAttribute('href')) {
+        switchLink.href = alternate.href;
+        switchLink.dataset.distributionOption = target;
+        switchLink.textContent = alternate.textContent;
+        switchLink.hidden = false;
+      }
     } else if (decision.kind === 'unavailable') {
       title.textContent = text(current === 'h5' ? 'h5Unavailable' : 'unavailable');
       description.textContent = text(current === 'h5' ? 'h5UnavailableBody' : 'unavailableBody');
@@ -285,7 +316,7 @@ if (card) {
       if (autoNavigate) {
         // APK downloads can keep the current document. Make its progress/retry
         // guidance visible before handing the request to the browser.
-        if (!isPage && current === 'android') openDialog(trigger, interaction);
+        if (!isPage && current === 'android' && device !== 'desktop') openDialog(trigger, interaction);
         navigate(decision.url);
         return;
       }
@@ -304,7 +335,7 @@ if (card) {
     event.preventDefault();
     const requested = parseDownloadRequest(option.dataset.distributionOption);
     if (isPage) history.replaceState(null, '', distributionPath(locale, requested));
-    render(requested, 'scan', true);
+    render(requested, 'button', true);
   });
   copyButton.addEventListener('click', async () => {
     const version = qrVersion;
@@ -318,6 +349,13 @@ if (card) {
       linkInput.focus();
       linkInput.select();
     }
+  });
+  document.addEventListener('keydown', event => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const target = (event.target as Element).closest<HTMLAnchorElement>('a[role="button"][data-download-entry], a[role="button"][data-distribution-option]');
+    if (!target) return;
+    event.preventDefault();
+    target.click();
   });
   document.addEventListener('click', event => {
     const target = (event.target as Element).closest<HTMLAnchorElement>('[data-download-entry]');
@@ -338,7 +376,7 @@ if (card) {
       if (!hoverOnly) entry.setAttribute('aria-haspopup', 'dialog');
       entry.setAttribute('aria-expanded', 'false');
       const disclose = (interaction: Interaction) => {
-        if (!canPopover() || suppressFocusOpen) return;
+        if (!canPopover() || suppressFocusOpen || !entry.hasAttribute('href')) return;
         keyboardEngaged = interaction === 'focus';
         if (anchor === entry && isPopover()) {
           cancelClose(); entry.setAttribute('aria-expanded', 'true'); schedulePosition(); return;
@@ -386,6 +424,6 @@ if (card) {
     const request = parseDownloadRequest(params.get('platform'));
     // Back/forward navigation must not trap users in a redirect or repeat an APK download.
     const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    render(request, params.get('source') === 'button' ? 'button' : 'scan', navigation?.type !== 'back_forward');
+    render(request, params.get('source') === 'button' && device !== 'desktop' ? 'button' : 'scan', navigation?.type !== 'back_forward');
   }
 }

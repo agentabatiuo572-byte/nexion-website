@@ -43,7 +43,7 @@ app.get('/api/health', (c) =>
   c.json({ ok: true, service: 'nexgrid-site-worker', environment: c.env.ENVIRONMENT }),
 );
 
-// Public, runtime A3 downloads; independent of website-admin authentication/config.
+// Older download links resolve against the current published website configuration.
 app.route('/api/app-download', appDownloadRoutes);
 
 // 挑战闸通行证校验(公开;token 由挑战页获取,siteverify 通过后签发 cookie)

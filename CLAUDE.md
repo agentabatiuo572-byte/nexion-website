@@ -81,7 +81,7 @@ UVEL 官网(marketing site)，当前公司主体为 **UVEL AI LTD**。**纯展�
 - 设计 token:`src/styles/tokens.css`(axiom 方向自有 SoT;含 `.xbtn` slide-swap/`.x-mono`/`.x-invert` 反白区块等全局型类);组件禁硬编码 hex,一律 var(--x-*)
 - 交互引擎:`src/scripts/fx.ts`(Base.astro 全站单点挂载;canvas id=`x-bg`;钩子 `[data-rv]` 进场 / `[data-lr]` 行遮罩 / `[data-tw]` 打字机 / `[data-deck]` 叠卡 / `[data-plx]` 视差 / `[data-scr]` 扰动)
 - i18n:`src/i18n/{en,vi,zh}.json` + `index.ts` 的 `useT()`;en 为源语言
-- 下载/H5 链接：`src/lib/downloads.ts` 统一提供同源 `/api/app-download/ios|android`；分发弹窗/二维码页使用这些入口，Worker 每次点击读取生产 A3，校验后无缓存跳转。Web App 固定 `https://app.uvel.ai/h5/`；旧官网 downloads 配置与 PUBLIC_*_URL 不再控制这些入口。见 `docs/a3-downloads.md`。
+- 官网首页按钮、二维码和复制链接使用官网后台已发布的 `downloads` 配置。`/download/` 与原有下载接口供旧链接使用。H5 内的 App 下载继续使用 PC 管理后台 A3。见 `docs/a3-downloads.md`。
 - 全局壳:`src/layouts/Base.astro`(SEO meta/hreflang/`meta color-scheme=dark`/favicon/标题后缀规则;head 内联脚本首帧前挂 `html.js`/`html.x-boot`/`--x-vw`)挂 `SiteNav`/`SiteFooter` + canvas + fx
 
 ## 红线(违反即返工)

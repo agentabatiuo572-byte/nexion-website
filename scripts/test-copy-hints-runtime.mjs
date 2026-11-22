@@ -558,8 +558,8 @@ try {
   }
   await navigate('content/downloads');
   await scan(['download-ios', 'download-android', 'download-h5'], 'en', 'download-links');
-  await fillAndCheck('download-ios', 'https://example.com/copy-hints-fixture', 'en');
-  await saveAndReload([{ id: 'download-ios', fieldId: '/downloads/ios/url', value: 'https://example.com/copy-hints-fixture' }]);
+  await fillAndCheck('download-ios', 'https://testflight.apple.com/join/AbCd1234', 'en');
+  await saveAndReload([{ id: 'download-ios', fieldId: '/downloads/ios/url', value: 'https://testflight.apple.com/join/AbCd1234' }]);
   await navigate('content/announcement');
   await scan(['announcement-link'], 'en', 'announcement-link');
   await fillAndCheck('announcement-link', '/learn?copy-hints-fixture=1', 'en');

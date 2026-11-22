@@ -4,7 +4,6 @@
    Hero and final CTA consume the same config and distribution controller. */
 import { useT, type Locale } from '../../i18n';
 import { DOWNLOAD_URLS } from '../../lib/downloads';
-import { distributionPath } from '../../lib/distribution';
 import PlatformGlyph from '../download/PlatformGlyph.astro';
 
 interface Props {
@@ -20,7 +19,7 @@ const IOS = DOWNLOAD_URLS.ios;
 const ANDROID = DOWNLOAD_URLS.android;
 const H5 = DOWNLOAD_URLS.h5;
 const btns = [
-  { id: 'auto', url: IOS || ANDROID, label: t('distribution.downloadApp'), accessibleLabel: t('distribution.downloadApp') },
+  { id: 'auto', url: '', label: t('distribution.downloadApp'), accessibleLabel: t('distribution.downloadApp') },
   { id: 'ios', url: IOS, label: 'iOS', accessibleLabel: t('download.ios') },
   { id: 'android', url: ANDROID, label: 'Android', accessibleLabel: t('download.android') },
   { id: 'h5', url: H5, label: t('nav.launchH5'), accessibleLabel: t('distribution.openH5') },
@@ -38,7 +37,9 @@ const btns = [
         data-m={b.url ? `cta:${b.id}` : undefined}
         data-download-entry={b.id}
         data-web-app-qr={compact && b.id === 'h5' ? '' : undefined}
-        href={distributionPath(locale, b.id)}
+        href={b.url || undefined}
+        role={b.url ? undefined : 'button'}
+        tabindex={b.url ? undefined : 0}
       >
         <span class="ic">
           {b.id === 'auto' ? (
@@ -159,10 +160,10 @@ const btns = [
     }
   }
   @media (max-width: 760px) {
-    .dl .dl-button:is([data-download-entry='ios'], [data-download-entry='android']) {
+    :global(html.js) .dl .dl-button:is([data-download-entry='ios'], [data-download-entry='android']) {
       display: none;
     }
-    .dl .dl-button[data-download-entry='auto'] {
+    :global(html.js) .dl .dl-button[data-download-entry='auto'] {
       display: inline-flex;
     }
   }

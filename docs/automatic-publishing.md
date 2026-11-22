@@ -6,9 +6,7 @@
 
 AWS 执行模式为 `ENVIRONMENT=production`、`PUBLISH_EXECUTION_MODE=aws` / `PUBLISH_MODE=aws`。常驻 runner 使用 `/var/lib/uvel/publisher` 的稳定身份、租约恢复记录和证据；源码与依赖来自只读的固定提交镜像。部署时先完成一次程序资格检查，日常发布检查修改及受影响部分。新快照验证并 fsync 后，通过 POSIX symlink rename 原子切换 `/var/www/uvel/current`；服务端回读私有印记后才确认成功。
 
-同机 Java 服务运行于 8110 时，可在 `/etc/uvel/api.env` 设置 `AWS_ANDROID_A3_URL=http://127.0.0.1:8110/api/config/platform?officialLinkFragments=true`，由官网 API 服务在启动时启用。每次安装前先核对正式官网 Nginx 的 `location /`：仅接受可信 Cloudflare 边缘提供的访客信息，覆盖 `CF-IPCountry` 与 `CF-Connecting-IP`，并使用从还原后访客 IP（`$remote_addr`）查询的真实 GeoIP2 国家码覆盖专用头。生产已有 `$gray_country` 时使用 `proxy_set_header X-Uvel-Verified-Gateway-Country $gray_country;`。无 GeoIP2 的模板将专用头清空。应用前执行 `nginx -t`。官网 API 将专用头映射为 Java 的 `X-Nexion-Edge-Country`，将独立的 `CF-IPCountry` 和访客 IP 一同发送，由 Java 原有地区策略判定。
-
-核验时从正式域名请求 `/api/app-download/android`，检查 302 的目标与已公开的 A3 地址相同、响应带 `Cache-Control: no-store`。关闭此连接时移除该变量并重新启动官网 API，即恢复从原公共接口读取。
+官网下载地址随官网后台的配置版本发布。发布后可在首页核对三个入口的目标与开关，旧下载接口使用同一份线上配置。[下载入口说明](a3-downloads.md)
 
 API、runner 为两个非 root 容器。API 只能写数据库，runner 只能写发布目录与自身状态，均不挂载 Docker socket、IAM 凭据或对方的数据目录。容器限制 CPU、内存、PID 并轮转日志。systemd 自动拉起服务；备份 timer 每日生成一致性 SQLite 备份，从备份副本读取线上版本及本次发布身份，再匹配摘要完整的保留 release。未找到恢复目标则标为 unverified；备份时有活动发布则标为 requires-reconciliation，不把 separately observed current 当恢复指针。备份包含认证数据，目录仅管理员和服务账户可读，不入 Git。服务器磁盘损坏的异地恢复另需配置远端备份目标。
 

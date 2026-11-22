@@ -24,8 +24,6 @@ export type Env = Omit<Cloudflare.Env, 'ENVIRONMENT' | 'SETUP_TOKEN' | 'BEACON_S
   PUBLISH_GITHUB_WORKFLOW?: string;
   PUBLISH_GITHUB_REF?: string;
   PUBLISH_GITHUB_TOKEN?: string;
-  /** Installed by the AWS HTTP adapter when the local production A3 endpoint is configured. */
-  readAndroidA3?: (headers: Headers, signal: AbortSignal) => Promise<Response>;
   AI_CREDENTIAL_ENCRYPTION_KEY?: string;
   AI_ALLOWED_MODELS?: string;
   /** Local API supervisor only; never shared with the publisher. */

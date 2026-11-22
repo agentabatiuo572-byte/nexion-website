@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
+import { DownloadEntry } from '../../schema/src/site-config';
+import { resolveDownloadUrl } from '../../src/lib/download-policy';
 import type { Env } from './env';
 
-const CONFIG_URL = 'https://api.uvel.ai/api/config/platform?officialLinkFragments=true';
 export const appDownloadRoutes = new Hono<{ Bindings: Env }>();
 
 appDownloadRoutes.all('/:platform', async (c) => {
@@ -14,28 +15,15 @@ appDownloadRoutes.all('/:platform', async (c) => {
   if (platform !== 'ios' && platform !== 'android') return c.json({ error: 'not-found' }, 404);
 
   try {
-    const signal = AbortSignal.timeout(5000);
-    const response = platform === 'android' && c.env?.readAndroidA3
-      ? await c.env.readAndroidA3(c.req.raw.headers, signal)
-      : await fetch(CONFIG_URL, {
-          method: 'GET', headers: { Accept: 'application/json' },
-          redirect: 'error', signal, cache: 'no-store',
-        });
-    if (!response.ok) throw new Error('config-unavailable');
-    const payload = await response.json() as {
-      code?: number;
-      data?: { share?: { appDownload?: { source?: string; iosUrl?: unknown; androidUrl?: unknown } } };
-    } | null;
-    const config = payload?.code === 0 ? payload.data?.share?.appDownload : undefined;
-    const value = platform === 'ios' ? config?.iosUrl : config?.androidUrl;
-    if (config?.source !== 'official' || typeof value !== 'string' || /[\u0000-\u0020\\]/.test(value)) {
-      throw new Error('download-unavailable');
+    const live = await c.env.DB.prepare("SELECT payload FROM config_versions WHERE status='live' ORDER BY id DESC LIMIT 1")
+      .first<string>('payload');
+    if (live) {
+      const entry = DownloadEntry.parse(JSON.parse(live).downloads?.[platform]);
+      const target = resolveDownloadUrl(entry, platform);
+      if (target) return c.redirect(target, 302);
     }
-    const target = new URL(value);
-    if (target.protocol !== 'https:' || target.username || target.password) throw new Error('invalid-download-url');
-    return c.redirect(target.href, 302);
   } catch {
-    // An unset or unavailable A3 value must never fall back to an obsolete package.
-    return c.json({ error: 'download-unavailable' }, 503, { 'Retry-After': '5' });
+    // Missing or unreadable published configuration has the same public response as a disabled download.
   }
+  return c.json({ error: 'download-unavailable' }, 503, { 'Retry-After': '5' });
 });

@@ -26,14 +26,19 @@ export function parseDownloadRequest(value: string | null | undefined): Download
   return value === 'ios' || value === 'android' || value === 'h5' ? value : 'auto';
 }
 
-/** Relative same-site URLs and HTTPS are supported; arbitrary protocols and credentials are rejected. */
-export function safeDownloadUrl(value: string | undefined): string {
+/** Native iOS distribution uses an Apple product page or public TestFlight invitation. */
+export function safeDownloadUrl(value: string | undefined, platform?: DownloadPlatform): string {
   const url = (value ?? '').trim();
-  if (!url || /[\u0000-\u001f\u007f\\]/.test(url)) return '';
-  if (url.startsWith('/') && !url.startsWith('//')) return url;
+  if (!/^https:\/\//i.test(url) || /[\u0000-\u0020\u007f\\]/.test(url)) return '';
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' && !parsed.username && !parsed.password ? parsed.href : '';
+    if (parsed.username || parsed.password) return '';
+    if (platform === 'ios') {
+      const product = parsed.host === 'apps.apple.com' && /^\/(?:[a-z]{2}\/)?app\/(?:[^/]+\/)?id\d+\/?$/i.test(parsed.pathname);
+      const invitation = parsed.host === 'testflight.apple.com' && /^\/join\/[a-zA-Z0-9]+\/?$/.test(parsed.pathname);
+      if (!product && !invitation) return '';
+    }
+    return parsed.href;
   } catch { return ''; }
 }
 
@@ -42,19 +47,17 @@ export function decideDownload(
   device: DeviceOS,
   urls: DownloadUrls,
   embedded: boolean,
-  source: 'button' | 'scan' = 'button',
+  source: 'button' | 'scan' | 'preview' = 'button',
 ): DistributionDecision {
   const detected = device === 'ios' || device === 'android' ? device : null;
-  const platform = requested === 'h5' ? 'h5'
-    : source === 'button' && detected ? detected
-    : requested === 'auto' ? detected ?? 'android' : requested;
-  const url = safeDownloadUrl(urls[platform]);
+  const platform = requested === 'auto' ? detected ?? (urls.android || !urls.ios ? 'android' : 'ios') : requested;
+  const url = safeDownloadUrl(urls[platform], platform);
+  if (!url) return { kind: 'unavailable', platform, url: '' };
   if (platform !== 'h5') {
-    if (device === 'desktop') return { kind: 'qr', platform, url };
+    if (device === 'desktop' && (source !== 'button' || requested === 'auto')) return { kind: 'qr', platform, url };
     if (requested === 'auto' && !detected) return { kind: 'choose', platform, url };
     if (source === 'scan' && detected && platform !== detected) return { kind: 'mismatch', platform, url: '' };
   }
-  if (!url) return { kind: 'unavailable', platform, url: '' };
   if (embedded) return { kind: 'browser', platform, url };
   return { kind: 'navigate', platform, url };
 }

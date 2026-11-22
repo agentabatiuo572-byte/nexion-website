@@ -7,7 +7,7 @@ import { decideDownload, detectDevice, distributionPath, isEmbeddedBrowser,
   parseDownloadRequest, safeDownloadUrl } from '../src/lib/distribution.ts';
 const { resolveDownloadUrl } = await import('../src/lib/download-policy.ts');
 
-const urls = Object.freeze({ ios: 'https://downloads.example.test/ios',
+const urls = Object.freeze({ ios: 'https://apps.apple.com/app/id1234567890',
   android: 'https://downloads.example.test/android.apk', h5: 'https://downloads.example.test/h5' });
 const empty = Object.freeze({ ios: '', android: '', h5: '' });
 
@@ -48,42 +48,43 @@ test('request parser is a closed platform allowlist; unsupported query data mean
   }
 });
 
-test('only HTTPS without credentials or local absolute paths are accepted destinations', () => {
+test('only absolute HTTPS destinations without credentials are accepted', () => {
   for (const [input, expected] of [[' https://downloads.example.test/app.apk ', urls.android.replace('android.apk', 'app.apk')],
-    ['/downloads/app.apk?version=2', '/downloads/app.apk?version=2'], ['https://downloads.example.test', 'https://downloads.example.test/']]) {
+    ['https://downloads.example.test', 'https://downloads.example.test/']]) {
     assert.equal(safeDownloadUrl(input), expected);
   }
   for (const input of [undefined, '', '   ', '//evil.test/app', 'http://evil.test', 'javascript:alert(1)',
     'data:text/html,<script>alert(1)</script>', 'file:///tmp/app.apk', 'intent://app', 'ftp://evil.test/app',
     'https://user:password@downloads.example.test/app', 'https://user@downloads.example.test/app',
-    'https://downloads.example.test/a\nb', '/\\evil.test/app', '\\evil.test', '/bad\u0000name', 'relative/app.apk']) {
+    'https://downloads.example.test/a\nb', '/\\evil.test/app', '\\evil.test', '/bad\u0000name', '/downloads/app.apk?version=2', 'relative/app.apk']) {
     assert.equal(safeDownloadUrl(input), '', String(input));
   }
 });
 
-test('disabled configuration wins over both saved destinations and environment fallback', () => {
+test('only enabled, explicitly configured destinations are resolved', () => {
   for (const platform of ['ios', 'android', 'h5']) {
-    assert.equal(resolveDownloadUrl({ enabled: false, url: urls[platform] }, urls[platform]), '');
-    assert.equal(resolveDownloadUrl({ enabled: false, url: '' }, urls[platform]), '');
-    assert.equal(resolveDownloadUrl({ enabled: true, url: urls[platform] }, 'https://other.example.test'), urls[platform]);
-    assert.equal(resolveDownloadUrl({ enabled: true, url: '  ' }, urls[platform]), urls[platform]);
-    assert.equal(resolveDownloadUrl({ enabled: true, url: '' }, undefined), '');
-    assert.equal(resolveDownloadUrl({ enabled: true, url: 'javascript:alert(1)' }, urls[platform]), '');
+    assert.equal(resolveDownloadUrl({ enabled: false, url: urls[platform] }, platform), '');
+    assert.equal(resolveDownloadUrl({ enabled: false, url: '' }, platform), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: urls[platform] }, platform), urls[platform]);
+    assert.equal(resolveDownloadUrl({ enabled: true, url: '  ' }, platform), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: '' }, platform), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: 'javascript:alert(1)' }, platform), '');
   }
 });
 
-test('desktop App entries use QR even when narrow; the web app navigates directly', () => {
+test('explicit desktop platform clicks navigate directly and scanned bookmarks show a QR', () => {
   for (const source of ['button', 'scan']) for (const platform of ['ios', 'android']) {
-    assert.deepEqual(decideDownload(platform, 'desktop', urls, false, source), { kind: 'qr', platform, url: urls[platform] });
-    assert.deepEqual(decideDownload(platform, 'desktop', empty, false, source), { kind: 'qr', platform, url: '' });
+    assert.deepEqual(decideDownload(platform, 'desktop', urls, false, source), { kind: source === 'button' ? 'navigate' : 'qr', platform, url: urls[platform] });
+    assert.deepEqual(decideDownload(platform, 'desktop', empty, false, source), { kind: 'unavailable', platform, url: '' });
   }
   assert.deepEqual(decideDownload('h5', 'desktop', urls, false), { kind: 'navigate', platform: 'h5', url: urls.h5 });
 });
 
-test('every phone App button follows the actual phone OS', () => {
+test('phone auto entries follow the device and explicit entries honor the chosen platform', () => {
   for (const device of ['ios', 'android']) for (const request of ['ios', 'android', 'auto']) {
-    assert.deepEqual(decideDownload(request, device, urls, false, 'button'), { kind: 'navigate', platform: device, url: urls[device] });
-    assert.deepEqual(decideDownload(request, device, empty, false, 'button'), { kind: 'unavailable', platform: device, url: '' });
+    const platform = request === 'auto' ? device : request;
+    assert.deepEqual(decideDownload(request, device, urls, false, 'button'), { kind: 'navigate', platform, url: urls[platform] });
+    assert.deepEqual(decideDownload(request, device, empty, false, 'button'), { kind: 'unavailable', platform, url: '' });
   }
 });
 

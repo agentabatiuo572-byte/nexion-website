@@ -27,7 +27,7 @@ const anchor = (id: string) => (isHome ? `#${id}` : `${prefix}/#${id}`);
 const page = (p: string) => (p === '/' ? `${prefix}/` : `${prefix}${p}/`);
 const langHref = (l: Locale) => localizedPath(l, path);
 
-import { distributionPath } from '../lib/distribution';
+import { DOWNLOAD_URLS } from '../lib/downloads';
 ---
 
 <header class="site-nav" id="site-nav">
@@ -82,10 +82,11 @@ import { distributionPath } from '../lib/distribution';
             ))}
             </div>
           </details>
-            {!isHome && <a class="h5 x-dimlink" data-scr data-nav-download="h5" data-download-entry="h5" href={distributionPath(locale, 'h5')}>
+            {!isHome && <a class="h5 x-dimlink" data-scr data-nav-download="h5" data-download-entry="h5" href={DOWNLOAD_URLS.h5 || undefined}
+              role={DOWNLOAD_URLS.h5 ? undefined : 'button'} tabindex={DOWNLOAD_URLS.h5 ? undefined : 0}>
               {t('nav.launchH5')}
             </a>}
-          <a class="xbtn solid dl-btn" data-nav-download="auto" data-download-auto-href={distributionPath(locale, 'auto')} href={anchor('download')}>
+          <a class="xbtn solid dl-btn" data-nav-download="auto" href={anchor('download')}>
             <span class="xbtn-ghost" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>
             <span class="xbtn-a">{t('nav.download')} <span class="arr">→</span></span>
             <span class="xbtn-b" aria-hidden="true">{t('nav.download')} <span class="arr">→</span></span>

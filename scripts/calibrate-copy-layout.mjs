@@ -1,4 +1,5 @@
 // Advisory character budgets from the real built page. This never changes publication policy.
+import { fixtureTargets } from './download-build-fixture.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -84,7 +85,7 @@ function fixtureSite(linkedAnnouncement = false) {
   else delete site.announcement.href;
   site.footer.contactEmail ||= 'teams@example.com';
   if (!site.skus.some((sku) => sku.status === 'coming')) site.skus.at(-1).status = 'coming';
-  for (const platform of ['ios', 'android', 'h5']) site.downloads[platform] = { enabled: true, url: `https://example.com/${platform}` };
+  for (const [platform, url] of Object.entries(fixtureTargets)) site.downloads[platform] = { enabled: true, url };
   return site;
 }
 

@@ -1,76 +1,68 @@
 import { env } from 'cloudflare:test';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 
-const config = (iosUrl: unknown = 'https://packages.example/app.ipa', androidUrl = 'https://packages.example/app.apk') => ({
-  code: 0, data: { share: { appDownload: { source: 'official', iosUrl, androidUrl } } },
-});
-afterEach(() => vi.restoreAllMocks());
+const ios = 'https://apps.apple.com/app/id123456789';
+const android = 'https://downloads.example/app.apk';
+const downloads = {
+  ios: { enabled: true, url: ios },
+  android: { enabled: true, url: android },
+};
 
-describe('public A3 app downloads', () => {
-  it('reads each platform from A3 and observes a changed URL without rebuilding', async () => {
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(Response.json(config()))
-      .mockResolvedValueOnce(Response.json(config()))
-      .mockResolvedValueOnce(Response.json(config('https://install.example/new-version')));
-    for (const [platform, target] of [
-      ['ios', 'https://packages.example/app.ipa'],
-      ['android', 'https://packages.example/app.apk'],
-      ['ios', 'https://install.example/new-version'],
-    ]) {
+async function addVersion(status: string, config: unknown) {
+  await env.DB.prepare('INSERT INTO config_versions(status,payload,created_at) VALUES(?1,?2,1)')
+    .bind(status, JSON.stringify({ downloads: config })).run();
+}
+
+beforeEach(async () => {
+  await env.DB.batch([env.DB.prepare('DELETE FROM config_versions'), env.DB.prepare('DELETE FROM config_draft')]);
+});
+
+describe('published website app downloads', () => {
+  it('uses the latest published settings and ignores draft and pending changes', async () => {
+    await addVersion('live', downloads);
+    await env.DB.prepare('INSERT INTO config_draft(id,payload,base_revision,updated_at) VALUES(1,?1,1,1)')
+      .bind(JSON.stringify({ downloads: {} })).run();
+    await addVersion('publishing', {});
+    for (const [platform, target] of [['ios', ios], ['android', android]]) {
       const response = await app.request(`/api/app-download/${platform}`, {}, env);
       expect(response.status).toBe(302);
       expect(response.headers.get('location')).toBe(target);
       expect(response.headers.get('cache-control')).toBe('no-store');
     }
-  });
 
-  it('HEAD uses an upstream GET and does not forward credentials or a requested target', async () => {
-    const fetcher = vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(config()));
-    const response = await app.request('/api/app-download/ios?url=https://untrusted.example', {
-      method: 'HEAD', headers: { Cookie: 'private=value', Authorization: 'Bearer visitor', Origin: 'https://uvel.ai' },
-    }, env);
+    const newUrl = 'https://downloads.example/new.apk';
+    await addVersion('live', { ...downloads, android: { enabled: true, url: newUrl } });
+    const response = await app.request('/api/app-download/android?url=https://untrusted.example', { method: 'HEAD' }, env);
     expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe(newUrl);
     expect(await response.text()).toBe('');
-    const [url, init] = fetcher.mock.calls[0];
-    expect(url).toBe('https://api.uvel.ai/api/config/platform?officialLinkFragments=true');
-    expect(init).toMatchObject({ method: 'GET', redirect: 'error', cache: 'no-store' });
-    expect(new Headers(init?.headers).get('authorization')).toBeNull();
-    expect(new Headers(init?.headers).get('cookie')).toBeNull();
-    expect(new Headers(init?.headers).get('origin')).toBeNull();
-    expect(init?.body).toBeUndefined();
   });
 
-  it.each(['', null, 'http://packages.example/a.ipa', '//packages.example/a.ipa',
-    'javascript:alert(1)', 'https://user:pass@packages.example/a.ipa', 'https://packages.example/\r\nbad'])
-  ('rejects missing/unsafe package URLs: %s', async (url) => {
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(Response.json(config(url)));
-    const response = await app.request('/api/app-download/ios', {}, env);
-    expect(response.status).toBe(503);
-    expect(response.headers.get('location')).toBeNull();
-    expect(response.headers.get('cache-control')).toBe('no-store');
-  });
-
-  it('fails closed on upstream errors, malformed/non-official config and timeout, then recovers', async () => {
-    vi.spyOn(globalThis, 'fetch')
-      .mockResolvedValueOnce(new Response('upstream detail', { status: 500 }))
-      .mockResolvedValueOnce(new Response('not-json'))
-      .mockResolvedValueOnce(Response.json({ code: 0, data: { share: { appDownload: { source: 'fallback' } } } }))
-      .mockResolvedValueOnce(Response.json({ ...config(), code: 1 }))
-      .mockRejectedValueOnce(new DOMException('timed out', 'TimeoutError'))
-      .mockResolvedValueOnce(Response.json(config()));
-    for (let i = 0; i < 5; i++) {
-      const response = await app.request('/api/app-download/ios', {}, env);
+  it('returns unavailable for missing, disabled, invalid or unsupported published destinations', async () => {
+    const request = () => app.request('/api/app-download/ios', {}, env);
+    expect((await request()).status).toBe(503);
+    for (const entry of [
+      { enabled: false, url: ios }, { enabled: true, url: '' }, { enabled: true, url: null },
+      { enabled: true, url: 'https://third-party.example/install' },
+      { enabled: true, url: 'https://user:pass@apps.apple.com/app/id123456789' },
+    ]) {
+      await addVersion('live', { ios: entry });
+      const response = await request();
       expect(response.status).toBe(503);
       expect(await response.json()).toEqual({ error: 'download-unavailable' });
+      expect(response.headers.get('location')).toBeNull();
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      expect(response.headers.get('retry-after')).toBe('5');
     }
-    expect((await app.request('/api/app-download/ios', {}, env)).status).toBe(302);
+    await addVersion('live', downloads);
+    expect((await request()).status).toBe(302);
   });
 
-  it('rejects writes and unknown platforms without contacting A3', async () => {
-    const fetcher = vi.spyOn(globalThis, 'fetch');
-    expect((await app.request('/api/app-download/ios', { method: 'POST', body: 'ignored' }, env)).status).toBe(405);
+  it('rejects writes and unknown platforms', async () => {
+    const write = await app.request('/api/app-download/ios', { method: 'POST', body: 'ignored' }, env);
+    expect(write.status).toBe(405);
+    expect(write.headers.get('allow')).toBe('GET, HEAD');
     expect((await app.request('/api/app-download/windows', {}, env)).status).toBe(404);
-    expect(fetcher).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,6 @@
 ---
 import { useT, type Locale } from '../../i18n';
 import { DOWNLOAD_URLS } from '../../lib/downloads';
-import { distributionPath } from '../../lib/distribution';
 import '../../styles/distribution.css';
 import PlatformGlyph from './PlatformGlyph.astro';
 interface Props { locale: Locale; modal?: boolean }
@@ -35,9 +34,9 @@ const messages = Object.fromEntries(textKeys.map(key => [key, t(`distribution.${
       <div class="distribution-qr-image" role="img" aria-label={t('distribution.scanHint')} data-distribution-qr></div>
       <p data-distribution-install-caption>{t('distribution.scanAfter')}</p>
     </div>
-    <a class="distribution-primary" data-distribution-action href={distributionPath(locale)} hidden>{t('distribution.downloadAndroid')}</a>
+    <a class="distribution-primary" data-distribution-action hidden>{t('distribution.downloadAndroid')}</a>
     <p class="distribution-install-note" data-distribution-note hidden>{t('distribution.downloadNote')}</p>
-    <a class="distribution-primary" data-distribution-switch href={distributionPath(locale)} hidden></a>
+    <a class="distribution-primary" data-distribution-switch hidden></a>
     <div class="distribution-copy" data-distribution-copy-wrap hidden>
       <button type="button" data-distribution-copy><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5" y="6" width="12" height="15" rx="2"/><path d="M9 3h9a2 2 0 0 1 2 2v12"/></svg><span data-copy-label>{t('distribution.copyLink')}</span></button>
       <input type="text" readonly aria-label={t('distribution.shareLink')} data-distribution-link hidden />
@@ -52,9 +51,13 @@ const messages = Object.fromEntries(textKeys.map(key => [key, t(`distribution.${
       </ol>
     </details>
     <div class="distribution-options" aria-label={t('distribution.moreOptions')}>
-      <a href={distributionPath(locale, 'ios')} data-distribution-option="ios"><PlatformGlyph platform="ios" /><span>iOS</span><span aria-hidden="true">→</span></a>
-      <a href={distributionPath(locale, 'android')} data-distribution-option="android"><PlatformGlyph platform="android" /><span>Android</span><span aria-hidden="true">→</span></a>
-      <a href={distributionPath(locale, 'h5')} data-distribution-option="h5"><PlatformGlyph platform="h5" /><span>{t('distribution.h5Title')}</span><span aria-hidden="true">↗</span></a>
+      {(['ios', 'android', 'h5'] as const).map(platform => (
+        <a href={DOWNLOAD_URLS[platform] || undefined} data-distribution-option={platform}
+          role={DOWNLOAD_URLS[platform] ? undefined : 'button'} tabindex={DOWNLOAD_URLS[platform] ? undefined : 0}>
+          <PlatformGlyph platform={platform} /><span>{platform === 'ios' ? 'iOS' : platform === 'android' ? 'Android' : t('distribution.h5Title')}</span>
+          <span aria-hidden="true">{platform === 'h5' ? '↗' : '→'}</span>
+        </a>
+      ))}
     </div>
     <noscript><p>{t('distribution.noScript')}</p></noscript>
   </div>

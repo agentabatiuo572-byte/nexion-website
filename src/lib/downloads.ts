@@ -1,9 +1,11 @@
-// Native download entries resolve the current production A3 URL on each click.
-// Keep package URLs out of static builds; Web App uses the h5-lite-main deployment.
+import { resolveDownloadUrl } from './download-policy';
+import { SITE_CONFIG } from './site-config';
+
+const { downloads } = SITE_CONFIG;
 export const DOWNLOAD_URLS = {
-  ios: '/api/app-download/ios',
-  android: '/api/app-download/android',
-  h5: 'https://app.uvel.ai/h5/',
+  ios: resolveDownloadUrl(downloads.ios, 'ios'),
+  android: resolveDownloadUrl(downloads.android, 'android'),
+  h5: resolveDownloadUrl(downloads.h5, 'h5'),
 } as const;
 
 /* 官网使用与最新中文稿同版的英文白皮书，随静态站点发布。 */

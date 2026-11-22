@@ -1,24 +1,26 @@
 // Node 24+: node scripts/test-download-distribution.mjs
-// Serves existing dist on a random local port. It never builds or changes product files.
+// Serves the published build and an isolated build with explicitly enabled CMS destinations.
 // Download targets are simulated HTTPS fixtures, not production pages or real APKs.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
-import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { dirname, extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import jsQR from 'jsqr';
 import { PNG } from 'pngjs';
+import { buildDownloadFixture, fixtureTargets as fixture } from './download-build-fixture.mjs';
+import '../worker/register-ts-ext.mjs';
+const { resolveDownloadUrl } = await import('../src/lib/download-policy.ts');
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(repo, 'dist');
 const started = new Date();
 const output = resolve(process.env.DOWNLOAD_QA_DIR || join(repo, '..', 'qa', `distribution-${started.toISOString().replaceAll(':', '-')}`));
 const match = process.env.DOWNLOAD_TEST_MATCH ? new RegExp(process.env.DOWNLOAD_TEST_MATCH) : null;
-const fixture = Object.freeze({ ios: 'https://downloads.example.test/ios', android: 'https://downloads.example.test/android.apk', h5: 'https://downloads.example.test/h5' });
-const empty = Object.freeze({ ios: '', android: '', h5: '' });
-const a3Urls = Object.freeze({ ios: '/api/app-download/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' });
+const published = JSON.parse(await readFile(join(process.env.NEXGRID_SITE_FIXTURE_DIR || join(repo, 'src/config'), 'site.json'), 'utf8')).downloads;
+const expectedPublished = Object.fromEntries(Object.keys(fixture).map(platform => [platform, resolveDownloadUrl(published[platform], platform)]));
 const deviceProfiles = {
   desktop: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', platform: 'Win32', touch: 0, viewport: { width: 1440, height: 1000 } },
   ios: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', platform: 'iPhone', touch: 5, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
@@ -47,28 +49,25 @@ await mkdir(output, { recursive: true });
 
 const mime = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.ico': 'image/x-icon', '.woff2': 'font/woff2', '.pdf': 'application/pdf' };
-const server = createServer(async (request, response) => {
-  try {
-    const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
-    // Redirect follow-ups are real HTTP requests: Playwright routing only intercepts
-    // the first URL in a redirect chain, so serve these synthetic destinations locally.
-    if (path === '/__qa/a3/android') {
-      response.writeHead(200, { 'Content-Type': 'application/vnd.android.package-archive', 'Content-Disposition': 'attachment; filename="simulated-uvel.apk"' })
-        .end('SIMULATED APK FIXTURE - NOT AN INSTALLABLE APPLICATION'); return;
-    }
-    if (path === '/__qa/a3/ios') {
-      response.writeHead(200, { 'Content-Type': 'text/html' }).end('<!doctype html><title>Simulated iOS destination</title><h1 data-fixture>Simulated A3 iOS destination</h1>'); return;
-    }
-    let file = resolve(dist, `.${path}`);
-    if (file !== dist && !file.startsWith(`${dist}${sep}`)) { response.writeHead(403).end(); return; }
-    if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
-    const body = await readFile(file);
-    response.writeHead(200, { 'Content-Type': mime[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(body);
-  } catch { response.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found'); }
-});
-await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
-const base = `http://127.0.0.1:${server.address().port}`;
-const browser = await chromium.launch();
+function createSiteServer(directory) {
+  return createServer(async (request, response) => {
+    try {
+      const path = decodeURIComponent(new URL(request.url, 'http://localhost').pathname);
+      let file = resolve(directory, `.${path}`);
+      if (file !== directory && !file.startsWith(directory + sep)) { response.writeHead(403).end(); return; }
+      if ((await stat(file)).isDirectory()) file = join(file, 'index.html');
+      const body = await readFile(file);
+      response.writeHead(200, { 'Content-Type': mime[extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store' }).end(body);
+    } catch { response.writeHead(404, { 'Content-Type': 'text/plain' }).end('Not found'); }
+  });
+}
+async function listen(server) {
+  await new Promise((resolveListen, reject) => { server.once('error', reject); server.listen(0, '127.0.0.1', resolveListen); });
+  return `http://127.0.0.1:${server.address().port}`;
+}
+const enabledBuild = await buildDownloadFixture();
+const enabledServer = createSiteServer(enabledBuild.dist), publishedServer = createSiteServer(dist);
+let base, publishedBase, browser;
 const results = [];
 const card = page => page.locator('[data-distribution-card]');
 const countTarget = (session, platform) => session.targets.filter(url => url === fixture[platform]).length;
@@ -78,7 +77,7 @@ async function session(profile = 'desktop', options = {}) {
   const settings = { ...deviceProfiles[profile], ...options };
   const context = await browser.newContext({ viewport: settings.viewport, userAgent: settings.userAgent + (settings.embedded ? ' MicroMessenger/8.0.50' : ''),
     isMobile: settings.isMobile || false, hasTouch: settings.hasTouch || false, reducedMotion: settings.reducedMotion || 'reduce', acceptDownloads: true });
-  const state = { context, page: await context.newPage(), targets: [], resolvers: [], downloads: [], metrics: [], errors: [], unexpected: [], injected: 0 };
+  const state = { context, page: await context.newPage(), targets: [], downloads: [], metrics: [], errors: [], unexpected: [], injected: 0 };
   await context.addInitScript(({ platform, touch, dnt }) => {
     Object.defineProperty(navigator, 'platform', { get: () => platform });
     Object.defineProperty(navigator, 'maxTouchPoints', { get: () => touch });
@@ -87,27 +86,23 @@ async function session(profile = 'desktop', options = {}) {
     const original = HTMLCanvasElement.prototype.getContext;
     HTMLCanvasElement.prototype.getContext = function (...args) { return this.id === 'x-bg' ? null : original.apply(this, args); };
   }, { platform: settings.platform, touch: settings.touch, dnt: !!settings.dnt });
-  const urls = Object.hasOwn(options, 'urls') ? options.urls : fixture;
+  const urls = options.urls;
   await context.route('**/*', async route => {
     const request = route.request(), url = new URL(request.url());
-    if (url.origin === 'https://downloads.example.test') {
+    if (Object.values(fixture).some(target => new URL(target).origin === url.origin)) {
       if (Object.values(fixture).includes(url.href)) state.targets.push(url.href);
       if (url.href === fixture.android) {
         await route.fulfill({ status: 200, headers: { 'content-type': 'application/vnd.android.package-archive', 'content-disposition': 'attachment; filename="simulated-uvel.apk"' }, body: 'SIMULATED APK FIXTURE - NOT AN INSTALLABLE APPLICATION' }); return;
       }
       if (url.href === fixture.ios || url.href === fixture.h5) {
-        await route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>Simulated destination</title><h1 data-fixture>${url.pathname === '/ios' ? 'Simulated iOS download page' : 'Simulated H5 application'}</h1>` }); return;
+        await route.fulfill({ status: 200, contentType: 'text/html', body: `<!doctype html><title>Simulated destination</title><h1 data-fixture>${url.href === fixture.ios ? 'Simulated App Store destination' : 'Simulated H5 application'}</h1>` }); return;
       }
       if (url.pathname === '/favicon.ico') { await route.fulfill({ status: 204 }); return; }
     }
-    if (url.origin !== base) { state.unexpected.push(url.href); await route.abort('blockedbyclient'); return; }
+    if (![base, publishedBase].includes(url.origin)) { state.unexpected.push(url.href); await route.abort('blockedbyclient'); return; }
     if (url.pathname === '/api/e') { state.metrics.push(...request.postDataJSON().events); await route.fulfill({ status: 204 }); return; }
-    const resolverPlatform = Object.entries(a3Urls).find(([, value]) => value === url.pathname)?.[0];
-    if (resolverPlatform) {
-      state.resolvers.push(url.pathname);
-      await route.fulfill({ status: 302, headers: { location: `${base}/__qa/a3/${resolverPlatform}`, 'cache-control': 'no-store' } }); return;
-    }
-    if (request.isNavigationRequest() && urls !== null) {
+    // Exercise malformed payload handling separately from the real enabled and published builds.
+    if (request.isNavigationRequest() && urls) {
       const response = await route.fetch();
       const html = await response.text();
       if (html.includes('data-distribution-card')) {
@@ -326,8 +321,8 @@ async function run(name, profile, options, check) {
     await settle(current.page);
     assert.deepEqual(current.errors, [], 'Browser errors');
     assert.deepEqual(current.unexpected, [], 'Unexpected external requests');
-    if (options?.urls !== null) assert(current.injected > 0, 'Configured fixture was not injected into a built page');
-    results.push({ name, status: 'passed', elapsedMs: Date.now() - begin, fixture: options?.urls === null ? 'actual build configuration' : 'simulated HTTPS destinations', evidence,
+    if (options?.urls) assert(current.injected > 0, 'Runtime payload scenario did not reach a built page');
+    results.push({ name, status: 'passed', elapsedMs: Date.now() - begin, fixture: options?.urls ? 'runtime payload' : options?.published ? 'published build configuration' : 'isolated enabled build', evidence,
       targetRequests: current.targets, downloads: current.downloads.map(d => ({ url: d.url(), filename: d.suggestedFilename() })) });
     console.log(`PASS ${name}`);
   } catch (error) {
@@ -337,73 +332,47 @@ async function run(name, profile, options, check) {
     results.push({ name, status: 'failed', elapsedMs: Date.now() - begin, error: error.stack, errors: current.errors, unexpected: current.unexpected,
       targetRequests: current.targets, failureState, failureScreenshot });
     console.error(`FAIL ${name}: ${error.message}`);
-    console.error(JSON.stringify({ failureState, targets: current.targets, resolvers: current.resolvers, unexpected: current.unexpected }));
+    console.error(JSON.stringify({ failureState, targets: current.targets, unexpected: current.unexpected }));
   } finally { await current.context.close(); }
 }
 
 try {
+  base = await listen(enabledServer);
+  publishedBase = await listen(publishedServer);
+  browser = await chromium.launch();
   for (const locale of locales) {
-    await run(`desktop QR all App entry points ${locale.locale}`, 'desktop', {}, async s => {
-      await goto(s.page, locale.home);
-      const dialog = s.page.locator('#distribution-dialog');
-      assert(await dialog.isHidden(), 'Closed dialog must be hidden');
-      let clicked = 0;
-      for (const platform of ['ios', 'android']) {
-        const buttons = s.page.locator(`[data-download-entry="${platform}"]`);
-        assert(await buttons.count() >= 2, 'Hero and final CTA App entries must exist');
-        for (let index = 0; index < await buttons.count(); index++) {
-          const button = buttons.nth(index);
-          await button.click(); await stateIs(s.page, 'qr'); assert(await dialog.isVisible());
-          await checkQr(s.page, `${base}${locale.route}?platform=${platform}`);
-          await fit(s.page, true);
-          if (clicked % 2 === 0 || await dialog.getAttribute('data-presentation') === 'popover') await s.page.keyboard.press('Escape');
-          else await s.page.locator('[data-distribution-close]').click();
-          await dialog.waitFor({ state: 'hidden' });
-          assert(await button.evaluate(el => el === document.activeElement), 'Closing modal must restore focus to the clicked entry');
-          clicked++;
-        }
+    await run(`desktop clicks on explicit platform entries ${locale.locale}`, 'desktop', {}, async s => {
+      for (const group of ['#download', '#final-cta']) for (const platform of Object.keys(fixture)) {
+        await goto(s.page, locale.home);
+        const entry = s.page.locator(`${group} [data-download-entry="${platform}"]`);
+        assert.equal(await entry.getAttribute('href'), fixture[platform]);
+        await assertTarget(s, platform, () => entry.click());
+      }
+      return { clickedEntries: 6, directDestinations: true };
+    });
+    await run(`published download settings and bookmarks ${locale.locale}`, 'desktop', { published: true }, async s => {
+      await goto(s.page, publishedBase + locale.home);
+      assert.deepEqual(await card(s.page).evaluate(el => JSON.parse(el.dataset.urls)), expectedPublished);
+      for (const [platform, expected] of Object.entries(expectedPublished)) {
+        const entries = s.page.locator(`#download [data-download-entry="${platform}"], #final-cta [data-download-entry="${platform}"]`);
+        assert.equal(await entries.count(), 2);
+        for (const entry of await entries.all()) assert.equal(await entry.getAttribute('href'), expected || null);
+        if (expected) continue;
+        await entries.first().click(); await stateIs(s.page, 'unavailable');
+        assert(await s.page.locator('[data-distribution-qr]').isHidden());
+        assert(await s.page.locator('[data-distribution-copy]').isHidden());
+        assert.equal(await s.page.locator('[data-distribution-action]').getAttribute('href'), null);
+        assert(await s.page.locator('[data-distribution-title]').innerText());
+        await s.page.keyboard.press('Escape');
+        await s.page.locator('#distribution-dialog').waitFor({ state: 'hidden' });
+        await goto(s.page, `${publishedBase}${locale.route}?platform=${platform}`); await stateIs(s.page, 'unavailable');
+        assert(await s.page.locator('[data-distribution-qr]').isHidden());
+        assert(await s.page.locator('[data-distribution-copy]').isHidden());
+        assert.equal(await s.page.locator('[data-distribution-action]').getAttribute('href'), null);
+        await goto(s.page, publishedBase + locale.home);
       }
       assert.equal(s.targets.length, 0);
-      return { clickedAppEntryPoints: clicked, qrDecoded: true, focusRestored: true };
-    });
-    await run(`actual build uses live A3 resolver ${locale.locale}`, 'desktop', { urls: null }, async s => {
-      await goto(s.page, locale.home);
-      assert.deepEqual(await card(s.page).evaluate(el => JSON.parse(el.dataset.urls)), a3Urls, 'Actual build must use A3 resolvers and the official H5 target');
-      await s.page.locator('#download [data-download-entry="ios"]').click(); await stateIs(s.page, 'qr');
-      await checkQr(s.page, `${base}${locale.route}?platform=ios`);
-      assert.deepEqual(s.resolvers, [], 'Desktop QR must not fetch a package');
-      return { originalDestinationData: true, qrDecoded: true };
-    });
-    for (const platform of ['ios', 'android']) await run(`actual A3 ${platform} distribution handoff ${locale.locale}`, platform, { urls: null }, async s => {
-      await goto(s.page, locale.home);
-      assert.deepEqual(await card(s.page).evaluate(el => JSON.parse(el.dataset.urls)), a3Urls);
-      const target = `${base}/__qa/a3/${platform}`;
-      if (platform === 'android') {
-        const [download] = await Promise.all([
-          s.page.waitForEvent('download'), s.page.locator('#download [data-download-entry="auto"]').click(),
-        ]);
-        assert.equal(download.url(), target);
-        assert.equal(download.suggestedFilename(), 'simulated-uvel.apk');
-        assert.equal(await download.failure(), null);
-      } else {
-        await s.page.locator('#download [data-download-entry="auto"]').click();
-        await s.page.waitForURL(target);
-        assert(await s.page.locator('[data-fixture]').isVisible());
-      }
-      assert.deepEqual(s.resolvers, [a3Urls[platform]], 'Actual entry must traverse the same-origin A3 resolver');
-      return { resolver: s.resolvers[0], destinationMocked: true };
-    });
-    await run(`disabled empty destination fixture ${locale.locale}`, 'android', { urls: empty }, async s => {
-      await goto(s.page, `${locale.route}?platform=auto`); await stateIs(s.page, 'unavailable');
-      assert.deepEqual(await card(s.page).evaluate(el => JSON.parse(el.dataset.urls)), empty);
-      const action = s.page.locator('[data-distribution-action]');
-      assert.equal(await action.getAttribute('aria-disabled'), 'true'); assert.equal(await action.getAttribute('href'), null);
-      const description = await s.page.locator('[data-distribution-description]').innerText(); assert(description.trim());
-      await action.click(); assert(s.page.url().startsWith(base));
-      await s.page.locator('[data-distribution-option="h5"]').click(); await stateIs(s.page, 'unavailable');
-      assert(await s.page.locator('[data-distribution-title]').innerText());
-      assert.equal(s.targets.length, 0);
-      return { description, screenshot: await screenshot(s.page, `actual-unavailable-${locale.locale}`) };
+      return { checked: Object.keys(expectedPublished) };
     });
     for (const device of ['ios', 'android']) for (const entryGroup of ['hero', 'footer']) {
       await run(`phone ${device} clicks auto ${entryGroup} ${locale.locale}`, device, {}, async s => {
@@ -455,7 +424,7 @@ try {
           const button = buttons.nth(index);
           await button.hover(); await popoverIsOpen(s.page, platform);
           const geometry = await panelGeometry(s.page); assertPopoverFits(geometry);
-          await checkQr(s.page, `${base}${locale.route}?platform=${platform}`);
+          await checkQr(s.page, fixture[platform]);
           assert(await button.evaluate(el => el !== document.activeElement), 'Pointer hover must not steal keyboard focus');
           assert.equal(await button.getAttribute('aria-expanded'), 'true');
           const pointer = outsidePoint(geometry, await button.boundingBox());
@@ -474,7 +443,7 @@ try {
     const button = s.page.locator('#download [data-download-entry="ios"]');
     await button.hover(); await popoverIsOpen(s.page, 'ios');
     const geometry = await moveAcrossGap(s.page, button);
-    await checkQr(s.page, `${base}${first.route}?platform=ios`);
+    await checkQr(s.page, fixture.ios);
     return { ...geometry, screenshot: await screenshot(s.page, 'popover-transfer') };
   });
   await run('popover light opening settles into a crisp stationary QR', 'desktop', { reducedMotion: 'no-preference' }, async s => {
@@ -490,7 +459,7 @@ try {
     assertLightAperture(frames, 'Opening');
     const active = frames.filter(frame => frame.open && frame.animations > 0);
     assert(active.at(-1).ms - active[0].ms >= 200 && active.at(-1).ms - active[0].ms <= 650, 'Opening must have a perceptible, bounded duration');
-    const resting = await assertQrResting(s.page, `${base}${first.route}?platform=android`);
+    const resting = await assertQrResting(s.page, fixture.android);
     return { frames, ...resting, screenshot: await screenshot(s.page, 'popover-motion-resting') };
   });
   await run('popover leave uses grace then visible light collapse', 'desktop', { reducedMotion: 'no-preference' }, async s => {
@@ -527,7 +496,7 @@ try {
     const frames = await pendingFrames;
     assert(frames.every(frame => frame.open), 'Reentry must reverse the exit without a hidden flash or delayed close');
     await popoverIsOpen(s.page, 'ios');
-    const resting = await assertQrResting(s.page, `${base}${first.route}?platform=ios`);
+    const resting = await assertQrResting(s.page, fixture.ios);
     return { exitCancelledOnTriggerReentry: true, frames, ...resting };
   });
   await run('popover reduced motion opens and closes without animation', 'desktop', { reducedMotion: 'reduce' }, async s => {
@@ -542,7 +511,7 @@ try {
     assert(displayed.length > 0, 'Reduced motion must still show the QR');
     assert(displayed.every(frame => frame.animations === 0 && frame.transform === 'none' && frame.filter === 'none' && frame.opacity === 1 && frame.lightOpacity === 0),
       `Reduced motion must skip all visual effects: ${JSON.stringify(displayed)}`);
-    const resting = await assertQrResting(s.page, `${base}${first.route}?platform=ios`);
+    const resting = await assertQrResting(s.page, fixture.ios);
     const closeFrames = samplePanelFrames(s.page, 200);
     await s.page.keyboard.press('Escape');
     await s.page.locator('#distribution-dialog').waitFor({ state: 'hidden' });
@@ -596,7 +565,7 @@ try {
     await android.hover(); await popoverIsOpen(s.page, 'android');
     assert.equal(await ios.getAttribute('aria-expanded'), 'false');
     assert.equal(await android.getAttribute('aria-expanded'), 'true');
-    await checkQr(s.page, `${base}${first.route}?platform=android`);
+    await checkQr(s.page, fixture.android);
     assert.equal(s.targets.length, 0);
     return { switchedTo: 'android', screenshot: await screenshot(s.page, 'popover-android') };
   });
@@ -623,7 +592,7 @@ try {
       assert(await panel.isHidden(), 'Narrow-screen hover must not open the QR');
       await button.click(); await stateIs(s.page, 'qr');
       assert(await panel.evaluate(el => el.matches(':modal')), 'Narrow-screen click must use the modal QR');
-      await checkQr(s.page, `${base}${first.route}?platform=android`);
+      await checkQr(s.page, fixture.android);
       if (width === 760) await s.page.locator('[data-distribution-close]').click();
       else await s.page.keyboard.press('Escape');
       await panel.waitFor({ state: 'hidden' });
@@ -635,9 +604,8 @@ try {
     assert.equal(await s.page.evaluate(() => matchMedia('(hover: hover) and (pointer: fine)').matches), false);
     const button = s.page.locator('#download [data-download-entry="android"]'), panel = s.page.locator('#distribution-dialog');
     await button.hover(); await s.page.waitForTimeout(450); assert(await panel.isHidden());
-    await button.click(); await stateIs(s.page, 'qr');
-    assert(await panel.evaluate(el => el.matches(':modal')));
-    return { coarsePointerHoverIgnored: true, clickModal: true };
+    await assertTarget(s, 'android', () => button.click());
+    return { coarsePointerHoverIgnored: true, directDownload: true };
   });
   await run('homepage hero Web App shows a direct QR while retaining click navigation', 'desktop', {}, async s => {
     await goto(s.page, first.home);
@@ -662,8 +630,8 @@ try {
       const expectedViewport = [...expected, ...(desktopNavigation ? ['nav-download'] : [])].sort();
       const navigation = s.page.locator('.site-nav .dl-btn');
       assert.equal(await s.page.locator('.site-nav [data-download-entry="h5"]').count(), 0, 'Homepage navigation must not render a duplicate WebApp link');
-      assert.equal(await navigation.getAttribute('href'), width <= 760 ? `${locale.route}?platform=auto` : '#download',
-        'Navigation must preserve the desktop anchor and narrow-screen automatic distribution');
+      assert.equal(await navigation.getAttribute('href'), width <= 760 ? null : '#download',
+        'Desktop navigation scrolls to the choices, while a narrow desktop uses the auto chooser');
       assert(await navigation.evaluate(el => !el.inert && el.getAttribute('aria-hidden') !== 'true'), 'Navigation Download must remain in the accessibility sequence');
       const initial = await viewportDownloadControls(s.page);
       assert.deepEqual(initial.map(item => item.entry).sort(), expectedViewport, `Incorrect download hierarchy at page top: ${JSON.stringify(initial)}`);
@@ -715,6 +683,7 @@ try {
       assert.equal(await h5.count(), 1, 'Inner pages need one navigation WebApp link');
       assert(await h5.isVisible(), 'Inner-page WebApp must remain visible on desktop');
       assert.equal(await s.page.locator('.site-nav .dl-btn').getAttribute('href'), `${locale.home}#download`);
+      assert.equal(await h5.getAttribute('href'), fixture.h5);
       await assertTarget(s, 'h5', () => h5.click());
       return { route, navigationWebAppWorks: true };
     });
@@ -760,7 +729,7 @@ try {
     await run(`narrow desktop remains desktop ${width}`, 'desktop', { viewport: { width, height: 844 } }, async s => {
       await goto(s.page, first.home);
       await s.page.locator('#download [data-download-entry="auto"]').click(); await stateIs(s.page, 'qr');
-      await checkQr(s.page, `${base}${first.route}?platform=android`);
+      await checkQr(s.page, fixture.android);
       const geometry = await fit(s.page, true);
       assert.equal(s.targets.length, 0);
       return { geometry, screenshot: await screenshot(s.page, `desktop-qr-${width}`) };
@@ -772,7 +741,7 @@ try {
   }
   await run('standalone desktop page fits 1440', 'desktop', {}, async s => {
     await goto(s.page, `${first.route}?platform=android`); await stateIs(s.page, 'qr');
-    await checkQr(s.page, `${base}${first.route}?platform=android`);
+    await checkQr(s.page, fixture.android);
     return { geometry: await fit(s.page), screenshot: await screenshot(s.page, 'desktop-download-1440') };
   });
   for (const device of ['ios', 'android']) {
@@ -825,10 +794,10 @@ try {
       return { screenshot: await screenshot(s.page, `embedded-${device}`) };
     });
   }
-  await run('desktop-mode iPad follows iOS', 'ipad', {}, async s => {
+  await run('desktop-mode iPad honors the selected Android entry', 'ipad', {}, async s => {
     await goto(s.page, first.home);
-    await assertTarget(s, 'ios', () => s.page.locator('#download [data-download-entry="android"]').click());
-    return { platform: 'MacIntel', maxTouchPoints: 5, destination: 'ios' };
+    await assertTarget(s, 'android', () => s.page.locator('#download [data-download-entry="android"]').click());
+    return { platform: 'MacIntel', maxTouchPoints: 5, destination: 'android' };
   });
   await run('automatic iOS redirect can be left with Back', 'ios', {}, async s => {
     await goto(s.page, first.home);
@@ -841,10 +810,10 @@ try {
   });
   for (const device of ['ios', 'android']) {
     const opposite = device === 'ios' ? 'android' : 'ios';
-    await run(`button-source landing ${opposite} follows ${device}`, device, {}, async s => {
-      await assertTarget(s, device, () => goto(s.page, `${first.route}?platform=${opposite}&source=button`));
-      assert.deepEqual(s.targets, [fixture[device]]);
-      return { platformHint: opposite, source: 'button', destinationOS: device };
+    await run(`button-source bookmark honors ${opposite} on ${device}`, device, {}, async s => {
+      await assertTarget(s, opposite, () => goto(s.page, `${first.route}?platform=${opposite}&source=button`));
+      assert.deepEqual(s.targets, [fixture[opposite]]);
+      return { selectedPlatform: opposite, source: 'button', detectedOS: device };
     });
   }
   for (const device of ['desktop', 'ios', 'android', 'unknown']) {
@@ -874,29 +843,43 @@ try {
     assert.deepEqual(s.targets, [fixture.android]);
     return { onlyConfiguredTargetOpened: true };
   });
-  for (const unsafe of ['javascript:alert(1)', 'https://user:password@evil.example.test/app', '//evil.example.test/app']) {
-    await run(`dangerous configured URL rejected ${unsafe.split(':')[0]}`, 'android', { urls: { ios: unsafe, android: unsafe, h5: unsafe } }, async s => {
+  for (const unsafe of ['javascript:alert(1)', 'https://user:password@evil.example.test/app', '//evil.example.test/app', '/downloads/local.apk', 'http://downloads.example.test/app']) {
+    await run(`unsafe configured destination rejected ${unsafe}`, 'android', { urls: { ios: unsafe, android: unsafe, h5: unsafe } }, async s => {
       await goto(s.page, `${first.route}?platform=auto`); await stateIs(s.page, 'unavailable');
       assert.equal(await s.page.locator('[data-distribution-action]').getAttribute('href'), null);
-      await s.page.locator('[data-distribution-action]').click(); assert.equal(s.targets.length, 0);
+      assert.equal(await s.page.locator('[data-distribution-action]').getAttribute('aria-disabled'), 'true');
+      assert.equal(s.targets.length, 0);
       return { rejected: unsafe };
     });
   }
-  await run('clipboard failure exposes current localized share URL', 'desktop', {}, async s => {
+  await run('copy action writes the same target as the rendered QR', 'desktop', {}, async s => {
+    await s.context.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: base });
+    await goto(s.page, first.home);
+    for (const platform of Object.keys(fixture)) {
+      await s.page.locator(`#download [data-download-entry="${platform}"]`).hover();
+      await popoverIsOpen(s.page, platform);
+      await checkQr(s.page, fixture[platform]);
+      await s.page.locator('[data-distribution-copy]').click();
+      await s.page.waitForFunction(expected => navigator.clipboard.readText().then(value => value === expected), fixture[platform]);
+    }
+    return { copiedAndDecoded: Object.keys(fixture) };
+  });
+  await run('clipboard failure exposes configured target URL', 'desktop', {}, async s => {
     await s.page.addInitScript(() => Object.defineProperty(navigator, 'clipboard', { value: { writeText: () => Promise.reject(new Error('Simulated denied clipboard permission')) } }));
     const locale = locales.find(l => l.locale !== 'en') || first;
     await goto(s.page, locale.home);
-    await s.page.locator('#download [data-download-entry="android"]').click(); await stateIs(s.page, 'qr');
+    await s.page.locator('#download [data-download-entry="android"]').hover(); await popoverIsOpen(s.page, 'android');
     await s.page.locator('[data-distribution-copy]').click();
     const input = s.page.locator('[data-distribution-link]'); await input.waitFor({ state: 'visible' });
-    assert.equal(await input.inputValue(), `${base}${locale.route}?platform=android`);
+    assert.equal(await input.inputValue(), fixture.android);
     assert(await input.evaluate(el => el === document.activeElement));
     assert(await s.page.locator('[data-copy-status]').innerText());
     return { fallbackURL: await input.inputValue() };
   });
 } finally {
-  await browser.close();
-  await new Promise(resolveClose => server.close(resolveClose));
+  await browser?.close();
+  await Promise.all([enabledServer, publishedServer].filter(server => server.listening).map(server => new Promise(resolveClose => server.close(resolveClose))));
+  await rm(enabledBuild.directory, { recursive: true, force: true });
   const report = { capability: 'runtime', startedAt: started.toISOString(), finishedAt: new Date().toISOString(), base,
     limitations: ['Real Playwright Chromium browser with simulated user agents; not a physical iOS/Android or embedded-browser device.',
       'Configured positive destinations use intercepted HTTPS fixtures. The APK is intentionally non-installable. Real package availability, signing, installation, and external iOS/H5 service behavior are not verified.'],

@@ -14,6 +14,7 @@ import { buildSeed } from '../worker/build-seed.mjs';
 import { materializeAll } from '../schema/src/materialize.ts';
 import { validateConfig } from '../schema/src/validators.ts';
 import { resolveDownloadUrl } from '../src/lib/download-policy.ts';
+import { fixtureTargets } from './download-build-fixture.mjs';
 import { renderLegalMarkdown } from '../src/lib/legal-markdown.ts';
 import { LOCALES, DEFAULT_ENABLED_LOCALES } from '../schema/src/locales.ts';
 import { resolveEnabledLocales } from '../src/lib/locale-policy.ts';
@@ -32,12 +33,8 @@ function check(label, pass, detail = '') {
   if (!pass) failures.push(`${label}${detail ? ` — ${detail}` : ''}`);
 }
 
-function downloadsUseA3({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }) {
-  const expected = { ios: '/api/app-download/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' };
-  // The distribution shell owns navigation; its destination data must retain main's live A3 resolver.
-  return oldUrls === 0 && heroEntries === 4 && finalEntries === 4 && navH5 === 0
-    && Object.keys(expected).every(key => configuredUrls[key] === expected[key])
-    && Object.keys(configuredUrls).length === 3;
+function downloadsMatchConfig(actual, expected) {
+  return Object.keys(actual).length === 3 && Object.entries(expected).every(([platform, target]) => actual[platform] === target);
 }
 
 function matchesPreciseGrowth(value) {
@@ -117,15 +114,13 @@ async function selfTest() {
     ['Unicode 同 hash 可归一', decodeURIComponent('#1-%E5%AE%89%E8%A3%85'.slice(1)) === '1-安装'],
     ['不同公告 id 不误关闭', 'old-id' !== 'new-id'],
     ['窗口结束点为排他', !(100 >= 0 && 100 < 100)],
-    ['分发入口保留 A3 与正式 H5 单源', downloadsUseA3({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0,
-      configuredUrls: { ios: '/api/app-download/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' } })],
-    ['旧环境下载回流样本被拒', !downloadsUseA3({ oldUrls: 1, heroEntries: 4, finalEntries: 4, navH5: 0, configuredUrls: {} })],
-    ['弹窗旧下载地址被拒', !downloadsUseA3({ oldUrls: 0, heroEntries: 4, finalEntries: 4, navH5: 0,
-      configuredUrls: { ios: 'https://old.example/ios', android: '/api/app-download/android', h5: 'https://app.uvel.ai/h5/' } })],
+    ['配置地址保持一致', downloadsMatchConfig(fixtureTargets, fixtureTargets)],
+    ['旧环境下载回流样本被拒', !downloadsMatchConfig({ ...fixtureTargets, android: '/api/app-download/android' }, fixtureTargets)],
+    ['弹窗旧下载地址被拒', !downloadsMatchConfig({ ...fixtureTargets, h5: 'https://old.example/h5' }, fixtureTargets)],
     ['小数基数正算稳定', matchesPreciseGrowth('157')],
     ['小数基数偏一坏样本被拒', !matchesPreciseGrowth('158')],
-    ['下载关闭态压过旧环境', resolveDownloadUrl({ enabled: false, url: '' }, 'https://old.example') === ''],
-    ['下载开启态仍可吃环境兜底', resolveDownloadUrl({ enabled: true, url: '' }, 'https://ok.example') === 'https://ok.example/'],
+    ['关闭的下载不使用已保存地址', resolveDownloadUrl({ enabled: false, url: fixtureTargets.android }, 'android') === ''],
+    ['开启但缺地址的下载不可用', resolveDownloadUrl({ enabled: true, url: '' }, 'h5') === ''],
     ['Markdown 前置空行后 H1 被提为页标题', renderLegalMarkdown('\n\n# Title\n\nBody').title === 'Title'],
     ['公告协议相对 URL 被校验器拒绝', protocolErrors.some((error) => error.path === 'announcement.href')],
     ['Legal 协议相对 URL 不生成链接', !renderLegalMarkdown('[bad](//external.example/path)').html.includes('<a ')],
@@ -318,9 +313,9 @@ try {
     faqItem('B', 10),
   ];
   core.downloads = {
-    ios: { enabled: false, url: '' },
-    android: { enabled: false, url: '' },
-    h5: { enabled: false, url: '' },
+    ios: { enabled: true, url: 'https://signing.example.test/enroll' },
+    android: { enabled: false, url: fixtureTargets.android },
+    h5: { enabled: true, url: fixtureTargets.h5 },
   };
   core.stats = {
     activeDevices: 28_432,
@@ -378,6 +373,11 @@ try {
   const eleven = structuredClone(core);
   eleven.faq.items = Array.from({ length: 11 }, (_, index) => faqItem(`ELEVEN_${index + 1}`, index + 1));
   eleven.announcement.enabled = false;
+  eleven.downloads = {
+    ios: { enabled: true, url: 'https://testflight.apple.com/join/AbCd1234' },
+    android: { enabled: true, url: fixtureTargets.android },
+    h5: { enabled: true, url: '' },
+  };
 
   const coreDist = buildVariant('core', core, manifest);
   const elevenDist = buildVariant('eleven', eleven, manifest);
@@ -600,17 +600,26 @@ try {
   check('H03 Legal 原始 HTML 不执行', (await page.locator('main.legal script').count()) === 0 && (await page.evaluate(() => window.bad)) === undefined);
   check('H03 Legal javascript 链接不生成', (await page.locator('main.legal a[href^="javascript:"]').count()) === 0);
 
-  await page.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
-  const oldUrls = await page.locator('a[href*="OLD_"]').count();
-  const heroEntries = await page.locator('#download .dl a[data-download-entry][href^="/download/"]').count();
-  const finalEntries = await page.locator('#final-cta .dl a[data-download-entry][href^="/download/"]').count();
-  const navH5 = await page.locator('#site-nav .h5').count();
-  const configuredUrls = await page.locator('[data-distribution-card]').evaluate(card => JSON.parse(card.dataset.urls));
-  check(
-    'M11 分发入口保留 A3，覆盖旧官网配置与 PUBLIC_URL',
-    downloadsUseA3({ oldUrls, heroEntries, finalEntries, navH5, configuredUrls }),
-    `旧链=${oldUrls}, hero入口=${heroEntries}, final入口=${finalEntries}, navH5=${navH5}, 实际地址=${JSON.stringify(configuredUrls)}`,
-  );
+  for (const [url, expected] of [
+    [coreUrl, { ios: '', android: '', h5: fixtureTargets.h5 }],
+    [elevenUrl, { ios: eleven.downloads.ios.url, android: fixtureTargets.android, h5: '' }],
+  ]) {
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    const cardUrls = await page.locator('[data-distribution-card]').evaluate(card => JSON.parse(card.dataset.urls));
+    check('M11 下载地址仅来自已发布的有效平台配置',
+      downloadsMatchConfig(cardUrls, expected),
+      JSON.stringify(cardUrls));
+    for (const group of ['#download', '#final-cta']) {
+      check(`M11 ${group} 保留平台入口与自动识别`, await page.locator(`${group} .dl [data-download-entry]`).count() === 4);
+      for (const [platform, target] of Object.entries(expected)) {
+        const link = page.locator(`${group} .dl [data-download-entry="${platform}"]`);
+        check(`M11 ${group} ${platform} 地址`, await link.getAttribute('href') === (target || null));
+      }
+    }
+    check('M11 主页导航没有重复的 Web App 入口', await page.locator('.site-nav [data-download-entry="h5"]').count() === 0);
+    check('M11 页面不提供旧环境或签商链接',
+      await page.locator('a[href*="OLD_"], a[href*="signing.example.test"], a[href^="/api/app-download/"]').count() === 0);
+  }
 
   const expiredContext = await browser.newContext({ reducedMotion: 'reduce' });
   await expiredContext.addInitScript(() => { Date.now = () => Date.parse('2100-01-01T00:00:00Z'); });

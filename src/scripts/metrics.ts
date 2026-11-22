@@ -109,7 +109,7 @@ if (!DNT) {
       const m = el.getAttribute('data-m');
       const cta = m?.startsWith('cta:')
         ? m.slice(4)
-        : el.classList.contains('h5')
+        : el.classList.contains('h5') && el.hasAttribute('href')
           ? 'h5'
           : (el.getAttribute('href') || '').startsWith('mailto:')
             ? 'contact'
