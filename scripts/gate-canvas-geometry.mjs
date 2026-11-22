@@ -90,6 +90,11 @@ if (!base) {
 
 const smPath = join(ROOT, 'dist', 'sitemap-0.xml');
 if (!existsSync(smPath)) throw new Error('找不到 dist/sitemap-0.xml');
+const sitemapIndex = readFileSync(join(ROOT, 'dist', 'sitemap-index.xml'), 'utf8');
+const sitemapFiles = [...sitemapIndex.matchAll(/<loc>([^<]+)<\/loc>/g)].map((match) => new URL(match[1]).pathname);
+if (sitemapFiles.length !== 1 || sitemapFiles[0] !== '/sitemap-0.xml') {
+  throw new Error('sitemap-index.xml 与生成的网站地图不一致');
+}
 const routes = [...readFileSync(smPath, 'utf8').matchAll(/<loc>([^<]+)<\/loc>/g)]
   .map((m) => m[1].replace(/^https?:\/\/[^/]+/, ''))
   .map((p) => (p.endsWith('/') || p.includes('.') ? p : p + '/'));

@@ -23,8 +23,8 @@ import { readBuiltPages, parseRoutesArg } from './gate-built-routes.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1');
 const SRC = join(ROOT, 'src');
 const PROD = process.argv.includes('--prod');
-/* 增量裁剪:发布器对纯文案改动只实测变化的 HTML 路由(--routes a,b,c)。
-   只透传给三个运行时几何/版面门；覆盖面断言(sitemap↔产物)与内容门永远全量。 */
+const AWS_RELEASE = process.argv.includes('--aws-release');
+/* 发布器传入受影响路由。几何、版面、叠卡和按钮使用此范围，内容与路由覆盖仍检查整个产物。 */
 const routesIndex = process.argv.indexOf('--routes');
 const routesArgument = routesIndex >= 0 ? process.argv[routesIndex + 1] : null;
 const ROUTE_SCOPE = routesArgument?.split(',').map(route => route.trim()).filter(Boolean).join(',') || null;
@@ -79,7 +79,7 @@ if (qualificationIndex >= 0) {
   if (!qualification) throw new Error('Missing, stale or writable program qualification');
   await checkQualifiedSource(qualification, ROOT);
 }
-const evidenceMode = qualification ? 'qualified-content' : routesIndex >= 0 ? 'scoped' : 'full';
+const evidenceMode = AWS_RELEASE ? 'aws-release' : qualification ? 'qualified-content' : routesIndex >= 0 ? 'scoped' : 'full';
 const reuse = name => {
   console.log('[publish-check] ' + JSON.stringify({ step: 'gates', title: name, status: 'skipped' }));
   results.push({ gate: name, pass: true, reused: true, detail: ['复用同一程序与运行环境的真实成功检查'] });
@@ -440,7 +440,8 @@ const rel = (p) => relative(ROOT, p).replaceAll('\\', '/');
 
 /* 后台配置消费与前台边界行为：真实物化变体 → 隔离 Astro 产物 → Chromium。
    这里覆盖静态文本门看不见的公告/SEO/footer/Legal/FAQ 与跨日、动态偏好、焦点、history。 */
-if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.stringify(JSON.parse(readFileSync(join(SRC, 'config/site.json'), 'utf8')).enabledLocales)) {
+if (qualification && !process.argv.includes('--check-not-found')
+  && JSON.stringify(qualification.enabledLocales) === JSON.stringify(JSON.parse(readFileSync(join(SRC, 'config/site.json'), 'utf8')).enabledLocales)) {
   reuse('网站内容与交互');
 } else {
   const r = await runGate('网站内容与交互',
@@ -449,6 +450,7 @@ if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.strin
       '--import',
       pathToFileURL(join(ROOT, 'worker', 'register-ts-ext.mjs')).href,
       join(ROOT, 'scripts', 'gate-site-behavior.mjs'),
+      ...(AWS_RELEASE ? ['--built-not-found'] : []),
     ],
     { cwd: ROOT, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
   );
@@ -509,8 +511,10 @@ if (qualification && JSON.stringify(qualification.enabledLocales) === JSON.strin
    自带静态服务直接伺服入口已构建的同一份 dist，不再重复构建。
    判据、豁免与自检见 gate-render-fit.mjs(`--self-test`,红绿两向;条数以实跑为准,由 npm run test:gates 汇总)。 */
 {
-  const r = await runGate('各语言与屏幕尺寸的页面布局', process.execPath, scopedArgs([join(ROOT, 'scripts', 'gate-render-fit.mjs')]), { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
-  const out = (r.stdout || '').trim().split('\n').filter(Boolean);
+  const args = scopedArgs([join(ROOT, 'scripts', 'gate-render-fit.mjs')]);
+  if (AWS_RELEASE) args.push('--parallel-layout');
+  const r = await runGate('各语言与屏幕尺寸的页面布局', process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const out = ((r.stdout || '') + '\n' + (r.stderr || '')).trim().split('\n').filter(Boolean);
   const detail = out.filter((l) => !/^\[render-fit\] ✓/.test(l) && !/^\[publish-progress\]/.test(l)).map((l) => l.replace(/^\s*/, ''));
   if (r.status === 3) {
     // 与 canvas-geometry 同体例:跑不起来 ≠ 放行,NOT-RUN 一律算红,要放行须显式 --allow-not-run

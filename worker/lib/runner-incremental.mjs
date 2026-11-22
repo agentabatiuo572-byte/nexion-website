@@ -42,7 +42,7 @@ export function validManifest(value) {
     && value.files === value.manifest.length && digest(value.manifest) === value.sha256;
 }
 
-export function affectedRoutes(previous, current) {
+export function affectedRoutes(previous, current, dist, previousDist) {
   if (!validManifest(current)) throw new Error('Invalid current website manifest');
   const route = file => file === 'index.html' ? '/' : file.endsWith('/index.html') ? `/${file.slice(0, -10)}` : null;
   const all = current.manifest.map(f => route(f.path)).filter(Boolean).sort();
@@ -52,12 +52,42 @@ export function affectedRoutes(previous, current) {
   const before = new Map(previous.manifest.map(f => [f.path, f.sha256]));
   const after = new Map(current.manifest.map(f => [f.path, f.sha256]));
   const changed = [...new Set([...before.keys(), ...after.keys()])].filter(f => before.get(f) !== after.get(f));
-  // Conservative dependency closure: any non-document change includes all consumers,
-  // including nested CSS URLs, module imports and font/image replacement under the same name.
-  if (changed.some(f => !route(f))) return full('公共资源或非页面产物发生变化');
-  if (changed.some(f => !after.has(f))) return full('页面删除，重新检查路由与语言覆盖');
-  const routes = changed.map(route).sort();
-  return { routes: routes.length ? routes : ['/'], full: false, reason: routes.length ? '检查本次变化的页面' : '页面未变化，保留首页上线前检查' };
+  // The sitemap and localized 404 pages have dedicated coverage in verify.
+  // A removed route has no current layout to measure.
+  const notFound = f => /(?:^|\/)404\.html$/.test(f);
+  let notFoundChanged = changed.some(notFound);
+  const assets = changed.filter(f => !route(f) && !notFound(f) && !['sitemap-0.xml', 'sitemap-index.xml'].includes(f));
+  if (!dist && changed.some(f => !after.has(f))) return full('页面删除，重新检查路由与语言覆盖');
+  if (assets.some(f => !dist || !f.startsWith('_astro/'))) return full('公共资源的影响范围无法限定');
+  const impacted = new Set(changed.filter(f => route(f)));
+  if (assets.length) {
+    // Astro emits CSS and JS with literal chunk, image and font filenames. Walk
+    // back from changed filenames to the HTML in both verified and new builds.
+    const bundles = [[current, dist], [previous, previousDist]].filter(([, root]) => root)
+      .flatMap(([artifact, root]) => artifact.manifest
+        .filter(({ path: f }) => route(f) || notFound(f) || /^_astro\/.*\.(?:css|m?js)$/.test(f))
+        .map(({ path: f }) => ({ file: f, text: readFileSync(path.join(root, f), 'utf8') })));
+    for (const asset of assets) {
+      const names = new Set([path.posix.basename(asset)]);
+      let mapped = false;
+      for (const name of names) {
+        for (const source of bundles) {
+          if (!source.text.includes(name)) continue;
+          if (route(source.file) || notFound(source.file)) {
+            mapped = true;
+            if (route(source.file)) impacted.add(source.file);
+            else notFoundChanged = true;
+          } else {
+            names.add(path.posix.basename(source.file));
+          }
+        }
+      }
+      if (!mapped) return full('编译资源的影响范围无法限定');
+    }
+  }
+  const routes = [...impacted].filter(f => after.has(f)).map(route).sort();
+  return { routes: routes.length ? routes : ['/'], full: false, reason: routes.length ? '检查本次变化的页面' : '页面未变化，保留首页上线前检查',
+    ...(notFoundChanged ? { notFoundChanged } : {}) };
 }
 
 export function qualificationMatches(q, sourceSha, runtimeKey) {
@@ -167,10 +197,11 @@ export async function checkQualifiedSource(q, site) {
   if (actual.sha256 !== digest(sourceFiles)) throw new Error('Program source no longer matches its qualification');
 }
 
-export function cachedWebsite(stateDir, q) {
+export function cachedWebsite(stateDir, q, publishRoot) {
   try {
     const record = JSON.parse(readFileSync(path.join(stateDir, 'verified-website.json'), 'utf8'));
-    if (record.sourceSha === q.sourceSha && record.runtimeKey === q.runtimeKey && validManifest(record.website)) return record.website;
+    if (record.sourceSha === q.sourceSha && record.runtimeKey === q.runtimeKey && validManifest(record.website)
+      && (!publishRoot || artifactManifest(path.join(publishRoot, 'current')).sha256 === record.website.sha256)) return record.website;
   } catch { /* No prior successful content check: use the image qualification baseline. */ }
   return q.website;
 }

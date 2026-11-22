@@ -372,13 +372,17 @@ async function main() {
           skipped: ['已验证的相同内容构建与页面检查'], impact: { reused: true, routes: [] } };
         await flushCheck({ step: 'gates', title: '复用已验证的相同内容', status: 'ok' });
       } else {
+        const previousWebsite = qualification ? cachedWebsite(stateDir, qualification, options.publishRoot) : null;
+        const previousDist = qualification ? path.join(
+          previousWebsite === qualification.website ? qualification.root : options.publishRoot,
+          previousWebsite === qualification.website ? 'artifact' : 'current',
+        ) : null;
         gates = await runGates(site, options.mode, commandOptions, { changeTier, sourceUnchanged, qualification,
-          previousWebsite: qualification ? cachedWebsite(stateDir, qualification) : null });
+          previousWebsite, previousDist });
       }
       if (!gates.ok) { await flushCheck({ step: 'gates', title: gates.gate ?? '发布门', status: 'failed', output: redact(gates.tail ?? '').slice(-4000) }); throw new Error(`门未通过(${gates.gate})：${redact(gates.tail).slice(-5000)}`); }
       assertDigest(path.join(site, 'dist'), gates.artifact?.sha256, { exclude: ['admin', '.publish-stamp.json'] });
       writeEvidence({ websiteArtifact: gates.artifact, changeTier, gateSkipped: gates.skipped ?? [], impact: gates.impact ?? null });
-      if (qualification && gates.website) atomicJson(path.join(stateDir, 'verified-website.json'), { sourceSha, runtimeKey, website: gates.website });
       if ((gates.skipped ?? []).length === 0) {
         try { writeFileSync(gateCachePath, JSON.stringify({ sourceSha, versionId: job.versionId, at: new Date().toISOString() })); }
         catch { /* 指纹落盘失败不影响本次发布,下次自动回全量 */ }
@@ -456,6 +460,10 @@ async function main() {
         }
       }
       published = true;
+      if (qualification && gates.website) {
+        try { atomicJson(path.join(stateDir, 'verified-website.json'), { sourceSha, runtimeKey, website: gates.website }); }
+        catch (error) { log(`已发布，页面基线未写入：${error.message}`); }
+      }
       writeEvidence({ status: 'published', finishedAt: new Date().toISOString(), output: commandTail });
       log(`v${job.versionId} ${options.mode === 'local' ? '本地快照' : '公网部署'}已由服务端核实`);
       clear(); return true;

@@ -1,7 +1,11 @@
 #!/bin/sh
 set -eu
 kind="${1:?api, publisher or qualify required}"
-image="$(cat /etc/uvel/image)"
+image_file=/etc/uvel/image
+if [ "$kind" != api ] && [ -f /etc/uvel/publisher-image ]; then
+  image_file=/etc/uvel/publisher-image
+fi
+image="$(cat "$image_file")"
 case "$image" in uvel-admin:*) ;; *) echo 'Invalid pinned UVEL image' >&2; exit 1;; esac
 case "$kind" in
   api)
@@ -18,7 +22,7 @@ case "$kind" in
     else
       set -- --env-file /etc/uvel/publisher.env "$image" node --no-maglev --import ./worker/register-ts-ext.mjs worker/runner.mjs
     fi
-    exec docker run --rm --init --name "$name" --network host --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 768 --memory 6g --cpus 2 --shm-size 512m \
+    exec docker run --rm --init --name "$name" --network host --read-only --cap-drop ALL --security-opt no-new-privileges --pids-limit 768 --memory 12g --cpus 4 --shm-size 512m \
       --log-opt max-size=10m --log-opt max-file=3 --tmpfs /tmp:rw,nosuid,nodev,size=512m,uid=10001,gid=10001 \
       --tmpfs /app/node_modules/.vite-temp:rw,size=64m,uid=10001,gid=10001 \
       --tmpfs /app/node_modules/.astro:rw,size=128m,uid=10001,gid=10001 \

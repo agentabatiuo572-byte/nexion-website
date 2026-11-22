@@ -29,7 +29,7 @@ export function npmCommand() {
 export async function runNpm(args, options) {
   const npm = npmCommand();
   const script = args[0] === 'run' ? args[1] : args[0];
-  const labels = { types: '生成后台接口类型', typecheck: path.basename(options?.cwd || '') === 'worker' ? '检查后台类型' : '检查官网类型', build: '构建官网页面', verify: '检查官网内容、交互和页面布局', 'verify:prod': '检查官网内容、交互、页面布局和上线条件', 'test:publisher': '检查发布器故障恢复', 'build:console': '构建后台并组装发布包' };
+  const labels = { types: '生成后台接口类型', typecheck: path.basename(options?.cwd || '') === 'worker' ? '检查后台类型' : '检查官网类型', build: '构建官网页面', verify: '检查官网内容、交互和页面布局', 'verify:prod': '检查官网内容、交互、页面布局和上线条件', 'test:publisher:e2e': '检查发布器故障恢复', 'build:console': '构建后台并组装发布包' };
   await options?.onProgress?.(labels[script] || `执行检查：${script}`);
   return runCommand(npm.command, [...npm.prefix, ...args], options);
 }
@@ -118,6 +118,7 @@ export function websiteVerificationTimeout(mode, pageCount, explicitTimeout) {
 /** options.changeTier='content-only' 且 options.sourceUnchanged 时走增量:复用源码运行时检查,
    返回的 skipped 如实记录跳过的门(审计/证据可查,不冒充通过)。缺省全量。 */
 export async function runGates(site, mode, commandOptions = {}, options = {}) {
+  const aws = mode === 'aws';
   const qualified = !!options.qualification || options.codeAlreadyQualified === true;
   const incremental = qualified || (options.changeTier === 'content-only' && options.sourceUnchanged === true);
   const skipped = [];
@@ -171,7 +172,7 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   assertDigest(path.join(site, 'dist'), artifact.sha256);
   if (incremental) {
     skipped.push(INCREMENTAL_SKIPPED_PUBLISHER_TEST);
-    await commandOptions.onProgress?.(`跳过检查:${INCREMENTAL_SKIPPED_PUBLISHER_TEST}(文案改动且源码未变,复用上次全量结论)`);
+    await commandOptions.onProgress?.(`跳过检查:${INCREMENTAL_SKIPPED_PUBLISHER_TEST}(程序输入未变,复用已通过的检查)`);
     await commandOptions.onCheck?.({ step: 'gates', title: INCREMENTAL_SKIPPED_PUBLISHER_TEST, status: 'skipped' });
   } else {
     await commandOptions.onCheck?.({ step: 'gates', title: 'publisher-故障回归', status: 'running' });
@@ -184,9 +185,12 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   // Reused code checks never replace checks of the current content artifact.
   await rm(path.join(site, '.verify-exit.code'), { force: true });
   const verifyArgs = ['run', ['production', 'aws'].includes(mode) ? 'verify:prod' : 'verify', '--', '--built-dist-sha', artifact.sha256, '--fail-fast'];
-  const website = artifactManifest(path.join(site, 'dist'));
-  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website) : null;
+  if (aws) verifyArgs.push('--aws-release');
+  const dist = path.join(site, 'dist');
+  const website = artifactManifest(dist);
+  const impact = options.qualification ? affectedRoutes(options.previousWebsite, website, dist, options.previousDist) : null;
   if (impact && !impact.full) verifyArgs.push('--routes', impact.routes.join(','));
+  if (impact?.full || impact?.notFoundChanged) verifyArgs.push('--check-not-found');
   if (options.qualification) verifyArgs.push('--qualified-code', options.qualification.root);
   if (impact) await commandOptions.onProgress?.(`${impact.reason}：${impact.routes.length} 个页面`);
   const checkedPages = impact && !impact.full && impact.routes.length
@@ -197,5 +201,6 @@ export async function runGates(site, mode, commandOptions = {}, options = {}) {
   const verdict = await verifyExit(site, verified);
   if (!verdict.ok) return verdict;
   assertDigest(path.join(site, 'dist'), artifact.sha256);
-  return { ok: true, gate: null, tail: impact ? `发布门已通过，检查 ${impact.routes.length} 个受影响页面` : incremental ? `发布门已通过(增量:跳过 ${skipped.length} 项源码静态门,版面门全量实测)` : '所有发布门已通过', artifact, skipped, website, impact };
+  const tail = impact ? `发布门已通过，检查 ${impact.routes.length} 个受影响页面` : incremental ? `发布门已通过(增量:跳过 ${skipped.length} 项源码静态门,版面门全量实测)` : '发布范围内的检查已通过';
+  return { ok: true, gate: null, tail, artifact, skipped, website, impact };
 }
