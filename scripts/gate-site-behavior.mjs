@@ -600,10 +600,10 @@ try {
   check('H03 Legal 原始 HTML 不执行', (await page.locator('main.legal script').count()) === 0 && (await page.evaluate(() => window.bad)) === undefined);
   check('H03 Legal javascript 链接不生成', (await page.locator('main.legal a[href^="javascript:"]').count()) === 0);
 
-  for (const [url, expected] of [
-    [coreUrl, { ios: '', android: '', h5: fixtureTargets.h5 }],
-    [elevenUrl, { ios: eleven.downloads.ios.url, android: fixtureTargets.android, h5: '' }],
-  ]) {
+  const downloadVariants = [[coreUrl, core.downloads], [elevenUrl, eleven.downloads]];
+  const sampleTargets = new Set(downloadVariants.flatMap(([, entries]) => Object.values(entries).map(entry => entry.url)));
+  for (const [url, entries] of downloadVariants) {
+    const expected = Object.fromEntries(Object.entries(entries).map(([platform, entry]) => [platform, entry.enabled ? entry.url : '']));
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     const cardUrls = await page.locator('[data-distribution-card]').evaluate(card => JSON.parse(card.dataset.urls));
     check('M11 下载地址仅来自已发布的有效平台配置',
@@ -616,9 +616,15 @@ try {
         check(`M11 ${group} ${platform} 地址`, await link.getAttribute('href') === (target || null));
       }
     }
+    for (const [platform, target] of Object.entries(expected)) {
+      const option = page.locator(`[data-distribution-option="${platform}"]`);
+      check(`M11 下载弹窗 ${platform} 地址`, await option.getAttribute('href') === (target || null));
+    }
     check('M11 主页导航没有重复的 Web App 入口', await page.locator('.site-nav [data-download-entry="h5"]').count() === 0);
-    check('M11 页面不提供旧环境或签商链接',
-      await page.locator('a[href*="OLD_"], a[href*="signing.example.test"], a[href^="/api/app-download/"]').count() === 0);
+    const hrefs = await page.locator('a[href]').evaluateAll(links => links.map(link => link.getAttribute('href')));
+    const unexpected = hrefs.filter(href => (sampleTargets.has(href) || href.includes('OLD_') || href.startsWith('/api/app-download/'))
+      && !Object.values(expected).includes(href));
+    check('M11 页面不提供未配置或已关闭的下载地址', unexpected.length === 0, unexpected.join(', '));
   }
 
   const expiredContext = await browser.newContext({ reducedMotion: 'reduce' });
