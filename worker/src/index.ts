@@ -6,7 +6,7 @@ import { authRoutes, requireAuth, timingSafeEqualHex } from './auth';
 import { aiRoutes } from './ai-routes';
 import { getAiConnectionState } from './ai-connection';
 import { translationsRoutes, drainTranslations } from './translations';
-import { configRoutes, probeDownloads } from './config';
+import { configRoutes } from './config';
 import { dashRoutes } from './dash';
 import { bypassExchange, geoMiddleware, geoRoutes } from './geo';
 import { gateMiddleware, gateRoutes } from './gate-middleware';
@@ -198,8 +198,6 @@ const CRON_JOBS: Record<string, (env: Env) => Promise<void>> = {
   },
   // 每日 00:10 UTC:汇总昨日 + 原始事件 90 天滚动清理(PRD §5.3)
   '10 0 * * *': (env) => dailyJob(env),
-  // 每 6 小时:下载链接探活巡检(PRD CON03-③;结果落 probe_status,连续 2 次失败在驾驶舱红条)
-  '0 */6 * * *': (env) => probeDownloads(env, true).then(() => {}),
 };
 
 const worker = {

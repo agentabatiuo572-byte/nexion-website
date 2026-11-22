@@ -18,7 +18,7 @@ const base = {
   assets: { directory: '../dist-live', binding: 'ASSETS', run_worker_first: true, not_found_handling: '404-page' },
   d1_databases: [{ binding: 'DB', database_name: 'nexgrid_site', database_id: '00000000-0000-0000-0000-000000000000', migrations_dir: 'migrations' }],
   kv_namespaces: [{ binding: 'KV', id: 'local-dev-placeholder' }],
-  triggers: { crons: ['10 0 * * *', '0 */6 * * *', '* * * * *'] },
+  triggers: { crons: ['10 0 * * *', '* * * * *'] },
   vars: { ENVIRONMENT: 'dev', SETUP_TOKEN: 'do-not-copy-setup', BEACON_SALT: 'do-not-copy-salt', CUSTOM_TOKEN: 'do-not-copy-custom' },
   env: { preview: { vars: { PASSWORD: 'do-not-copy-nested' } } },
 };
@@ -116,8 +116,7 @@ test('the real repository configuration retains all registered crons and binding
   const destination = mkdtempSync(path.join(tmpdir(), 'nexgrid-real-production-'));
   try {
     const { config } = writeProductionConfig({ outputFile: path.join(destination, 'production.json'), env, projectRoot: root });
-    assert.ok(config.triggers.crons.includes('10 0 * * *'));
-    assert.ok(config.triggers.crons.includes('0 */6 * * *'));
+    assert.deepEqual([...config.triggers.crons].sort(), ['* * * * *', '10 0 * * *']);
     assert.equal(config.d1_databases.filter((row) => row.binding === 'DB').length, 1);
     assert.equal(config.kv_namespaces.filter((row) => row.binding === 'KV').length, 1);
   } finally { rmSync(destination, { recursive: true, force: true }); }

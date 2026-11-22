@@ -20,7 +20,7 @@ const started = new Date();
 const output = resolve(process.env.DOWNLOAD_QA_DIR || join(repo, '..', 'qa', `distribution-${started.toISOString().replaceAll(':', '-')}`));
 const match = process.env.DOWNLOAD_TEST_MATCH ? new RegExp(process.env.DOWNLOAD_TEST_MATCH) : null;
 const published = JSON.parse(await readFile(join(process.env.NEXGRID_SITE_FIXTURE_DIR || join(repo, 'src/config'), 'site.json'), 'utf8')).downloads;
-const expectedPublished = Object.fromEntries(Object.keys(fixture).map(platform => [platform, resolveDownloadUrl(published[platform], platform)]));
+const expectedPublished = Object.fromEntries(Object.keys(fixture).map(platform => [platform, resolveDownloadUrl(published[platform])]));
 const deviceProfiles = {
   desktop: { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36', platform: 'Win32', touch: 0, viewport: { width: 1440, height: 1000 } },
   ios: { userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1', platform: 'iPhone', touch: 5, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },

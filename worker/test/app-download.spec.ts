@@ -2,7 +2,7 @@ import { env } from 'cloudflare:test';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { app } from '../src/index';
 
-const ios = 'https://apps.apple.com/app/id123456789';
+const ios = 'https://third-party.example/releases/mobile?channel=website';
 const android = 'https://downloads.example/app.apk';
 const downloads = {
   ios: { enabled: true, url: ios },
@@ -44,7 +44,7 @@ describe('published website app downloads', () => {
     expect((await request()).status).toBe(503);
     for (const entry of [
       { enabled: false, url: ios }, { enabled: true, url: '' }, { enabled: true, url: null },
-      { enabled: true, url: 'https://third-party.example/install' },
+      { enabled: true, url: 'http://third-party.example/install' },
       { enabled: true, url: 'https://user:pass@apps.apple.com/app/id123456789' },
     ]) {
       await addVersion('live', { ios: entry });

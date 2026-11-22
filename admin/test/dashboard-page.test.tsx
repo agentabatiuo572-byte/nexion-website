@@ -83,7 +83,7 @@ const healthy = {
   dims: { sources: [], countries: [], devices: [] },
   content: { pages: [], faq: [], learn: [], sections: [] },
   quality: { latest: null, errors: null, notFound: [], notFoundTotal: null },
-  health: { probes: [], botShare: null, botLegacy: false, botDays: { covered: 0, total: 0 }, blocked: 0, blockedShare: null, blockedTop: [], geo: null, lastPublish: null },
+  health: { botShare: null, botLegacy: false, botDays: { covered: 0, total: 0 }, blocked: 0, blockedShare: null, blockedTop: [], geo: null, lastPublish: null },
 };
 
 it('labels historical token URLs in content and 404 rankings while keeping old and current counts separate', async () => {

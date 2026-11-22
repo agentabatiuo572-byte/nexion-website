@@ -275,23 +275,6 @@ describe('CON03 驾驶舱聚合', () => {
     expect(d2.health.botLegacy).toBe(true);
   });
 
-  it('P1-1 下载探活状态入库并给出红条判据(连续 ≥2 次失败)', async () => {
-    const cookie = await login();
-    const now = Date.now();
-    await env.DB.batch([
-      env.DB.prepare('INSERT INTO probe_status (target,url,ok,status,fail_streak,checked_at) VALUES (?1,?2,?3,?4,?5,?6)').bind('android', 'https://play.example/x', 0, 0, 2, now),
-      env.DB.prepare('INSERT INTO probe_status (target,url,ok,status,fail_streak,checked_at) VALUES (?1,?2,?3,?4,?5,?6)').bind('h5', 'https://app.example', 1, 200, 0, now),
-    ]);
-    const d = await dash(cookie);
-    const byTarget = Object.fromEntries((d.health.probes as Array<{ target: string; alert: boolean; ok: boolean }>).map((p) => [p.target, p]));
-    expect(byTarget.android).toMatchObject({ ok: false, alert: true }); // 连续 2 次 → 红条
-    expect(byTarget.h5).toMatchObject({ ok: true, alert: false });
-    // 单次失败不报红(防抖:商店偶发抖动不该惊动运营)
-    await env.DB.prepare('UPDATE probe_status SET fail_streak = 1 WHERE target = ?1').bind('android').run();
-    const d2 = await dash(cookie);
-    expect((d2.health.probes as Array<{ target: string; alert: boolean }>).find((p) => p.target === 'android')!.alert).toBe(false);
-  });
-
   it('最近发布排除初始种子行(种子不是一次发布)', async () => {
     const cookie = await login();
     await app.request('/api/config', { headers: { cookie } }, env); // 触发种子化

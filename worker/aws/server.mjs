@@ -65,23 +65,21 @@ export function createHttpServer(worker, env, { host = '127.0.0.1', port = 8791 
 }
 
 export function startScheduler(worker, env, ctx, now = () => new Date()) {
-  let lastMinute = ''; let busy = false; let lastDaily = ''; let lastProbe = ''; let inFlight = Promise.resolve();
+  let lastMinute = ''; let busy = false; let lastDaily = ''; let inFlight = Promise.resolve();
   const tick = async () => {
     if (busy) return;
     const date = now(); const key = date.toISOString().slice(0,16);
     if (key === lastMinute) return;
     busy = true; lastMinute = key;
     try {
-      const day = date.toISOString().slice(0,10); const probe = String(Math.floor(date.getTime() / 21_600_000));
+      const day = date.toISOString().slice(0,10);
       const jobs = ['* * * * *'];
-      if (lastProbe !== probe) jobs.push('0 */6 * * *');
       if ((date.getUTCHours() > 0 || date.getUTCMinutes() >= 10) && lastDaily !== day) jobs.push('10 0 * * *');
       await Promise.all(jobs.map(async cron => {
         const work = [];
         await worker.scheduled({ cron, scheduledTime:date.getTime() }, env, { ...ctx, waitUntil(p) { work.push(Promise.resolve(p)); } });
         await Promise.all(work);
         if (cron === '10 0 * * *') lastDaily = day;
-        if (cron === '0 */6 * * *') lastProbe = probe;
       }));
     } finally { busy = false; }
   };

@@ -63,12 +63,12 @@ test('only absolute HTTPS destinations without credentials are accepted', () => 
 
 test('only enabled, explicitly configured destinations are resolved', () => {
   for (const platform of ['ios', 'android', 'h5']) {
-    assert.equal(resolveDownloadUrl({ enabled: false, url: urls[platform] }, platform), '');
-    assert.equal(resolveDownloadUrl({ enabled: false, url: '' }, platform), '');
-    assert.equal(resolveDownloadUrl({ enabled: true, url: urls[platform] }, platform), urls[platform]);
-    assert.equal(resolveDownloadUrl({ enabled: true, url: '  ' }, platform), '');
-    assert.equal(resolveDownloadUrl({ enabled: true, url: '' }, platform), '');
-    assert.equal(resolveDownloadUrl({ enabled: true, url: 'javascript:alert(1)' }, platform), '');
+    assert.equal(resolveDownloadUrl({ enabled: false, url: urls[platform] }), '');
+    assert.equal(resolveDownloadUrl({ enabled: false, url: '' }), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: urls[platform] }), urls[platform]);
+    assert.equal(resolveDownloadUrl({ enabled: true, url: '  ' }), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: '' }), '');
+    assert.equal(resolveDownloadUrl({ enabled: true, url: 'javascript:alert(1)' }), '');
   }
 });
 

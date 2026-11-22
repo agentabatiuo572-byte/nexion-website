@@ -38,7 +38,6 @@ interface Dash {
     blockedTop: Array<{ country: string; hits: number }>;
     geo: { enabled: boolean; countries: number; degraded: boolean } | null;
     lastPublish: { id: number; status: string; fail_reason: string | null } | null;
-    probes: Array<{ target: string; url: string; ok: boolean; status: number; fail_streak: number; checked_at: number; alert: boolean }>;
   }>;
   todayLive: Maybe<{ pv: number; uv: number; cta: number; blocked: number }>;
 }
@@ -320,13 +319,6 @@ function DashboardData({ d, retry }: { d: Dash; retry: () => void }) {
         )}
         {isErr(d.health) ? <ErrCard title="运营健康" onRetry={retry} /> : (
           <Card title="运营健康">
-            {/* P1-1 下载链接定时探活(每 6 小时):连续 2 次失败即红条——官网唯一转化路径挂了必须有人知道 */}
-            {d.health.probes.filter((p) => p.alert).map((p) => (
-              <div className="note bad" key={p.target} style={{ marginTop: 0 }}>
-                {CTA_LABEL[p.target] ?? p.target} 下载链接不可达(连续 {p.fail_streak} 次;最近核验 {new Date(p.checked_at).toLocaleString('zh-CN', { hour12: false })})
-                {' '}<NavLink to="/content/downloads" style={{ color: 'var(--bad)' }}>去处理 <Icon name="arrow-right" size={14} /></NavLink>
-              </div>
-            ))}
             <div className="row" style={{ gap: 20 }}>
               <div>
                 <div className="mono" style={{ fontSize: 'var(--text-heading)', fontWeight: 600 }}>{pct(d.health.botShare)}</div>
@@ -357,10 +349,6 @@ function DashboardData({ d, retry }: { d: Dash; retry: () => void }) {
               <div>
                 <div className="mono" style={{ fontSize: 'var(--text-heading)', fontWeight: 600 }}>{d.health.geo ? (d.health.geo.enabled ? `${d.health.geo.countries} 地区` : '未启用') : '—'}</div>
                 <div className="kv">屏蔽规则 <NavLink to="/geo" style={{ color: 'var(--brand-ink)' }}>详情 <Icon name="arrow-right" size={14} /></NavLink></div>
-              </div>
-              <div>
-                <div className="mono" style={{ fontSize: 'var(--text-heading)', fontWeight: 600 }}>{d.health.probes.length ? `${d.health.probes.filter((p) => p.ok).length}/${d.health.probes.length}` : '—'}</div>
-                <div className="kv">下载链接可达(每 6 小时巡检)</div>
               </div>
             </div>
             {d.health.geo?.degraded && <div className="note bad" style={{ marginBottom: 0 }}>屏蔽规则读取异常,边缘正在用兜底名单 <NavLink to="/geo" style={{ color: 'var(--bad)' }}>去查看 <Icon name="arrow-right" size={14} /></NavLink></div>}

@@ -75,9 +75,9 @@ test('production startup rejects default secrets and noncanonical HTTP origin', 
   assert.doesNotThrow(()=>validateEnvironment(good)); assert.throws(()=>validateEnvironment({...good,SETUP_TOKEN:'dev-setup-token'})); assert.throws(()=>validateEnvironment({...good,PUBLIC_ORIGIN:'http://uvel.ai'}));db.close();
 });
 test('limiter remains bounded without clearing active lock buckets', () => { const limiter=createLimiter(100,1,2); assert.equal(limiter.hit('a',1),false); assert.equal(limiter.hit('b',1),false); assert.equal(limiter.hit('c',1),true); assert.equal(limiter.hit('a',2),true); assert.equal(limiter.hit('c',102),false); });
-test('scheduler catches up daily/probe after startup and awaits jobs on shutdown', async () => {
+test('scheduler catches up daily work after startup and awaits jobs on shutdown', async () => {
   const jobs=[];const stop=startScheduler({async scheduled(event,_env,ctx){ctx.waitUntil(Promise.resolve().then(()=>jobs.push(event.cron)));}}, {}, {}, ()=>new Date('2026-10-16T12:15:00Z'));
-  await stop();assert.deepEqual(jobs.sort(),['* * * * *','0 */6 * * *','10 0 * * *'].sort());
+  await stop();assert.deepEqual(jobs.sort(),['* * * * *','10 0 * * *'].sort());
 });
 test('real draft save/CAS, AWS readiness, single claim and failed publication preserve live', async () => {
   const {db,call}=fixture();const password=randomBytes(24).toString('hex');await call('/api/auth/setup',{token:secret,password});

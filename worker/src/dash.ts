@@ -360,7 +360,7 @@ dashRoutes.get('/', async (c) => {
     };
   });
 
-  // ---- 运营健康:Bot 占比 + 屏蔽 + 下载探活状态(探活由前端按需触发,这里给规则/统计)----
+  // ---- 运营健康:Bot 占比、屏蔽与最近发布----
   const health = await section(async () => {
     /* 🔴 Bot 占比按**请求加权**算(验收 P1-3:此前 AVG(bot_share) 是各日占比的无权重平均,
        实测与真实占比差近 2 倍还印成精确小数)。0004 迁移前的旧行没有分子分母 → 该期间回 null,
@@ -390,10 +390,6 @@ dashRoutes.get('/', async (c) => {
     const lastPublish = await db
       .prepare("SELECT id, status, published_at, fail_reason FROM config_versions WHERE created_by <> 'system' ORDER BY id DESC LIMIT 1")
       .first<{ id: number; status: string; published_at: number | null; fail_reason: string | null }>();
-    // 下载链接定时探活状态(P1-1):连续失败 ≥2 次即红条(CON03-E3)
-    const probes = (
-      await db.prepare('SELECT target, url, ok, status, fail_streak, checked_at FROM probe_status').all<{ target: string; url: string; ok: number; status: number; fail_streak: number; checked_at: number }>()
-    ).results;
     // 被屏蔽占比(P2:面板缺占比):口径同 geo 面板 = 拦截数 ÷(拦截 + 人类 pv)
     const pvForShare = (await db.prepare('SELECT COALESCE(SUM(pv),0) pv FROM daily_traffic WHERE date BETWEEN ?1 AND ?2').bind(from, today).first<{ pv: number }>())!.pv;
     return {
@@ -401,7 +397,6 @@ dashRoutes.get('/', async (c) => {
       blockedShare: blocked + pvForShare > 0 ? blocked / (blocked + pvForShare) : null,
       geo: geo ? { enabled: geo.rules.enabled, countries: geo.rules.countries.length, degraded: geo.degraded } : null,
       lastPublish,
-      probes: probes.map((p) => ({ ...p, ok: p.ok === 1, alert: p.ok !== 1 && p.fail_streak >= 2 })),
     };
   });
 

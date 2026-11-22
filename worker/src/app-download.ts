@@ -19,7 +19,7 @@ appDownloadRoutes.all('/:platform', async (c) => {
       .first<string>('payload');
     if (live) {
       const entry = DownloadEntry.parse(JSON.parse(live).downloads?.[platform]);
-      const target = resolveDownloadUrl(entry, platform);
+      const target = resolveDownloadUrl(entry);
       if (target) return c.redirect(target, 302);
     }
   } catch {
