@@ -312,6 +312,18 @@ const shareArt = contour(77, 12, 640, 400);
     min-height: 0;
     aspect-ratio: auto;
   }
+  .devices:global(.decked) .media img[src^="/devices/uvel-20261125-web/"] {
+    object-position: 85% center;
+  }
+  .devices:global(.decked) .media img[src$="/02-s100.png"] {
+    object-position: right center;
+  }
+  @media (max-width: 1024px) {
+    .devices:global(.decked) .media:has(img[src^="/devices/uvel-20261125-web/"]) .chip {
+      top: 0;
+      padding-block: calc(2 * var(--uc));
+    }
+  }
 
   @media (max-width: 860px) {
     .pin {

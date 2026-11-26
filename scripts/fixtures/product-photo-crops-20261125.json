@@ -1,0 +1,10 @@
+[
+  { "file": "01-cloud-share.png", "variant": "standard", "subject": { "left": 90, "top": 130, "width": 724, "height": 360 } },
+  { "file": "01-cloud-share-wide.png", "variant": "wide", "position": "85% 50%", "subject": { "left": 430, "top": 87, "width": 730, "height": 370 } },
+  { "file": "02-s100.png", "variant": "standard", "subject": { "left": 192, "top": 104, "width": 421, "height": 411 } },
+  { "file": "02-s100-wide.png", "variant": "wide", "position": "100% 50%", "subject": { "left": 629, "top": 90, "width": 429, "height": 395 } },
+  { "file": "04-s300.png", "variant": "standard", "subject": { "left": 232, "top": 129, "width": 449, "height": 397 } },
+  { "file": "04-s300-wide.png", "variant": "wide", "position": "85% 50%", "subject": { "left": 587, "top": 121, "width": 474, "height": 407 } },
+  { "file": "06-rack-p100.png", "variant": "standard", "subject": { "left": 73, "top": 215, "width": 704, "height": 290 } },
+  { "file": "06-rack-p100-wide.png", "variant": "wide", "position": "85% 50%", "subject": { "left": 393, "top": 97, "width": 698, "height": 300 } }
+]

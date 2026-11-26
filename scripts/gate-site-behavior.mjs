@@ -709,7 +709,8 @@ try {
     const cropContext = await browser.newContext({ javaScriptEnabled });
     const cropPage = await cropContext.newPage();
     await cropPage.goto(`${coreUrl}/`, { waitUntil: 'domcontentloaded' });
-    const productCrops = JSON.parse(readFileSync(new URL('./fixtures/product-banner-crops.json', import.meta.url), 'utf8'));
+    const productCrops = ['product-banner-crops.json', 'product-photo-crops-20261125.json']
+      .flatMap(file => JSON.parse(readFileSync(new URL('./fixtures/' + file, import.meta.url), 'utf8')));
     const phoneArt = await cropContext.request.get(`${coreUrl}/devices/phone.webp`);
     check('Phone使用已审阅的平滑边框场景', phoneArt.ok()
       && createHash('sha256').update(await phoneArt.body()).digest('hex') === '2e4413e50cd954680b1190681f288422e471e54b79ac3c480a4ba5094fd6a513');
@@ -753,13 +754,16 @@ try {
         if (!crop) continue;
         const expectedVariant = decked ? 'wide' : 'standard';
         const scale = Math.max(row.width / row.naturalWidth, row.height / row.naturalHeight);
-        const x = (row.width - row.naturalWidth * scale) / 2, y = (row.height - row.naturalHeight * scale) / 2;
+        const position = crop.position ?? '50% 50%';
+        const [horizontal, vertical] = position.split(' ').map(value => parseFloat(value) / 100);
+        const x = (row.width - row.naturalWidth * scale) * horizontal;
+        const y = (row.height - row.naturalHeight * scale) * vertical;
         const box = crop.subject;
         for (const label of row.labels) check('商品不被徽章或序号遮挡',
           label.right <= x + box.left*scale || label.left >= x + (box.left+box.width)*scale
             || label.bottom <= y + box.top*scale || label.top >= y + (box.top+box.height)*scale,
           `${row.file} @${width} js=${javaScriptEnabled}`);
-        check('商品铺满且机身不被裁断', crop.variant === expectedVariant && row.fit === 'cover' && row.position === '50% 50%'
+        check('商品铺满且机身不被裁断', crop.variant === expectedVariant && row.fit === 'cover' && row.position === position
           && x + box.left * scale >= -1 && y + box.top * scale >= -1
           && x + (box.left + box.width) * scale <= row.width + 1 && y + (box.top + box.height) * scale <= row.height + 1,
         `${row.file} @${width} ${motion} js=${javaScriptEnabled}`);
