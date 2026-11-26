@@ -39,7 +39,6 @@ const CANVAS = 1440;      // 设计画布宽
 const CAP = 1920;         // 画布封顶宽
 const SCALE = CAP / CANVAS;
 const WIDTHS = [390, 1024, 1440, 1920, 2560];
-const SEAM = []; // R43:断点由产物 CSS 动态读出,此处不再写死(旧值是死代码,却被写进成功行)
 const MIN_FONT = 11;      // 画布制下可见文字渲染字号下限
 const MIN_TAP = 44;       // 画布像素
 const MIN_SAMPLES = 24;
@@ -220,11 +219,14 @@ const conform = (a, b, want) => {
    此前六轮「零溢出 / 居中」全在隐藏滚动条下量的,100vw 与可用宽差的那 15px 从未进过门。 */
 browser = await chromium.launch({ ignoreDefaultArgs: ['--hide-scrollbars'] });
 const fails = [];
-const pages = {};
-for (const w of [...WIDTHS, ...SEAM]) pages[w] = pages[w] || (await browser.newPage({ viewport: { width: w, height: 1000 } }));
 const load = async (w, route) => {
-  await pages[w].goto(base + route, { waitUntil: 'load' });
-  return pages[w].evaluate(readAll);
+  const page = await browser.newPage({ viewport: { width: w, height: 1000 } });
+  try {
+    await page.goto(base + route, { waitUntil: 'load' });
+    return await page.evaluate(readAll);
+  } finally {
+    await page.close();
+  }
 };
 
 let minSample = Infinity;
@@ -287,9 +289,6 @@ const seamW = [...bps].sort((a, b) => a - b);
 if (!seamW.length) fails.push('G 连续:产物 CSS 里一个桌面断点都没读到 —— 判据无对象,不许算过');
 for (const route of scopedSeam) {
   for (const bp of seamW) {
-    for (const w of [bp - 1, bp, bp + 1]) {
-      if (!pages[w]) pages[w] = await browser.newPage({ viewport: { width: w, height: 1000 } });
-    }
     const s = {};
     for (const w of [bp - 1, bp, bp + 1]) s[w] = await load(w, route);
     for (const [a, b] of [[bp - 1, bp], [bp, bp + 1]]) {
